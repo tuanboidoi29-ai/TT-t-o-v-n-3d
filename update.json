@@ -1,7 +1,7 @@
 {
   "name": "TT - tạo ván -Trần Tuấn",
-  "version": "1.0.1",
-  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.0.1_LockedVision.rbz",
-  "sha256": "8dc5b34eef922fcba999783bb6a409a8c2cc5cbc3134e5e96efcb96994bfd8c3",
-  "notes": "TT - Tạo ván Vision 1.0.1 - Locked Vision"
+  "version": "1.0.2",
+  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.0.2_Box_Preview3D.rbz",
+  "sha256": "3b8ac2b078b8581cfcb9cc2eafee5cda412d2583f7134b6e22bd12adb91eec4b",
+  "notes": "Vision 1.0.2 - Tạo Box + Preview 3D + Khung không mặt"
 }
