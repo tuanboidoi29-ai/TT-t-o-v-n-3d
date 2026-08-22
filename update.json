@@ -1,7 +1,7 @@
 {
   "name": "TT - tạo ván -Trần Tuấn",
   "version": "1.0.2",
-  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.0.2_Box_Preview3D.rbz",
-  "sha256": "3b8ac2b078b8581cfcb9cc2eafee5cda412d2583f7134b6e22bd12adb91eec4b",
-  "notes": "Vision 1.0.2 - Tạo Box + Preview 3D + Khung không mặt"
+  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.0.2_VisionUpdate_Fix2.rbz",
+  "sha256": "d8923d56ca5e94544d2b845f7f217f0a8d95d7600f0f145ec2effea67fafdc9b",
+  "notes": "Vision 1.0.2 - Tạo Box + Preview 3D + Khung không mặt + Vision Update Fix2"
 }
