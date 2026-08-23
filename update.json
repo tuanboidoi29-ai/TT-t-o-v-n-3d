@@ -1,7 +1,7 @@
 {
   "name": "TT - tạo ván -Trần Tuấn",
-  "version": "1.0.4",
-  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.0.4_XuatChiTietVan.rbz",
-  "sha256": "7e6bab89ed3fd881479c93abedf2612864a462b66af302a52a60e47cc083a4f2",
-  "notes": "Vision 1.0.4 - thêm Xuất chi tiết ván + icon; giữ Tạo Ván, Tạo Box, Preview 3D và Cập nhật Vision; không có Bo Cong"
+  "version": "1.0.5",
+  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.0.5_HotUpdate_MenuIcon.rbz",
+  "sha256": "5296bdcfc7dff2fe1bf30a80a16f20b4fda27fd9f489f6cab7b9dd1ca29caeb4",
+  "notes": "Vision 1.0.5 - sửa Hot Update để sau cập nhật tự tạo/bổ sung Menu + Toolbar + Icon mới; giữ Xuất chi tiết ván, Tạo Ván, Tạo Box; không có Bo Cong"
 }
