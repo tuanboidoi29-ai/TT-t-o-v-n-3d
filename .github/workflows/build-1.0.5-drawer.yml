@@ -4,6 +4,10 @@ on:
   push:
     paths:
       - '.github/workflows/build-1.0.5-drawer.yml'
+      - 'release_1.0.5/TT_TaoVan/drawer.rb'
+      - 'TT_TaoVan_1.0.5_HotUpdate_MenuIcon.rbz'
+      - 'update.json'
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -15,7 +19,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Build RBZ from current 1.0.5 HotUpdate
+      - name: Build clean RBZ from current 1.0.5
         shell: bash
         run: |
           set -euo pipefail
@@ -23,80 +27,9 @@ jobs:
           mkdir -p build_tt/pkg
           curl -fsSL 'https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.0.5_HotUpdate_MenuIcon.rbz' -o build_tt/base.rbz
           unzip -q build_tt/base.rbz -d build_tt/pkg
-
-          cat > build_tt/pkg/TT_TaoVan/drawer.rb <<'RUBY'
-          # TT - Tạo Ngăn Kéo - 1.0.5
-          module TT_TaoNganKeo
-            ICON_DIR = File.join(File.dirname(__FILE__), 'icons')
-            def self.create
-              prompts = ['Rộng phủ bì (mm)', 'Sâu phủ bì (mm)', 'Cao (mm)', 'Dày ván (mm)', 'Khe hở bên (mm)', 'Khe hở trước/sau (mm)', 'Dày đáy (mm)']
-              defaults = [600, 450, 150, 18, 2, 2, 6]
-              values = UI.inputbox(prompts, defaults, 'TT - Tạo ngăn kéo tùy chỉnh')
-              return unless values
-              w,d,h,t,gap,gapf,bottom = values.map(&:to_f)
-              if [w,d,h,t,bottom].any? { |x| x <= 0 }
-                UI.messagebox('Thông số phải lớn hơn 0.')
-                return
-              end
-              if w <= 2*t + 2*gap || d <= 2*t + 2*gapf || h <= t + bottom
-                UI.messagebox('Kích thước không đủ để tạo ngăn kéo.')
-                return
-              end
-              model = Sketchup.active_model
-              model.start_operation('TT - Tạo ngăn kéo', true)
-              begin
-                mm = ->(x) { x.mm }
-                W,D,H,T,G,GF,B = [w,d,h,t,gap,gapf,bottom].map { |x| mm.call(x) }
-                root = model.entities.add_group
-                root.name = 'TT - Ngăn kéo'
-                e = root.entities
-                add_board = lambda do |name, x, y, z, sx, sy, sz|
-                  g = e.add_group
-                  g.name = name
-                  pts = [Geom::Point3d.new(x,y,z), Geom::Point3d.new(x+sx,y,z), Geom::Point3d.new(x+sx,y+sy,z), Geom::Point3d.new(x,y+sy,z)]
-                  f = g.entities.add_face(pts)
-                  f.reverse! if f.normal.z < 0
-                  f.pushpull(sz)
-                  g
-                end
-                # Đáy: đặt lọt giữa bốn thành
-                add_board.call('Đáy', T+G, T+GF, 0, W-2*T-2*G, D-2*T-2*GF, B)
-                add_board.call('Hông trái', 0, 0, B, T, D, H-B)
-                add_board.call('Hông phải', W-T, 0, B, T, D, H-B)
-                add_board.call('Mặt trước', T, 0, B, W-2*T, T, H-B)
-                add_board.call('Mặt sau', T, D-T, B, W-2*T, T, H-B)
-                root.set_attribute('TT_TaoNganKeo', 'width_mm', w)
-                root.set_attribute('TT_TaoNganKeo', 'depth_mm', d)
-                root.set_attribute('TT_TaoNganKeo', 'height_mm', h)
-                root.set_attribute('TT_TaoNganKeo', 'thickness_mm', t)
-                model.selection.clear
-                model.selection.add(root)
-                model.commit_operation
-              rescue => err
-                model.abort_operation
-                UI.messagebox("Không thể tạo ngăn kéo:\n#{err.message}")
-              end
-            end
-          end
-
-          unless defined?($tt_tao_ngan_keo_loaded)
-            $tt_tao_ngan_keo_loaded = true
-            cmd = UI::Command.new('TT - Tạo Ngăn Kéo') { TT_TaoNganKeo.create }
-            cmd.tooltip = 'TT - Tạo Ngăn Kéo'
-            cmd.status_bar_text = 'Tạo ngăn kéo theo thông số tùy chỉnh'
-            small = File.join(ICON_DIR, 'tao_ngan_keo_16.png')
-            large = File.join(ICON_DIR, 'tao_ngan_keo_32.png')
-            cmd.small_icon = small if File.exist?(small)
-            cmd.large_icon = large if File.exist?(large)
-            menu = UI.menu('Extensions')
-            menu.add_item(cmd)
-            toolbar = UI::Toolbar.new('TT - Tạo Ngăn Kéo')
-            toolbar.add_item(cmd)
-            toolbar.show
-          end
-          RUBY
-
+          test -f build_tt/pkg/TT_TaoVan/drawer.rb
           mkdir -p build_tt/pkg/TT_TaoVan/icons
+          cp release_1.0.5/TT_TaoVan/drawer.rb build_tt/pkg/TT_TaoVan/drawer.rb
           python3 - <<'PY'
           from PIL import Image, ImageDraw
           from pathlib import Path
@@ -109,8 +42,6 @@ jobs:
               d.line((n*.25,int(n*.68),n*.75,int(n*.68)),fill=(255,255,255,255),width=max(1,n//12))
               im.save(p/f'tao_ngan_keo_{n}.png')
           PY
-
-          # Load the new drawer module from the existing main loader without replacing the old system.
           python3 - <<'PY'
           from pathlib import Path
           candidates=[Path('build_tt/pkg/tt_tao_van.rb'), Path('build_tt/pkg/TT_TaoVan.rb')]
@@ -118,22 +49,20 @@ jobs:
           if not target:
               for p in Path('build_tt/pkg').glob('*.rb'):
                   s=p.read_text(errors='ignore')
-                  if 'SketchupExtension' in s or 'TT_TaoVan' in s:
+                  if 'TT_TaoVan' in s:
                       target=p; break
           if not target: raise SystemExit('Không tìm thấy loader Ruby của plugin')
-          s=target.read_text(encoding='utf-8', errors='ignore')
+          s=target.read_text(encoding='utf-8',errors='ignore')
           line="\nload File.join(File.dirname(__FILE__), 'TT_TaoVan', 'drawer.rb') unless defined?($tt_tao_ngan_keo_loaded)\n"
-          if 'drawer.rb' not in s:
+          if 'TT_TaoVan/drawer.rb' not in s and "'drawer.rb'" not in s:
               target.write_text(s.rstrip()+line,encoding='utf-8')
           print('Patched loader:',target)
           PY
-
-          # Keep version metadata at 1.0.5 and package.
-          rm -f TT_TaoVan_1.0.5_HotUpdate_MenuIcon.rbz
+          rm -f TT_TaoVan_1.0.5_TaoNganKeo.rbz
           (cd build_tt/pkg && zip -qr ../../TT_TaoVan_1.0.5_TaoNganKeo.rbz .)
+          unzip -t TT_TaoVan_1.0.5_TaoNganKeo.rbz >/dev/null
           sha=$(sha256sum TT_TaoVan_1.0.5_TaoNganKeo.rbz | awk '{print $1}')
           echo "RBZ_SHA=$sha" >> "$GITHUB_ENV"
-          echo "RBZ_SIZE=$(stat -c%s TT_TaoVan_1.0.5_TaoNganKeo.rbz)" >> "$GITHUB_ENV"
 
       - name: Publish RBZ and update.json
         shell: bash
@@ -144,16 +73,14 @@ jobs:
           git add TT_TaoVan_1.0.5_TaoNganKeo.rbz
           git commit -m 'Release TT Tạo Ván 1.0.5 - Tạo Ngăn Kéo' || true
           python3 - <<'PY'
-          import json, os
+          import json,os
           from pathlib import Path
-          p=Path('update.json')
-          obj=json.loads(p.read_text(encoding='utf-8'))
+          p=Path('update.json'); obj=json.loads(p.read_text(encoding='utf-8'))
           obj['version']='1.0.5'
           obj['rbz_url']='https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.0.5_TaoNganKeo.rbz'
           obj['sha256']=os.environ['RBZ_SHA']
-          obj['notes']='Vision 1.0.5 - Tạo Ngăn Kéo tùy chỉnh; giữ Tạo Ván, Tạo Box, Xuất chi tiết ván; tự bổ sung Menu + Toolbar + Icon; không có Bo Cong'
+          obj['notes']='Vision 1.0.5 - Tạo Ngăn Kéo: TAB chuyển Tự động 2 điểm / Thủ công; preview 3D; Menu + Icon.'
           p.write_text(json.dumps(obj,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
-          print('SHA:',os.environ['RBZ_SHA'],'SIZE:',os.environ['RBZ_SIZE'])
           PY
           git add update.json
           git commit -m 'Update Vision manifest for 1.0.5 Tạo Ngăn Kéo' || true
