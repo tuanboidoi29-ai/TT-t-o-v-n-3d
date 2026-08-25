@@ -1,13 +1,14 @@
-# TT automatic release builder
+# TT manual release builder
 name: Publish TT 1.0.5 RBZ
 on:
-  push:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
 jobs:
   publish:
-    if: github.event.head_commit.message != 'Publish TT 1.0.5 Drawer RBZ'
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
       - uses: actions/checkout@v4
       - name: Build clean RBZ and design icons
@@ -29,17 +30,13 @@ jobs:
           from pathlib import Path
           out=Path('release_build/TT_TaoVan/icons')
           labels={'tao_van':'V','tao_box':'B','tao_ngan_keo':'K','xuat_chi_tiet':'X','cap_nhat':'U'}
-          try: font=ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',22)
-          except: font=None
           for name,label in labels.items():
             for size in (16,32):
               im=Image.new('RGBA',(size,size),(0,0,0,0)); d=ImageDraw.Draw(im); p=max(1,size//10)
               d.rounded_rectangle((p,p,size-p,size-p),radius=max(2,size//6),fill=(230,230,230,255),outline=(60,60,60,255),width=max(1,size//16))
-              d.rounded_rectangle((p+3,int(size*.32),size-p-3,int(size*.80)),radius=max(1,size//10),fill=(165,165,165,255),outline=(70,70,70,255),width=max(1,size//16))
-              f=font
-              if size==16:
-                try: f=ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',11)
-                except: f=None
+              f=None
+              try: f=ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',11 if size==16 else 22)
+              except: pass
               box=d.textbbox((0,0),label,font=f); tw=box[2]-box[0]; th=box[3]-box[1]
               d.text(((size-tw)/2,(size-th)/2-1),label,font=f,fill=(255,128,0,255))
               im.save(out/f'{name}_{size}.png')
@@ -58,7 +55,7 @@ jobs:
           data['version']='1.0.5'
           data['rbz_url']='https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.0.5_TaoNganKeo.rbz'
           data['sha256']=sha
-          data['notes']='Vision 1.0.5 - Tạo Ngăn Kéo tùy chỉnh; Menu + Toolbar + Icon riêng; giữ Tạo Ván, Tạo Box, Xuất chi tiết ván; Hot Update không cần cài RBZ thủ công.'
+          data['notes']='Vision 1.0.5 - Tạo Ngăn Kéo tùy chỉnh; CHẾ ĐỘ CHỜ; TAB chuyển Tự động 2 điểm / Thủ công; Preview 3D; Menu + Toolbar + Icon.'
           p.write_text(json.dumps(data,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
           PY
       - name: Publish
@@ -66,5 +63,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add TT_TaoVan_1.0.5_TaoNganKeo.rbz update.json
-          git commit -m "Publish TT 1.0.5 Drawer RBZ"
+          git commit -m "Publish TT 1.0.5 Drawer RBZ" || true
           git push
