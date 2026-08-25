@@ -79,3 +79,5 @@ jobs:
           git add TT_TaoVan_1.1.3_TaoNganKeo.rbz update.json
           git commit -m 'Release TT Tạo Ngăn Kéo 1.1.3 - remove legacy drawer UI' || true
           git push
+
+# Trigger rebuild after verifying the release workflow.
