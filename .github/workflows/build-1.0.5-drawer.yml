@@ -5,7 +5,7 @@ on:
     paths:
       - '.github/workflows/build-1.0.5-drawer.yml'
       - 'release_1.0.5/TT_TaoVan/drawer.rb'
-      - 'TT_TaoVan_1.0.5_HotUpdate_MenuIcon.rbz'
+      - 'TT_TaoVan_1.0.5_TaoNganKeo.rbz'
       - 'update.json'
   workflow_dispatch:
 
@@ -19,13 +19,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Build clean RBZ from current 1.0.5
+      - name: Build clean RBZ from last valid 1.0.5 RBZ
         shell: bash
         run: |
           set -euo pipefail
           rm -rf build_tt
           mkdir -p build_tt/pkg
-          curl -fsSL 'https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.0.5_HotUpdate_MenuIcon.rbz' -o build_tt/base.rbz
+          curl -fsSL 'https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.0.5_TaoNganKeo.rbz' -o build_tt/base.rbz
           unzip -q build_tt/base.rbz -d build_tt/pkg
           test -f build_tt/pkg/TT_TaoVan/drawer.rb
           mkdir -p build_tt/pkg/TT_TaoVan/icons
