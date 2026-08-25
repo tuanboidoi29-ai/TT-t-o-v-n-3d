@@ -3,6 +3,14 @@ module TranTuan
     module Drawer
       module_function
 
+      def mm(v)
+        v.to_f.mm
+      end
+
+      def mm_text(v, decimals=1)
+        format("%0.#{decimals}f mm", v.to_f)
+      end
+
       def start
         Sketchup.active_model.select_tool(TwoPointTool.new)
       end
@@ -36,8 +44,8 @@ module TranTuan
           @preview=@p1 ? [@p1,p] : [p]
           view.invalidate
           if @p1
-            h=(@p1.z-p.z).abs.to_mm
-            Sketchup.set_status_text("TỰ ĐỘNG 2 ĐIỂM | ĐIỂM 1: MẶT TRÊN → ĐIỂM 2: ĐÁY | Cao: #{h.round(1)} mm | TAB = THỦ CÔNG",SB_VCB_LABEL)
+            h=(@p1.z-p.z).to_mm.abs
+            Sketchup.set_status_text("TỰ ĐỘNG 2 ĐIỂM | ĐIỂM 1: MẶT TRÊN → ĐIỂM 2: ĐÁY | Cao: #{Drawer.mm_text(h)} | TAB = THỦ CÔNG",SB_VCB_LABEL)
           end
         end
 
@@ -47,11 +55,11 @@ module TranTuan
           view.drawing_color=Sketchup::Color.new(255,128,0,255)
           if @manual_mode && @manual_ready && @manual_values
             ox=@manual_origin.x; oy=@manual_origin.y; oz=@manual_origin.z
-            w,d,h=@manual_values[0..2].map{|v| v.mm}
+            w,d,h=@manual_values[0..2].map{|v| Drawer.mm(v)}
             draw_box(view,box_points(ox,oy,oz,w,d,h)); return
           end
           if @preview.length==1
-            p=@preview[0]; s=12.mm
+            p=@preview[0]; s=Drawer.mm(12)
             view.draw(GL_LINES,Geom::Point3d.new(p.x-s,p.y,p.z),Geom::Point3d.new(p.x+s,p.y,p.z),Geom::Point3d.new(p.x,p.y-s,p.z),Geom::Point3d.new(p.x,p.y+s,p.z)); return
           end
           a,b=@preview; z0=[a.z,b.z].min; z1=[a.z,b.z].max
@@ -100,12 +108,12 @@ module TranTuan
         def update_status
           if @manual_mode
             if @manual_ready
-              set_waiting_status('THỦ CÔNG','ĐÃ NHẬP THÔNG SỐ → DI CHUỘT ĐỂ XEM PREVIEW → CLICK ĐỂ TẠO')
+              set_waiting_status('THỦ CÔNG','ĐÃ NHẬP THÔNG SỐ (mm) → DI CHUỘT ĐỂ XEM PREVIEW → CLICK ĐỂ TẠO')
             else
-              set_waiting_status('THỦ CÔNG','CLICK VỊ TRÍ ĐẶT → NHẬP THÔNG SỐ | TAB = TỰ ĐỘNG 2 ĐIỂM')
+              set_waiting_status('THỦ CÔNG','CLICK VỊ TRÍ ĐẶT → NHẬP THÔNG SỐ (mm) | TAB = TỰ ĐỘNG 2 ĐIỂM')
             end
           else
-            set_waiting_status('TỰ ĐỘNG 2 ĐIỂM','CLICK 1 = MẶT TRÊN → CLICK 2 = ĐÁY | TAB = THỦ CÔNG')
+            set_waiting_status('TỰ ĐỘNG 2 ĐIỂM','CLICK 1 = MẶT TRÊN → CLICK 2 = ĐÁY | KÍCH THƯỚC: mm | TAB = THỦ CÔNG')
           end
         end
 
@@ -132,7 +140,7 @@ module TranTuan
           if z_top <= z_bottom
             UI.messagebox('Sai thứ tự: ĐIỂM 1 phải ở MẶT TRÊN và ĐIỂM 2 phải ở ĐÁY.'); reset; return
           end
-          h=(z_top-z_bottom).to_mm
+          h=(z_top-z_bottom).to_mm.abs
           if h<=1.0
             UI.messagebox('Chiều cao giữa điểm 1 và điểm 2 phải lớn hơn 1 mm.'); reset; return
           end
@@ -152,10 +160,10 @@ module TranTuan
         def manual_create
           prompts=['Rộng phủ bì (mm)','Sâu phủ bì (mm)','Cao ngăn kéo (mm)','Độ dày ván (mm)','Khe hở trái/phải (mm)','Khe hở trước/sau (mm)','Độ dày đáy (mm)','Đáy cách đáy hông (mm)']
           defaults=[600,450,150,18,2,2,9,0]
-          values=UI.inputbox(prompts,defaults,'TT - Tạo ngăn kéo thủ công'); return unless values
+          values=UI.inputbox(prompts,defaults,'TT - Tạo ngăn kéo thủ công | Đơn vị: mm'); return unless values
           w,d,h,t,gl,gf,bt,bo=values.map(&:to_f)
           unless [w,d,h,t,bt].all?{|v| v.finite? && v>0} && [gl,gf,bo].all?{|v| v.finite? && v>=0}
-            UI.messagebox('Thông số không hợp lệ.'); return
+            UI.messagebox('Thông số không hợp lệ. Tất cả kích thước phải nhập bằng mm.'); return
           end
           @manual_values=[w,d,h,t,gl,gf,bt,bo]; @manual_ready=true; update_status
         end
@@ -168,7 +176,7 @@ module TranTuan
         def create_drawer(model,ox,oy,oz,w,d,h,t,bt,gl,gf,bo=0)
           iw=w-2*t-2*gl; id=d-2*t-2*gf
           if iw<=0 || id<=0 || h<=t
-            UI.messagebox("Kích thước khoang không đủ cho ván #{t.round(1)} mm và khe hở đã nhập."); reset; return
+            UI.messagebox("Kích thước khoang không đủ cho ván #{t.round(1)} mm và khe hở đã nhập. Đơn vị: mm"); reset; return
           end
           model.start_operation('TT - Tạo ngăn kéo',true)
           outer=model.entities.add_group; outer.name='TT - Ngăn kéo'
@@ -178,7 +186,7 @@ module TranTuan
             f.reverse! if f.normal.z<0; f.pushpull(sz); g
           end
           add.call('Đáy',ox+t+gl,oy+t+gf,oz+bo,iw,id,bt); add.call('Hông trái',ox,oy,oz,t,d,h); add.call('Hông phải',ox+w-t,oy,oz,t,d,h); add.call('Mặt trước',ox+t,oy+d-t,oz,iw+2*gl,t,h); add.call('Mặt sau',ox+t,oy,oz,iw+2*gl,t,h)
-          outer.set_attribute('TT_TaoVan','loai','ngan_keo'); outer.set_attribute('TT_TaoVan','tao_bang_2_diem',!@manual_mode); outer.set_attribute('TT_TaoVan','tao_thu_cong',@manual_mode)
+          outer.set_attribute('TT_TaoVan','loai','ngan_keo'); outer.set_attribute('TT_TaoVan','don_vi','mm'); outer.set_attribute('TT_TaoVan','tao_bang_2_diem',!@manual_mode); outer.set_attribute('TT_TaoVan','tao_thu_cong',@manual_mode)
           outer.set_attribute('TT_TaoVan','rong_mm',w); outer.set_attribute('TT_TaoVan','sau_mm',d); outer.set_attribute('TT_TaoVan','cao_mm',h); outer.set_attribute('TT_TaoVan','day_mm',t); outer.set_attribute('TT_TaoVan','day_da_mm',bt)
           model.commit_operation; model.selection.clear; model.selection.add(outer)
           Sketchup.set_status_text("Đã tạo ngăn kéo: #{w.round(1)} × #{d.round(1)} × #{h.round(1)} mm",SB_PROMPT); reset
