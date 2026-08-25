@@ -2,6 +2,6 @@
   "name": "TT - tạo ván -Trần Tuấn",
   "version": "1.0.7",
   "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.0.7_TaoNganKeo.rbz",
-  "sha256": "ddc916dbf3217efd857b06a767533cbe23a17475aa582efeada12feb6900a62b",
+  "sha256": "dccd63a3ccb44d7675d6dcc665bb24bd8063ed53cab57f95c2ddee31473fbeba",
   "notes": "Vision 1.0.7 - Tạo Ngăn Kéo: sửa ngược hướng; kích thước tự động theo trục local của Group/Component; TAB chuyển TỰ ĐỘNG 2 ĐIỂM / THỦ CÔNG ổn định; chuẩn hóa mm; preview 3D; Menu + Icon."
 }
