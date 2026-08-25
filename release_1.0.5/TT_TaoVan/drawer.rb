@@ -62,7 +62,7 @@ module TranTuan
             ox=@manual_origin.x; oy=@manual_origin.y; oz=@manual_origin.z
             w,d,h=@manual_values[0..2].map{|v| v.mm}
             pts=box_points(ox,oy,oz,w,d,h)
-            [[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]].each{|i,j|view.draw(GL_LINES,pts[i],pts[j])}
+            draw_box(view,pts)
             return
           end
 
@@ -83,7 +83,7 @@ module TranTuan
             x0=[a.x,b.x].min; x1=[a.x,b.x].max; y0=[a.y,b.y].min; y1=[a.y,b.y].max
           end
           pts=box_points(x0,y0,z0,x1-x0,y1-y0,z1-z0)
-          [[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]].each{|i,j|view.draw(GL_LINES,pts[i],pts[j])}
+          draw_box(view,pts)
         end
 
         def onLButtonDown(_flags,x,y,view)
@@ -104,6 +104,11 @@ module TranTuan
           if @p1.nil?
             @p1=p
             @container=direct_container(@ip)
+            unless @container
+              UI.messagebox('Điểm 1 phải nằm trên Face thuộc trực tiếp Group/Component của khoang tủ.')
+              reset
+              return
+            end
             Sketchup.set_status_text('ĐIỂM 1 OK → CLICK 2 = ĐÁY | TAB = THỦ CÔNG',SB_PROMPT)
             view.invalidate
           else
@@ -148,6 +153,10 @@ module TranTuan
           ]
         end
 
+        def draw_box(view,pts)
+          [[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]].each{|i,j|view.draw(GL_LINES,pts[i],pts[j])}
+        end
+
         def direct_container(ip)
           path=ip.instance_path
           return nil unless path && path.respond_to?(:to_a)
@@ -157,16 +166,26 @@ module TranTuan
           nil
         end
 
+        def same_container?(a,b)
+          return false unless a && b && a.valid? && b.valid?
+          a.equal?(b) || (a.respond_to?(:persistent_id) && b.respond_to?(:persistent_id) && a.persistent_id==b.persistent_id)
+        end
+
         def create_from_two_points
           model=Sketchup.active_model
-          z_top=[@p1.z,@p2.z].max; z_bottom=[@p1.z,@p2.z].min
-          h=(z_top-z_bottom).abs.to_mm
-          if h<=1.0
-            UI.messagebox('Điểm 1 phải ở MẶT TRÊN và điểm 2 ở ĐÁY.')
+          z_top=@p1.z; z_bottom=@p2.z
+          if z_top <= z_bottom
+            UI.messagebox('Sai thứ tự: ĐIỂM 1 phải ở MẶT TRÊN và ĐIỂM 2 phải ở ĐÁY.')
             reset; return
           end
-          unless @container && @container.valid?
-            UI.messagebox('Hãy click điểm 1 và điểm 2 trên cùng Group/Component của khoang tủ để hệ thống tự lấy Rộng + Sâu.')
+          h=(z_top-z_bottom).to_mm
+          if h<=1.0
+            UI.messagebox('Chiều cao giữa điểm 1 và điểm 2 phải lớn hơn 1 mm.')
+            reset; return
+          end
+          c2=direct_container(@ip)
+          unless same_container?(@container,c2)
+            UI.messagebox('Điểm 2 phải nằm trên Face thuộc cùng Group/Component với điểm 1.')
             reset; return
           end
           bb=@container.bounds
