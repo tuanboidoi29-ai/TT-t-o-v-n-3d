@@ -30,6 +30,7 @@ jobs:
           test -f build_tt/pkg/TT_TaoVan/drawer.rb
           mkdir -p build_tt/pkg/TT_TaoVan/icons
           cp release_1.0.5/TT_TaoVan/drawer.rb build_tt/pkg/TT_TaoVan/drawer.rb
+          python3 -m pip install --disable-pip-version-check -q Pillow
           python3 - <<'PY'
           from PIL import Image, ImageDraw
           from pathlib import Path
