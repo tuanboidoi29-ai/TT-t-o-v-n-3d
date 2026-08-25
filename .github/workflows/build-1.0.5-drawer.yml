@@ -5,21 +5,23 @@ on:
     paths:
       - '.github/workflows/build-1.0.5-drawer.yml'
       - 'release_1.0.5/TT_TaoVan/drawer.rb'
-      - 'TT_TaoVan_1.0.5_TaoNganKeo.rbz'
-      - 'update.json'
   workflow_dispatch:
 
 permissions:
   contents: write
+
+concurrency:
+  group: tt-tao-van-105-release
+  cancel-in-progress: false
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
-      - name: Build clean RBZ from last valid 1.0.5 RBZ
+      - name: Build clean RBZ from current valid 1.0.5 RBZ
         shell: bash
         run: |
           set -euo pipefail
@@ -43,36 +45,17 @@ jobs:
               d.line((n*.25,int(n*.68),n*.75,int(n*.68)),fill=(255,255,255,255),width=max(1,n//12))
               im.save(p/f'tao_ngan_keo_{n}.png')
           PY
-          python3 - <<'PY'
-          from pathlib import Path
-          candidates=[Path('build_tt/pkg/tt_tao_van.rb'), Path('build_tt/pkg/TT_TaoVan.rb')]
-          target=next((p for p in candidates if p.exists()), None)
-          if not target:
-              for p in Path('build_tt/pkg').glob('*.rb'):
-                  s=p.read_text(errors='ignore')
-                  if 'TT_TaoVan' in s:
-                      target=p; break
-          if not target: raise SystemExit('Không tìm thấy loader Ruby của plugin')
-          s=target.read_text(encoding='utf-8',errors='ignore')
-          line="\nload File.join(File.dirname(__FILE__), 'TT_TaoVan', 'drawer.rb') unless defined?($tt_tao_ngan_keo_loaded)\n"
-          if 'TT_TaoVan/drawer.rb' not in s and "'drawer.rb'" not in s:
-              target.write_text(s.rstrip()+line,encoding='utf-8')
-          print('Patched loader:',target)
-          PY
+          ruby -c build_tt/pkg/TT_TaoVan/drawer.rb
           rm -f TT_TaoVan_1.0.5_TaoNganKeo.rbz
           (cd build_tt/pkg && zip -qr ../../TT_TaoVan_1.0.5_TaoNganKeo.rbz .)
           unzip -t TT_TaoVan_1.0.5_TaoNganKeo.rbz >/dev/null
           sha=$(sha256sum TT_TaoVan_1.0.5_TaoNganKeo.rbz | awk '{print $1}')
           echo "RBZ_SHA=$sha" >> "$GITHUB_ENV"
 
-      - name: Publish RBZ and update.json
+      - name: Publish RBZ and update manifest
         shell: bash
         run: |
           set -euo pipefail
-          git config user.name 'TT Vision Bot'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add TT_TaoVan_1.0.5_TaoNganKeo.rbz
-          git commit -m 'Release TT Tạo Ván 1.0.5 - Tạo Ngăn Kéo' || true
           python3 - <<'PY'
           import json,os
           from pathlib import Path
@@ -80,9 +63,11 @@ jobs:
           obj['version']='1.0.5'
           obj['rbz_url']='https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.0.5_TaoNganKeo.rbz'
           obj['sha256']=os.environ['RBZ_SHA']
-          obj['notes']='Vision 1.0.5 - Tạo Ngăn Kéo: TAB chuyển Tự động 2 điểm / Thủ công; preview 3D; Menu + Icon.'
+          obj['notes']='Vision 1.0.5 - Tạo Ngăn Kéo: CHẾ ĐỘ CHỜ; hiển thị TỰ ĐỘNG 2 ĐIỂM / THỦ CÔNG; TAB chuyển chế độ; preview 3D; Menu + Icon.'
           p.write_text(json.dumps(obj,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
           PY
-          git add update.json
-          git commit -m 'Update Vision manifest for 1.0.5 Tạo Ngăn Kéo' || true
+          git config user.name 'TT Vision Bot'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add TT_TaoVan_1.0.5_TaoNganKeo.rbz update.json
+          git commit -m 'Release TT Tạo Ván 1.0.5 - Tạo Ngăn Kéo' || true
           git push
