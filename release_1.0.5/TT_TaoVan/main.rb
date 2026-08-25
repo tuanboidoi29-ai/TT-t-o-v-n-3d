@@ -15,8 +15,6 @@ module TranTuan
 
     class << self
       def register_ui
-        return if @ui_registered
-        @ui_registered = true
         icon_dir = File.join(ROOT, 'icons')
         remove_legacy_ui
 
@@ -30,9 +28,11 @@ module TranTuan
         @box_command.status_bar_text = 'Tạo khối Box theo chiều rộng, sâu, cao (mm)'
         set_command_icons(@box_command, 'tao_box_16.png', 'tao_box_32.png', icon_dir)
 
-        @drawer_command ||= UI::Command.new('TT - Tạo ngăn kéo') { TranTuan::TaoVan::Drawer.start }
-        @drawer_command.tooltip = 'TT - Tạo ngăn kéo'
-        @drawer_command.status_bar_text = 'Tạo ngăn kéo theo thông số tùy chỉnh'
+        old_drawer = @drawer_command
+        @toolbar.remove_item(old_drawer) if @toolbar && old_drawer
+        @drawer_command = UI::Command.new('TT - Tạo ngăn kéo') { TranTuan::TaoVan::Drawer.start }
+        @drawer_command.tooltip = 'TT - Tạo ngăn kéo AUTO'
+        @drawer_command.status_bar_text = 'AUTO: Click 2 điểm chéo bất kỳ → tự tính kích thước → tạo liên tục; TAB mở cài đặt; ESC thoát'
         set_command_icons(@drawer_command, 'tao_ngan_keo_16.png', 'tao_ngan_keo_32.png', icon_dir)
 
         @detail_command ||= UI::Command.new('TT - Xuất chi tiết ván') { TranTuan::TaoVan.export_board_details }
@@ -49,7 +49,11 @@ module TranTuan
         set_command_icons(@update_command, 'cap_nhat_16.png', 'cap_nhat_32.png', icon_dir)
 
         menu = UI.menu('Extensions')
-        %w[TT - Tạo ván Face 3D TT - Cập nhật Vision].each { |n| remove_menu_item(menu,n) }
+        [
+          'TT - Tạo ván Face 3D', 'TT - Cập nhật Vision',
+          'TT - Tạo ngăn kéo', 'TT - Tạo Ngăn Kéo', 'TT - Tạo ngăn kéo cũ',
+          'TT - Tạo ngăn kéo thủ công', 'TT - Tạo ngăn kéo tự động cũ'
+        ].each { |n| remove_menu_item(menu, n) }
         menu.add_item(@create_command)
         menu.add_item(@box_command)
         menu.add_item(@drawer_command)
@@ -57,6 +61,7 @@ module TranTuan
         menu.add_item(@update_command)
         @menu = menu
         create_toolbar_once
+        @ui_registered = true
         true
       end
 
@@ -98,13 +103,23 @@ module TranTuan
       private
       def set_command_icons(c,s,l,d); sp=File.join(d,s); lp=File.join(d,l); c.small_icon=sp if File.file?(sp); c.large_icon=lp if File.file?(lp) end
       def create_toolbar_once
-        return if @toolbar
-        @toolbar=UI.toolbar('TT - Tạo ván - Trần Tuấn'); [@create_command,@box_command,@drawer_command,@detail_command,@update_command].each{|c|@toolbar.add_item(c)}; @toolbar.show
+        if @toolbar
+          @toolbar.add_item(@drawer_command) rescue nil
+          return
+        end
+        @toolbar=UI.toolbar('TT - Tạo ván - Trần Tuấn')
+        [@create_command,@box_command,@drawer_command,@detail_command,@update_command].each{|c|@toolbar.add_item(c)}
+        @toolbar.show
       rescue => e; @toolbar=nil; puts "[TT_TaoVan] Toolbar warning: #{e.message}" end
       def remove_menu_item(menu,name); menu.delete_item(name) rescue nil end
       def remove_legacy_ui
         menu=UI.menu('Extensions')
-        ['TT - Tạo ván từ Face','TT - Tạo ván từ Face Group','TT - Tạo ván từ Face - Ngoài Group','TT - Tạo ván từ Face - Hover','TT - Tạo ván từ Face 3D','TT - Tạo ván từ Face 3D Hover','TT - Tạo ván Face 3D','TT - Tạo ván','TRẦN TUẤN DC - Tạo ván từ Face'].each{|n|remove_menu_item(menu,n)}
+        [
+          'TT - Tạo ván từ Face','TT - Tạo ván từ Face Group','TT - Tạo ván từ Face - Ngoài Group',
+          'TT - Tạo ván từ Face - Hover','TT - Tạo ván từ Face 3D','TT - Tạo ván từ Face 3D Hover',
+          'TT - Tạo ván Face 3D','TT - Tạo ván','TRẦN TUẤN DC - Tạo ván từ Face',
+          'TT - Tạo ngăn kéo cũ','TT - Tạo ngăn kéo thủ công','TT - Tạo ngăn kéo tự động cũ'
+        ].each{|n|remove_menu_item(menu,n)}
       end
     end
     register_ui
