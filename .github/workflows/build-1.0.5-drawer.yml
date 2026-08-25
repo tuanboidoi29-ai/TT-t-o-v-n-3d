@@ -1,4 +1,4 @@
-name: Build TT Tạo Ngăn Kéo 1.1.3
+name: Build TT Tạo Ngăn Kéo 1.1.4
 
 on:
   push:
@@ -23,18 +23,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Build clean RBZ 1.1.3
+      - name: Build clean RBZ 1.1.4
         shell: bash
         run: |
           set -euo pipefail
           rm -rf build_tt
           mkdir -p build_tt/pkg
-          curl -fsSL 'https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.1.2_TaoNganKeo.rbz' -o build_tt/base.rbz
+          curl -fsSL 'https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.1.3_TaoNganKeo.rbz' -o build_tt/base.rbz
           unzip -q build_tt/base.rbz -d build_tt/pkg
           test -f build_tt/pkg/TT_TaoVan/drawer.rb
           cp release_1.0.5/TT_TaoVan/drawer.rb build_tt/pkg/TT_TaoVan/drawer.rb
           cp release_1.0.5/TT_TaoVan/main.rb build_tt/pkg/TT_TaoVan/main.rb
-          printf '1.1.3\n' > build_tt/pkg/TT_TaoVan/version.txt
+          printf '1.1.4\n' > build_tt/pkg/TT_TaoVan/version.txt
 
           python3 - <<'PY'
           from pathlib import Path
@@ -53,13 +53,13 @@ jobs:
 
           ruby -c build_tt/pkg/TT_TaoVan/drawer.rb
           ruby -c build_tt/pkg/TT_TaoVan/main.rb
-          rm -f TT_TaoVan_1.1.3_TaoNganKeo.rbz
-          (cd build_tt/pkg && zip -qr ../../TT_TaoVan_1.1.3_TaoNganKeo.rbz .)
-          unzip -t TT_TaoVan_1.1.3_TaoNganKeo.rbz >/dev/null
-          sha=$(sha256sum TT_TaoVan_1.1.3_TaoNganKeo.rbz | awk '{print $1}')
+          rm -f TT_TaoVan_1.1.4_TaoNganKeo.rbz
+          (cd build_tt/pkg && zip -qr ../../TT_TaoVan_1.1.4_TaoNganKeo.rbz .)
+          unzip -t TT_TaoVan_1.1.4_TaoNganKeo.rbz >/dev/null
+          sha=$(sha256sum TT_TaoVan_1.1.4_TaoNganKeo.rbz | awk '{print $1}')
           echo "RBZ_SHA=$sha" >> "$GITHUB_ENV"
 
-      - name: Publish RBZ 1.1.3 and update manifest
+      - name: Publish RBZ 1.1.4 and update manifest
         shell: bash
         run: |
           set -euo pipefail
@@ -68,16 +68,14 @@ jobs:
           from pathlib import Path
           p=Path('update.json')
           obj=json.loads(p.read_text(encoding='utf-8'))
-          obj['version']='1.1.3'
-          obj['rbz_url']='https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.1.3_TaoNganKeo.rbz'
+          obj['version']='1.1.4'
+          obj['rbz_url']='https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.1.4_TaoNganKeo.rbz'
           obj['sha256']=os.environ['RBZ_SHA']
-          obj['notes']='TT Tạo Ngăn Kéo 1.1.3 - loại bỏ UI/lệnh Ngăn Kéo cũ; chỉ giữ AUTO 2 điểm; TAB mở cài đặt; ESC thoát; tạo liên tục không ngắt quãng; hot update thay thế command cũ; đơn vị mm.'
+          obj['notes']='TT Tạo Ngăn Kéo 1.1.4 - sửa lỗi Hot Update undefined method remove_item; không đụng vào Toolbar item cũ khi reload; chỉ giữ AUTO 2 điểm; TAB mở cài đặt; ESC thoát; tạo liên tục; đơn vị mm.'
           p.write_text(json.dumps(obj,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
           PY
           git config user.name 'TT Vision Bot'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add TT_TaoVan_1.1.3_TaoNganKeo.rbz update.json
-          git commit -m 'Release TT Tạo Ngăn Kéo 1.1.3 - remove legacy drawer UI' || true
+          git add TT_TaoVan_1.1.4_TaoNganKeo.rbz update.json
+          git commit -m 'Release TT Tạo Ngăn Kéo 1.1.4 - fix hot update toolbar' || true
           git push
-
-# Trigger rebuild after verifying the release workflow.
