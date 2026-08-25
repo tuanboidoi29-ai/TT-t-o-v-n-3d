@@ -97,7 +97,8 @@ module TranTuan
           prompts=['Rộng phủ bì (mm)','Sâu phủ bì (mm)','Cao ngăn kéo (mm)','Độ dày ván (mm)','Khe hở trái/phải (mm)','Khe hở trước/sau (mm)','Độ dày đáy (mm)','Đáy cách đáy hông (mm)']; defaults=[600,450,150,18,2,2,9,0]
           values=UI.inputbox(prompts,defaults,'TT - Tạo ngăn kéo thủ công | Đơn vị: mm'); return unless values
           vals=values.map{|v| Drawer.parse_mm(v)}
-          unless vals.all?{|v|v.is_a?(Numeric)&&v.finite?} && [0,1,2,3,4,5,6].all?{|i| vals[i]>0 rescue false} && vals[7]>=0
+          valid = vals.all?{|v| v.is_a?(Numeric)&&v.finite?} && vals[0]>0 && vals[1]>0 && vals[2]>0 && vals[3]>0 && vals[4]>=0 && vals[5]>=0 && vals[6]>0 && vals[7]>=0
+          unless valid
             UI.messagebox('Thông số không hợp lệ. Tất cả kích thước phải nhập bằng mm. Ví dụ: 600 hoặc 600 mm.'); return
           end
           @manual_values=vals; @manual_ready=true; update_status
