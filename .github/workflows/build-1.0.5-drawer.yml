@@ -1,4 +1,4 @@
-name: Build TT Tạo Ngăn Kéo 1.1.1
+name: Build TT Tạo Ngăn Kéo 1.1.2
 
 on:
   push:
@@ -22,50 +22,52 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Build clean RBZ 1.1.1
+      - name: Build clean RBZ 1.1.2
         shell: bash
         run: |
           set -euo pipefail
           rm -rf build_tt
           mkdir -p build_tt/pkg
-          curl -fsSL 'https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.1.0_TaoNganKeo.rbz' -o build_tt/base.rbz
+          curl -fsSL 'https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.1.1_TaoNganKeo.rbz' -o build_tt/base.rbz
           unzip -q build_tt/base.rbz -d build_tt/pkg
           test -f build_tt/pkg/TT_TaoVan/drawer.rb
           cp release_1.0.5/TT_TaoVan/drawer.rb build_tt/pkg/TT_TaoVan/drawer.rb
-          printf '1.1.1\n' > build_tt/pkg/TT_TaoVan/version.txt
+          printf '1.1.2\n' > build_tt/pkg/TT_TaoVan/version.txt
 
           python3 - <<'PY'
           from pathlib import Path
-          import re
           p = Path('build_tt/pkg/TT_TaoVan/drawer.rb')
           s = p.read_text(encoding='utf-8')
 
-          # Khi bấm nút chức năng: vào thẳng công cụ AUTO, không mở bảng cài đặt.
           old = '''      def start\n        show_settings\n      end'''
           new = '''      def start\n        Sketchup.active_model.select_tool(TwoPointTool.new(defaults))\n      end'''
           if old not in s:
               raise SystemExit('start method pattern not found')
           s = s.replace(old, new, 1)
 
-          # TAB trong lúc đang dùng công cụ AUTO sẽ mở bảng cài đặt.
           old_key = '''        def onKeyDown(key,_repeat,_flags,_view)\n          Sketchup.active_model.select_tool(nil) if key==27\n        end'''
           new_key = '''        def onKeyDown(key,_repeat,_flags,_view)\n          if key == TAB_KEY\n            Drawer.show_settings\n          elsif key == 27\n            Sketchup.active_model.select_tool(nil)\n          end\n        end'''
           if old_key not in s:
               raise SystemExit('onKeyDown method pattern not found')
           s = s.replace(old_key, new_key, 1)
 
-          # Không để TAB mở thêm cửa sổ nếu dialog đã hiện; HtmlDialog sẽ tự đưa lên trước.
+          old_finish = '''            model.commit_operation\n            model.selection.clear\n            model.selection.add(@last_group) if @last_group && @last_group.valid?\n            set_status("ĐÃ TẠO: R #{mm_text(dims[:dw])} | S #{mm_text(dims[:dd])} | C #{mm_text(dims[:dh])}")\n          rescue => e\n            model.abort_operation rescue nil\n            UI.messagebox("Không thể tạo ngăn kéo:\\n#{e.message}")\n          ensure\n            Sketchup.active_model.select_tool(nil)\n          end'''
+          new_finish = '''            model.commit_operation\n            model.selection.clear\n            model.selection.add(@last_group) if @last_group && @last_group.valid?\n            set_status("ĐÃ TẠO: R #{mm_text(dims[:dw])} | S #{mm_text(dims[:dd])} | C #{mm_text(dims[:dh])} | TIẾP TỤC: CLICK ĐIỂM 1")\n\n            # Giữ công cụ AUTO hoạt động liên tục: không thoát sau mỗi ngăn kéo.\n            @p1 = nil\n            @p2 = nil\n            @container = nil\n            @preview = nil\n            @dims = nil\n            Sketchup.active_model.active_view.invalidate\n          rescue => e\n            model.abort_operation rescue nil\n            UI.messagebox("Không thể tạo ngăn kéo:\\n#{e.message}")\n          end'''
+          if old_finish not in s:
+              raise SystemExit('create_drawer finish pattern not found')
+          s = s.replace(old_finish, new_finish, 1)
+
           p.write_text(s, encoding='utf-8')
           PY
 
           ruby -c build_tt/pkg/TT_TaoVan/drawer.rb
-          rm -f TT_TaoVan_1.1.1_TaoNganKeo.rbz
-          (cd build_tt/pkg && zip -qr ../../TT_TaoVan_1.1.1_TaoNganKeo.rbz .)
-          unzip -t TT_TaoVan_1.1.1_TaoNganKeo.rbz >/dev/null
-          sha=$(sha256sum TT_TaoVan_1.1.1_TaoNganKeo.rbz | awk '{print $1}')
+          rm -f TT_TaoVan_1.1.2_TaoNganKeo.rbz
+          (cd build_tt/pkg && zip -qr ../../TT_TaoVan_1.1.2_TaoNganKeo.rbz .)
+          unzip -t TT_TaoVan_1.1.2_TaoNganKeo.rbz >/dev/null
+          sha=$(sha256sum TT_TaoVan_1.1.2_TaoNganKeo.rbz | awk '{print $1}')
           echo "RBZ_SHA=$sha" >> "$GITHUB_ENV"
 
-      - name: Publish RBZ 1.1.1 and update manifest
+      - name: Publish RBZ 1.1.2 and update manifest
         shell: bash
         run: |
           set -euo pipefail
@@ -74,14 +76,14 @@ jobs:
           from pathlib import Path
           p=Path('update.json')
           obj=json.loads(p.read_text(encoding='utf-8'))
-          obj['version']='1.1.1'
-          obj['rbz_url']='https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.1.1_TaoNganKeo.rbz'
+          obj['version']='1.1.2'
+          obj['rbz_url']='https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.1.2_TaoNganKeo.rbz'
           obj['sha256']=os.environ['RBZ_SHA']
-          obj['notes']='TT Tạo Ngăn Kéo 1.1.1 - AUTO khởi động trực tiếp; TAB mở bảng cài đặt; ESC thoát; giữ click 2 điểm chéo bất kỳ và tự tính kích thước theo mm.'
+          obj['notes']='TT Tạo Ngăn Kéo 1.1.2 - AUTO khởi động trực tiếp; TAB mở bảng cài đặt; ESC thoát; tạo ngăn kéo liên tục không ngắt quãng; sau mỗi lần tạo tự sẵn sàng CLICK ĐIỂM 1; đơn vị mm.'
           p.write_text(json.dumps(obj,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
           PY
           git config user.name 'TT Vision Bot'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add TT_TaoVan_1.1.1_TaoNganKeo.rbz update.json
-          git commit -m 'Release TT Tạo Ngăn Kéo 1.1.1 - TAB opens settings' || true
+          git add TT_TaoVan_1.1.2_TaoNganKeo.rbz update.json
+          git commit -m 'Release TT Tạo Ngăn Kéo 1.1.2 - continuous creation' || true
           git push
