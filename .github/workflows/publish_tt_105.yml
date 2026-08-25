@@ -23,23 +23,27 @@ jobs:
           cp release_1.0.5/TT_TaoVan/version.txt release_build/TT_TaoVan/version.txt
           cp release_1.0.5/TT_TaoVan/core.rb release_build/TT_TaoVan/core.rb
           cp release_1.0.5/TT_TaoVan/box.rb release_build/TT_TaoVan/box.rb
-          make_icon() {
-            label="$1"; out="$2"; size="$3"
-            cat > /tmp/icon.svg <<SVG
-          <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><rect x="2" y="2" width="28" height="28" rx="5" fill="#e6e6e6" stroke="#333" stroke-width="2"/><rect x="7" y="8" width="18" height="16" rx="2" fill="#a8a8a8" stroke="#555" stroke-width="2"/><text x="16" y="20" text-anchor="middle" font-family="DejaVu Sans" font-size="10" font-weight="bold" fill="#ff8000">$label</text></svg>
-          SVG
-            convert /tmp/icon.svg -resize "${size}x${size}" "$out"
-          }
-          make_icon V release_build/TT_TaoVan/icons/tao_van_16.png 16
-          make_icon V release_build/TT_TaoVan/icons/tao_van_32.png 32
-          make_icon B release_build/TT_TaoVan/icons/tao_box_16.png 16
-          make_icon B release_build/TT_TaoVan/icons/tao_box_32.png 32
-          make_icon K release_build/TT_TaoVan/icons/tao_ngan_keo_16.png 16
-          make_icon K release_build/TT_TaoVan/icons/tao_ngan_keo_32.png 32
-          make_icon X release_build/TT_TaoVan/icons/xuat_chi_tiet_16.png 16
-          make_icon X release_build/TT_TaoVan/icons/xuat_chi_tiet_32.png 32
-          make_icon U release_build/TT_TaoVan/icons/cap_nhat_16.png 16
-          make_icon U release_build/TT_TaoVan/icons/cap_nhat_32.png 32
+          python3 -m pip install --quiet pillow
+          python3 - <<'PY'
+          from PIL import Image, ImageDraw, ImageFont
+          from pathlib import Path
+          out=Path('release_build/TT_TaoVan/icons')
+          labels={'tao_van':'V','tao_box':'B','tao_ngan_keo':'K','xuat_chi_tiet':'X','cap_nhat':'U'}
+          try: font=ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',22)
+          except: font=None
+          for name,label in labels.items():
+            for size in (16,32):
+              im=Image.new('RGBA',(size,size),(0,0,0,0)); d=ImageDraw.Draw(im); p=max(1,size//10)
+              d.rounded_rectangle((p,p,size-p,size-p),radius=max(2,size//6),fill=(230,230,230,255),outline=(60,60,60,255),width=max(1,size//16))
+              d.rounded_rectangle((p+3,int(size*.32),size-p-3,int(size*.80)),radius=max(1,size//10),fill=(165,165,165,255),outline=(70,70,70,255),width=max(1,size//16))
+              f=font
+              if size==16:
+                try: f=ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',11)
+                except: f=None
+              box=d.textbbox((0,0),label,font=f); tw=box[2]-box[0]; th=box[3]-box[1]
+              d.text(((size-tw)/2,(size-th)/2-1),label,font=f,fill=(255,128,0,255))
+              im.save(out/f'{name}_{size}.png')
+          PY
           ruby -c release_build/tt_tao_van.rb
           for f in release_build/TT_TaoVan/*.rb; do ruby -c "$f"; done
           (cd release_build && zip -qr ../TT_TaoVan_1.0.5_TaoNganKeo.rbz .)
