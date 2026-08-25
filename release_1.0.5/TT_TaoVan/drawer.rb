@@ -3,6 +3,8 @@ module TranTuan
     module Drawer
       module_function
 
+      TAB_KEY = 9
+
       def mm(v); v.to_f.mm; end
       def mm_text(v, decimals = 1); format("%0.#{decimals}f mm", v.to_f); end
       def parse_mm(v)
@@ -54,11 +56,8 @@ module TranTuan
           @preview = @p1 ? [@p1, p] : [p]
           view.invalidate
           if @p1
-            h_mm = (@p1.z - p.z).abs.to_mm
-            Sketchup.set_status_text(
-              "TỰ ĐỘNG 2 ĐIỂM | ĐIỂM 1: MẶT TRÊN → ĐIỂM 2: ĐÁY | CAO: #{Drawer.mm_text(h_mm)} | TAB = THỦ CÔNG",
-              SB_VCB_LABEL
-            )
+            h_mm = (@p1.transform(@container.transformation.inverse).z - p.transform(@container.transformation.inverse).z).abs.to_mm
+            Sketchup.set_status_text("TỰ ĐỘNG 2 ĐIỂM | ĐIỂM 1: MẶT TRÊN → ĐIỂM 2: ĐÁY | CAO: #{Drawer.mm_text(h_mm)} | ĐƠN VỊ: mm | TAB = THỦ CÔNG", SB_VCB_LABEL)
           end
         end
 
@@ -77,11 +76,9 @@ module TranTuan
           if @preview.length == 1
             p = @preview[0]
             s = Drawer.mm(12)
-            view.draw(
-              GL_LINES,
+            view.draw(GL_LINES,
               Geom::Point3d.new(p.x - s, p.y, p.z), Geom::Point3d.new(p.x + s, p.y, p.z),
-              Geom::Point3d.new(p.x, p.y - s, p.z), Geom::Point3d.new(p.x, p.y + s, p.z)
-            )
+              Geom::Point3d.new(p.x, p.y - s, p.z), Geom::Point3d.new(p.x, p.y + s, p.z))
             return
           end
 
@@ -91,14 +88,13 @@ module TranTuan
             tr = @container.transformation
             la = a.transform(tr.inverse)
             lbp = b.transform(tr.inverse)
-            x0 = lb.min.x; x1 = lb.max.x
-            y0 = lb.min.y; y1 = lb.max.y
             z0 = [la.z, lbp.z].min
             z1 = [la.z, lbp.z].max
-            pts = box_points(x0, y0, z0, x1 - x0, y1 - y0, z1 - z0).map { |q| q.transform(tr) }
+            pts = box_points(lb.min.x, lb.min.y, z0, lb.width, lb.depth, z1 - z0).map { |q| q.transform(tr) }
             draw_box(view, pts)
           else
-            z0 = [a.z, b.z].min; z1 = [a.z, b.z].max
+            z0 = [a.z, b.z].min
+            z1 = [a.z, b.z].max
             draw_box(view, box_points([a.x, b.x].min, [a.y, b.y].min, z0, (a.x - b.x).abs, (a.y - b.y).abs, z1 - z0))
           end
         end
@@ -134,10 +130,9 @@ module TranTuan
           end
         end
 
-        # TAB = 9 trong SketchUp. Có khóa để tránh một lần nhấn bị nhận 2 lần.
         def onKeyDown(key, _repeat, _flags, view)
-          return if @tab_lock && key == 9
-          if key == 9
+          if key == TAB_KEY
+            return if @tab_lock
             @tab_lock = true
             @manual_mode = !@manual_mode
             clear_points_only
@@ -149,7 +144,7 @@ module TranTuan
         end
 
         def onKeyUp(key, _repeat, _flags, _view)
-          @tab_lock = false if key == 9
+          @tab_lock = false if key == TAB_KEY
         end
 
         private
@@ -161,9 +156,7 @@ module TranTuan
 
         def update_status
           if @manual_mode
-            detail = @manual_ready ?
-              'ĐÃ NHẬP THÔNG SỐ (mm) → DI CHUỘT XEM PREVIEW → CLICK ĐỂ TẠO' :
-              'CLICK VỊ TRÍ ĐẶT → NHẬP THÔNG SỐ (mm) | TAB = TỰ ĐỘNG 2 ĐIỂM'
+            detail = @manual_ready ? 'ĐÃ NHẬP THÔNG SỐ (mm) → DI CHUỘT XEM PREVIEW → CLICK ĐỂ TẠO' : 'CLICK VỊ TRÍ ĐẶT → NHẬP THÔNG SỐ (mm) | TAB = TỰ ĐỘNG 2 ĐIỂM'
             set_waiting_status('THỦ CÔNG', detail)
           else
             set_waiting_status('TỰ ĐỘNG 2 ĐIỂM', 'CLICK 1 = MẶT TRÊN → CLICK 2 = ĐÁY | KÍCH THƯỚC: mm | TAB = THỦ CÔNG')
@@ -171,35 +164,29 @@ module TranTuan
         end
 
         def box_points(x, y, z, w, d, h)
-          [
-            Geom::Point3d.new(x, y, z), Geom::Point3d.new(x + w, y, z),
-            Geom::Point3d.new(x + w, y + d, z), Geom::Point3d.new(x, y + d, z),
-            Geom::Point3d.new(x, y, z + h), Geom::Point3d.new(x + w, y, z + h),
-            Geom::Point3d.new(x + w, y + d, z + h), Geom::Point3d.new(x, y + d, z + h)
-          ]
+          [Geom::Point3d.new(x, y, z), Geom::Point3d.new(x + w, y, z), Geom::Point3d.new(x + w, y + d, z), Geom::Point3d.new(x, y + d, z), Geom::Point3d.new(x, y, z + h), Geom::Point3d.new(x + w, y, z + h), Geom::Point3d.new(x + w, y + d, z + h), Geom::Point3d.new(x, y + d, z + h)]
         end
 
         def draw_box(view, pts)
-          [[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]].each do |i, j|
-            view.draw(GL_LINES, pts[i], pts[j])
-          end
+          [[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]].each { |i,j| view.draw(GL_LINES, pts[i], pts[j]) }
         end
 
         def direct_container(ip)
           path = ip.instance_path
           return nil unless path && path.respond_to?(:to_a)
-          path.to_a.reverse_each do |e|
-            return e if e.is_a?(Sketchup::Group) || e.is_a?(Sketchup::ComponentInstance)
-          end
+          path.to_a.reverse_each { |e| return e if e.is_a?(Sketchup::Group) || e.is_a?(Sketchup::ComponentInstance) }
           nil
         end
 
+        # Bounding box luôn được chuẩn hóa về hệ trục LOCAL của instance.
+        # Không dùng container.entities.bounds vì Sketchup::Entities không có method bounds.
         def local_bounds(container)
-          if container.is_a?(Sketchup::ComponentInstance)
-            container.definition.bounds
-          else
-            container.entities.bounds
-          end
+          tr = container.transformation
+          inv = tr.inverse
+          wb = container.bounds
+          lb = Geom::BoundingBox.new
+          8.times { |i| lb.add(wb.corner(i).transform(inv)) }
+          lb
         end
 
         def same_container?(a, b)
@@ -234,7 +221,7 @@ module TranTuan
           end
 
           h_local = p1l.z - p2l.z
-          if h_local <= 1.0
+          if h_local <= Drawer.mm(1)
             UI.messagebox('Chiều cao giữa điểm 1 và điểm 2 phải lớn hơn 1 mm.')
             reset
             return
@@ -249,8 +236,6 @@ module TranTuan
             return
           end
 
-          # Tạo toàn bộ hình trong hệ trục local của khoang rồi mới transform ra World.
-          # Nhờ vậy không còn lấy nhầm World Bounding Box gây kích thước 14325/11430 mm.
           create_drawer_local(model, tr, b.min.x, b.min.y, p2l.z, w_local, d_local, h_local, 18.0, 9.0, 2.0, 2.0)
         rescue => e
           UI.messagebox("Không thể tạo ngăn kéo:\n#{e.message}")
@@ -258,18 +243,12 @@ module TranTuan
         end
 
         def manual_create
-          prompts = [
-            'Rộng phủ bì (mm)', 'Sâu phủ bì (mm)', 'Cao ngăn kéo (mm)',
-            'Độ dày ván (mm)', 'Khe hở trái/phải (mm)', 'Khe hở trước/sau (mm)',
-            'Độ dày đáy (mm)', 'Đáy cách đáy hông (mm)'
-          ]
+          prompts = ['Rộng phủ bì (mm)', 'Sâu phủ bì (mm)', 'Cao ngăn kéo (mm)', 'Độ dày ván (mm)', 'Khe hở trái/phải (mm)', 'Khe hở trước/sau (mm)', 'Độ dày đáy (mm)', 'Đáy cách đáy hông (mm)']
           defaults = [600, 450, 150, 18, 2, 2, 9, 0]
           values = UI.inputbox(prompts, defaults, 'TT - Tạo ngăn kéo thủ công | Đơn vị: mm')
           return unless values
           vals = values.map { |v| Drawer.parse_mm(v) }
-          valid = vals.all? { |v| v.is_a?(Numeric) && v.finite? } &&
-                  vals[0] > 0 && vals[1] > 0 && vals[2] > 0 && vals[3] > 0 &&
-                  vals[4] >= 0 && vals[5] >= 0 && vals[6] > 0 && vals[7] >= 0
+          valid = vals.all? { |v| v.is_a?(Numeric) && v.finite? } && vals[0] > 0 && vals[1] > 0 && vals[2] > 0 && vals[3] > 0 && vals[4] >= 0 && vals[5] >= 0 && vals[6] > 0 && vals[7] >= 0
           unless valid
             UI.messagebox('Thông số không hợp lệ. Tất cả kích thước phải nhập bằng mm. Ví dụ: 600 hoặc 600 mm.')
             return
@@ -306,10 +285,7 @@ module TranTuan
           add_part = lambda do |name, x, y, z, sx, sy, sz|
             g = outer.entities.add_group
             g.name = name
-            f = g.entities.add_face([
-              Geom::Point3d.new(x, y, z), Geom::Point3d.new(x + sx, y, z),
-              Geom::Point3d.new(x + sx, y + sy, z), Geom::Point3d.new(x, y + sy, z)
-            ])
+            f = g.entities.add_face([Geom::Point3d.new(x, y, z), Geom::Point3d.new(x + sx, y, z), Geom::Point3d.new(x + sx, y + sy, z), Geom::Point3d.new(x, y + sy, z)])
             f.reverse! if f.normal.z < 0
             f.pushpull(sz)
             g
@@ -320,10 +296,10 @@ module TranTuan
           bt_z = Drawer.mm(bt_mm) / scale_z
           gl_x = Drawer.mm(gl_mm) / scale_x
           gf_y = Drawer.mm(gf_mm) / scale_y
-          # Mặt trước ở MIN Y, mặt sau ở MAX Y: sửa lỗi ngăn kéo bị ngược.
           add_part.call('Đáy', ox + t_x + gl_x, oy + t_y + gf_y, oz, iw_local, id_local, bt_z)
           add_part.call('Hông trái', ox, oy, oz, t_x, d_local, h_use)
           add_part.call('Hông phải', ox + w_local - t_x, oy, oz, t_x, d_local, h_use)
+          # Quy ước: mặt trước ở MIN Y, mặt sau ở MAX Y.
           add_part.call('Mặt trước', ox + t_x, oy, oz, iw_local, t_y, h_use)
           add_part.call('Mặt sau', ox + t_x, oy + d_local - t_y, oz, iw_local, t_y, h_use)
           outer.transform!(tr)
@@ -355,26 +331,18 @@ module TranTuan
           add_part = lambda do |name, x, y, z, sx, sy, sz|
             g = outer.entities.add_group
             g.name = name
-            f = g.entities.add_face([
-              Geom::Point3d.new(x, y, z), Geom::Point3d.new(x + sx, y, z),
-              Geom::Point3d.new(x + sx, y + sy, z), Geom::Point3d.new(x, y + sy, z)
-            ])
+            f = g.entities.add_face([Geom::Point3d.new(x, y, z), Geom::Point3d.new(x + sx, y, z), Geom::Point3d.new(x + sx, y + sy, z), Geom::Point3d.new(x, y + sy, z)])
             f.reverse! if f.normal.z < 0
             f.pushpull(sz)
             g
           end
           t = Drawer.mm(t_mm); bt = Drawer.mm(bt_mm); gl = Drawer.mm(gl_mm); gf = Drawer.mm(gf_mm)
-          w = Drawer.mm(w_mm); d = Drawer.mm(d_mm); h = Drawer.mm(h_mm)
-          iw = Drawer.mm(iw_mm); id = Drawer.mm(id_mm)
-          bo = Drawer.mm(bo_mm)
-
+          w = Drawer.mm(w_mm); d = Drawer.mm(d_mm); h = Drawer.mm(h_mm); iw = Drawer.mm(iw_mm); id = Drawer.mm(id_mm); bo = Drawer.mm(bo_mm)
           add_part.call('Đáy', ox + t + gl, oy + t + gf, oz + bo, iw, id, bt)
           add_part.call('Hông trái', ox, oy, oz, t, d, h)
           add_part.call('Hông phải', ox + w - t, oy, oz, t, d, h)
-          # Mặt trước ở MIN Y, không còn bị đảo ngược.
           add_part.call('Mặt trước', ox + t, oy, oz, iw, t, h)
           add_part.call('Mặt sau', ox + t, oy + d - t, oz, iw, t, h)
-
           store_attributes(outer, w_mm, d_mm, h_mm, t_mm, bt_mm, true)
           model.commit_operation
           model.selection.clear
@@ -408,12 +376,8 @@ module TranTuan
           @manual_values = nil
         end
 
-        def clear_state
-          clear_points_only
-        end
-
         def reset
-          clear_state
+          clear_points_only
           update_status
         end
       end
