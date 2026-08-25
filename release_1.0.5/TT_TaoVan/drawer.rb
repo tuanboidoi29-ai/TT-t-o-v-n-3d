@@ -80,15 +80,19 @@ module TranTuan
         end
         def create_manual_from_preview; w,d,h,t,gl,gf,bt,bo=@manual_values; create_drawer(Sketchup.active_model,@manual_origin.x,@manual_origin.y,@manual_origin.z,w,d,h,t,bt,gl,gf,bo); end
         def create_drawer(model,ox,oy,oz,w,d,h,t,bt,gl,gf,bo=0)
+          # Input dimensions are ALWAYS millimeters. Convert once to SketchUp internal units.
+          w_mm,d_mm,h_mm,t_mm,bt_mm,gl_mm,gf_mm,bo_mm=[w,d,h,t,bt,gl,gf,bo].map(&:to_f)
+          iw_mm=w_mm-2*t_mm-2*gl_mm; id_mm=d_mm-2*t_mm-2*gf_mm
+          if iw_mm<=0 || id_mm<=0 || h_mm<=t_mm; UI.messagebox("Kích thước khoang không đủ cho ván #{t_mm.round(1)} mm và khe hở đã nhập. Đơn vị: mm"); reset; return; end
+          w,d,h,t,bt,gl,gf,bo=[w_mm,d_mm,h_mm,t_mm,bt_mm,gl_mm,gf_mm,bo_mm].map{|v| Drawer.mm(v)}
           iw=w-2*t-2*gl; id=d-2*t-2*gf
-          if iw<=0 || id<=0 || h<=t; UI.messagebox("Kích thước khoang không đủ cho ván #{t.round(1)} mm và khe hở đã nhập. Đơn vị: mm"); reset; return; end
           model.start_operation('TT - Tạo ngăn kéo',true); outer=model.entities.add_group; outer.name='TT - Ngăn kéo'
           add=lambda do |name,x,y,z,sx,sy,sz|
             g=outer.entities.add_group; g.name=name; f=g.entities.add_face([Geom::Point3d.new(x,y,z),Geom::Point3d.new(x+sx,y,z),Geom::Point3d.new(x+sx,y+sy,z),Geom::Point3d.new(x,y+sy,z)]); f.reverse! if f.normal.z<0; f.pushpull(sz); g
           end
           add.call('Đáy',ox+t+gl,oy+t+gf,oz+bo,iw,id,bt); add.call('Hông trái',ox,oy,oz,t,d,h); add.call('Hông phải',ox+w-t,oy,oz,t,d,h); add.call('Mặt trước',ox+t,oy+d-t,oz,iw+2*gl,t,h); add.call('Mặt sau',ox+t,oy,oz,iw+2*gl,t,h)
-          outer.set_attribute('TT_TaoVan','loai','ngan_keo'); outer.set_attribute('TT_TaoVan','don_vi','mm'); outer.set_attribute('TT_TaoVan','tao_bang_2_diem',!@manual_mode); outer.set_attribute('TT_TaoVan','tao_thu_cong',@manual_mode); outer.set_attribute('TT_TaoVan','rong_mm',w); outer.set_attribute('TT_TaoVan','sau_mm',d); outer.set_attribute('TT_TaoVan','cao_mm',h); outer.set_attribute('TT_TaoVan','day_mm',t); outer.set_attribute('TT_TaoVan','day_da_mm',bt)
-          model.commit_operation; model.selection.clear; model.selection.add(outer); Sketchup.set_status_text("Đã tạo ngăn kéo: #{w.round(1)} × #{d.round(1)} × #{h.round(1)} mm",SB_PROMPT); reset
+          outer.set_attribute('TT_TaoVan','loai','ngan_keo'); outer.set_attribute('TT_TaoVan','don_vi','mm'); outer.set_attribute('TT_TaoVan','tao_bang_2_diem',!@manual_mode); outer.set_attribute('TT_TaoVan','tao_thu_cong',@manual_mode); outer.set_attribute('TT_TaoVan','rong_mm',w_mm); outer.set_attribute('TT_TaoVan','sau_mm',d_mm); outer.set_attribute('TT_TaoVan','cao_mm',h_mm); outer.set_attribute('TT_TaoVan','day_mm',t_mm); outer.set_attribute('TT_TaoVan','day_da_mm',bt_mm)
+          model.commit_operation; model.selection.clear; model.selection.add(outer); Sketchup.set_status_text("Đã tạo ngăn kéo: #{w_mm.round(1)} × #{d_mm.round(1)} × #{h_mm.round(1)} mm",SB_PROMPT); reset
         rescue; model.abort_operation rescue nil; raise; end
         def clear_state; @p1=nil; @p2=nil; @container=nil; @preview=nil; @manual_ready=false; @manual_origin=nil; @manual_values=nil; end
         def reset; clear_state; update_status; end
