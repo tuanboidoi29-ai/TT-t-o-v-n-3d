@@ -3,20 +3,52 @@ on:
   push:
 jobs:
   publish:
+    if: github.event.head_commit.message != 'Publish TT 1.0.5 Drawer RBZ'
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v4
-      - name: Decode and validate RBZ
+      - name: Build clean RBZ
+        shell: bash
         run: |
-          base64 -d TT_TaoVan_1.0.5_TaoNganKeo_FINAL.rbz.b64 > TT_TaoVan_1.0.5_TaoNganKeo_FINAL.rbz
-          unzip -t TT_TaoVan_1.0.5_TaoNganKeo_FINAL.rbz
-          test "$(sha256sum TT_TaoVan_1.0.5_TaoNganKeo_FINAL.rbz | cut -d' ' -f1)" = "eb7da061e71b7bc8132ba1173de781eaa701cddaf94ca17442bfc9bbd4182332"
-      - name: Publish RBZ
+          set -e
+          rm -rf release_build
+          mkdir -p release_build/TT_TaoVan/icons
+          cp release_1.0.5/tt_tao_van.rb release_build/tt_tao_van.rb
+          cp release_1.0.5/TT_TaoVan/main.rb release_build/TT_TaoVan/main.rb
+          cp release_1.0.5/TT_TaoVan/update.rb release_build/TT_TaoVan/update.rb
+          cp release_1.0.5/TT_TaoVan/drawer.rb release_build/TT_TaoVan/drawer.rb
+          cp release_1.0.5/TT_TaoVan/version.txt release_build/TT_TaoVan/version.txt
+          cp TT_TaoVan/core.rb release_build/TT_TaoVan/core.rb
+          cp TT_TaoVan/box.rb release_build/TT_TaoVan/box.rb
+          for f in tao_van_16.png tao_van_32.png tao_box_16.png tao_box_32.png xuat_chi_tiet_16.png xuat_chi_tiet_32.png cap_nhat_16.png cap_nhat_32.png; do
+            cp "TT_TaoVan/icons/$f" "release_build/TT_TaoVan/icons/$f"
+          done
+          convert release_1.0.5/icon_drawer.svg -resize 16x16 release_build/TT_TaoVan/icons/tao_ngan_keo_16.png
+          convert release_1.0.5/icon_drawer.svg -resize 32x32 release_build/TT_TaoVan/icons/tao_ngan_keo_32.png
+          ruby -c release_build/tt_tao_van.rb
+          for f in release_build/TT_TaoVan/*.rb; do ruby -c "$f"; done
+          (cd release_build && zip -qr ../TT_TaoVan_1.0.5_TaoNganKeo.rbz .)
+          unzip -t TT_TaoVan_1.0.5_TaoNganKeo.rbz
+          sha256sum TT_TaoVan_1.0.5_TaoNganKeo.rbz | tee release_sha.txt
+      - name: Update manifest
+        run: |
+          python3 - <<'PY'
+          import json, pathlib
+          sha=pathlib.Path('release_sha.txt').read_text().split()[0]
+          p=pathlib.Path('update.json')
+          data=json.loads(p.read_text())
+          data['version']='1.0.5'
+          data['rbz_url']='https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.0.5_TaoNganKeo.rbz'
+          data['sha256']=sha
+          data['notes']='Vision 1.0.5 - Tạo Ngăn Kéo tùy chỉnh; Menu + Toolbar + Icon riêng; giữ Tạo Ván, Tạo Box, Xuất chi tiết ván; Hot Update không cần cài RBZ thủ công.'
+          p.write_text(json.dumps(data,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+          PY
+      - name: Publish
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add TT_TaoVan_1.0.5_TaoNganKeo_FINAL.rbz
-          git commit -m "Publish TT 1.0.5 Drawer RBZ" || true
+          git add TT_TaoVan_1.0.5_TaoNganKeo.rbz update.json
+          git commit -m "Publish TT 1.0.5 Drawer RBZ"
           git push
