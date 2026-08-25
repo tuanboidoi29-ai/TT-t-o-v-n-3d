@@ -1,7 +1,7 @@
 {
   "name": "TT - tạo ván -Trần Tuấn",
-  "version": "1.1.1",
-  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.1.1_TaoNganKeo.rbz",
-  "sha256": "1bad95b63ddbc3e7d494117a965f7cd7829cbcbb0ead4b864e5180a903c02af5",
-  "notes": "TT Tạo Ngăn Kéo 1.1.1 - AUTO khởi động trực tiếp; TAB mở bảng cài đặt; ESC thoát; giữ click 2 điểm chéo bất kỳ và tự tính kích thước theo mm."
+  "version": "1.1.2",
+  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.1.2_TaoNganKeo.rbz",
+  "sha256": "1b86e8e11970abda5ae15e4e9363b6d055233f745aa13375e3a54904e04023b2",
+  "notes": "TT Tạo Ngăn Kéo 1.1.2 - AUTO khởi động trực tiếp; TAB mở bảng cài đặt; ESC thoát; tạo ngăn kéo liên tục không ngắt quãng; sau mỗi lần tạo tự sẵn sàng CLICK ĐIỂM 1; đơn vị mm."
 }
