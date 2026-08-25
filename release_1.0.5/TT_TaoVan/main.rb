@@ -28,9 +28,11 @@ module TranTuan
         @box_command.status_bar_text = 'Tạo khối Box theo chiều rộng, sâu, cao (mm)'
         set_command_icons(@box_command, 'tao_box_16.png', 'tao_box_32.png', icon_dir)
 
-        old_drawer = @drawer_command
-        @toolbar.remove_item(old_drawer) if @toolbar && old_drawer
-        @drawer_command = UI::Command.new('TT - Tạo ngăn kéo') { TranTuan::TaoVan::Drawer.start }
+        # HOT UPDATE: không tạo lại/remove toolbar item cũ.
+        # UI::Toolbar của SketchUp không có remove_item trên mọi phiên bản.
+        # Command cũ đã có block gọi động Drawer.start, nên chỉ cần cập nhật
+        # tooltip/icon và giữ nguyên item hiện có để tránh crash khi hot update.
+        @drawer_command ||= UI::Command.new('TT - Tạo ngăn kéo') { TranTuan::TaoVan::Drawer.start }
         @drawer_command.tooltip = 'TT - Tạo ngăn kéo AUTO'
         @drawer_command.status_bar_text = 'AUTO: Click 2 điểm chéo bất kỳ → tự tính kích thước → tạo liên tục; TAB mở cài đặt; ESC thoát'
         set_command_icons(@drawer_command, 'tao_ngan_keo_16.png', 'tao_ngan_keo_32.png', icon_dir)
@@ -104,7 +106,8 @@ module TranTuan
       def set_command_icons(c,s,l,d); sp=File.join(d,s); lp=File.join(d,l); c.small_icon=sp if File.file?(sp); c.large_icon=lp if File.file?(lp) end
       def create_toolbar_once
         if @toolbar
-          @toolbar.add_item(@drawer_command) rescue nil
+          # Toolbar đã tồn tại trong phiên SketchUp; không gọi remove_item.
+          # Nếu drawer command đã tồn tại thì giữ nguyên item để hot update an toàn.
           return
         end
         @toolbar=UI.toolbar('TT - Tạo ván - Trần Tuấn')
