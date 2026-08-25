@@ -6,6 +6,8 @@ module TranTuan
       # TT - Tạo ngăn kéo: 2 điểm tự động + thủ công.
       # TAB chuyển chế độ: TỰ ĐỘNG 2 ĐIỂM <-> THỦ CÔNG.
       def start
+        # Khi nhấn "Tạo Ngăn Kéo", tool chỉ vào trạng thái CHỜ.
+        # Chưa click gì và chưa mở bảng nhập thông số.
         Sketchup.active_model.select_tool(TwoPointTool.new)
       end
 
@@ -54,6 +56,11 @@ module TranTuan
         end
 
         def draw(view)
+          # Luôn hiển thị trạng thái của tool trên màn hình khi đang chờ/thao tác.
+          mode_text = @manual_mode ? 'THỦ CÔNG' : 'TỰ ĐỘNG 2 ĐIỂM'
+          view.draw_text(Geom::Point3d.new(20, 35, 0), "TT NGĂN KÉO  |  #{mode_text}  |  TAB = ĐỔI CHẾ ĐỘ", :font => 'Arial', :size => 16, :bold => true)
+          view.draw_text(Geom::Point3d.new(20, 58, 0), (@manual_mode ? 'CLICK = ĐẶT VỊ TRÍ → NHẬP THÔNG SỐ → PREVIEW → CLICK TẠO' : 'CLICK 1 = MẶT TRÊN → CLICK 2 = ĐÁY → PREVIEW → CLICK TẠO'), :font => 'Arial', :size => 12)
+
           return unless @preview && !@preview.empty?
           view.line_width=3
           view.drawing_color=Sketchup::Color.new(255,128,0,255)
@@ -141,8 +148,8 @@ module TranTuan
               Sketchup.set_status_text('Rộng / Sâu / Cao / Dày ván / Khe hở / Đáy',SB_VCB_LABEL)
             end
           else
-            Sketchup.set_status_text('TT Ngăn kéo: TỰ ĐỘNG | CLICK 1 = MẶT TRÊN | TAB = THỦ CÔNG',SB_PROMPT)
-            Sketchup.set_status_text('CLICK 2 = ĐÁY → tự động tạo ngăn kéo',SB_VCB_LABEL)
+            Sketchup.set_status_text('TT Ngăn kéo: TỰ ĐỘNG 2 ĐIỂM | CLICK 1 = MẶT TRÊN | TAB = THỦ CÔNG',SB_PROMPT)
+            Sketchup.set_status_text('ĐANG CHỜ: CLICK 1 MẶT TRÊN → CLICK 2 ĐÁY → PREVIEW → CLICK TẠO',SB_VCB_LABEL)
           end
         end
 
@@ -200,7 +207,6 @@ module TranTuan
           reset
         end
 
-        # Thủ công: click điểm đặt trước, nhập thông số, sau đó preview 3D và click lần nữa để tạo.
         def manual_create
           prompts=['Rộng phủ bì (mm)','Sâu phủ bì (mm)','Cao ngăn kéo (mm)','Độ dày ván (mm)','Khe hở trái/phải (mm)','Khe hở trước/sau (mm)','Độ dày đáy (mm)','Đáy cách đáy hông (mm)']
           defaults=[600,450,150,18,2,2,9,0]
