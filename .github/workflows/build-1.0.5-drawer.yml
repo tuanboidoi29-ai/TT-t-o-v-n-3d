@@ -1,4 +1,4 @@
-name: Build TT Tạo Ván 1.0.8 - Tạo Ngăn Kéo
+name: Build TT Tạo Ván 1.0.9 - Tạo Ngăn Kéo
 
 on:
   push:
@@ -22,7 +22,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Build clean RBZ 1.0.8
+      - name: Build clean RBZ 1.0.9
         shell: bash
         run: |
           set -euo pipefail
@@ -34,6 +34,145 @@ jobs:
           mkdir -p build_tt/pkg/TT_TaoVan/icons
           cp release_1.0.5/TT_TaoVan/drawer.rb build_tt/pkg/TT_TaoVan/drawer.rb
           cp release_1.0.5/TT_TaoVan/version.txt build_tt/pkg/TT_TaoVan/version.txt
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p = Path('build_tt/pkg/TT_TaoVan/drawer.rb')
+          s = p.read_text(encoding='utf-8')
+
+          def replace_method(src, name, next_name, body):
+              pat = rf'        def {name}.*?(?=        def {next_name})'
+              out, n = re.subn(pat, body + '\n', src, count=1, flags=re.S)
+              if n != 1:
+                  raise SystemExit(f'Could not patch method {name}')
+              return out
+
+          s = replace_method(s, 'onMouseMove', 'draw', r'''        def onMouseMove(_flags, x, y, view)
+          @ip.pick(view, x, y)
+          return unless @ip.valid?
+          p = @ip.position
+
+          # Dùng InputPoint chuẩn của SketchUp: endpoint / midpoint / intersection / face.
+          @ip.draw(view) if @ip.respond_to?(:draw)
+
+          if @manual_mode
+            @manual_origin ||= p
+            @preview = @manual_ready ? [@manual_origin, p] : [p]
+            view.invalidate
+            return
+          end
+
+          @preview = @p1 ? [@p1, p] : [p]
+          view.invalidate
+
+          if @p1 && @container
+            inv = @container.transformation.inverse
+            p1l = @p1.transform(inv)
+            pl = p.transform(inv)
+            h_mm = (p1l.z - pl.z).abs.to_mm
+            snap = @ip.respond_to?(:tooltip) ? @ip.tooltip.to_s : ''
+            snap = snap.empty? ? 'ĐANG BẮT ĐIỂM' : snap
+            Sketchup.set_status_text("TỰ ĐỘNG 2 ĐIỂM | #{snap} | CAO: #{Drawer.mm_text(h_mm)} | ĐƠN VỊ: mm | TAB = THỦ CÔNG", SB_VCB_LABEL)
+          end
+        end''')
+
+          s = replace_method(s, 'onLButtonDown', 'onKeyDown', r'''        def onLButtonDown(_flags, x, y, view)
+          @ip.pick(view, x, y)
+          return unless @ip.valid?
+          p = @ip.position
+
+          if @manual_mode
+            unless @manual_ready
+              @manual_origin = p
+              manual_create
+              return
+            end
+            create_manual_from_preview
+            return
+          end
+
+          if @p1.nil?
+            @p1 = p
+            # Chọn container ngoài cùng để điểm 2 có thể nằm trên bất kỳ Face con nào
+            # bên trong cùng khoang/tủ, thay vì bắt buộc cùng Group con trực tiếp.
+            @container = top_container(@ip)
+            unless @container
+              UI.messagebox('Không bắt được Group/Component của khoang. Hãy đưa chuột lên mặt trong khoang rồi click lại.')
+              reset
+              return
+            end
+            set_waiting_status('TỰ ĐỘNG 2 ĐIỂM', 'ĐIỂM 1 ĐÃ NHẬN → DI CHUỘT XUỐNG MẶT ĐÁY → CLICK ĐIỂM 2')
+            view.invalidate
+          else
+            @p2 = p
+            create_from_two_points
+          end
+        end''')
+
+          s = replace_method(s, 'direct_container', 'local_bounds', r'''        def direct_container(ip)
+          top_container(ip)
+        end
+
+        # Container ngoài cùng trong instance path. Cách này cho phép click điểm 1
+        # và điểm 2 trên các Group/Component con khác nhau nhưng cùng thuộc một tủ.
+        def top_container(ip)
+          path = ip.instance_path
+          return nil unless path && path.respond_to?(:to_a)
+          path.to_a.each do |e|
+            return e if e.is_a?(Sketchup::Group) || e.is_a?(Sketchup::ComponentInstance)
+          end
+          nil
+        end''')
+
+          s = replace_method(s, 'create_from_two_points', 'manual_create', r'''        def create_from_two_points
+          model = Sketchup.active_model
+          unless @container && @container.valid?
+            UI.messagebox('Không xác định được Group/Component của khoang tủ.')
+            reset
+            return
+          end
+
+          c2 = top_container(@ip)
+          unless same_container?(@container, c2)
+            UI.messagebox('Điểm 2 phải nằm trong cùng khoang/tủ với điểm 1. Bạn không cần click đúng cùng một Group con.')
+            reset
+            return
+          end
+
+          tr = @container.transformation
+          inv = tr.inverse
+          p1l = @p1.transform(inv)
+          p2l = @p2.transform(inv)
+          if p1l.z <= p2l.z
+            UI.messagebox('Sai thứ tự: ĐIỂM 1 phải ở MẶT TRÊN và ĐIỂM 2 phải ở ĐÁY.')
+            reset
+            return
+          end
+
+          h_local = p1l.z - p2l.z
+          if h_local <= Drawer.mm(1)
+            UI.messagebox('Chiều cao giữa điểm 1 và điểm 2 phải lớn hơn 1 mm.')
+            reset
+            return
+          end
+
+          b = local_bounds(@container)
+          w_local = b.width
+          d_local = b.depth
+          if w_local <= 0 || d_local <= 0
+            UI.messagebox('Không xác định được Rộng/Sâu theo trục của Group/Component.')
+            reset
+            return
+          end
+
+          create_drawer_local(model, tr, b.min.x, b.min.y, p2l.z, w_local, d_local, h_local, 18.0, 9.0, 2.0, 2.0)
+        rescue => e
+          UI.messagebox("Không thể tạo ngăn kéo:\n#{e.message}")
+          reset
+        end''')
+
+          p.write_text(s, encoding='utf-8')
+          PY
           python3 -m pip install --disable-pip-version-check -q Pillow
           python3 - <<'PY'
           from PIL import Image, ImageDraw
@@ -48,13 +187,13 @@ jobs:
               im.save(p/f'tao_ngan_keo_{n}.png')
           PY
           ruby -c build_tt/pkg/TT_TaoVan/drawer.rb
-          rm -f TT_TaoVan_1.0.8_TaoNganKeo.rbz
-          (cd build_tt/pkg && zip -qr ../../TT_TaoVan_1.0.8_TaoNganKeo.rbz .)
-          unzip -t TT_TaoVan_1.0.8_TaoNganKeo.rbz >/dev/null
-          sha=$(sha256sum TT_TaoVan_1.0.8_TaoNganKeo.rbz | awk '{print $1}')
+          rm -f TT_TaoVan_1.0.9_TaoNganKeo.rbz
+          (cd build_tt/pkg && zip -qr ../../TT_TaoVan_1.0.9_TaoNganKeo.rbz .)
+          unzip -t TT_TaoVan_1.0.9_TaoNganKeo.rbz >/dev/null
+          sha=$(sha256sum TT_TaoVan_1.0.9_TaoNganKeo.rbz | awk '{print $1}')
           echo "RBZ_SHA=$sha" >> "$GITHUB_ENV"
 
-      - name: Publish RBZ 1.0.8 and update manifest
+      - name: Publish RBZ 1.0.9 and update manifest
         shell: bash
         run: |
           set -euo pipefail
@@ -62,14 +201,14 @@ jobs:
           import json,os
           from pathlib import Path
           p=Path('update.json'); obj=json.loads(p.read_text(encoding='utf-8'))
-          obj['version']='1.0.8'
-          obj['rbz_url']='https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.0.8_TaoNganKeo.rbz'
+          obj['version']='1.0.9'
+          obj['rbz_url']='https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.0.9_TaoNganKeo.rbz'
           obj['sha256']=os.environ['RBZ_SHA']
-          obj['notes']='Vision 1.0.8 - Sửa lỗi bounds của Sketchup::Entities; chuẩn hóa Local Bounding Box; sửa kiểm tra chiều cao theo mm; TAB ổn định; sửa hướng và kích thước ngăn kéo.'
+          obj['notes']='Vision 1.0.9 - Bắt điểm thuận lợi hơn; cho phép điểm 1/2 nằm trên các Group con cùng tủ; hiển thị InputPoint/tooltip; giữ chuẩn mm; TAB ổn định; sửa hướng và kích thước ngăn kéo.'
           p.write_text(json.dumps(obj,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
           PY
           git config user.name 'TT Vision Bot'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add TT_TaoVan_1.0.8_TaoNganKeo.rbz update.json
-          git commit -m 'Release TT Tạo Ván 1.0.8 - Fix bounds and drawer tool' || true
+          git add TT_TaoVan_1.0.9_TaoNganKeo.rbz update.json
+          git commit -m 'Release TT Tạo Ván 1.0.9 - Improve drawer snapping' || true
           git push
