@@ -40,14 +40,11 @@ jobs:
           from pathlib import Path
           p = Path('build_tt/pkg/TT_TaoVan/drawer.rb')
           s = p.read_text(encoding='utf-8')
+          # Source drawer.rb is authoritative: AUTO starts immediately; TAB opens settings.
           old = '''      def start\n        show_settings\n      end'''
           new = '''      def start\n        Sketchup.active_model.select_tool(TwoPointTool.new(defaults))\n      end'''
           if old in s:
               s = s.replace(old, new, 1)
-          old_key = '''        def onKeyDown(key,_repeat,_flags,_view)\n          Sketchup.active_model.select_tool(nil) if key==27\n        end'''
-          new_key = '''        def onKeyDown(key,_repeat,_flags,_view)\n          if key == TAB_KEY\n            Drawer.show_settings\n          elsif key == 27\n            Sketchup.active_model.select_tool(nil)\n          end\n        end'''
-          if old_key in s:
-              s = s.replace(old_key, new_key, 1)
           p.write_text(s, encoding='utf-8')
           PY
 
@@ -71,11 +68,11 @@ jobs:
           obj['version']='1.1.4'
           obj['rbz_url']='https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.1.4_TaoNganKeo.rbz'
           obj['sha256']=os.environ['RBZ_SHA']
-          obj['notes']='TT Tạo Ngăn Kéo 1.1.4 - sửa lỗi Hot Update undefined method remove_item; không đụng vào Toolbar item cũ khi reload; chỉ giữ AUTO 2 điểm; TAB mở cài đặt; ESC thoát; tạo liên tục; đơn vị mm.'
+          obj['notes']='TT Tạo Ngăn Kéo 1.1.4 - AUTO khởi động ngay; TAB mở cài đặt; loại bỏ luồng cài đặt cũ khi bấm lệnh; AUTO 2 điểm; ESC thoát; tạo liên tục; đơn vị mm.'
           p.write_text(json.dumps(obj,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
           PY
           git config user.name 'TT Vision Bot'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add TT_TaoVan_1.1.4_TaoNganKeo.rbz update.json
-          git commit -m 'Release TT Tạo Ngăn Kéo 1.1.4 - fix hot update toolbar' || true
+          git commit -m 'Release TT Tạo Ngăn Kéo 1.1.4 - AUTO starts immediately' || true
           git push
