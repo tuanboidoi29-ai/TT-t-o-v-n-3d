@@ -1,7 +1,7 @@
 {
   "name": "TT - tạo ván -Trần Tuấn",
-  "version": "1.1.3",
-  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.1.3_TaoNganKeo.rbz",
-  "sha256": "e6553579684d450f3337fa3de53e607f1882f600e6d5226a8d9051a2f7eb0a75",
-  "notes": "TT Tạo Ngăn Kéo 1.1.3 - loại bỏ UI/lệnh Ngăn Kéo cũ; chỉ giữ AUTO 2 điểm; TAB mở cài đặt; ESC thoát; tạo liên tục không ngắt quãng; hot update thay thế command cũ; đơn vị mm."
+  "version": "1.1.4",
+  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.1.4_TaoNganKeo.rbz",
+  "sha256": "1c754898bdf2cd2d5ab09c1ee1c5ad7855cfd92a0ac878447f42f4ba3982b8c4",
+  "notes": "TT Tạo Ngăn Kéo 1.1.4 - sửa lỗi Hot Update undefined method remove_item; không đụng vào Toolbar item cũ khi reload; chỉ giữ AUTO 2 điểm; TAB mở cài đặt; ESC thoát; tạo liên tục; đơn vị mm."
 }
