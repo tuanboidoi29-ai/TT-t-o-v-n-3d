@@ -1,8 +1,6 @@
 name: Publish TT 1.0.5 RBZ
 on:
   push:
-    paths:
-      - 'TT_TaoVan_1.0.5_TaoNganKeo_FINAL.rbz.b64'
 jobs:
   publish:
     runs-on: ubuntu-latest
