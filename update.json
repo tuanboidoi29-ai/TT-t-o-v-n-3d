@@ -2,6 +2,6 @@
   "name": "TT - tạo ván -Trần Tuấn",
   "version": "1.0.5",
   "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.0.5_TaoNganKeo.rbz",
-  "sha256": "87095666ccfe3b4e712c9409b9a3f29d265f40673e68a47f447a505c60920f84",
-  "notes": "Vision 1.0.5 - Tạo Ngăn Kéo: TAB chuyển Tự động 2 điểm / Thủ công; preview 3D; Menu + Icon."
+  "sha256": "b4cfcaeb3e59da3705697a634faf81b454c3c7cdda63af427864122223babdf6",
+  "notes": "Vision 1.0.5 - Tạo Ngăn Kéo tùy chỉnh; Menu + Toolbar + Icon riêng; giữ Tạo Ván, Tạo Box, Xuất chi tiết ván; Hot Update không cần cài RBZ thủ công."
 }
