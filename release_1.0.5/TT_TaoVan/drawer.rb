@@ -82,7 +82,6 @@ module TranTuan
         end
         def create_manual_from_preview; w,d,h,t,gl,gf,bt,bo=@manual_values; create_drawer(Sketchup.active_model,@manual_origin.x,@manual_origin.y,@manual_origin.z,w,d,h,t,bt,gl,gf,bo); end
         def create_drawer(model,ox,oy,oz,w,d,h,t,bt,gl,gf,bo=0)
-          # All dimensions entering this method are millimeters. Convert once to SketchUp internal units.
           w_mm,d_mm,h_mm,t_mm,bt_mm,gl_mm,gf_mm,bo_mm=[w,d,h,t,bt,gl,gf,bo].map(&:to_f)
           iw_mm=w_mm-2*t_mm-2*gl_mm; id_mm=d_mm-2*t_mm-2*gf_mm
           if iw_mm<=0 || id_mm<=0 || h_mm<=t_mm
