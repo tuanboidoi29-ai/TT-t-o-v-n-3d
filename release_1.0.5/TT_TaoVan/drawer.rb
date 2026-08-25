@@ -2,6 +2,8 @@ module TranTuan
   module TaoVan
     module Drawer
       module_function
+      # Chuẩn hóa: mọi kích thước giao tiếp với người dùng đều là mm.
+      # SketchUp nội bộ vẫn dùng inch, vì vậy chỉ đổi mm -> inch khi tạo hình học.
       def mm(v); v.to_f.mm; end
       def mm_text(v, decimals=1); format("%0.#{decimals}f mm", v.to_f); end
       def start; Sketchup.active_model.select_tool(TwoPointTool.new); end
@@ -68,10 +70,10 @@ module TranTuan
         def create_from_two_points
           model=Sketchup.active_model; z_top=@p1.z; z_bottom=@p2.z
           if z_top<=z_bottom; UI.messagebox('Sai thứ tự: ĐIỂM 1 phải ở MẶT TRÊN và ĐIỂM 2 phải ở ĐÁY.'); reset; return; end
-          h=(z_top-z_bottom).to_mm.abs; if h<=1.0; UI.messagebox('Chiều cao giữa điểm 1 và điểm 2 phải lớn hơn 1 mm.'); reset; return; end
+          h_mm=(z_top-z_bottom).to_mm.abs; if h_mm<=1.0; UI.messagebox('Chiều cao giữa điểm 1 và điểm 2 phải lớn hơn 1 mm.'); reset; return; end
           c2=direct_container(@ip); unless same_container?(@container,c2); UI.messagebox('Điểm 2 phải nằm trên Face thuộc cùng Group/Component với điểm 1.'); reset; return; end
-          bb=@container.bounds; w=bb.width.to_mm; d=bb.depth.to_mm; if w<=1 || d<=1; UI.messagebox('Không xác định được Rộng/Sâu từ Group/Component.'); reset; return; end
-          create_drawer(model,bb.min.x,bb.min.y,z_bottom,w,d,h,18,9,2,2)
+          bb=@container.bounds; w_mm=bb.width.to_mm; d_mm=bb.depth.to_mm; if w_mm<=1 || d_mm<=1; UI.messagebox('Không xác định được Rộng/Sâu từ Group/Component.'); reset; return; end
+          create_drawer(model,bb.min.x,bb.min.y,z_bottom,w_mm,d_mm,h_mm,18,9,2,2)
         rescue => e; UI.messagebox("Không thể tạo ngăn kéo:\n#{e.message}"); reset; end
         def manual_create
           prompts=['Rộng phủ bì (mm)','Sâu phủ bì (mm)','Cao ngăn kéo (mm)','Độ dày ván (mm)','Khe hở trái/phải (mm)','Khe hở trước/sau (mm)','Độ dày đáy (mm)','Đáy cách đáy hông (mm)']; defaults=[600,450,150,18,2,2,9,0]
@@ -82,6 +84,7 @@ module TranTuan
         end
         def create_manual_from_preview; w,d,h,t,gl,gf,bt,bo=@manual_values; create_drawer(Sketchup.active_model,@manual_origin.x,@manual_origin.y,@manual_origin.z,w,d,h,t,bt,gl,gf,bo); end
         def create_drawer(model,ox,oy,oz,w,d,h,t,bt,gl,gf,bo=0)
+          # Các biến w,d,h,t,bt,gl,gf,bo ở đây LUÔN là mm; chỉ chuyển sang inch khi tạo hình học.
           w_mm,d_mm,h_mm,t_mm,bt_mm,gl_mm,gf_mm,bo_mm=[w,d,h,t,bt,gl,gf,bo].map(&:to_f)
           iw_mm=w_mm-2*t_mm-2*gl_mm; id_mm=d_mm-2*t_mm-2*gf_mm
           if iw_mm<=0 || id_mm<=0 || h_mm<=t_mm
