@@ -1,7 +1,7 @@
 {
   "name": "TT - tạo ván -Trần Tuấn",
-  "version": "1.1.2",
-  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.1.2_TaoNganKeo.rbz",
-  "sha256": "1b86e8e11970abda5ae15e4e9363b6d055233f745aa13375e3a54904e04023b2",
-  "notes": "TT Tạo Ngăn Kéo 1.1.2 - AUTO khởi động trực tiếp; TAB mở bảng cài đặt; ESC thoát; tạo ngăn kéo liên tục không ngắt quãng; sau mỗi lần tạo tự sẵn sàng CLICK ĐIỂM 1; đơn vị mm."
+  "version": "1.1.3",
+  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.1.3_TaoNganKeo.rbz",
+  "sha256": "df4048d32952349972564f47073b6a7b2e51fb1efe649ed475efa01b2a8ba516",
+  "notes": "TT Tạo Ngăn Kéo 1.1.3 - loại bỏ UI/lệnh Ngăn Kéo cũ; chỉ giữ AUTO 2 điểm; TAB mở cài đặt; ESC thoát; tạo liên tục không ngắt quãng; hot update thay thế command cũ; đơn vị mm."
 }
