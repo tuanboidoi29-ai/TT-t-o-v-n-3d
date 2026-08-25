@@ -4,8 +4,7 @@ module TranTuan
       module_function
 
       # TT - Tạo ngăn kéo: 2 điểm tự động + chỉnh thủ công.
-      # Mặc định: CLICK 1 = mặt trên, CLICK 2 = đáy.
-      # Nhấn M trước khi click để nhập kích thước thủ công.
+      # TAB chuyển chế độ: TỰ ĐỘNG 2 ĐIỂM <-> THỦ CÔNG.
       def start
         Sketchup.active_model.select_tool(TwoPointTool.new)
       end
@@ -14,24 +13,34 @@ module TranTuan
         def initialize
           @ip=Sketchup::InputPoint.new
           @p1=nil; @p2=nil; @container=nil; @preview=nil
+          @manual_mode=false
         end
 
         def activate
-          Sketchup.set_status_text('TT Ngăn kéo: CLICK 1 = MẶT TRÊN | M = NHẬP THỦ CÔNG',SB_PROMPT)
-          Sketchup.set_status_text('CLICK 2 = ĐÁY → tự động tạo ngăn kéo',SB_VCB_LABEL)
+          update_status
         end
 
-        def deactivate(view); @preview=nil; view.invalidate if view end
+        def deactivate(view)
+          @preview=nil
+          view.invalidate if view
+        end
 
         def onMouseMove(_flags,x,y,view)
           @ip.pick(view,x,y)
           return unless @ip.valid?
           p=@ip.position
+
+          if @manual_mode
+            @preview=[p]
+            view.invalidate
+            return
+          end
+
           @preview=@p1 ? [@p1,p] : [p]
           view.invalidate
           if @p1
             h=(@p1.z-p.z).abs.to_mm
-            Sketchup.set_status_text("CLICK 2 = ĐÁY | Cao: #{h.round(1)} mm",SB_VCB_LABEL)
+            Sketchup.set_status_text("CLICK 2 = ĐÁY | Cao: #{h.round(1)} mm | TAB = THỦ CÔNG",SB_VCB_LABEL)
           end
         end
 
@@ -39,13 +48,16 @@ module TranTuan
           return unless @preview && !@preview.empty?
           view.line_width=3
           view.drawing_color=Sketchup::Color.new(255,128,0,255)
-          if @preview.length==1
-            p=@preview[0]; s=12.mm
+
+          if @manual_mode || @preview.length==1
+            p=@preview[0]
+            s=12.mm
             view.draw(GL_LINES,
               Geom::Point3d.new(p.x-s,p.y,p.z),Geom::Point3d.new(p.x+s,p.y,p.z),
               Geom::Point3d.new(p.x,p.y-s,p.z),Geom::Point3d.new(p.x,p.y+s,p.z))
             return
           end
+
           a,b=@preview
           z0=[a.z,b.z].min; z1=[a.z,b.z].max
           bb=(@container && @container.valid?) ? @container.bounds : nil
@@ -62,12 +74,21 @@ module TranTuan
         end
 
         def onLButtonDown(_flags,x,y,view)
-          @ip.pick(view,x,y); return unless @ip.valid?
+          @ip.pick(view,x,y)
+          return unless @ip.valid?
           p=@ip.position
+
+          if @manual_mode
+            @preview=[p]
+            view.invalidate
+            manual_create
+            return
+          end
+
           if @p1.nil?
             @p1=p
             @container=direct_container(@ip)
-            Sketchup.set_status_text('ĐIỂM 1 OK → CLICK 2 = ĐÁY | M = THỦ CÔNG',SB_PROMPT)
+            Sketchup.set_status_text('ĐIỂM 1 OK → CLICK 2 = ĐÁY | TAB = THỦ CÔNG',SB_PROMPT)
             view.invalidate
           else
             @p2=p
@@ -75,16 +96,29 @@ module TranTuan
           end
         end
 
-        def onKeyDown(key,_repeat,_flags,_view)
-          # M = mở bảng nhập thủ công ở bất kỳ thời điểm nào trước khi tạo.
-          if key == 77 || key == 109
-            manual_create
+        def onKeyDown(key,_repeat,_flags,view)
+          # TAB = chuyển giữa 2 chế độ, không dùng phím M nữa.
+          if key == 9
+            @manual_mode=!@manual_mode
+            @p1=nil; @p2=nil; @container=nil; @preview=nil
+            update_status
+            view.invalidate if view
           elsif key == 27
             Sketchup.active_model.select_tool(nil)
           end
         end
 
         private
+
+        def update_status
+          if @manual_mode
+            Sketchup.set_status_text('TT Ngăn kéo: CHẾ ĐỘ THỦ CÔNG | CLICK để nhập thông số | TAB = TỰ ĐỘNG 2 ĐIỂM',SB_PROMPT)
+            Sketchup.set_status_text('Rộng / Sâu / Cao / Dày ván / Khe hở / Đáy',SB_VCB_LABEL)
+          else
+            Sketchup.set_status_text('TT Ngăn kéo: CHẾ ĐỘ TỰ ĐỘNG | CLICK 1 = MẶT TRÊN | TAB = THỦ CÔNG',SB_PROMPT)
+            Sketchup.set_status_text('CLICK 2 = ĐÁY → tự động tạo ngăn kéo',SB_VCB_LABEL)
+          end
+        end
 
         def direct_container(ip)
           path=ip.instance_path
@@ -121,7 +155,7 @@ module TranTuan
           reset
         end
 
-        # Chế độ thủ công: người dùng tự chỉnh toàn bộ kích thước.
+        # Chế độ thủ công: tự chỉnh toàn bộ kích thước.
         def manual_create
           prompts=[
             'Rộng phủ bì (mm)','Sâu phủ bì (mm)','Cao ngăn kéo (mm)',
@@ -136,7 +170,6 @@ module TranTuan
             UI.messagebox('Thông số không hợp lệ.'); return
           end
           model=Sketchup.active_model
-          # Đặt thủ công tại gốc model; người dùng có thể Move Group sau khi tạo.
           create_drawer(model,0,0,0,w,d,h,t,bt,gl,gf,bo)
         rescue => e
           UI.messagebox("Không thể tạo ngăn kéo thủ công:\n#{e.message}")
@@ -167,7 +200,7 @@ module TranTuan
           add.call('Mặt sau',ox+t,oy,oz,iw+2*gl,t,h)
           outer.set_attribute('TT_TaoVan','loai','ngan_keo')
           outer.set_attribute('TT_TaoVan','tao_bang_2_diem',@p1 ? true : false)
-          outer.set_attribute('TT_TaoVan','tao_thu_cong',@p1 ? false : true)
+          outer.set_attribute('TT_TaoVan','tao_thu_cong',@manual_mode)
           outer.set_attribute('TT_TaoVan','rong_mm',w)
           outer.set_attribute('TT_TaoVan','sau_mm',d)
           outer.set_attribute('TT_TaoVan','cao_mm',h)
@@ -184,7 +217,7 @@ module TranTuan
 
         def reset
           @p1=nil; @p2=nil; @container=nil; @preview=nil
-          Sketchup.set_status_text('TT Ngăn kéo: CLICK 1 = MẶT TRÊN | M = NHẬP THỦ CÔNG',SB_PROMPT)
+          update_status
         end
       end
     end
