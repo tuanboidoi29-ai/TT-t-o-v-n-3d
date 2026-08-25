@@ -2,6 +2,6 @@
   "name": "TT - tạo ván -Trần Tuấn",
   "version": "1.0.8",
   "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.0.8_TaoNganKeo.rbz",
-  "sha256": "cb19d418591be133987b0d5e356e207f7b288b0dd6619cc88da26f4976e4f236",
+  "sha256": "f7d3286251af5d79d1aef3fe8d4bd80eb02fb3fe4dc0a99ef39a35bf04b08b53",
   "notes": "Vision 1.0.8 - Sửa lỗi bounds của Sketchup::Entities; chuẩn hóa Local Bounding Box; sửa kiểm tra chiều cao theo mm; TAB ổn định; sửa hướng và kích thước ngăn kéo."
 }
