@@ -1,17 +1,18 @@
-name: Build TT Tạo Ván 1.0.5 - Tạo Ngăn Kéo
+name: Build TT Tạo Ván 1.0.6 - Tạo Ngăn Kéo
 
 on:
   push:
     paths:
       - '.github/workflows/build-1.0.5-drawer.yml'
       - 'release_1.0.5/TT_TaoVan/drawer.rb'
+      - 'release_1.0.5/TT_TaoVan/version.txt'
   workflow_dispatch:
 
 permissions:
   contents: write
 
 concurrency:
-  group: tt-tao-van-105-release
+  group: tt-tao-van-release
   cancel-in-progress: false
 
 jobs:
@@ -21,7 +22,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Build clean RBZ from current valid 1.0.5 RBZ
+      - name: Build clean RBZ 1.0.6 from current valid RBZ
         shell: bash
         run: |
           set -euo pipefail
@@ -32,6 +33,7 @@ jobs:
           test -f build_tt/pkg/TT_TaoVan/drawer.rb
           mkdir -p build_tt/pkg/TT_TaoVan/icons
           cp release_1.0.5/TT_TaoVan/drawer.rb build_tt/pkg/TT_TaoVan/drawer.rb
+          cp release_1.0.5/TT_TaoVan/version.txt build_tt/pkg/TT_TaoVan/version.txt
           python3 -m pip install --disable-pip-version-check -q Pillow
           python3 - <<'PY'
           from PIL import Image, ImageDraw
@@ -46,13 +48,13 @@ jobs:
               im.save(p/f'tao_ngan_keo_{n}.png')
           PY
           ruby -c build_tt/pkg/TT_TaoVan/drawer.rb
-          rm -f TT_TaoVan_1.0.5_TaoNganKeo.rbz
-          (cd build_tt/pkg && zip -qr ../../TT_TaoVan_1.0.5_TaoNganKeo.rbz .)
-          unzip -t TT_TaoVan_1.0.5_TaoNganKeo.rbz >/dev/null
-          sha=$(sha256sum TT_TaoVan_1.0.5_TaoNganKeo.rbz | awk '{print $1}')
+          rm -f TT_TaoVan_1.0.6_TaoNganKeo.rbz
+          (cd build_tt/pkg && zip -qr ../../TT_TaoVan_1.0.6_TaoNganKeo.rbz .)
+          unzip -t TT_TaoVan_1.0.6_TaoNganKeo.rbz >/dev/null
+          sha=$(sha256sum TT_TaoVan_1.0.6_TaoNganKeo.rbz | awk '{print $1}')
           echo "RBZ_SHA=$sha" >> "$GITHUB_ENV"
 
-      - name: Publish RBZ and update manifest
+      - name: Publish RBZ 1.0.6 and update manifest
         shell: bash
         run: |
           set -euo pipefail
@@ -60,14 +62,14 @@ jobs:
           import json,os
           from pathlib import Path
           p=Path('update.json'); obj=json.loads(p.read_text(encoding='utf-8'))
-          obj['version']='1.0.5'
-          obj['rbz_url']='https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.0.5_TaoNganKeo.rbz'
+          obj['version']='1.0.6'
+          obj['rbz_url']='https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.0.6_TaoNganKeo.rbz'
           obj['sha256']=os.environ['RBZ_SHA']
-          obj['notes']='Vision 1.0.5 - Tạo Ngăn Kéo: CHẾ ĐỘ CHỜ; hiển thị TỰ ĐỘNG 2 ĐIỂM / THỦ CÔNG; TAB chuyển chế độ; preview 3D; Menu + Icon.'
+          obj['notes']='Vision 1.0.6 - Tạo Ngăn Kéo: CHẾ ĐỘ CHỜ; TỰ ĐỘNG 2 ĐIỂM / THỦ CÔNG; TAB chuyển chế độ; chuẩn hóa kích thước mm; preview 3D; Menu + Icon.'
           p.write_text(json.dumps(obj,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
           PY
           git config user.name 'TT Vision Bot'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add TT_TaoVan_1.0.5_TaoNganKeo.rbz update.json
-          git commit -m 'Release TT Tạo Ván 1.0.5 - Tạo Ngăn Kéo' || true
+          git add TT_TaoVan_1.0.6_TaoNganKeo.rbz update.json
+          git commit -m 'Release TT Tạo Ván 1.0.6 - Chuẩn hóa đơn vị mm' || true
           git push
