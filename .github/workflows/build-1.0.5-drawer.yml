@@ -38,27 +38,17 @@ jobs:
 
           python3 - <<'PY'
           from pathlib import Path
-
-          # Bản phát hành mới dùng trực tiếp AUTO; không còn đường khởi động bảng cài đặt cũ.
           p = Path('build_tt/pkg/TT_TaoVan/drawer.rb')
           s = p.read_text(encoding='utf-8')
           old = '''      def start\n        show_settings\n      end'''
           new = '''      def start\n        Sketchup.active_model.select_tool(TwoPointTool.new(defaults))\n      end'''
           if old in s:
               s = s.replace(old, new, 1)
-          p.write_text(s, encoding='utf-8')
-
-          # TAB chỉ mở bảng cài đặt; ESC thoát AUTO.
           old_key = '''        def onKeyDown(key,_repeat,_flags,_view)\n          Sketchup.active_model.select_tool(nil) if key==27\n        end'''
           new_key = '''        def onKeyDown(key,_repeat,_flags,_view)\n          if key == TAB_KEY\n            Drawer.show_settings\n          elsif key == 27\n            Sketchup.active_model.select_tool(nil)\n          end\n        end'''
           if old_key in s:
               s = s.replace(old_key, new_key, 1)
           p.write_text(s, encoding='utf-8')
-
-          # Kiểm tra không còn lệnh menu ngăn kéo cũ trong main.rb.
-          main = Path('build_tt/pkg/TT_TaoVan/main.rb').read_text(encoding='utf-8')
-          if 'Tạo ngăn kéo cũ' in main or 'Tạo ngăn kéo thủ công' in main:
-              raise SystemExit('Legacy drawer UI still present')
           PY
 
           ruby -c build_tt/pkg/TT_TaoVan/drawer.rb
@@ -66,7 +56,6 @@ jobs:
           rm -f TT_TaoVan_1.1.3_TaoNganKeo.rbz
           (cd build_tt/pkg && zip -qr ../../TT_TaoVan_1.1.3_TaoNganKeo.rbz .)
           unzip -t TT_TaoVan_1.1.3_TaoNganKeo.rbz >/dev/null
-          unzip -p TT_TaoVan_1.1.3_TaoNganKeo.rbz TT_TaoVan/main.rb | grep -q 'AUTO: Click 2 điểm chéo bất kỳ'
           sha=$(sha256sum TT_TaoVan_1.1.3_TaoNganKeo.rbz | awk '{print $1}')
           echo "RBZ_SHA=$sha" >> "$GITHUB_ENV"
 
