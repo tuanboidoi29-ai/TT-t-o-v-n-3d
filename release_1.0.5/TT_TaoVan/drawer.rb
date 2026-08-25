@@ -2,8 +2,16 @@ module TranTuan
   module TaoVan
     module Drawer
       module_function
+      # Chuẩn hóa toàn bộ kích thước người dùng theo mm.
       def mm(v); v.to_f.mm; end
       def mm_text(v, decimals=1); format("%0.#{decimals}f mm", v.to_f); end
+      def parse_mm(v)
+        s=v.to_s.strip.downcase.gsub(',', '.')
+        s=s.sub(/\s*mm\s*\z/,'')
+        Float(s)
+      rescue
+        nil
+      end
       def start; Sketchup.active_model.select_tool(TwoPointTool.new); end
       class TwoPointTool
         def initialize
@@ -88,9 +96,11 @@ module TranTuan
         def manual_create
           prompts=['Rộng phủ bì (mm)','Sâu phủ bì (mm)','Cao ngăn kéo (mm)','Độ dày ván (mm)','Khe hở trái/phải (mm)','Khe hở trước/sau (mm)','Độ dày đáy (mm)','Đáy cách đáy hông (mm)']; defaults=[600,450,150,18,2,2,9,0]
           values=UI.inputbox(prompts,defaults,'TT - Tạo ngăn kéo thủ công | Đơn vị: mm'); return unless values
-          w,d,h,t,gl,gf,bt,bo=values.map(&:to_f)
-          unless [w,d,h,t,bt].all?{|v|v.finite?&&v>0}&&[gl,gf,bo].all?{|v|v.finite?&&v>=0}; UI.messagebox('Thông số không hợp lệ. Tất cả kích thước phải nhập bằng mm.'); return end
-          @manual_values=[w,d,h,t,gl,gf,bt,bo]; @manual_ready=true; update_status
+          vals=values.map{|v| Drawer.parse_mm(v)}
+          unless vals.all?{|v|v.is_a?(Numeric)&&v.finite?} && [0,1,2,3,4,5,6].all?{|i| vals[i]>0 rescue false} && vals[7]>=0
+            UI.messagebox('Thông số không hợp lệ. Tất cả kích thước phải nhập bằng mm. Ví dụ: 600 hoặc 600 mm.'); return
+          end
+          @manual_values=vals; @manual_ready=true; update_status
         end
         def create_manual_from_preview
           w,d,h,t,gl,gf,bt,bo=@manual_values; create_drawer(Sketchup.active_model,@manual_origin.x,@manual_origin.y,@manual_origin.z,w,d,h,t,bt,gl,gf,bo)
