@@ -10,7 +10,7 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
-      - name: Build clean RBZ
+      - name: Build clean RBZ and design icons
         shell: bash
         run: |
           set -e
@@ -21,11 +21,25 @@ jobs:
           cp release_1.0.5/TT_TaoVan/update.rb release_build/TT_TaoVan/update.rb
           cp release_1.0.5/TT_TaoVan/drawer.rb release_build/TT_TaoVan/drawer.rb
           cp release_1.0.5/TT_TaoVan/version.txt release_build/TT_TaoVan/version.txt
-          cp TT_TaoVan/core.rb release_build/TT_TaoVan/core.rb
-          cp TT_TaoVan/box.rb release_build/TT_TaoVan/box.rb
-          for f in tao_van_16.png tao_van_32.png tao_box_16.png tao_box_32.png xuat_chi_tiet_16.png xuat_chi_tiet_32.png cap_nhat_16.png cap_nhat_32.png; do cp "TT_TaoVan/icons/$f" "release_build/TT_TaoVan/icons/$f"; done
-          convert release_1.0.5/icon_drawer.svg -resize 16x16 release_build/TT_TaoVan/icons/tao_ngan_keo_16.png
-          convert release_1.0.5/icon_drawer.svg -resize 32x32 release_build/TT_TaoVan/icons/tao_ngan_keo_32.png
+          cp release_1.0.5/TT_TaoVan/core.rb release_build/TT_TaoVan/core.rb
+          cp release_1.0.5/TT_TaoVan/box.rb release_build/TT_TaoVan/box.rb
+          make_icon() {
+            label="$1"; out="$2"; size="$3"
+            cat > /tmp/icon.svg <<SVG
+          <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><rect x="2" y="2" width="28" height="28" rx="5" fill="#e6e6e6" stroke="#333" stroke-width="2"/><rect x="7" y="8" width="18" height="16" rx="2" fill="#a8a8a8" stroke="#555" stroke-width="2"/><text x="16" y="20" text-anchor="middle" font-family="DejaVu Sans" font-size="10" font-weight="bold" fill="#ff8000">$label</text></svg>
+          SVG
+            convert /tmp/icon.svg -resize "${size}x${size}" "$out"
+          }
+          make_icon V release_build/TT_TaoVan/icons/tao_van_16.png 16
+          make_icon V release_build/TT_TaoVan/icons/tao_van_32.png 32
+          make_icon B release_build/TT_TaoVan/icons/tao_box_16.png 16
+          make_icon B release_build/TT_TaoVan/icons/tao_box_32.png 32
+          make_icon K release_build/TT_TaoVan/icons/tao_ngan_keo_16.png 16
+          make_icon K release_build/TT_TaoVan/icons/tao_ngan_keo_32.png 32
+          make_icon X release_build/TT_TaoVan/icons/xuat_chi_tiet_16.png 16
+          make_icon X release_build/TT_TaoVan/icons/xuat_chi_tiet_32.png 32
+          make_icon U release_build/TT_TaoVan/icons/cap_nhat_16.png 16
+          make_icon U release_build/TT_TaoVan/icons/cap_nhat_32.png 32
           ruby -c release_build/tt_tao_van.rb
           for f in release_build/TT_TaoVan/*.rb; do ruby -c "$f"; done
           (cd release_build && zip -qr ../TT_TaoVan_1.0.5_TaoNganKeo.rbz .)
