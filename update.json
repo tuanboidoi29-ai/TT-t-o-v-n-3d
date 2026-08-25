@@ -1,7 +1,7 @@
 {
   "name": "TT - tạo ván -Trần Tuấn",
   "version": "1.0.5",
-  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.0.5_HotUpdate_MenuIcon.rbz",
-  "sha256": "5296bdcfc7dff2fe1bf30a80a16f20b4fda27fd9f489f6cab7b9dd1ca29caeb4",
-  "notes": "Vision 1.0.5 - sửa Hot Update để sau cập nhật tự tạo/bổ sung Menu + Toolbar + Icon mới; giữ Xuất chi tiết ván, Tạo Ván, Tạo Box; không có Bo Cong"
+  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.0.5_TaoNganKeo.rbz",
+  "sha256": "8a30ad758255922670f65f3fc31e6df10aa18e45c50643a4d835b41450618a23",
+  "notes": "Vision 1.0.5 - Tạo Ngăn Kéo tùy chỉnh; Menu + Toolbar + Icon riêng; giữ Tạo Ván, Tạo Box, Xuất chi tiết ván; Hot Update không cần cài RBZ thủ công."
 }
