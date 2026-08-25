@@ -1,3 +1,4 @@
+# TT automatic release builder
 name: Publish TT 1.0.5 RBZ
 on:
   push:
@@ -22,9 +23,7 @@ jobs:
           cp release_1.0.5/TT_TaoVan/version.txt release_build/TT_TaoVan/version.txt
           cp TT_TaoVan/core.rb release_build/TT_TaoVan/core.rb
           cp TT_TaoVan/box.rb release_build/TT_TaoVan/box.rb
-          for f in tao_van_16.png tao_van_32.png tao_box_16.png tao_box_32.png xuat_chi_tiet_16.png xuat_chi_tiet_32.png cap_nhat_16.png cap_nhat_32.png; do
-            cp "TT_TaoVan/icons/$f" "release_build/TT_TaoVan/icons/$f"
-          done
+          for f in tao_van_16.png tao_van_32.png tao_box_16.png tao_box_32.png xuat_chi_tiet_16.png xuat_chi_tiet_32.png cap_nhat_16.png cap_nhat_32.png; do cp "TT_TaoVan/icons/$f" "release_build/TT_TaoVan/icons/$f"; done
           convert release_1.0.5/icon_drawer.svg -resize 16x16 release_build/TT_TaoVan/icons/tao_ngan_keo_16.png
           convert release_1.0.5/icon_drawer.svg -resize 32x32 release_build/TT_TaoVan/icons/tao_ngan_keo_32.png
           ruby -c release_build/tt_tao_van.rb
@@ -37,8 +36,7 @@ jobs:
           python3 - <<'PY'
           import json, pathlib
           sha=pathlib.Path('release_sha.txt').read_text().split()[0]
-          p=pathlib.Path('update.json')
-          data=json.loads(p.read_text())
+          p=pathlib.Path('update.json'); data=json.loads(p.read_text())
           data['version']='1.0.5'
           data['rbz_url']='https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.0.5_TaoNganKeo.rbz'
           data['sha256']=sha
