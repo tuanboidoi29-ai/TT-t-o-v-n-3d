@@ -2,6 +2,6 @@
   "name": "TT - tạo ván -Trần Tuấn",
   "version": "1.1.3",
   "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.1.3_TaoNganKeo.rbz",
-  "sha256": "df4048d32952349972564f47073b6a7b2e51fb1efe649ed475efa01b2a8ba516",
+  "sha256": "08a91ad097a28b4824db9759185569e7bf8f02610371e522633375a4085d260d",
   "notes": "TT Tạo Ngăn Kéo 1.1.3 - loại bỏ UI/lệnh Ngăn Kéo cũ; chỉ giữ AUTO 2 điểm; TAB mở cài đặt; ESC thoát; tạo liên tục không ngắt quãng; hot update thay thế command cũ; đơn vị mm."
 }
