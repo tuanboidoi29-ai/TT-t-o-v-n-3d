@@ -15,7 +15,9 @@ module TranTuan
         def deactivate(view); @preview=nil; view.invalidate if view; end
         def onMouseMove(_flags,x,y,view)
           @ip.pick(view,x,y); return unless @ip.valid?; p=@ip.position
-          if @manual_mode; @manual_origin ||= p; @preview=@manual_ready ? [@manual_origin,p] : [p]; view.invalidate; return; end
+          if @manual_mode
+            @manual_origin ||= p; @preview=@manual_ready ? [@manual_origin,p] : [p]; view.invalidate; return
+          end
           @preview=@p1 ? [@p1,p] : [p]; view.invalidate
           if @p1
             h=(@p1.z-p.z).to_mm.abs
@@ -80,10 +82,12 @@ module TranTuan
         end
         def create_manual_from_preview; w,d,h,t,gl,gf,bt,bo=@manual_values; create_drawer(Sketchup.active_model,@manual_origin.x,@manual_origin.y,@manual_origin.z,w,d,h,t,bt,gl,gf,bo); end
         def create_drawer(model,ox,oy,oz,w,d,h,t,bt,gl,gf,bo=0)
-          # Contract: all dimensions arriving here are millimeters; convert exactly once to SketchUp internal units.
+          # All dimensions entering this method are millimeters. Convert once to SketchUp internal units.
           w_mm,d_mm,h_mm,t_mm,bt_mm,gl_mm,gf_mm,bo_mm=[w,d,h,t,bt,gl,gf,bo].map(&:to_f)
           iw_mm=w_mm-2*t_mm-2*gl_mm; id_mm=d_mm-2*t_mm-2*gf_mm
-          if iw_mm<=0 || id_mm<=0 || h_mm<=t_mm; UI.messagebox("Kích thước khoang không đủ cho ván #{t_mm.round(1)} mm và khe hở đã nhập. Đơn vị: mm"); reset; return; end
+          if iw_mm<=0 || id_mm<=0 || h_mm<=t_mm
+            UI.messagebox("Kích thước khoang không đủ cho ván #{t_mm.round(1)} mm và khe hở đã nhập. Đơn vị: mm"); reset; return
+          end
           w,d,h,t,bt,gl,gf,bo=[w_mm,d_mm,h_mm,t_mm,bt_mm,gl_mm,gf_mm,bo_mm].map{|v| Drawer.mm(v)}
           iw=w-2*t-2*gl; id=d-2*t-2*gf
           model.start_operation('TT - Tạo ngăn kéo',true); outer=model.entities.add_group; outer.name='TT - Ngăn kéo'
@@ -93,7 +97,11 @@ module TranTuan
           add.call('Đáy',ox+t+gl,oy+t+gf,oz+bo,iw,id,bt); add.call('Hông trái',ox,oy,oz,t,d,h); add.call('Hông phải',ox+w-t,oy,oz,t,d,h); add.call('Mặt trước',ox+t,oy+d-t,oz,iw+2*gl,t,h); add.call('Mặt sau',ox+t,oy,oz,iw+2*gl,t,h)
           outer.set_attribute('TT_TaoVan','loai','ngan_keo'); outer.set_attribute('TT_TaoVan','don_vi','mm'); outer.set_attribute('TT_TaoVan','tao_bang_2_diem',!@manual_mode); outer.set_attribute('TT_TaoVan','tao_thu_cong',@manual_mode); outer.set_attribute('TT_TaoVan','rong_mm',w_mm); outer.set_attribute('TT_TaoVan','sau_mm',d_mm); outer.set_attribute('TT_TaoVan','cao_mm',h_mm); outer.set_attribute('TT_TaoVan','day_mm',t_mm); outer.set_attribute('TT_TaoVan','day_da_mm',bt_mm)
           model.commit_operation; model.selection.clear; model.selection.add(outer); Sketchup.set_status_text("Đã tạo ngăn kéo: #{w_mm.round(1)} × #{d_mm.round(1)} × #{h_mm.round(1)} mm",SB_PROMPT); reset
-        rescue; model.abort_operation rescue nil; raise; end
+        rescue => e
+          model.abort_operation rescue nil
+          UI.messagebox("Không thể tạo ngăn kéo:\n#{e.message}")
+          reset
+        end
         def clear_state; @p1=nil; @p2=nil; @container=nil; @preview=nil; @manual_ready=false; @manual_origin=nil; @manual_values=nil; end
         def reset; clear_state; update_status; end
       end
