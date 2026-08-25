@@ -3,12 +3,9 @@ module TranTuan
     module Drawer
       module_function
 
-      # TT - Tạo ngăn kéo 2 điểm hoàn toàn tự động.
-      # Click 1: điểm trên / mặt trên.
-      # Click 2: điểm dưới / đáy.
-      # Group/Component chứa điểm được dùng để tự lấy Rộng + Sâu.
-      # Chiều cao được lấy từ khoảng cách Z giữa 2 điểm.
-      # Mặc định: ván 18 mm, đáy 9 mm.
+      # TT - Tạo ngăn kéo: 2 điểm tự động + chỉnh thủ công.
+      # Mặc định: CLICK 1 = mặt trên, CLICK 2 = đáy.
+      # Nhấn M trước khi click để nhập kích thước thủ công.
       def start
         Sketchup.active_model.select_tool(TwoPointTool.new)
       end
@@ -20,7 +17,7 @@ module TranTuan
         end
 
         def activate
-          Sketchup.set_status_text('TT Ngăn kéo: CLICK 1 = MẶT TRÊN',SB_PROMPT)
+          Sketchup.set_status_text('TT Ngăn kéo: CLICK 1 = MẶT TRÊN | M = NHẬP THỦ CÔNG',SB_PROMPT)
           Sketchup.set_status_text('CLICK 2 = ĐÁY → tự động tạo ngăn kéo',SB_VCB_LABEL)
         end
 
@@ -70,7 +67,7 @@ module TranTuan
           if @p1.nil?
             @p1=p
             @container=direct_container(@ip)
-            Sketchup.set_status_text('ĐIỂM 1 OK → CLICK 2 = ĐÁY',SB_PROMPT)
+            Sketchup.set_status_text('ĐIỂM 1 OK → CLICK 2 = ĐÁY | M = THỦ CÔNG',SB_PROMPT)
             view.invalidate
           else
             @p2=p
@@ -79,7 +76,12 @@ module TranTuan
         end
 
         def onKeyDown(key,_repeat,_flags,_view)
-          Sketchup.active_model.select_tool(nil) if key==27
+          # M = mở bảng nhập thủ công ở bất kỳ thời điểm nào trước khi tạo.
+          if key == 77 || key == 109
+            manual_create
+          elsif key == 27
+            Sketchup.active_model.select_tool(nil)
+          end
         end
 
         private
@@ -119,14 +121,35 @@ module TranTuan
           reset
         end
 
-        def create_drawer(model,ox,oy,oz,w,d,h,t,bt,gl,gf)
+        # Chế độ thủ công: người dùng tự chỉnh toàn bộ kích thước.
+        def manual_create
+          prompts=[
+            'Rộng phủ bì (mm)','Sâu phủ bì (mm)','Cao ngăn kéo (mm)',
+            'Độ dày ván (mm)','Khe hở trái/phải (mm)','Khe hở trước/sau (mm)',
+            'Độ dày đáy (mm)','Đáy cách đáy hông (mm)'
+          ]
+          defaults=[600,450,150,18,2,2,9,0]
+          values=UI.inputbox(prompts,defaults,'TT - Tạo ngăn kéo thủ công')
+          return unless values
+          w,d,h,t,gl,gf,bt,bo=values.map(&:to_f)
+          unless [w,d,h,t,bt].all?{|v| v.finite? && v>0} && [gl,gf,bo].all?{|v| v.finite? && v>=0}
+            UI.messagebox('Thông số không hợp lệ.'); return
+          end
+          model=Sketchup.active_model
+          # Đặt thủ công tại gốc model; người dùng có thể Move Group sau khi tạo.
+          create_drawer(model,0,0,0,w,d,h,t,bt,gl,gf,bo)
+        rescue => e
+          UI.messagebox("Không thể tạo ngăn kéo thủ công:\n#{e.message}")
+        end
+
+        def create_drawer(model,ox,oy,oz,w,d,h,t,bt,gl,gf,bo=0)
           iw=w-2*t-2*gl; id=d-2*t-2*gf
           if iw<=0 || id<=0 || h<=t
-            UI.messagebox("Kích thước khoang không đủ cho ván 18 mm và khe hở 2 mm.")
+            UI.messagebox("Kích thước khoang không đủ cho ván #{t.round(1)} mm và khe hở đã nhập.")
             reset; return
           end
 
-          model.start_operation('TT - Tạo ngăn kéo 2 điểm',true)
+          model.start_operation('TT - Tạo ngăn kéo',true)
           outer=model.entities.add_group
           outer.name='TT - Ngăn kéo'
           add=lambda do |name,x,y,z,sx,sy,sz|
@@ -137,13 +160,14 @@ module TranTuan
             f.reverse! if f.normal.z<0
             f.pushpull(sz); g
           end
-          add.call('Đáy',ox+t+gl,oy+t+gf,oz,iw,id,bt)
+          add.call('Đáy',ox+t+gl,oy+t+gf,oz+bo,iw,id,bt)
           add.call('Hông trái',ox,oy,oz,t,d,h)
           add.call('Hông phải',ox+w-t,oy,oz,t,d,h)
           add.call('Mặt trước',ox+t,oy+d-t,oz,iw+2*gl,t,h)
           add.call('Mặt sau',ox+t,oy,oz,iw+2*gl,t,h)
           outer.set_attribute('TT_TaoVan','loai','ngan_keo')
-          outer.set_attribute('TT_TaoVan','tao_bang_2_diem',true)
+          outer.set_attribute('TT_TaoVan','tao_bang_2_diem',@p1 ? true : false)
+          outer.set_attribute('TT_TaoVan','tao_thu_cong',@p1 ? false : true)
           outer.set_attribute('TT_TaoVan','rong_mm',w)
           outer.set_attribute('TT_TaoVan','sau_mm',d)
           outer.set_attribute('TT_TaoVan','cao_mm',h)
@@ -160,7 +184,7 @@ module TranTuan
 
         def reset
           @p1=nil; @p2=nil; @container=nil; @preview=nil
-          Sketchup.set_status_text('TT Ngăn kéo: CLICK 1 = MẶT TRÊN',SB_PROMPT)
+          Sketchup.set_status_text('TT Ngăn kéo: CLICK 1 = MẶT TRÊN | M = NHẬP THỦ CÔNG',SB_PROMPT)
         end
       end
     end
