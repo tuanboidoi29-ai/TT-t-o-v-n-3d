@@ -2,15 +2,9 @@ module TranTuan
   module TaoVan
     module Drawer
       module_function
-
-      # QUY ƯỚC ĐƠN VỊ: mm ở giao diện/thuộc tính; SketchUp chuyển sang inch nội bộ khi tạo hình.
       def mm(v); v.to_f.mm; end
       def mm_text(v, decimals=1); format("%0.#{decimals}f mm", v.to_f); end
-
-      def start
-        Sketchup.active_model.select_tool(TwoPointTool.new)
-      end
-
+      def start; Sketchup.active_model.select_tool(TwoPointTool.new); end
       class TwoPointTool
         def initialize
           @ip=Sketchup::InputPoint.new; @p1=@p2=@container=@preview=nil
@@ -102,7 +96,7 @@ module TranTuan
           w,d,h,t,gl,gf,bt,bo=@manual_values; create_drawer(Sketchup.active_model,@manual_origin.x,@manual_origin.y,@manual_origin.z,w,d,h,t,bt,gl,gf,bo)
         end
         def create_drawer(model,ox,oy,oz,w_mm,d_mm,h_mm,t_mm,bt_mm,gl_mm,gf_mm,bo_mm=0)
-          w_mm=w_mm.to_f; d_mm=d_mm.to_f; h_mm=h_mm.to_f; t_mm=t_mm.to_f; bt_mm=bt_mm.to_f; gl_mm=gl_mm.to_f; gf_mm=gf_mm.to_f; bo_mm=bo_mm.to_f
+          vals=[w_mm,d_mm,h_mm,t_mm,bt_mm,gl_mm,gf_mm,bo_mm].map(&:to_f); w_mm,d_mm,h_mm,t_mm,bt_mm,gl_mm,gf_mm,bo_mm=vals
           iw_mm=w_mm-2*t_mm-2*gl_mm; id_mm=d_mm-2*t_mm-2*gf_mm
           if iw_mm<=0||id_mm<=0||h_mm<=t_mm; UI.messagebox("Kích thước khoang không đủ cho ván #{t_mm.round(1)} mm và khe hở đã nhập. Đơn vị: mm"); reset; return end
           w=Drawer.mm(w_mm); d=Drawer.mm(d_mm); h=Drawer.mm(h_mm); t=Drawer.mm(t_mm); bt=Drawer.mm(bt_mm); gl=Drawer.mm(gl_mm); gf=Drawer.mm(gf_mm); bo=Drawer.mm(bo_mm); iw=Drawer.mm(iw_mm); id=Drawer.mm(id_mm)
