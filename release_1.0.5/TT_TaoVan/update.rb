@@ -36,15 +36,15 @@ module TranTuan
         end
         def fetch_manifest(url)
           require 'json'; require 'net/http'; require 'uri'
-          stamp=Time.now.to_i
-          uri=URI.parse(utf8_text("#{url}?_tt_update=#{stamp}"))
+          uri=URI.parse(utf8_text(url))
           req=Net::HTTP::Get.new(utf8_text(uri.request_uri))
-          req['Cache-Control']='no-cache, no-store, max-age=0'; req['Pragma']='no-cache'; req['User-Agent']='TT-TaoVan-VisionUpdater/1.2.1'
+          req['Cache-Control']='no-cache, no-store, max-age=0'; req['Pragma']='no-cache'; req['User-Agent']='TT-TaoVan-VisionUpdater/1.2.2'
           h=Net::HTTP.new(utf8_text(uri.host),uri.port); h.use_ssl=(uri.scheme=='https'); h.open_timeout=8; h.read_timeout=12
           r=h.request(req); raise "HTTP #{r.code}" unless r.code.to_i==200
           body=r.body.to_s.dup
           body=body.byteslice(3..-1) if body.bytes.start_with?(0xEF,0xBB,0xBF)
-          body.force_encoding(Encoding::UTF_8); raise 'Manifest không phải UTF-8 hợp lệ.' unless body.valid_encoding?
+          body.force_encoding(Encoding::UTF_8)
+          raise 'Manifest không phải UTF-8 hợp lệ.' unless body.valid_encoding?
           data=JSON.parse(body); raise 'Manifest không phải JSON object.' unless data.is_a?(Hash); data
         end
         def version_newer?(remote,current)
@@ -66,7 +66,7 @@ module TranTuan
         def download_binary(url,tmp)
           uri=URI.parse(utf8_text(url))
           req=Net::HTTP::Get.new(utf8_text(uri.request_uri))
-          req['Cache-Control']='no-cache, no-store, max-age=0'; req['Pragma']='no-cache'; req['User-Agent']='TT-TaoVan-VisionUpdater/1.2.1'
+          req['Cache-Control']='no-cache, no-store, max-age=0'; req['Pragma']='no-cache'; req['User-Agent']='TT-TaoVan-VisionUpdater/1.2.2'
           http=Net::HTTP.new(utf8_text(uri.host),uri.port); http.use_ssl=(uri.scheme=='https'); http.open_timeout=10; http.read_timeout=60
           response=http.request(req)
           code=response.code.to_i
