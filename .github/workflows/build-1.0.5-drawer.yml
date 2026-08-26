@@ -1,4 +1,5 @@
 name: Build TT Tạo Ngăn Kéo 1.1.8
+# Rebuild trigger: include latest drawer AUTO sizing fix.
 
 on:
   push:
