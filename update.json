@@ -2,6 +2,6 @@
   "name": "TT - tạo ván -Trần Tuấn",
   "version": "1.1.9",
   "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.1.9_TaoNganKeo.rbz",
-  "sha256": "ad35aef9f55c827b260fd9d7325bc54ed63fc2c5da68f52e0818dbf77748c49c",
+  "sha256": "1f75f4a16d730aaa37262f6d26e9f8eb476d2c0ae9efed711837826137287f06",
   "notes": "TT Tạo Ngăn Kéo 1.1.9 - click 2 điểm trên cùng mặt trước; tự xác định mặt phẳng, Rộng/Cao theo mặt đã chọn; quét chiều sâu bằng raytest theo phương vuông góc vào lòng tủ; ray 14 mm mỗi bên; hông 17,5 mm; preview 3D; tạo liên tục; TAB cài đặt; đơn vị mm; sửa updater UTF-8/ASCII-8BIT."
 }
