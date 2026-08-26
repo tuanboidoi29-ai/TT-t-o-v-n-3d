@@ -1,4 +1,4 @@
-name: Build TT Tạo Ngăn Kéo 1.1.4
+name: Build TT Tạo Ngăn Kéo 1.1.5
 
 on:
   push:
@@ -23,7 +23,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Build clean RBZ 1.1.4
+      - name: Build clean RBZ 1.1.5
         shell: bash
         run: |
           set -euo pipefail
@@ -34,29 +34,16 @@ jobs:
           test -f build_tt/pkg/TT_TaoVan/drawer.rb
           cp release_1.0.5/TT_TaoVan/drawer.rb build_tt/pkg/TT_TaoVan/drawer.rb
           cp release_1.0.5/TT_TaoVan/main.rb build_tt/pkg/TT_TaoVan/main.rb
-          printf '1.1.4\n' > build_tt/pkg/TT_TaoVan/version.txt
-
-          python3 - <<'PY'
-          from pathlib import Path
-          p = Path('build_tt/pkg/TT_TaoVan/drawer.rb')
-          s = p.read_text(encoding='utf-8')
-          # Source drawer.rb is authoritative: AUTO starts immediately; TAB opens settings.
-          old = '''      def start\n        show_settings\n      end'''
-          new = '''      def start\n        Sketchup.active_model.select_tool(TwoPointTool.new(defaults))\n      end'''
-          if old in s:
-              s = s.replace(old, new, 1)
-          p.write_text(s, encoding='utf-8')
-          PY
-
+          printf '1.1.5\n' > build_tt/pkg/TT_TaoVan/version.txt
           ruby -c build_tt/pkg/TT_TaoVan/drawer.rb
           ruby -c build_tt/pkg/TT_TaoVan/main.rb
-          rm -f TT_TaoVan_1.1.4_TaoNganKeo.rbz
-          (cd build_tt/pkg && zip -qr ../../TT_TaoVan_1.1.4_TaoNganKeo.rbz .)
-          unzip -t TT_TaoVan_1.1.4_TaoNganKeo.rbz >/dev/null
-          sha=$(sha256sum TT_TaoVan_1.1.4_TaoNganKeo.rbz | awk '{print $1}')
+          rm -f TT_TaoVan_1.1.5_TaoNganKeo.rbz
+          (cd build_tt/pkg && zip -qr ../../TT_TaoVan_1.1.5_TaoNganKeo.rbz .)
+          unzip -t TT_TaoVan_1.1.5_TaoNganKeo.rbz >/dev/null
+          sha=$(sha256sum TT_TaoVan_1.1.5_TaoNganKeo.rbz | awk '{print $1}')
           echo "RBZ_SHA=$sha" >> "$GITHUB_ENV"
 
-      - name: Publish RBZ 1.1.4 and update manifest
+      - name: Publish RBZ 1.1.5 and update manifest
         shell: bash
         run: |
           set -euo pipefail
@@ -65,14 +52,14 @@ jobs:
           from pathlib import Path
           p=Path('update.json')
           obj=json.loads(p.read_text(encoding='utf-8'))
-          obj['version']='1.1.4'
-          obj['rbz_url']='https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.1.4_TaoNganKeo.rbz'
+          obj['version']='1.1.5'
+          obj['rbz_url']='https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.1.5_TaoNganKeo.rbz'
           obj['sha256']=os.environ['RBZ_SHA']
-          obj['notes']='TT Tạo Ngăn Kéo 1.1.4 - AUTO khởi động ngay; TAB mở cài đặt; loại bỏ luồng cài đặt cũ khi bấm lệnh; AUTO 2 điểm; ESC thoát; tạo liên tục; đơn vị mm.'
+          obj['notes']='TT Tạo Ngăn Kéo 1.1.5 - sửa lỗi runtime undefined method mm_text/mm; AUTO khởi động ngay; TAB mở cài đặt; AUTO 2 điểm; ESC thoát; tạo liên tục; đơn vị mm.'
           p.write_text(json.dumps(obj,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
           PY
           git config user.name 'TT Vision Bot'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add TT_TaoVan_1.1.4_TaoNganKeo.rbz update.json
-          git commit -m 'Release TT Tạo Ngăn Kéo 1.1.4 - AUTO starts immediately' || true
+          git add TT_TaoVan_1.1.5_TaoNganKeo.rbz update.json
+          git commit -m 'Release TT Tạo Ngăn Kéo 1.1.5 - fix runtime helpers' || true
           git push
