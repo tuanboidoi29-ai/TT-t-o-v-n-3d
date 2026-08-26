@@ -1,0 +1,86 @@
+name: Build TT Tạo Ngăn Kéo 1.2.2
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/build-1.2.2-drawer.yml'
+      - 'release_1.0.5/TT_TaoVan/drawer.rb'
+      - 'release_1.0.5/TT_TaoVan/main.rb'
+      - 'release_1.0.5/TT_TaoVan/update.rb'
+      - 'release_1.0.5/TT_TaoVan/version.txt'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: tt-tao-van-1-2-2
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Sync latest main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          git reset --hard origin/main
+      - name: Build RBZ 1.2.2
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf build_tt
+          mkdir -p build_tt/pkg
+          curl -fsSL 'https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.2.0_TaoNganKeo.rbz' -o build_tt/base.rbz
+          unzip -q build_tt/base.rbz -d build_tt/pkg
+          test -f build_tt/pkg/TT_TaoVan/drawer.rb
+          cp release_1.0.5/TT_TaoVan/drawer.rb build_tt/pkg/TT_TaoVan/drawer.rb
+          cp release_1.0.5/TT_TaoVan/main.rb build_tt/pkg/TT_TaoVan/main.rb
+          cp release_1.0.5/TT_TaoVan/update.rb build_tt/pkg/TT_TaoVan/update.rb
+          printf '1.2.2\n' > build_tt/pkg/TT_TaoVan/version.txt
+          ruby -c build_tt/pkg/TT_TaoVan/drawer.rb
+          ruby -c build_tt/pkg/TT_TaoVan/main.rb
+          ruby -c build_tt/pkg/TT_TaoVan/update.rb
+          rm -f TT_TaoVan_1.2.2_TaoNganKeo.rbz
+          (cd build_tt/pkg && zip -qr ../../TT_TaoVan_1.2.2_TaoNganKeo.rbz .)
+          unzip -t TT_TaoVan_1.2.2_TaoNganKeo.rbz >/dev/null
+          sha=$(sha256sum TT_TaoVan_1.2.2_TaoNganKeo.rbz | awk '{print $1}')
+          echo "RBZ_SHA=$sha" >> "$GITHUB_ENV"
+      - name: Prepare manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          p=Path('update.json')
+          obj=json.loads(p.read_text(encoding='utf-8'))
+          obj['version']='1.2.2'
+          obj['rbz_url']='https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.2.2_TaoNganKeo.rbz'
+          obj['sha256']=os.environ['RBZ_SHA']
+          obj['notes']='TT Tạo Ngăn Kéo 1.2.2 - sửa lỗi updater BOM bằng getbyte, không dùng Array#start_with?; Net::HTTP tải binary; UTF-8 an toàn; HOT RELOAD không cần khởi động lại SketchUp; giữ AUTO 2 điểm, tự quét Rộng/Cao/Sâu, ray 14 mm mỗi bên, hông 17,5 mm, preview 3D, tạo liên tục, TAB cài đặt, đơn vị mm.'
+          p.write_text(json.dumps(obj,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+          PY
+      - name: Publish with retry
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'TT Vision Bot'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add TT_TaoVan_1.2.2_TaoNganKeo.rbz update.json
+          git commit -m 'Release TT Tạo Ngăn Kéo 1.2.2' || true
+          for i in 1 2 3; do
+            git fetch origin main
+            git reset --hard origin/main
+            git add TT_TaoVan_1.2.2_TaoNganKeo.rbz update.json
+            git commit -m 'Release TT Tạo Ngăn Kéo 1.2.2' || true
+            if git push origin HEAD:main; then exit 0; fi
+            sleep 2
+          done
+          echo 'Publish failed after retries' >&2
+          exit 1
