@@ -32,20 +32,26 @@ module TranTuan
           require 'json'
           require 'net/http'
           require 'uri'
-          # GitHub/raw có thể cache nội dung cũ. Query cache-buster bắt buộc mỗi lần kiểm tra.
           stamp=Time.now.to_i
           uri=URI.parse("#{url}?_tt_update=#{stamp}")
           req=Net::HTTP::Get.new(uri.request_uri)
           req['Cache-Control']='no-cache, no-store, max-age=0'
           req['Pragma']='no-cache'
-          req['User-Agent']='TT-TaoVan-VisionUpdater/1.1.7'
+          req['User-Agent']='TT-TaoVan-VisionUpdater/1.1.9'
           h=Net::HTTP.new(uri.host,uri.port)
           h.use_ssl=(uri.scheme=='https')
           h.open_timeout=8
           h.read_timeout=12
           r=h.request(req)
           raise "HTTP #{r.code}" unless r.code.to_i==200
-          body=r.body.to_s.sub(/\A\uFEFF/,'')
+          body=r.body.to_s
+          # Net::HTTP trả response body dạng ASCII-8BIT. Không dùng regexp UTF-8 trên chuỗi đó.
+          body=body.dup
+          if body.bytes.start_with?(0xEF,0xBB,0xBF)
+            body=body.byteslice(3..-1)
+          end
+          body.force_encoding(Encoding::UTF_8)
+          raise 'Manifest không phải UTF-8 hợp lệ.' unless body.valid_encoding?
           data=JSON.parse(body)
           raise 'Manifest không phải JSON object.' unless data.is_a?(Hash)
           data
@@ -66,7 +72,7 @@ module TranTuan
           raise 'Thiếu rbz_url.' if url.empty?
           raise 'Thiếu sha256.' if expected.empty?
           tmp=File.join(Dir.tmpdir,'tt_tao_van_update.rbz')
-          URI.open(url,{'Cache-Control'=>'no-cache','Pragma'=>'no-cache','User-Agent'=>'TT-TaoVan-VisionUpdater/1.1.7'},open_timeout:10,read_timeout:60){|io|File.binwrite(tmp,io.read)}
+          URI.open(url,{'Cache-Control'=>'no-cache','Pragma'=>'no-cache','User-Agent'=>'TT-TaoVan-VisionUpdater/1.1.9'},open_timeout:10,read_timeout:60){|io|File.binwrite(tmp,io.read)}
           actual=Digest::SHA256.file(tmp).hexdigest.downcase
           raise 'SHA-256 không khớp. Hủy cập nhật.' unless actual==expected
           hot_install(tmp,data['version'].to_s)
