@@ -29,50 +29,28 @@ module TranTuan
           '0.0.0'
         end
         def fetch_manifest(url)
-          require 'json'
-          require 'net/http'
-          require 'uri'
+          require 'json'; require 'net/http'; require 'uri'
           stamp=Time.now.to_i
           uri=URI.parse("#{url}?_tt_update=#{stamp}")
           req=Net::HTTP::Get.new(uri.request_uri)
-          req['Cache-Control']='no-cache, no-store, max-age=0'
-          req['Pragma']='no-cache'
-          req['User-Agent']='TT-TaoVan-VisionUpdater/1.1.9'
-          h=Net::HTTP.new(uri.host,uri.port)
-          h.use_ssl=(uri.scheme=='https')
-          h.open_timeout=8
-          h.read_timeout=12
-          r=h.request(req)
-          raise "HTTP #{r.code}" unless r.code.to_i==200
-          body=r.body.to_s
-          # Net::HTTP trả response body dạng ASCII-8BIT. Không dùng regexp UTF-8 trên chuỗi đó.
-          body=body.dup
-          if body.bytes.start_with?(0xEF,0xBB,0xBF)
-            body=body.byteslice(3..-1)
-          end
-          body.force_encoding(Encoding::UTF_8)
-          raise 'Manifest không phải UTF-8 hợp lệ.' unless body.valid_encoding?
-          data=JSON.parse(body)
-          raise 'Manifest không phải JSON object.' unless data.is_a?(Hash)
-          data
+          req['Cache-Control']='no-cache, no-store, max-age=0'; req['Pragma']='no-cache'; req['User-Agent']='TT-TaoVan-VisionUpdater/1.2.0'
+          h=Net::HTTP.new(uri.host,uri.port); h.use_ssl=(uri.scheme=='https'); h.open_timeout=8; h.read_timeout=12
+          r=h.request(req); raise "HTTP #{r.code}" unless r.code.to_i==200
+          body=r.body.to_s.dup
+          body=body.byteslice(3..-1) if body.bytes.start_with?(0xEF,0xBB,0xBF)
+          body.force_encoding(Encoding::UTF_8); raise 'Manifest không phải UTF-8 hợp lệ.' unless body.valid_encoding?
+          data=JSON.parse(body); raise 'Manifest không phải JSON object.' unless data.is_a?(Hash); data
         end
         def version_newer?(remote,current)
-          a=remote.to_s.split('.').map{|x| x.to_i}
-          b=current.to_s.split('.').map{|x| x.to_i}
-          n=[a.length,b.length].max
-          a.fill(0,a.length...n)
-          b.fill(0,b.length...n)
-          (a<=>b)==1
+          a=remote.to_s.split('.').map{|x|x.to_i}; b=current.to_s.split('.').map{|x|x.to_i}; n=[a.length,b.length].max
+          a.fill(0,a.length...n); b.fill(0,b.length...n); (a<=>b)==1
         end
         def install_update(data)
-          require 'open-uri'
-          require 'digest'
-          url=data['rbz_url'].to_s
-          expected=data['sha256'].to_s.downcase
-          raise 'Thiếu rbz_url.' if url.empty?
-          raise 'Thiếu sha256.' if expected.empty?
+          require 'open-uri'; require 'digest'
+          url=data['rbz_url'].to_s; expected=data['sha256'].to_s.downcase
+          raise 'Thiếu rbz_url.' if url.empty?; raise 'Thiếu sha256.' if expected.empty?
           tmp=File.join(Dir.tmpdir,'tt_tao_van_update.rbz')
-          URI.open(url,{'Cache-Control'=>'no-cache','Pragma'=>'no-cache','User-Agent'=>'TT-TaoVan-VisionUpdater/1.1.9'},open_timeout:10,read_timeout:60){|io|File.binwrite(tmp,io.read)}
+          URI.open(url,{'Cache-Control'=>'no-cache','Pragma'=>'no-cache','User-Agent'=>'TT-TaoVan-VisionUpdater/1.2.0'},open_timeout:10,read_timeout:60){|io|File.binwrite(tmp,io.read)}
           actual=Digest::SHA256.file(tmp).hexdigest.downcase
           raise 'SHA-256 không khớp. Hủy cập nhật.' unless actual==expected
           hot_install(tmp,data['version'].to_s)
@@ -91,17 +69,16 @@ module TranTuan
             raise 'RBZ mới không có version.txt.' unless File.file?(vp)
             installed=File.read(vp,encoding:'UTF-8').strip
             raise "Version sau cài đặt không khớp: #{installed} != #{remote_version}" unless installed==remote_version
-            load(File.join(root,'update.rb'))
-            load(File.join(root,'core.rb'))
-            load(File.join(root,'main.rb'))
-            UI.messagebox("Đã cập nhật Vision #{remote_version}.\n\nMenu + Toolbar + Icon + chức năng mới đã được nạp.\nKhông cần khởi động lại SketchUp.")
+
+            # HOT RELOAD THẬT: Sketchup.require sẽ bỏ qua file đã được nạp.
+            # Dùng load để Ruby đọc lại code mới ngay trong phiên SketchUp hiện tại.
+            reload_plugin_files(root)
+
+            UI.messagebox("Đã cập nhật Vision #{remote_version}.\n\nCode mới đã được HOT RELOAD ngay trong SketchUp.\nKhông cần khởi động lại SketchUp.")
           rescue => error
             begin
-              FileUtils.rm_rf(root)
-              FileUtils.cp_r(backup,root)
-              load(File.join(root,'update.rb'))
-              load(File.join(root,'core.rb'))
-              load(File.join(root,'main.rb'))
+              FileUtils.rm_rf(root); FileUtils.cp_r(backup,root)
+              reload_plugin_files(root)
             rescue => rb
               raise "Hot Update lỗi: #{error.message}\nRollback lỗi: #{rb.message}"
             end
@@ -109,6 +86,22 @@ module TranTuan
           ensure
             FileUtils.rm_rf(backup) if File.exist?(backup)
           end
+        end
+        def reload_plugin_files(root)
+          # Hủy tool đang chạy để không giữ class/tool object của phiên bản cũ.
+          begin
+            Sketchup.active_model.select_tool(nil)
+          rescue
+          end
+          files=%w[core.rb box.rb drawer.rb main.rb]
+          files.each do |name|
+            path=File.join(root,name)
+            load(path) if File.file?(path)
+          end
+          # update.rb phải được nạp cuối để nút Cập nhật dùng chính updater mới.
+          up=File.join(root,'update.rb')
+          load(up) if File.file?(up)
+          true
         end
       end
     end
