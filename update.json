@@ -1,7 +1,7 @@
 {
   "name": "TT - tạo ván -Trần Tuấn",
-  "version": "1.2.0",
-  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.2.0_TaoNganKeo.rbz",
-  "sha256": "bf4ba1703b5f8c48333aa01ba76b09fe6df87224c1e96756bc0919ed9cfcabe4",
-  "notes": "TT Tạo Ngăn Kéo 1.2.0 - HOT RELOAD thật sau cập nhật: load lại core/box/drawer/main bằng load, hủy tool cũ, nạp updater mới; không cần khởi động lại SketchUp; giữ AUTO 2 điểm, tự quét Rộng/Cao/Sâu, ray 14 mm mỗi bên, hông 17,5 mm, preview 3D, tạo liên tục, TAB cài đặt, đơn vị mm."
+  "version": "1.1.9",
+  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.1.9_TaoNganKeo.rbz",
+  "sha256": "0d83b4a7cfd6d4b4c7e431d4ccc9995f7e84d5b79c0f2c4acab29a4b0071e2c3",
+  "notes": "TT Tạo Ngăn Kéo 1.1.9 - click 2 điểm trên cùng mặt trước; tự xác định mặt phẳng, Rộng/Cao theo mặt đã chọn; quét chiều sâu bằng raytest theo phương vuông góc vào lòng tủ; ray 14 mm mỗi bên; hông 17,5 mm; preview 3D; tạo liên tục; TAB cài đặt; đơn vị mm; sửa updater UTF-8/ASCII-8BIT."
 }
