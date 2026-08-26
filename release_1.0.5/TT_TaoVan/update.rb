@@ -42,7 +42,9 @@ module TranTuan
           h=Net::HTTP.new(utf8_text(uri.host),uri.port); h.use_ssl=(uri.scheme=='https'); h.open_timeout=8; h.read_timeout=12
           r=h.request(req); raise "HTTP #{r.code}" unless r.code.to_i==200
           body=r.body.to_s.dup
-          body=body.byteslice(3..-1) if body.bytes.start_with?(0xEF,0xBB,0xBF)
+          if body.bytesize >= 3 && body.getbyte(0)==0xEF && body.getbyte(1)==0xBB && body.getbyte(2)==0xBF
+            body=body.byteslice(3..-1)
+          end
           body.force_encoding(Encoding::UTF_8)
           raise 'Manifest không phải UTF-8 hợp lệ.' unless body.valid_encoding?
           data=JSON.parse(body); raise 'Manifest không phải JSON object.' unless data.is_a?(Hash); data
