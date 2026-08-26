@@ -47,9 +47,8 @@ jobs:
           rm -f TT_TaoVan_1.2.0_TaoNganKeo.rbz
           (cd build_tt/pkg && zip -qr ../../TT_TaoVan_1.2.0_TaoNganKeo.rbz .)
           unzip -t TT_TaoVan_1.2.0_TaoNganKeo.rbz >/dev/null
-          sha256sum TT_TaoVan_1.2.0_TaoNganKeo.rbz
           echo "RBZ_SHA=$(sha256sum TT_TaoVan_1.2.0_TaoNganKeo.rbz | awk '{print $1}')" >> "$GITHUB_ENV"
-      - name: Publish RBZ and manifest
+      - name: Prepare manifest
         shell: bash
         run: |
           set -euo pipefail
@@ -64,8 +63,19 @@ jobs:
           obj['notes']='TT Tạo Ngăn Kéo 1.2.0 - HOT RELOAD thật sau cập nhật: load lại core/box/drawer/main bằng load, hủy tool cũ, nạp updater mới; không cần khởi động lại SketchUp; giữ AUTO 2 điểm, tự quét Rộng/Cao/Sâu, ray 14 mm mỗi bên, hông 17,5 mm, preview 3D, tạo liên tục, TAB cài đặt, đơn vị mm.'
           p.write_text(json.dumps(obj,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
           PY
+      - name: Publish with retry
+        shell: bash
+        run: |
+          set -euo pipefail
           git config user.name 'TT Vision Bot'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add TT_TaoVan_1.2.0_TaoNganKeo.rbz update.json
           git commit -m 'Release TT Tạo Ngăn Kéo 1.2.0 - true hot reload' || true
-          git push origin HEAD:main
+          for i in 1 2 3 4 5; do
+            git fetch origin main
+            git rebase origin/main || { git rebase --abort || true; git reset --hard origin/main; git add TT_TaoVan_1.2.0_TaoNganKeo.rbz update.json; git commit -m 'Release TT Tạo Ngăn Kéo 1.2.0 - true hot reload' || true; }
+            if git push origin HEAD:main; then exit 0; fi
+            sleep 2
+          done
+          echo 'Publish failed after retries.'
+          exit 1
