@@ -1,4 +1,4 @@
-name: Build TT Tạo Ngăn Kéo 1.1.6
+name: Build TT Tạo Ngăn Kéo 1.1.7
 
 on:
   push:
@@ -6,6 +6,7 @@ on:
       - '.github/workflows/build-1.0.5-drawer.yml'
       - 'release_1.0.5/TT_TaoVan/drawer.rb'
       - 'release_1.0.5/TT_TaoVan/main.rb'
+      - 'release_1.0.5/TT_TaoVan/update.rb'
       - 'release_1.0.5/TT_TaoVan/version.txt'
   workflow_dispatch:
 
@@ -23,27 +24,30 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Build clean RBZ 1.1.6
+      - name: Build clean RBZ 1.1.7
         shell: bash
         run: |
           set -euo pipefail
           rm -rf build_tt
           mkdir -p build_tt/pkg
-          curl -fsSL 'https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.1.5_TaoNganKeo.rbz' -o build_tt/base.rbz
+          curl -fsSL 'https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.1.6_TaoNganKeo.rbz' -o build_tt/base.rbz
           unzip -q build_tt/base.rbz -d build_tt/pkg
           test -f build_tt/pkg/TT_TaoVan/drawer.rb
+          test -f build_tt/pkg/TT_TaoVan/update.rb
           cp release_1.0.5/TT_TaoVan/drawer.rb build_tt/pkg/TT_TaoVan/drawer.rb
           cp release_1.0.5/TT_TaoVan/main.rb build_tt/pkg/TT_TaoVan/main.rb
-          printf '1.1.6\n' > build_tt/pkg/TT_TaoVan/version.txt
+          cp release_1.0.5/TT_TaoVan/update.rb build_tt/pkg/TT_TaoVan/update.rb
+          printf '1.1.7\n' > build_tt/pkg/TT_TaoVan/version.txt
           ruby -c build_tt/pkg/TT_TaoVan/drawer.rb
           ruby -c build_tt/pkg/TT_TaoVan/main.rb
-          rm -f TT_TaoVan_1.1.6_TaoNganKeo.rbz
-          (cd build_tt/pkg && zip -qr ../../TT_TaoVan_1.1.6_TaoNganKeo.rbz .)
-          unzip -t TT_TaoVan_1.1.6_TaoNganKeo.rbz >/dev/null
-          sha=$(sha256sum TT_TaoVan_1.1.6_TaoNganKeo.rbz | awk '{print $1}')
+          ruby -c build_tt/pkg/TT_TaoVan/update.rb
+          rm -f TT_TaoVan_1.1.7_TaoNganKeo.rbz
+          (cd build_tt/pkg && zip -qr ../../TT_TaoVan_1.1.7_TaoNganKeo.rbz .)
+          unzip -t TT_TaoVan_1.1.7_TaoNganKeo.rbz >/dev/null
+          sha=$(sha256sum TT_TaoVan_1.1.7_TaoNganKeo.rbz | awk '{print $1}')
           echo "RBZ_SHA=$sha" >> "$GITHUB_ENV"
 
-      - name: Publish RBZ 1.1.6 and update manifest
+      - name: Publish RBZ 1.1.7 and update manifest
         shell: bash
         run: |
           set -euo pipefail
@@ -52,14 +56,14 @@ jobs:
           from pathlib import Path
           p=Path('update.json')
           obj=json.loads(p.read_text(encoding='utf-8'))
-          obj['version']='1.1.6'
-          obj['rbz_url']='https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.1.6_TaoNganKeo.rbz'
+          obj['version']='1.1.7'
+          obj['rbz_url']='https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.1.7_TaoNganKeo.rbz'
           obj['sha256']=os.environ['RBZ_SHA']
-          obj['notes']='TT Tạo Ngăn Kéo 1.1.6 - sửa chiều sâu bằng cách tự suy ra từ Bounding Box local của Group/Component khi 2 điểm cùng mặt; preview 3D dạng khối; AUTO 2 điểm; TAB mở cài đặt; tạo liên tục; đơn vị mm.'
+          obj['notes']='TT Tạo Ngăn Kéo 1.1.7 - sửa Vision Updater để luôn đọc update.json mới nhất bằng cache-busting; kiểm tra SHA256; hot update không cần khởi động lại SketchUp; giữ AUTO 2 điểm, TAB cài đặt, tạo liên tục, preview 3D và tự suy ra chiều sâu.'
           p.write_text(json.dumps(obj,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
           PY
           git config user.name 'TT Vision Bot'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add TT_TaoVan_1.1.6_TaoNganKeo.rbz update.json
-          git commit -m 'Release TT Tạo Ngăn Kéo 1.1.6 - inferred depth and 3D preview' || true
+          git add TT_TaoVan_1.1.7_TaoNganKeo.rbz update.json
+          git commit -m 'Release TT Tạo Ngăn Kéo 1.1.7 - fix Vision updater cache' || true
           git push
