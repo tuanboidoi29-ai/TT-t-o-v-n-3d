@@ -6,6 +6,7 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/build-1.2.0-drawer.yml'
+      - 'release_1.0.5/TT_TaoVan/version.txt'
       - 'release_1.0.5/TT_TaoVan/update.rb'
       - 'release_1.0.5/TT_TaoVan/drawer.rb'
       - 'release_1.0.5/TT_TaoVan/main.rb'
@@ -73,7 +74,12 @@ jobs:
           git commit -m 'Release TT Tạo Ngăn Kéo 1.2.0 - true hot reload' || true
           for i in 1 2 3 4 5; do
             git fetch origin main
-            git rebase origin/main || { git rebase --abort || true; git reset --hard origin/main; git add TT_TaoVan_1.2.0_TaoNganKeo.rbz update.json; git commit -m 'Release TT Tạo Ngăn Kéo 1.2.0 - true hot reload' || true; }
+            if ! git rebase origin/main; then
+              git rebase --abort || true
+              git reset --hard origin/main
+              git add TT_TaoVan_1.2.0_TaoNganKeo.rbz update.json
+              git commit -m 'Release TT Tạo Ngăn Kéo 1.2.0 - true hot reload' || true
+            fi
             if git push origin HEAD:main; then exit 0; fi
             sleep 2
           done
