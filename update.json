@@ -1,7 +1,7 @@
 {
   "name": "TT - tạo ván -Trần Tuấn",
-  "version": "1.1.6",
-  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.1.6_TaoNganKeo.rbz",
-  "sha256": "16544db845c18c0e2ab9328a44edd3557497beb76e6c45a08d285ed41b210adf",
-  "notes": "TT Tạo Ngăn Kéo 1.1.6 - sửa chiều sâu bằng cách tự suy ra từ Bounding Box local của Group/Component khi 2 điểm cùng mặt; preview 3D dạng khối; AUTO 2 điểm; TAB mở cài đặt; tạo liên tục; đơn vị mm."
+  "version": "1.1.7",
+  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.1.7_TaoNganKeo.rbz",
+  "sha256": "66b988a60b5a748e0edaceae49c02f9131292b6985b8014239cc003e5dd30fb8",
+  "notes": "TT Tạo Ngăn Kéo 1.1.7 - sửa Vision Updater để luôn đọc update.json mới nhất bằng cache-busting; kiểm tra SHA256; hot update không cần khởi động lại SketchUp; giữ AUTO 2 điểm, TAB cài đặt, tạo liên tục, preview 3D và tự suy ra chiều sâu."
 }
