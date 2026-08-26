@@ -1,7 +1,7 @@
 {
   "name": "TT - tạo ván -Trần Tuấn",
-  "version": "1.1.8",
-  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.1.8_TaoNganKeo.rbz",
-  "sha256": "625a46fe10c3e2bd95f948a0e848a76632dec58f8cfa56fe9baf50c7e0cf5ae5",
-  "notes": "TT Tạo Ngăn Kéo 1.1.8 - AUTO 2 điểm tự quét Rộng/Cao/Sâu; ray mặc định 14 mm mỗi bên; hở trên 20 mm; chừa sâu mặc định 60 mm; preview đúng kích thước ngăn kéo; tách khe ray khỏi độ dày hông; tạo liên tục; TAB cài đặt; đơn vị mm."
+  "version": "1.1.9",
+  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.1.9_TaoNganKeo.rbz",
+  "sha256": "fb6b21ab9d620734acd5c2885627deb4e798afa93ab6d2203100bbc61dd8b55f",
+  "notes": "TT Tạo Ngăn Kéo 1.1.9 - click 2 điểm trên cùng mặt trước; tự xác định mặt phẳng, Rộng/Cao theo mặt đã chọn; quét chiều sâu bằng raytest theo phương vuông góc vào lòng tủ; ray 14 mm mỗi bên; hông 17,5 mm; preview 3D; tạo liên tục; TAB cài đặt; đơn vị mm; sửa updater UTF-8/ASCII-8BIT."
 }
