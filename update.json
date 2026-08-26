@@ -1,7 +1,7 @@
 {
   "name": "TT - tạo ván -Trần Tuấn",
-  "version": "1.2.0",
-  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.2.0_TaoNganKeo.rbz",
-  "sha256": "14ed1ce0fc071748fd7ac468455cfdbed9c65d9a210b40eb5fcd2ee67558e6a2",
-  "notes": "TT Tạo Ngăn Kéo 1.2.0 - HOT RELOAD thật sau cập nhật: load lại core/box/drawer/main bằng load, hủy tool cũ, nạp updater mới; không cần khởi động lại SketchUp; giữ AUTO 2 điểm, tự quét Rộng/Cao/Sâu, ray 14 mm mỗi bên, hông 17,5 mm, preview 3D, tạo liên tục, TAB cài đặt, đơn vị mm."
+  "version": "1.2.1",
+  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.2.1_TaoNganKeo.rbz",
+  "sha256": "1b70cf813708882fa44a1eb729d939816ddf8d5de4b70d29503bf13c479c1372",
+  "notes": "TT Tạo Ngăn Kéo 1.2.1 - sửa lỗi updater UTF-8/ASCII-8BIT khi tải RBZ; dùng Net::HTTP tải binary, chuẩn hóa URL/manifest UTF-8; HOT RELOAD không cần khởi động lại SketchUp; giữ AUTO 2 điểm, tự quét Rộng/Cao/Sâu, ray 14 mm mỗi bên, hông 17,5 mm, preview 3D, tạo liên tục, TAB cài đặt, đơn vị mm."
 }
