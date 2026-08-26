@@ -48,7 +48,7 @@ module TranTuan
         end
         def onMouseMove(_f,x,y,v)
           @ip.pick(v,x,y);return unless @ip.valid?;p=@ip.position;@preview=@p1 ? [@p1,p] : [p]
-          if @p1;d=measure(@p1,p);status("VÙNG R #{mm_text(d[:w])} | S #{mm_text(d[:d])} | C #{mm_text(d[:h])} → NGĂN KÉO R #{mm_text(d[:dw])} | S #{mm_text(d[:dd])} | C #{mm_text(d[:dh])}") end
+          if @p1;d=measure(@p1,p);status("VÙNG R #{Drawer.mm_text(d[:w])} | S #{Drawer.mm_text(d[:d])} | C #{Drawer.mm_text(d[:h])} → NGĂN KÉO R #{Drawer.mm_text(d[:dw])} | S #{Drawer.mm_text(d[:dd])} | C #{Drawer.mm_text(d[:dh])}") end
           v.invalidate
         end
         def onLButtonDown(_f,x,y,v)
@@ -58,7 +58,7 @@ module TranTuan
         end
         def draw(v)
           return unless @preview&&!@preview.empty?;v.line_width=3;v.drawing_color=Sketchup::Color.new(255,128,0,255)
-          if @preview.length==1;p=@preview[0];s=mm(12);v.draw(GL_LINES,Geom::Point3d.new(p.x-s,p.y,p.z),Geom::Point3d.new(p.x+s,p.y,p.z),Geom::Point3d.new(p.x,p.y-s,p.z),Geom::Point3d.new(p.x,p.y+s,p.z));else a,b=@preview;v.draw(GL_LINES,a,b);end
+          if @preview.length==1;p=@preview[0];s=Drawer.mm(12);v.draw(GL_LINES,Geom::Point3d.new(p.x-s,p.y,p.z),Geom::Point3d.new(p.x+s,p.y,p.z),Geom::Point3d.new(p.x,p.y-s,p.z),Geom::Point3d.new(p.x,p.y+s,p.z));else a,b=@preview;v.draw(GL_LINES,a,b);end
         end
         private
         def status(s);Sketchup.set_status_text('TT NGĂN KÉO AUTO | mm',SB_PROMPT);Sketchup.set_status_text(s,SB_VCB_LABEL);end
@@ -67,10 +67,10 @@ module TranTuan
         def measure(a,b);x,y,_=local_points(a,b);w=(x.x-y.x).abs.to_mm;d=(x.y-y.y).abs.to_mm;h=(x.z-y.z).abs.to_mm;{w:w,d:d,h:h,dw:w-@cfg['gap_left']-@cfg['gap_right']-2*@cfg['side_t'],dd:d-@cfg['gap_front']-@cfg['gap_back']-@cfg['back_t'],dh:h-@cfg['gap_top']-@cfg['gap_bottom']};end
         def create(p2)
           d=measure(@p1,p2)
-          if d.values_at(:dw,:dd,:dh).any?{|x|x<=0};UI.messagebox("Vùng chọn không đủ kích thước.\n\nVùng: #{mm_text(d[:w])} × #{mm_text(d[:d])} × #{mm_text(d[:h])}");return end
+          if d.values_at(:dw,:dd,:dh).any?{|x|x<=0};UI.messagebox("Vùng chọn không đủ kích thước.\n\nVùng: #{Drawer.mm_text(d[:w])} × #{Drawer.mm_text(d[:d])} × #{Drawer.mm_text(d[:h])}");return end
           m=Sketchup.active_model;m.start_operation('TT - Tạo ngăn kéo AUTO',true)
           begin
-            a,b,tr=local_points(@p1,p2);x=[a.x,b.x].min;y=[a.y,b.y].min;z=[a.z,b.z].min;rw=mm(d[:dw]);rd=mm(d[:dd]);rh=mm(d[:dh]);side=mm(@cfg['side_t']);back=mm(@cfg['back_t']);bottom=mm(@cfg['bottom_t']);front=mm(@cfg['front_t']);left=mm(@cfg['gap_left']);fg=mm(@cfg['gap_front'])
+            a,b,tr=local_points(@p1,p2);x=[a.x,b.x].min;y=[a.y,b.y].min;z=[a.z,b.z].min;rw=Drawer.mm(d[:dw]);rd=Drawer.mm(d[:dd]);rh=Drawer.mm(d[:dh]);side=Drawer.mm(@cfg['side_t']);back=Drawer.mm(@cfg['back_t']);bottom=Drawer.mm(@cfg['bottom_t']);front=Drawer.mm(@cfg['front_t']);left=Drawer.mm(@cfg['gap_left']);fg=Drawer.mm(@cfg['gap_front'])
             g=m.entities.add_group;g.name='TT - Ngăn kéo AUTO';add_part(g,'Hông trái',x+left,y+fg,z,side,rd,rh);add_part(g,'Hông phải',x+left+rw-side,y+fg,z,side,rd,rh);add_part(g,'Đáy',x+left,y+fg,z,rw,rd,bottom);add_part(g,'Mặt trước',x+left,y+fg,z,rw,front,rh);add_part(g,'Hậu',x+left,y+fg+rd-back,z,rw,back,rh);g.set_attribute(DICT,'don_vi','mm');g.set_attribute(DICT,'vung_rong_mm',d[:w]);g.set_attribute(DICT,'vung_sau_mm',d[:d]);g.set_attribute(DICT,'vung_cao_mm',d[:h]);g.set_attribute(DICT,'rong_mm',d[:dw]);g.set_attribute(DICT,'sau_mm',d[:dd]);g.set_attribute(DICT,'cao_mm',d[:dh]);g.transform!(tr) if tr;m.commit_operation;@p1=nil;@container=nil;@preview=nil;Sketchup.active_model.select_tool(self);status('ĐÃ TẠO → CLICK ĐIỂM 1 TIẾP')
           rescue=>e;m.abort_operation rescue nil;UI.messagebox("Không thể tạo ngăn kéo:\n#{e.message}") end
         end
