@@ -1,7 +1,7 @@
 {
   "name": "TT - tạo ván -Trần Tuấn",
-  "version": "1.1.5",
-  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.1.5_TaoNganKeo.rbz",
-  "sha256": "763d0df3a03f3a70e8c58b0eedce97337c2ab00d924823e304f2aef3a4108999",
-  "notes": "TT Tạo Ngăn Kéo 1.1.5 - sửa lỗi runtime undefined method mm_text/mm; AUTO khởi động ngay; TAB mở cài đặt; AUTO 2 điểm; ESC thoát; tạo liên tục; đơn vị mm."
+  "version": "1.1.6",
+  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.1.6_TaoNganKeo.rbz",
+  "sha256": "16544db845c18c0e2ab9328a44edd3557497beb76e6c45a08d285ed41b210adf",
+  "notes": "TT Tạo Ngăn Kéo 1.1.6 - sửa chiều sâu bằng cách tự suy ra từ Bounding Box local của Group/Component khi 2 điểm cùng mặt; preview 3D dạng khối; AUTO 2 điểm; TAB mở cài đặt; tạo liên tục; đơn vị mm."
 }
