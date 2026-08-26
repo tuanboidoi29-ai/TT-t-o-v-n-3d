@@ -7,7 +7,6 @@ on:
     paths:
       - '.github/workflows/build-1.2.0-drawer.yml'
       - 'release_1.0.5/TT_TaoVan/version.txt'
-      - 'release_1.0.5/TT_TaoVan/update.rb'
       - 'release_1.0.5/TT_TaoVan/drawer.rb'
       - 'release_1.0.5/TT_TaoVan/main.rb'
 
