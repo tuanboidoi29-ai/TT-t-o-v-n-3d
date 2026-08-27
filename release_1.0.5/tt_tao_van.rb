@@ -11,7 +11,7 @@ module TranTuan
       'TT - tạo ván -Trần Tuấn',
       'TT_TaoVan/main'
     )
-    EXTENSION.version = '1.0.5'
+    EXTENSION.version = '1.2.4'
     EXTENSION.creator = 'TRẦN TUẤN'
     EXTENSION.description = 'Tạo ván Face 3D, Tạo Box, Tạo Ngăn Kéo, Xuất chi tiết ván và Hot Update.'
     EXTENSION.copyright = '© 2026 TRẦN TUẤN'
