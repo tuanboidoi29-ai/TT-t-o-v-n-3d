@@ -8,7 +8,7 @@ module TranTuan
       def parse_mm(v); Float(v.to_s.strip.downcase.gsub(',','.').sub(/\s*mm\s*\z/,'')); rescue; nil end
       def defaults
         m=Sketchup.active_model; wall=m.get_attribute(DICT,'wall_t',17.5).to_f; wall=17.5 if wall<=0
-        {'rail_gap'=>m.get_attribute(DICT,'rail_gap',14.0).to_f,'gap_top'=>m.get_attribute(DICT,'gap_top',20.0).to_f,'gap_bottom'=>m.get_attribute(DICT,'gap_bottom',0.0).to_f,'gap_front'=>m.get_attribute(DICT,'gap_front',0.0).to_f,'depth_reserve'=>m.get_attribute(DICT,'depth_reserve',60.0).to_f,'bottom_gap'=>m.get_attribute(DICT,'bottom_gap',2.0).to_f,'wall_t'=>wall,'bottom_t'=>m.get_attribute(DICT,'bottom_t',9.0).to_f}
+        {'rail_gap'=>m.get_attribute(DICT,'rail_gap',14.0).to_f,'gap_top'=>m.get_attribute(DICT,'gap_top',20.0).to_f,'gap_bottom'=>m.get_attribute(DICT,'gap_bottom',0.0).to_f,'gap_front'=>m.get_attribute(DICT,'gap_front',0.0).to_f,'depth_reserve'=>m.get_attribute(DICT,'depth_reserve',60.0).to_f,'bottom_gap'=>0.0,'wall_t'=>wall,'bottom_t'=>m.get_attribute(DICT,'bottom_t',9.0).to_f}
       end
       def start; Sketchup.active_model.select_tool(TwoPointTool.new(defaults)); end
       def show_settings(tool=nil)
@@ -19,20 +19,21 @@ module TranTuan
             data=JSON.parse(json); vals={}; data.each{|k,v| vals[k]=parse_mm(v)}
             raise 'Thông số phải là số mm không âm.' if vals.values.any?{|v| !v.is_a?(Numeric)||!v.finite?||v<0}
             raise 'Độ dày 4 thành phải lớn hơn 0.' if vals['wall_t']<=0
+            vals['bottom_gap']=0.0
             vals.each{|k,v| Sketchup.active_model.set_attribute(DICT,k,v.to_f)}; @dialog.close
             tool ? tool.apply_settings(vals) : Sketchup.active_model.select_tool(TwoPointTool.new(vals))
           rescue=>e; UI.messagebox("Thông số không hợp lệ:\n#{e.message}"); end
         end; @dialog.show
       end
       def settings_html(d)
-        fs=[['rail_gap','Ray mỗi bên'],['gap_top','Hở trên'],['gap_bottom','Hở dưới'],['gap_front','Hở trước'],['depth_reserve','Chừa phía sau'],['wall_t','Độ dày 4 thành'],['bottom_t','Độ dày tấm đáy'],['bottom_gap','Khe tách đáy/thành']].map{|k,l|"<label>#{l}</label><input id='#{k}' value='#{d[k]}' style='width:95px;padding:7px'>"}.join
-        "<html><body style='font:14px Arial;background:#17191d;color:#eee;padding:18px'><h2>TT - NGĂN KÉO AUTO</h2><b>TAB = CÀI ĐẶT</b><p>Click 2 điểm chéo trên cùng mặt. 4 thành mặc định 17,5 mm. Tấm đáy là chi tiết riêng.</p><div style='display:grid;grid-template-columns:1fr 100px;gap:8px'>#{fs}</div><p>Ray 14 mm/bên • Hở trên 20 mm • Thành 17,5 mm • Đáy 9 mm • Khe đáy 2 mm • Chừa sau 60 mm.</p><button onclick='save()' style='width:100%;padding:12px'>LƯU & TIẾP TỤC AUTO</button><script>function save(){let a=['rail_gap','gap_top','gap_bottom','gap_front','depth_reserve','wall_t','bottom_t','bottom_gap'],o={};a.forEach(k=>o[k]=document.getElementById(k).value);sketchup.save(JSON.stringify(o));}</script></body></html>"
+        fs=[['rail_gap','Ray mỗi bên'],['gap_top','Hở trên'],['gap_bottom','Hở dưới'],['gap_front','Hở trước'],['depth_reserve','Chừa phía sau'],['wall_t','Độ dày 4 thành'],['bottom_t','Độ dày tấm đáy']].map{|k,l|"<label>#{l}</label><input id='#{k}' value='#{d[k]}' style='width:95px;padding:7px'>"}.join
+        "<html><body style='font:14px Arial;background:#17191d;color:#eee;padding:18px'><h2>TT - NGĂN KÉO AUTO</h2><b>TAB = CÀI ĐẶT</b><p>Click 2 điểm chéo trên cùng mặt. 4 thành mặc định 17,5 mm. Tấm đáy là chi tiết riêng nhưng <b>mặt trên đáy trùng đúng cao độ đáy thành</b>, không có khe tách.</p><div style='display:grid;grid-template-columns:1fr 100px;gap:8px'>#{fs}</div><p>Ray 14 mm/bên • Hở trên 20 mm • Thành 17,5 mm • Đáy 9 mm • Mặt trên đáy = đáy thành • Chừa sau 60 mm.</p><button onclick='save()' style='width:100%;padding:12px'>LƯU & TIẾP TỤC AUTO</button><script>function save(){let a=['rail_gap','gap_top','gap_bottom','gap_front','depth_reserve','wall_t','bottom_t'],o={};a.forEach(k=>o[k]=document.getElementById(k).value);sketchup.save(JSON.stringify(o));}</script></body></html>"
       end
       class TwoPointTool
         def initialize(cfg); @cfg=cfg; @ip=Sketchup::InputPoint.new; reset; end
         def activate; status('AUTO: CLICK ĐIỂM 1 → RÊ CHÉO → CLICK ĐIỂM 2 | TAB: CÀI ĐẶT | ESC: THOÁT'); end
         def deactivate(view); view.invalidate if view; end
-        def apply_settings(cfg); @cfg=cfg; reset; status('ĐÃ LƯU → AUTO: CLICK ĐIỂM 1'); end
+        def apply_settings(cfg); @cfg=cfg; @cfg['bottom_gap']=0.0; reset; status('ĐÃ LƯU → AUTO: CLICK ĐIỂM 1'); end
         def onKeyDown(key,*_); return Drawer.show_settings(self) if key==TAB_KEY; if key==27; Sketchup.active_model.select_tool(nil); return true; end; false end
         def onMouseMove(_flags,x,y,view)
           @ip.pick(view,x,y); return unless @ip.valid?; p=locked_point(@ip.position); @preview=@p1 ? [@p1,p] : [p]
@@ -63,14 +64,14 @@ module TranTuan
           d=measure(@p1,p2); return UI.messagebox("Không đủ không gian. Vùng R #{Drawer.mm_text(d[:w])} × C #{Drawer.mm_text(d[:h])} × S #{Drawer.mm_text(d[:d])}") if d.values_at(:dw,:dh,:dd).any?{|v|v<=0}
           m=Sketchup.active_model; m.start_operation('TT - Tạo ngăn kéo AUTO',true)
           begin
-            xmin,xmax,zmin,zmax=normalized_region(@p1,p2); x=xmin+Drawer.mm(@cfg['rail_gap']); y=Drawer.mm(@cfg['gap_front']); z=zmin+Drawer.mm(@cfg['gap_bottom']); rw=Drawer.mm(d[:dw]); rd=Drawer.mm(d[:dd]); rh=Drawer.mm(d[:dh]); t=Drawer.mm(d[:wall_t]); bt=Drawer.mm(@cfg['bottom_t']); bg=Drawer.mm(@cfg['bottom_gap']); iw=rw-2*t; raise 'Chiều rộng không đủ cho 2 hông 17,5 mm.' if iw<=0; raise 'Khe đáy phải nhỏ hơn chiều cao thành.' if bg>=rh
+            xmin,xmax,zmin,zmax=normalized_region(@p1,p2); x=xmin+Drawer.mm(@cfg['rail_gap']); y=Drawer.mm(@cfg['gap_front']); z=zmin+Drawer.mm(@cfg['gap_bottom']); rw=Drawer.mm(d[:dw]); rd=Drawer.mm(d[:dd]); rh=Drawer.mm(d[:dh]); t=Drawer.mm(d[:wall_t]); bt=Drawer.mm(@cfg['bottom_t']); iw=rw-2*t; raise 'Chiều rộng không đủ cho 2 hông 17,5 mm.' if iw<=0
             g=m.entities.add_group; g.name='TT - Ngăn kéo AUTO';
             add_part(g,'Hông trái',x,y,z,t,rd,rh); add_part(g,'Hông phải',x+rw-t,y,z,t,rd,rh); add_part(g,'Thành trước',x+t,y,z,iw,t,rh); add_part(g,'Thành sau',x+t,y+rd-t,z,iw,t,rh)
-            # Đáy độc lập: thu nhỏ cả 4 cạnh và hạ thấp, tạo khe nhìn thấy rõ.
-            side_clear=bg; bottom_w=[iw-2*side_clear,0].max; bottom_d=[rd-2*side_clear,0].max; bottom_z=z-bt-bg
-            raise 'Không đủ kích thước để tách tấm đáy khỏi thành.' if bottom_w<=0||bottom_d<=0
-            add_part(g,'Tấm đáy',x+t+side_clear,y+side_clear,bottom_z,bottom_w,bottom_d,bt)
-            g.transform!(@frame); g.set_attribute(DICT,'don_vi','mm'); g.set_attribute(DICT,'do_day_4_thanh_mm',d[:wall_t]); g.set_attribute(DICT,'do_day_day_mm',@cfg['bottom_t']); g.set_attribute(DICT,'khe_tach_day_mm',@cfg['bottom_gap']); g.set_attribute(DICT,'ten_thanh_sau','Thành sau'); m.commit_operation; reset; Sketchup.active_model.select_tool(self); status('ĐÃ TẠO NGĂN KÉO → CLICK ĐIỂM 1 TIẾP THEO');
+            # Tấm đáy là chi tiết riêng để quản lý, nhưng mặt trên của nó TRÙNG ĐÚNG với đáy 4 thành.
+            # Không có khe hở và không hạ thêm 2 mm. Đáy chỉ đi xuống theo đúng độ dày của tấm đáy.
+            bottom_z=z-bt
+            add_part(g,'Tấm đáy',x+t,y,bottom_z,iw,rd,bt)
+            g.transform!(@frame); g.set_attribute(DICT,'don_vi','mm'); g.set_attribute(DICT,'do_day_4_thanh_mm',d[:wall_t]); g.set_attribute(DICT,'do_day_day_mm',@cfg['bottom_t']); g.set_attribute(DICT,'khe_tach_day_mm',0.0); g.set_attribute(DICT,'ten_thanh_sau','Thành sau'); m.commit_operation; reset; Sketchup.active_model.select_tool(self); status('ĐÃ TẠO NGĂN KÉO → CLICK ĐIỂM 1 TIẾP THEO')
           rescue=>e; m.abort_operation rescue nil; UI.messagebox("Không thể tạo ngăn kéo:\n#{e.message}"); end
         end
         def add_part(g,name,x,y,z,w,d,h); p=g.entities.add_group; p.name=name; f=p.entities.add_face([Geom::Point3d.new(x,y,z),Geom::Point3d.new(x+w,y,z),Geom::Point3d.new(x+w,y+d,z),Geom::Point3d.new(x,y+d,z)]); f.pushpull(h) if f; end
