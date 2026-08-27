@@ -28,10 +28,6 @@ module TranTuan
         @box_command.status_bar_text = 'Tạo khối Box theo chiều rộng, sâu, cao (mm)'
         set_command_icons(@box_command, 'tao_box_16.png', 'tao_box_32.png', icon_dir)
 
-        # HOT UPDATE: không tạo lại/remove toolbar item cũ.
-        # UI::Toolbar của SketchUp không có remove_item trên mọi phiên bản.
-        # Command cũ đã có block gọi động Drawer.start, nên chỉ cần cập nhật
-        # tooltip/icon và giữ nguyên item hiện có để tránh crash khi hot update.
         @drawer_command ||= UI::Command.new('TT - Tạo ngăn kéo') { TranTuan::TaoVan::Drawer.start }
         @drawer_command.tooltip = 'TT - Tạo ngăn kéo AUTO'
         @drawer_command.status_bar_text = 'AUTO: Click 2 điểm chéo bất kỳ → tự tính kích thước → tạo liên tục; TAB mở cài đặt; ESC thoát'
@@ -43,7 +39,11 @@ module TranTuan
         set_command_icons(@detail_command, 'xuat_chi_tiet_16.png', 'xuat_chi_tiet_32.png', icon_dir)
 
         @update_command ||= UI::Command.new('TT - Cập nhật Vision') do
-          Sketchup.require(UPDATE)
+          # QUAN TRỌNG: luôn LOAD updater hiện tại.
+          # Sketchup.require chỉ nạp lần đầu, vì vậy updater cũ có thể còn nằm trong bộ nhớ
+          # sau khi RBZ mới đã được cài và gây lỗi start_with? của Array.
+          raise 'Không tìm thấy update.rb.' unless File.file?(UPDATE)
+          load(UPDATE)
           TranTuan::TaoVan::VisionUpdate.run
         end
         @update_command.tooltip = 'TT - Cập nhật Vision'
@@ -106,8 +106,6 @@ module TranTuan
       def set_command_icons(c,s,l,d); sp=File.join(d,s); lp=File.join(d,l); c.small_icon=sp if File.file?(sp); c.large_icon=lp if File.file?(lp) end
       def create_toolbar_once
         if @toolbar
-          # Toolbar đã tồn tại trong phiên SketchUp; không gọi remove_item.
-          # Nếu drawer command đã tồn tại thì giữ nguyên item để hot update an toàn.
           return
         end
         @toolbar=UI.toolbar('TT - Tạo ván - Trần Tuấn')
@@ -119,7 +117,7 @@ module TranTuan
         menu=UI.menu('Extensions')
         [
           'TT - Tạo ván từ Face','TT - Tạo ván từ Face Group','TT - Tạo ván từ Face - Ngoài Group',
-          'TT - Tạo ván từ Face - Hover','TT - Tạo ván từ Face 3D','TT - Tạo ván từ Face 3D Hover',
+          'TT - Tạo ván từ Face - Hover','TT - Tạo ván Face 3D','TT - Tạo ván từ Face 3D Hover',
           'TT - Tạo ván Face 3D','TT - Tạo ván','TRẦN TUẤN DC - Tạo ván từ Face',
           'TT - Tạo ngăn kéo cũ','TT - Tạo ngăn kéo thủ công','TT - Tạo ngăn kéo tự động cũ'
         ].each{|n|remove_menu_item(menu,n)}
