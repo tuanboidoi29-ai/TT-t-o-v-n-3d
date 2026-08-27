@@ -75,11 +75,16 @@ module TranTuan
             name=e.name.to_s.strip
             name=e.definition.name.to_s.strip if name.empty? && e.respond_to?(:definition)
             name='Ván' if name.empty?
+            children=e.is_a?(Sketchup::Group) ? e.entities : e.definition.entities
+            child_instances=children.any?{|child|child.is_a?(Sketchup::Group)||child.is_a?(Sketchup::ComponentInstance)}
+            if child_instances
+              scan.call(children,"#{parent}/#{name}")
+              next
+            end
             bb=e.bounds; sx=bb.width.to_f.to_mm; sy=bb.depth.to_f.to_mm; sz=bb.height.to_f.to_mm
+            next if [sx,sy,sz].any?{|size|size<=0}
             dims=[sx,sy,sz].sort; th=dims[0]; area=dims[1]*dims[2]/1_000_000.0; vol=sx*sy*sz/1_000_000_000.0
             rows << [rows.length+1,name,sx.round(2),sy.round(2),sz.round(2),th.round(2),area.round(4),vol.round(6),parent.empty? ? 'Model' : parent]
-            children=e.is_a?(Sketchup::Group) ? e.entities : e.definition.entities
-            scan.call(children,"#{parent}/#{name}")
           end
         end
         scan.call(model.entities,'')
