@@ -18,7 +18,6 @@ module TranTuan
         m = Sketchup.active_model
         side = m.get_attribute(DICT, 'side_t', 17.5).to_f
         side = 17.5 if side <= 0
-        # Four drawer walls use one thickness by default.
         wall = m.get_attribute(DICT, 'wall_t', side).to_f
         wall = side if wall <= 0
         {
@@ -27,6 +26,7 @@ module TranTuan
           'gap_bottom'    => m.get_attribute(DICT, 'gap_bottom', 0.0).to_f,
           'gap_front'     => m.get_attribute(DICT, 'gap_front', 0.0).to_f,
           'depth_reserve' => m.get_attribute(DICT, 'depth_reserve', 60.0).to_f,
+          'bottom_gap'    => m.get_attribute(DICT, 'bottom_gap', 2.0).to_f,
           'side_t'        => wall,
           'wall_t'        => wall,
           'back_t'        => wall,
@@ -37,6 +37,7 @@ module TranTuan
           m.set_attribute(DICT, 'wall_t', wall)
           m.set_attribute(DICT, 'back_t', wall)
           m.set_attribute(DICT, 'front_t', wall)
+          m.set_attribute(DICT, 'bottom_gap', h['bottom_gap'])
         end
       end
 
@@ -49,7 +50,7 @@ module TranTuan
         @dialog ||= UI::HtmlDialog.new(
           dialog_title: 'TT - CÀI ĐẶT NGĂN KÉO AUTO',
           preferences_key: 'TT_Drawer_Auto_124',
-          scrollable: true, resizable: true, width: 450, height: 650,
+          scrollable: true, resizable: true, width: 450, height: 680,
           style: UI::HtmlDialog::STYLE_DIALOG
         )
         @dialog.set_html(settings_html(d))
@@ -77,9 +78,9 @@ module TranTuan
         fields = [
           ['rail_gap', 'Ray mỗi bên'], ['gap_top', 'Hở trên'], ['gap_bottom', 'Hở dưới'],
           ['gap_front', 'Hở trước'], ['depth_reserve', 'Chừa phía sau'], ['wall_t', 'Độ dày 4 thành'],
-          ['bottom_t', 'Độ dày đáy']
+          ['bottom_t', 'Độ dày tấm đáy'], ['bottom_gap', 'Khe tách đáy/thành']
         ].map { |k, l| "<label>#{l}</label><input id='#{k}' value='#{d[k]}' style='width:95px;padding:7px;background:#252930;color:#fff;border:1px solid #444;border-radius:6px'>" }.join
-        "<!doctype html><html><body style='font:14px Arial;background:#17191d;color:#eee;padding:18px'><h2>TT - NGĂN KÉO AUTO</h2><b style='color:#ff9b43'>TAB = CÀI ĐẶT | CLICK 2 ĐIỂM TRÊN CÙNG MẶT TRƯỚC</b><p>4 thành ngăn kéo dùng cùng độ dày. Mặc định <b>17,5 mm</b>. Thành trước và thành sau nằm lọt giữa hai hông, không chồng lấn tại góc.</p><div style='display:grid;grid-template-columns:1fr 100px;gap:8px;align-items:center'>#{fields}</div><p style='font-size:12px;color:#aaa'>Mặc định: ray 14 mm/bên, hở trên 20 mm, 4 thành 17,5 mm, chừa sau 60 mm.</p><button onclick='save()' style='width:100%;padding:12px;background:#ff7a00;color:#fff;border:0;border-radius:8px;font-weight:bold'>LƯU & TIẾP TỤC AUTO</button><script>function save(){let ids=['rail_gap','gap_top','gap_bottom','gap_front','depth_reserve','wall_t','bottom_t'];let o={};ids.forEach(id=>o[id]=document.getElementById(id).value);sketchup.save(JSON.stringify(o));}</script></body></html>"
+        "<!doctype html><html><body style='font:14px Arial;background:#17191d;color:#eee;padding:18px'><h2>TT - NGĂN KÉO AUTO</h2><b style='color:#ff9b43'>TAB = CÀI ĐẶT | CLICK 2 ĐIỂM TRÊN CÙNG MẶT TRƯỚC</b><p>4 thành ngăn kéo dùng cùng độ dày. Mặc định <b>17,5 mm</b>. Gồm <b>Hông trái, Hông phải, Thành trước, Thành sau</b>. Tấm đáy là chi tiết riêng và có khe tách mặc định <b>2 mm</b>, không dính vào thành.</p><div style='display:grid;grid-template-columns:1fr 100px;gap:8px;align-items:center'>#{fields}</div><p style='font-size:12px;color:#aaa'>Mặc định: ray 14 mm/bên, hở trên 20 mm, 4 thành 17,5 mm, khe đáy 2 mm, chừa sau 60 mm.</p><button onclick='save()' style='width:100%;padding:12px;background:#ff7a00;color:#fff;border:0;border-radius:8px;font-weight:bold'>LƯU & TIẾP TỤC AUTO</button><script>function save(){let ids=['rail_gap','gap_top','gap_bottom','gap_front','depth_reserve','wall_t','bottom_t','bottom_gap'];let o={};ids.forEach(id=>o[id]=document.getElementById(id).value);sketchup.save(JSON.stringify(o));}</script></body></html>"
       end
 
       class TwoPointTool
@@ -161,23 +162,36 @@ module TranTuan
           if d.values_at(:dw,:dh,:dd).any?{|v|v<=0};UI.messagebox("Không đủ không gian.\n\nVùng: R #{Drawer.mm_text(d[:w])} × C #{Drawer.mm_text(d[:h])} × S #{Drawer.mm_text(d[:d])}\nNgăn kéo: R #{Drawer.mm_text(d[:dw])} × C #{Drawer.mm_text(d[:dh])} × S #{Drawer.mm_text(d[:dd])}");return;end
           model=Sketchup.active_model;model.start_operation('TT - Tạo ngăn kéo AUTO',true)
           begin
-            xmin,_xmax,zmin,_zmax=normalized_region(@p1,p2);x=xmin+Drawer.mm(@cfg['rail_gap']);y=Drawer.mm(@cfg['gap_front']);z=zmin+Drawer.mm(@cfg['gap_bottom']);rw=Drawer.mm(d[:dw]);rd=Drawer.mm(d[:dd]);rh=Drawer.mm(d[:dh]);wall=Drawer.mm(d[:wall_t]);bt=Drawer.mm(@cfg['bottom_t'])
-            # Structural rule: the two hongs run full depth; front/back fit BETWEEN them.
+            xmin,_xmax,zmin,_zmax=normalized_region(@p1,p2);x=xmin+Drawer.mm(@cfg['rail_gap']);y=Drawer.mm(@cfg['gap_front']);z=zmin+Drawer.mm(@cfg['gap_bottom']);rw=Drawer.mm(d[:dw]);rd=Drawer.mm(d[:dd]);rh=Drawer.mm(d[:dh]);wall=Drawer.mm(d[:wall_t]);bt=Drawer.mm(@cfg['bottom_t']);bg=Drawer.mm(@cfg['bottom_gap'])
             inner_w=rw-wall*2
             raise 'Chiều rộng ngăn kéo không đủ cho 2 hông 17,5 mm.' if inner_w <= 0
+            raise 'Khe tách đáy phải nhỏ hơn chiều cao thành.' if bg >= rh
             front_d=wall; back_d=wall
             g=model.entities.add_group;g.name='TT - Ngăn kéo AUTO'
             add_part(g,'Hông trái',x,y,z,wall,rd,rh)
             add_part(g,'Hông phải',x+rw-wall,y,z,wall,rd,rh)
-            add_part(g,'Mặt trước',x+wall,y,z,inner_w,front_d,rh)
-            add_part(g,'Hậu',x+wall,y+rd-back_d,z,inner_w,back_d,rh)
-            add_part(g,'Đáy',x+wall,y,z+0.mm,inner_w,rd,bt)
+            add_part(g,'Thành trước',x+wall,y,z,inner_w,front_d,rh)
+            add_part(g,'Thành sau',x+wall,y+rd-back_d,z,inner_w,back_d,rh)
+            # The bottom is a separate part, lowered by bottom_gap so its faces do not touch the four walls.
+            bottom_z=z-bt-bg
+            add_part(g,'Tấm đáy',x+wall,y,bottom_z,inner_w,rd,bt)
             g.transform!(@frame)
-            g.set_attribute(DICT,'don_vi','mm');g.set_attribute(DICT,'vung_rong_mm',d[:w]);g.set_attribute(DICT,'vung_cao_mm',d[:h]);g.set_attribute(DICT,'vung_sau_mm',d[:d]);g.set_attribute(DICT,'rong_mm',d[:dw]);g.set_attribute(DICT,'cao_mm',d[:dh]);g.set_attribute(DICT,'sau_mm',d[:dd]);g.set_attribute(DICT,'ray_moi_ben_mm',@cfg['rail_gap']);g.set_attribute(DICT,'do_day_4_thanh_mm',@cfg['wall_t']);g.set_attribute(DICT,'do_day_hong_mm',@cfg['wall_t']);g.set_attribute(DICT,'chua_sau_mm',@cfg['depth_reserve'])
+            g.set_attribute(DICT,'don_vi','mm');g.set_attribute(DICT,'vung_rong_mm',d[:w]);g.set_attribute(DICT,'vung_cao_mm',d[:h]);g.set_attribute(DICT,'vung_sau_mm',d[:d]);g.set_attribute(DICT,'rong_mm',d[:dw]);g.set_attribute(DICT,'cao_mm',d[:dh]);g.set_attribute(DICT,'sau_mm',d[:dd]);g.set_attribute(DICT,'ray_moi_ben_mm',@cfg['rail_gap']);g.set_attribute(DICT,'do_day_4_thanh_mm',@cfg['wall_t']);g.set_attribute(DICT,'do_day_hong_mm',@cfg['wall_t']);g.set_attribute(DICT,'do_day_thanh_truoc_mm',@cfg['front_t']);g.set_attribute(DICT,'do_day_thanh_sau_mm',@cfg['back_t']);g.set_attribute(DICT,'do_day_day_mm',@cfg['bottom_t']);g.set_attribute(DICT,'khe_tach_day_thanh_mm',bg);g.set_attribute(DICT,'chua_sau_mm',@cfg['depth_reserve'])
             model.commit_operation;reset;Sketchup.active_model.select_tool(self);status('ĐÃ TẠO NGĂN KÉO → CLICK ĐIỂM 1 TIẾP THEO')
           rescue=>e;model.abort_operation rescue nil;UI.messagebox("Không thể tạo ngăn kéo:\n#{e.message}");end
         end
-        def add_part(g,name,x,y,z,w,d,h);p=g.entities.add_group;p.name=name;f=p.entities.add_face([Geom::Point3d.new(x,y,z),Geom::Point3d.new(x+w,y,z),Geom::Point3d.new(x+w,y+d,z),Geom::Point3d.new(x,y+d,z)]);f.pushpull(h) if f;end
+
+        def add_part(g,name,x,y,z,w,d,h)
+          p=g.entities.add_group
+          p.name=name
+          f=p.entities.add_face([
+            Geom::Point3d.new(x,y,z),
+            Geom::Point3d.new(x+w,y,z),
+            Geom::Point3d.new(x+w,y+d,z),
+            Geom::Point3d.new(x,y+d,z)
+          ])
+          f.pushpull(h) if f
+        end
       end
     end
   end
