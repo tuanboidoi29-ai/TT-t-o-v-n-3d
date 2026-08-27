@@ -1,7 +1,7 @@
 {
   "name": "TT - tạo ván -Trần Tuấn",
-  "version": "1.2.3",
-  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.2.3_TaoNganKeo.rbz",
-  "sha256": "30667b3a00e9806f3d420ac8ec8cd3226eeeee8e7f66fb0152d7e5240879710f",
-  "notes": "TT Tạo Ngăn Kéo 1.2.3 - preview 3D lấy đúng vùng giữa 2 điểm chéo bất kỳ trên cùng mặt trước; khóa điểm 2 vào mặt điểm 1; chuẩn hóa min/max theo hệ trục mặt; không lật hoặc lệch preview; giữ tự quét Rộng/Cao/Sâu, ray 14 mm mỗi bên, hông 17,5 mm, tạo liên tục, TAB cài đặt, đơn vị mm, HOT RELOAD."
+  "version": "1.2.2",
+  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.2.2_TaoNganKeo.rbz",
+  "sha256": "4cc82498bc2e30fe61fdea060d5b06be05e429ff6e5609157da6e7825a7aae78",
+  "notes": "TT Tạo Ngăn Kéo 1.2.2 - sửa lỗi updater BOM bằng getbyte, không dùng Array#start_with?; Net::HTTP tải binary; UTF-8 an toàn; HOT RELOAD không cần khởi động lại SketchUp; giữ AUTO 2 điểm, tự quét Rộng/Cao/Sâu, ray 14 mm mỗi bên, hông 17,5 mm, preview 3D, tạo liên tục, TAB cài đặt, đơn vị mm."
 }
