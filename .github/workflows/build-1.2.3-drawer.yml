@@ -68,24 +68,26 @@ jobs:
           obj['version']='1.2.3'
           obj['rbz_url']='https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.2.3_TaoNganKeo.rbz'
           obj['sha256']=Path('rbz.sha256').read_text().strip()
-          obj['notes']='TT Tạo Ngăn Kéo 1.2.3 - preview 3D lấy đúng vùng giữa 2 điểm chéo bất kỳ trên cùng mặt trước; chuẩn hóa min/max theo hệ trục mặt; không lật hoặc lệch preview; giữ tự quét Rộng/Cao/Sâu, ray 14 mm mỗi bên, hông 17,5 mm, tạo liên tục, TAB cài đặt, đơn vị mm, HOT RELOAD.'
+          obj['notes']='TT Tạo Ngăn Kéo 1.2.3 - preview 3D lấy đúng vùng giữa 2 điểm chéo bất kỳ trên cùng mặt trước; khóa điểm 2 vào mặt điểm 1; chuẩn hóa min/max theo hệ trục mặt; không lật hoặc lệch preview; giữ tự quét Rộng/Cao/Sâu, ray 14 mm mỗi bên, hông 17,5 mm, tạo liên tục, TAB cài đặt, đơn vị mm, HOT RELOAD.'
           p.write_text(json.dumps(obj,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
           PY
-      - name: Publish with safe retry
+      - name: Publish safely with preserved build
         shell: bash
         run: |
           set -euo pipefail
           git config user.name 'TT Vision Bot'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add TT_TaoVan_1.2.3_TaoNganKeo.rbz update.json
-          git commit -m 'Release TT Tạo Ngăn Kéo 1.2.3 - diagonal preview fix' || true
+          cp TT_TaoVan_1.2.3_TaoNganKeo.rbz /tmp/TT_TaoVan_1.2.3_TaoNganKeo.rbz
+          cp update.json /tmp/update.json
           for i in 1 2 3 4 5; do
             git fetch origin main
             git reset --hard origin/main
+            cp /tmp/TT_TaoVan_1.2.3_TaoNganKeo.rbz TT_TaoVan_1.2.3_TaoNganKeo.rbz
+            cp /tmp/update.json update.json
             git add TT_TaoVan_1.2.3_TaoNganKeo.rbz update.json
             git commit -m 'Release TT Tạo Ngăn Kéo 1.2.3 - diagonal preview fix' || true
             if git push origin HEAD:main; then exit 0; fi
-            sleep 2
+            sleep 3
           done
           echo 'Publish failed after retries.' >&2
           exit 1
