@@ -2,6 +2,6 @@
   "name": "TT - tạo ván -Trần Tuấn",
   "version": "1.2.3",
   "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.2.3_TaoNganKeo.rbz",
-  "sha256": "a07e1c8f04dbf6c9749f6cc2c299f8aa37eae62b05c312b1e3c6fc3c7736a22e",
+  "sha256": "7dc645b213613076cb43073c07afc153156af19df224aa628a9dbce3e1634eb0",
   "notes": "TT Tạo Ngăn Kéo 1.2.3 - preview 3D lấy đúng vùng giữa 2 điểm chéo bất kỳ trên cùng mặt trước; khóa điểm 2 vào mặt điểm 1; chuẩn hóa min/max theo hệ trục mặt; không lật hoặc lệch preview; giữ tự quét Rộng/Cao/Sâu, ray 14 mm mỗi bên, hông 17,5 mm, tạo liên tục, TAB cài đặt, đơn vị mm, HOT RELOAD."
 }
