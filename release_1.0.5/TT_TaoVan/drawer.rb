@@ -2,42 +2,57 @@ module TranTuan
   module TaoVan
     module Drawer
       module_function
-      TAB_KEY=9; CTRL_KEY=17; DICT='TT_TaoVan_Drawer'
+      TAB_KEY=9; CTRL_KEY=17; SHIFT_KEY=16; DICT='TT_TaoVan_Drawer'
       def mm(v); v.to_f.mm; end
       def mm_text(v); format('%.1f mm',v.to_f); end
       def parse_mm(v); Float(v.to_s.strip.downcase.gsub(',','.').sub(/\s*mm\s*\z/,'')); rescue; nil end
       def defaults
-        m=Sketchup.active_model; wall=m.get_attribute(DICT,'wall_t',17.5).to_f; wall=17.5 if wall<=0
-        {'rail_gap'=>m.get_attribute(DICT,'rail_gap',14.0).to_f,'gap_top'=>m.get_attribute(DICT,'gap_top',20.0).to_f,'gap_bottom'=>m.get_attribute(DICT,'gap_bottom',0.0).to_f,'gap_front'=>m.get_attribute(DICT,'gap_front',0.0).to_f,'depth_reserve'=>m.get_attribute(DICT,'depth_reserve',60.0).to_f,'bottom_gap'=>0.0,'wall_t'=>wall,'bottom_t'=>m.get_attribute(DICT,'bottom_t',9.0).to_f}
+        m=Sketchup.active_model
+        wall=m.get_attribute(DICT,'wall_t',17.5).to_f; wall=17.5 if wall<=0
+        {'rail_gap'=>m.get_attribute(DICT,'rail_gap',14.0).to_f,'gap_top'=>m.get_attribute(DICT,'gap_top',20.0).to_f,'gap_bottom'=>m.get_attribute(DICT,'gap_bottom',0.0).to_f,'gap_front'=>m.get_attribute(DICT,'gap_front',0.0).to_f,'depth_reserve'=>m.get_attribute(DICT,'depth_reserve',60.0).to_f,'bottom_gap'=>0.0,'wall_t'=>wall,'bottom_t'=>m.get_attribute(DICT,'bottom_t',9.0).to_f,'back_t'=>m.get_attribute(DICT,'back_t',9.0).to_f,'back_edge_offset'=>m.get_attribute(DICT,'back_edge_offset',9.0).to_f,'back_bottom_offset'=>m.get_attribute(DICT,'back_bottom_offset',15.0).to_f}
       end
       def start; Sketchup.active_model.select_tool(TwoPointTool.new(defaults)); end
       def show_settings(tool=nil)
         d=defaults
-        @dialog ||= UI::HtmlDialog.new(dialog_title:'TT - CÀI ĐẶT NGĂN KÉO AUTO',preferences_key:'TT_Drawer_Auto_Final',scrollable:true,resizable:true,width:450,height:680,style:UI::HtmlDialog::STYLE_DIALOG)
-        @dialog.set_html(settings_html(d)); @dialog.add_action_callback('save') do |_c,json|
+        @dialog ||= UI::HtmlDialog.new(dialog_title:'TT - CÀI ĐẶT NGĂN KÉO AUTO',preferences_key:'TT_Drawer_Auto_Final',scrollable:true,resizable:true,width:450,height:740,style:UI::HtmlDialog::STYLE_DIALOG)
+        @dialog.set_html(settings_html(d))
+        @dialog.add_action_callback('save') do |_c,json|
           begin
             data=JSON.parse(json); vals={}; data.each{|k,v| vals[k]=parse_mm(v)}
             raise 'Thông số phải là số mm không âm.' if vals.values.any?{|v| !v.is_a?(Numeric)||!v.finite?||v<0}
             raise 'Độ dày 4 thành phải lớn hơn 0.' if vals['wall_t']<=0
+            raise 'Độ dày tấm hậu phải lớn hơn 0.' if vals['back_t']<=0
             vals['bottom_gap']=0.0
-            vals.each{|k,v| Sketchup.active_model.set_attribute(DICT,k,v.to_f)}; @dialog.close
+            vals.each{|k,v| Sketchup.active_model.set_attribute(DICT,k,v.to_f)}
+            @dialog.close
             tool ? tool.apply_settings(vals) : Sketchup.active_model.select_tool(TwoPointTool.new(vals))
           rescue=>e; UI.messagebox("Thông số không hợp lệ:\n#{e.message}"); end
-        end; @dialog.show
+        end
+        @dialog.show
       end
       def settings_html(d)
-        fs=[['rail_gap','Ray mỗi bên'],['gap_top','Hở trên'],['gap_bottom','Hở dưới'],['gap_front','Hở trước'],['depth_reserve','Chừa phía sau'],['wall_t','Độ dày 4 thành'],['bottom_t','Độ dày tấm đáy']].map{|k,l|"<label>#{l}</label><input id='#{k}' value='#{d[k]}' style='width:95px;padding:7px'>"}.join
-        "<html><body style='font:14px Arial;background:#17191d;color:#eee;padding:18px'><h2>TT - NGĂN KÉO AUTO</h2><b>TAB = CÀI ĐẶT</b><p>Click 2 điểm chéo trên cùng mặt. 4 thành mặc định 17,5 mm. Tấm đáy là chi tiết riêng nhưng <b>mặt trên đáy trùng đúng cao độ đáy thành</b>, không có khe tách.</p><div style='display:grid;grid-template-columns:1fr 100px;gap:8px'>#{fs}</div><p>Ray 14 mm/bên • Hở trên 20 mm • Thành 17,5 mm • Đáy 9 mm • Mặt trên đáy = đáy thành • Chừa sau 60 mm.</p><button onclick='save()' style='width:100%;padding:12px'>LƯU & TIẾP TỤC AUTO</button><script>function save(){let a=['rail_gap','gap_top','gap_bottom','gap_front','depth_reserve','wall_t','bottom_t'],o={};a.forEach(k=>o[k]=document.getElementById(k).value);sketchup.save(JSON.stringify(o));}</script></body></html>"
+        fs=[['rail_gap','Ray mỗi bên'],['gap_top','Hở trên'],['gap_bottom','Hở dưới'],['gap_front','Hở trước'],['depth_reserve','Chừa phía sau'],['wall_t','Độ dày 4 thành'],['bottom_t','Độ dày tấm đáy'],['back_t','Độ dày tấm hậu'],['back_edge_offset','Offset hậu từ mép ngoài'],['back_bottom_offset','Offset hậu từ đáy']].map{|k,l|"<label>#{l}</label><input id='#{k}' value='#{d[k]}' style='width:95px;padding:7px'>"}.join
+        "<html><body style='font:14px Arial;background:#17191d;color:#eee;padding:18px'><h2>TT - NGĂN KÉO AUTO</h2><b>TAB = CÀI ĐẶT</b><p>Click 2 điểm chéo trên cùng mặt. 4 thành mặc định 17,5 mm. Tấm đáy là chi tiết riêng nhưng <b>mặt trên đáy trùng đúng cao độ đáy thành</b>.</p><div style='display:grid;grid-template-columns:1fr 110px;gap:8px'>#{fs}</div><p><b>SHIFT = HẬU:</b> mỗi lần bấm Shift chuyển <b>HẬU LỌT → HẬU PHỦ → HẬU LỌT</b>. Mặc định hậu dày 9 mm, offset mép ngoài 9 mm, offset từ đáy 15 mm. Hậu gắn vào 4 thành theo đúng hệ trục ngăn kéo.</p><p>Ray 14 mm/bên • Hở trên 20 mm • Thành 17,5 mm • Đáy 9 mm • Chừa sau 60 mm.</p><button onclick='save()' style='width:100%;padding:12px'>LƯU & TIẾP TỤC AUTO</button><script>function save(){let a=['rail_gap','gap_top','gap_bottom','gap_front','depth_reserve','wall_t','bottom_t','back_t','back_edge_offset','back_bottom_offset'],o={};a.forEach(k=>o[k]=document.getElementById(k).value);sketchup.save(JSON.stringify(o));}</script></body></html>"
       end
       class TwoPointTool
-        def initialize(cfg); @cfg=cfg; @ip=Sketchup::InputPoint.new; @outward=false; reset; end
-        def activate; status('AUTO: CLICK ĐIỂM 1 → RÊ CHÉO → CLICK ĐIỂM 2 | CTRL: ĐỔI HƯỚNG | TAB: CÀI ĐẶT | ESC: THOÁT'); end
+        def initialize(cfg); @cfg=cfg; @ip=Sketchup::InputPoint.new; @outward=false; @back_mode=:none; reset; end
+        def activate; status('AUTO: CLICK ĐIỂM 1 → RÊ CHÉO → CLICK ĐIỂM 2 | SHIFT: HẬU LỌT/PHỦ | CTRL: ĐỔI HƯỚNG | TAB: CÀI ĐẶT | ESC: THOÁT'); end
         def deactivate(view); view.invalidate if view; end
         def apply_settings(cfg); @cfg=cfg; @cfg['bottom_gap']=0.0; reset; status('ĐÃ LƯU → AUTO: CLICK ĐIỂM 1'); end
-        def onKeyDown(key,repeat,*_); return Drawer.show_settings(self) if key==TAB_KEY; if key==CTRL_KEY && !repeat; @outward=!@outward; status("ĐÃ ĐỔI HƯỚNG → #{direction_name}"); return true; end; if key==27; Sketchup.active_model.select_tool(nil); return true; end; false end
+        def onKeyDown(key,repeat,*_)
+          return Drawer.show_settings(self) if key==TAB_KEY
+          if key==SHIFT_KEY && !repeat
+            @back_mode = (@back_mode==:none ? :lọt : @back_mode==:lọt ? :phủ : :lọt)
+            status("HẬU → #{back_mode_name} | CLICK 2 ĐIỂM ĐỂ TẠO")
+            return true
+          end
+          if key==CTRL_KEY && !repeat; @outward=!@outward; status("ĐÃ ĐỔI HƯỚNG → #{direction_name}"); return true; end
+          if key==27; Sketchup.active_model.select_tool(nil); return true; end
+          false
+        end
         def onMouseMove(_flags,x,y,view)
           @ip.pick(view,x,y); return unless @ip.valid?; p=locked_point(@ip.position); @preview=@p1 ? [@p1,p] : [p]
-          if @p1&&@frame; d=measure(@p1,p); @preview_drawer=preview_box(@p1,p,d); status("VÙNG R #{Drawer.mm_text(d[:w])} × C #{Drawer.mm_text(d[:h])} × S #{Drawer.mm_text(d[:d])} → NGĂN KÉO R #{Drawer.mm_text(d[:dw])} × C #{Drawer.mm_text(d[:dh])} × S #{Drawer.mm_text(d[:dd])}"); end; view.invalidate
+          if @p1&&@frame; d=measure(@p1,p); @preview_drawer=preview_box(@p1,p,d); status("#{back_mode_name} | VÙNG R #{Drawer.mm_text(d[:w])} × C #{Drawer.mm_text(d[:h])} × S #{Drawer.mm_text(d[:d])} → NGĂN KÉO R #{Drawer.mm_text(d[:dw])} × C #{Drawer.mm_text(d[:dh])} × S #{Drawer.mm_text(d[:dd])}"); end; view.invalidate
         end
         def onLButtonDown(_flags,x,y,view)
           @ip.pick(view,x,y); return unless @ip.valid?; p=@ip.position
@@ -50,8 +65,9 @@ module TranTuan
         end
         private
         def reset; @p1=@face=@path=@frame=@preview=@preview_drawer=nil; end
-        def status(t); Sketchup.set_status_text("TT NGĂN KÉO AUTO | mm | #{direction_name}",SB_PROMPT); Sketchup.set_status_text(t,SB_VCB_LABEL); end
+        def status(t); Sketchup.set_status_text("TT NGĂN KÉO AUTO | mm | #{direction_name} | HẬU #{back_mode_name}",SB_PROMPT); Sketchup.set_status_text(t,SB_VCB_LABEL); end
         def direction_name; @outward ? 'RA NGOÀI' : 'VÀO TRONG' end
+        def back_mode_name; @back_mode==:lọt ? 'LỌT' : @back_mode==:phủ ? 'PHỦ' : 'TẮT' end
         def unit(v); q=v.clone; q.normalize!; q; end
         def build_frame(origin,face,path); tr=path ? path.transformation : Geom::Transformation.new; n=unit(face.normal.transform(tr)); inward=n.reverse; z=Geom::Vector3d.new(0,0,1); z=z-n*z.dot(n); z=unit(z.length<0.001 ? Geom::Vector3d.new(1,0,0) : z); x=unit(z.cross(inward)); z=unit(inward.cross(x)); Geom::Transformation.axes(origin,x,inward,z); rescue; Geom::Transformation.new; end
         def frame_point(p); p.transform(@frame.inverse); end
@@ -68,12 +84,21 @@ module TranTuan
             xmin,xmax,zmin,zmax=normalized_region(@p1,p2); x=xmin+Drawer.mm(@cfg['rail_gap']); rw=Drawer.mm(d[:dw]); rd=Drawer.mm(d[:dd]); y=Drawer.mm(@cfg['gap_front']); y-=rd if @outward; z=zmin+Drawer.mm(@cfg['gap_bottom']); rh=Drawer.mm(d[:dh]); t=Drawer.mm(d[:wall_t]); bt=Drawer.mm(@cfg['bottom_t']); iw=rw-2*t; raise 'Chiều rộng không đủ cho 2 hông 17,5 mm.' if iw<=0
             g=m.entities.add_group; g.name='TT - Ngăn kéo AUTO';
             add_part(g,'Hông trái',x,y,z,t,rd,rh); add_part(g,'Hông phải',x+rw-t,y,z,t,rd,rh); add_part(g,'Thành trước',x+t,y,z,iw,t,rh); add_part(g,'Thành sau',x+t,y+rd-t,z,iw,t,rh)
-            # Tấm đáy là chi tiết riêng để quản lý, nhưng mặt trên của nó TRÙNG ĐÚNG với đáy 4 thành.
-            # Không có khe hở và không hạ thêm 2 mm. Đáy chỉ đi xuống theo đúng độ dày của tấm đáy.
-            bottom_z=z-bt
-            add_part(g,'Tấm đáy',x+t,y,bottom_z,iw,rd,bt)
-            g.transform!(@frame); g.set_attribute(DICT,'don_vi','mm'); g.set_attribute(DICT,'do_day_4_thanh_mm',d[:wall_t]); g.set_attribute(DICT,'do_day_day_mm',@cfg['bottom_t']); g.set_attribute(DICT,'khe_tach_day_mm',0.0); g.set_attribute(DICT,'ten_thanh_sau','Thành sau'); m.commit_operation; reset; Sketchup.active_model.select_tool(self); status('ĐÃ TẠO NGĂN KÉO → CLICK ĐIỂM 1 TIẾP THEO')
+            bottom_z=z-bt; add_part(g,'Tấm đáy',x+t,y,bottom_z,iw,rd,bt)
+            if @back_mode != :none
+              add_rear(g,x,y,z,rw,rd,rh,t)
+            end
+            g.transform!(@frame); g.set_attribute(DICT,'don_vi','mm'); g.set_attribute(DICT,'do_day_4_thanh_mm',d[:wall_t]); g.set_attribute(DICT,'do_day_day_mm',@cfg['bottom_t']); g.set_attribute(DICT,'khe_tach_day_mm',0.0); g.set_attribute(DICT,'ten_thanh_sau','Thành sau'); g.set_attribute(DICT,'che_do_hau',back_mode_name); g.set_attribute(DICT,'hau_t_mm',@cfg['back_t']); g.set_attribute(DICT,'hau_offset_mep_mm',@cfg['back_edge_offset']); g.set_attribute(DICT,'hau_offset_day_mm',@cfg['back_bottom_offset']); m.commit_operation; reset; Sketchup.active_model.select_tool(self); status('ĐÃ TẠO NGĂN KÉO → CLICK ĐIỂM 1 TIẾP THEO')
           rescue=>e; m.abort_operation rescue nil; UI.messagebox("Không thể tạo ngăn kéo:\n#{e.message}"); end
+        end
+        def add_rear(g,x,y,z,rw,rd,rh,t)
+          bt=Drawer.mm(@cfg['back_t']); edge=Drawer.mm(@cfg['back_edge_offset']); bottom=Drawer.mm(@cfg['back_bottom_offset']);
+          # Mặt hậu đặt bám theo thành sau, dùng cùng hệ trục. Hai chế độ chỉ khác vị trí theo chiều sâu:
+          # LỌT: nằm lọt trong khung; PHỦ: nằm phủ sát phía ngoài thành sau.
+          px=x+edge; pz=z+bottom; pw=[rw-2*edge,0].max; ph=[rh-bottom-edge,0].max
+          if pw<=0 || ph<=0; raise 'Kích thước không đủ cho hậu với offset 9 mm.'; end
+          py = @back_mode==:phủ ? y+rd : y+rd-bt
+          add_part(g,'Hậu',px,py,pz,pw,bt,ph)
         end
         def add_part(g,name,x,y,z,w,d,h); p=g.entities.add_group; p.name=name; f=p.entities.add_face([Geom::Point3d.new(x,y,z),Geom::Point3d.new(x+w,y,z),Geom::Point3d.new(x+w,y+d,z),Geom::Point3d.new(x,y+d,z)]); f.pushpull(h) if f; end
       end
