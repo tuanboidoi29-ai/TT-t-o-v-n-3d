@@ -2,6 +2,6 @@
   "name": "TT - tạo ván -Trần Tuấn",
   "version": "1.2.8",
   "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.2.8_TaoNganKeo.rbz",
-  "sha256": "21f2d7774714a5253370de706a898204609cfee334eff1c957a7e52ff840c879",
+  "sha256": "2cb6a11f82bd542fbecf053f2eb097cf256ac647837f2aaa93d789b1377e0cee",
   "notes": "TT Tạo Ngăn Kéo 1.2.8 - TAB Cài đặt có nút BẬT/TẮT HẬU. Tắt Hậu: không tạo hậu. Offset mép ngoài 9 mm: Hậu lọt. Offset mép ngoài 0 mm: Hậu phủ. Offset từ đáy 15 mm: tính từ mặt dưới của 4 thành. SHIFT là phím tắt bật/tắt Hậu. Giữ 4 thành 17,5 mm, đáy 9 mm và HOT RELOAD."
 }
