@@ -1,7 +1,7 @@
 {
   "name": "TT - tạo ván -Trần Tuấn",
-  "version": "1.2.9",
-  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.2.9_TaoNganKeo.rbz",
-  "sha256": "38782afa1e061a99f29843c7c7aca4ea6fab6a9b1da1d66e6df5c5ea9676a4b5",
-  "notes": "TT Tạo Ngăn Kéo 1.2.9 - sửa lỗi vùng R=0 khi 2 điểm cùng X và sửa raytest không dừng ở lớp thành 17,5 mm. Giữ TAB Cài đặt BẬT/TẮT Hậu; offset mép 9 mm = Hậu lọt; 0 mm = Hậu phủ; offset từ đáy 15 mm tính từ mặt dưới 4 thành; 4 thành 17,5 mm; đáy 9 mm; HOT RELOAD."
+  "version": "1.2.2",
+  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.2.2_TaoNganKeo.rbz",
+  "sha256": "b1560c7b3d8dc0374ee3da79eee6f007a4b1395f95dff52a77de6310ab95f1be",
+  "notes": "TT Tạo Ngăn Kéo 1.2.2 - sửa lỗi updater BOM bằng getbyte, không dùng Array#start_with?; Net::HTTP tải binary; UTF-8 an toàn; HOT RELOAD không cần khởi động lại SketchUp; giữ AUTO 2 điểm, tự quét Rộng/Cao/Sâu, ray 14 mm mỗi bên, hông 17,5 mm, preview 3D, tạo liên tục, TAB cài đặt, đơn vị mm."
 }
