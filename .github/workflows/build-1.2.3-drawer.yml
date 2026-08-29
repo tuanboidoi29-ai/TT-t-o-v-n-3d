@@ -1,6 +1,6 @@
-name: Build TT Tạo Ngăn Kéo 1.2.5
+name: Build TT Tạo Ngăn Kéo 1.2.6
 
-# 1.2.5: force fresh drawer UI/code reload after Vision hot update.
+# 1.2.6: add Shift rear panel modes with 9mm edge and 15mm bottom offsets.
 on:
   workflow_dispatch:
   push:
@@ -19,7 +19,7 @@ permissions:
   actions: read
 
 concurrency:
-  group: tt-tao-van-1-2-5
+  group: tt-tao-van-1-2-6
   cancel-in-progress: false
 
 jobs:
@@ -34,7 +34,7 @@ jobs:
           set -euo pipefail
           git fetch origin main
           git reset --hard origin/main
-      - name: Build RBZ 1.2.5
+      - name: Build RBZ 1.2.6
         shell: bash
         run: |
           set -euo pipefail
@@ -47,21 +47,21 @@ jobs:
           cp release_1.0.5/TT_TaoVan/drawer.rb build_tt/pkg/TT_TaoVan/drawer.rb
           cp release_1.0.5/TT_TaoVan/core.rb build_tt/pkg/TT_TaoVan/core.rb
           cp release_1.0.5/TT_TaoVan/box.rb build_tt/pkg/TT_TaoVan/box.rb
-          printf '1.2.5\n' > build_tt/pkg/TT_TaoVan/version.txt
+          printf '1.2.6\n' > build_tt/pkg/TT_TaoVan/version.txt
           ruby -c build_tt/pkg/TT_TaoVan/main.rb
           ruby -c build_tt/pkg/TT_TaoVan/update.rb
           ruby -c build_tt/pkg/TT_TaoVan/drawer.rb
           ruby -c build_tt/pkg/TT_TaoVan/core.rb
           ruby -c build_tt/pkg/TT_TaoVan/box.rb
-          rm -f TT_TaoVan_1.2.5_TaoNganKeo.rbz
-          (cd build_tt/pkg && zip -qr ../../TT_TaoVan_1.2.5_TaoNganKeo.rbz .)
-          unzip -t TT_TaoVan_1.2.5_TaoNganKeo.rbz >/dev/null
-          sha256sum TT_TaoVan_1.2.5_TaoNganKeo.rbz | awk '{print $1}' > rbz.sha256
+          rm -f TT_TaoVan_1.2.6_TaoNganKeo.rbz
+          (cd build_tt/pkg && zip -qr ../../TT_TaoVan_1.2.6_TaoNganKeo.rbz .)
+          unzip -t TT_TaoVan_1.2.6_TaoNganKeo.rbz >/dev/null
+          sha256sum TT_TaoVan_1.2.6_TaoNganKeo.rbz | awk '{print $1}' > rbz.sha256
       - name: Upload RBZ artifact
         uses: actions/upload-artifact@v4
         with:
-          name: TT_TaoVan_1.2.5_TaoNganKeo
-          path: TT_TaoVan_1.2.5_TaoNganKeo.rbz
+          name: TT_TaoVan_1.2.6_TaoNganKeo
+          path: TT_TaoVan_1.2.6_TaoNganKeo.rbz
           if-no-files-found: error
           retention-days: 30
       - name: Prepare manifest
@@ -73,10 +73,10 @@ jobs:
           from pathlib import Path
           p=Path('update.json')
           obj=json.loads(p.read_text(encoding='utf-8'))
-          obj['version']='1.2.5'
-          obj['rbz_url']='https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.2.5_TaoNganKeo.rbz'
+          obj['version']='1.2.6'
+          obj['rbz_url']='https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.2.6_TaoNganKeo.rbz'
           obj['sha256']=Path('rbz.sha256').read_text().strip()
-          obj['notes']='TT Tạo Ngăn Kéo 1.2.5 - sửa HOT RELOAD: đóng dialog cũ trước khi nạp lại, dùng load thay vì Sketchup.require cho code mới; giao diện chỉ còn Ray mỗi bên, Hở trên, Hở dưới, Hở trước, Chừa phía sau, Độ dày 4 thành 17,5 mm, Độ dày tấm đáy 9 mm. Mặt trên đáy trùng mặt đáy thành, không khe tách; giữ preview 2 điểm, ray 14 mm/bên, chừa sau 60 mm.'
+          obj['notes']='TT Tạo Ngăn Kéo 1.2.6 - bổ sung SHIFT để chuyển HẬU LỌT/HẬU PHỦ. Hậu mặc định dày 9 mm, offset từ mép ngoài vào 9 mm, offset từ đáy lên 15 mm; hậu bám theo 4 thành và đúng hệ trục ngăn kéo. Giữ 4 thành 17,5 mm, đáy 9 mm với mặt trên đáy trùng mặt đáy thành, ray 14 mm/bên, chừa sau 60 mm, preview 2 điểm và HOT RELOAD.'
           p.write_text(json.dumps(obj,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
           PY
       - name: Publish safely with preserved build
@@ -85,15 +85,15 @@ jobs:
           set -euo pipefail
           git config user.name 'TT Vision Bot'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          cp TT_TaoVan_1.2.5_TaoNganKeo.rbz /tmp/TT_TaoVan_1.2.5_TaoNganKeo.rbz
+          cp TT_TaoVan_1.2.6_TaoNganKeo.rbz /tmp/TT_TaoVan_1.2.6_TaoNganKeo.rbz
           cp update.json /tmp/update.json
           for i in 1 2 3 4 5; do
             git fetch origin main
             git reset --hard origin/main
-            cp /tmp/TT_TaoVan_1.2.5_TaoNganKeo.rbz TT_TaoVan_1.2.5_TaoNganKeo.rbz
+            cp /tmp/TT_TaoVan_1.2.6_TaoNganKeo.rbz TT_TaoVan_1.2.6_TaoNganKeo.rbz
             cp /tmp/update.json update.json
-            git add TT_TaoVan_1.2.5_TaoNganKeo.rbz update.json
-            git commit -m 'Release TT Tạo Ngăn Kéo 1.2.5 - hot reload UI fix' || true
+            git add TT_TaoVan_1.2.6_TaoNganKeo.rbz update.json
+            git commit -m 'Release TT Tạo Ngăn Kéo 1.2.6 - Shift rear modes' || true
             if git push origin HEAD:main; then exit 0; fi
             sleep 3
           done
