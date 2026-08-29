@@ -1,7 +1,7 @@
 {
   "name": "TT - tạo ván -Trần Tuấn",
-  "version": "1.3.2",
-  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.3.2_TaoNganKeo.rbz",
-  "sha256": "3ced3e0630c2bc0b915ba3dcfc1d8b0cfda72ecb9fa88583d766e2f135278fe5",
-  "notes": "TT Tạo Ngăn Kéo 1.3.2: bỏ mục Độ dày tấm hậu khỏi bảng Cài đặt; Hậu tự động dùng độ dày tấm đáy; thêm chọn HẬU LỌT/HẬU PHỦ rõ ràng; Hậu lọt offset mép 9 mm; Hậu phủ offset mép 0 mm; offset đáy 15 mm tính từ mặt dưới 4 thành; preview 3D theo đúng chế độ; HOT RELOAD."
+  "version": "1.3.4",
+  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.3.4_TaoNganKeo.rbz",
+  "sha256": "6ffaa9921a0c6a654ad4391aba97f08c0bdfbe482f5f35572bb149186ee0a699",
+  "notes": "TT Tạo Ngăn Kéo 1.3.4: sửa hướng hình học; Thành sau luôn ở cuối khoang; Tấm đáy luôn là tấm đáy nằm ngang; giữ Preview và Hậu Lọt/Hậu Phủ."
 }
