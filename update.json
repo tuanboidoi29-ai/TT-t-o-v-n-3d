@@ -1,7 +1,7 @@
 {
   "name": "TT - tạo ván -Trần Tuấn",
-  "version": "1.2.2",
-  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.2.2_TaoNganKeo.rbz",
-  "sha256": "924cc10ba76c643bbd2ac6ea5b14c1cc02e3e05c1fb16ca8222e478c05a36345",
-  "notes": "TT Tạo Ngăn Kéo 1.2.2 - sửa lỗi updater BOM bằng getbyte, không dùng Array#start_with?; Net::HTTP tải binary; UTF-8 an toàn; HOT RELOAD không cần khởi động lại SketchUp; giữ AUTO 2 điểm, tự quét Rộng/Cao/Sâu, ray 14 mm mỗi bên, hông 17,5 mm, preview 3D, tạo liên tục, TAB cài đặt, đơn vị mm."
+  "version": "1.2.8",
+  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.2.8_TaoNganKeo.rbz",
+  "sha256": "21f2d7774714a5253370de706a898204609cfee334eff1c957a7e52ff840c879",
+  "notes": "TT Tạo Ngăn Kéo 1.2.8 - TAB Cài đặt có nút BẬT/TẮT HẬU. Tắt Hậu: không tạo hậu. Offset mép ngoài 9 mm: Hậu lọt. Offset mép ngoài 0 mm: Hậu phủ. Offset từ đáy 15 mm: tính từ mặt dưới của 4 thành. SHIFT là phím tắt bật/tắt Hậu. Giữ 4 thành 17,5 mm, đáy 9 mm và HOT RELOAD."
 }
