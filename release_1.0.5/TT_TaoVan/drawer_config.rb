@@ -41,11 +41,11 @@ module TranTuan
               vals[k] = parse_mm(data[k])
             end
             vals['back_enabled'] = !!data['back_enabled']
-            raise 'Thong so phai la so mm khong am.' if vals.values_at('rail_gap','gap_top','gap_bottom','gap_front','depth_reserve','wall_t','bottom_t','back_t','back_edge_offset','back_bottom_offset').any? { |v| !v.is_a?(Numeric) || !v.finite? || v < 0 }
-            raise 'Do day 4 thanh phai lon hon 0.' if vals['wall_t'] <= 0
-            raise 'Do day tam hau phai lon hon 0.' if vals['back_t'] <= 0
+            raise 'Thông số phải là số mm không âm.' if vals.values_at('rail_gap','gap_top','gap_bottom','gap_front','depth_reserve','wall_t','bottom_t','back_t','back_edge_offset','back_bottom_offset').any? { |v| !v.is_a?(Numeric) || !v.finite? || v < 0 }
+            raise 'Độ dày 4 thành phải lớn hơn 0.' if vals['wall_t'] <= 0
+            raise 'Độ dày tấm hậu phải lớn hơn 0.' if vals['back_t'] <= 0
 
-            # Offset la nguon quyet dinh che do: 0 = phu, 9 = lot.
+            # Offset là nguồn quyết định chế độ: 0 = phủ, 9 = lọt.
             vals['back_edge_offset'] = 0.0 if vals['back_edge_offset'].abs < 0.001
             vals['back_edge_offset'] = 9.0 if (vals['back_edge_offset'] - 9.0).abs < 0.001
             vals['back_bottom_offset'] = 15.0 if (vals['back_bottom_offset'] - 15.0).abs < 0.001
@@ -55,7 +55,7 @@ module TranTuan
             @dialog.close
             tool ? tool.apply_settings(vals) : model.select_tool(TwoPointTool.new(vals))
           rescue => e
-            UI.messagebox("Thong so khong hop le:\n#{e.message}")
+            UI.messagebox("Thông số không hợp lệ:\n#{e.message}")
           end
         end
         @dialog.show
@@ -65,19 +65,19 @@ module TranTuan
       def settings_html(d)
         esc = ->(v) { v.to_s.gsub('&','&amp;').gsub('<','&lt;').gsub('>','&gt;').gsub('"','&quot;') }
         fields = [
-          ['rail_gap','Ray moi ben'], ['gap_top','Ho tren'], ['gap_bottom','Ho duoi'],
-          ['gap_front','Ho truoc'], ['depth_reserve','Chua phia sau'],
-          ['wall_t','Do day 4 thanh'], ['bottom_t','Do day tam day'],
-          ['back_t','Do day tam hau'], ['back_edge_offset','Offset hau tu mep ngoai'],
-          ['back_bottom_offset','Offset hau tu day']
+          ['rail_gap','Ray mỗi bên'], ['gap_top','Hở trên'], ['gap_bottom','Hở dưới'],
+          ['gap_front','Hở trước'], ['depth_reserve','Chừa phía sau'],
+          ['wall_t','Độ dày 4 thành'], ['bottom_t','Độ dày tấm đáy'],
+          ['back_t','Độ dày tấm hậu'], ['back_edge_offset','Offset hậu từ mép ngoài'],
+          ['back_bottom_offset','Offset hậu từ đáy']
         ].map do |k,l|
           "<label>#{l}</label><input id='#{k}' value='#{esc.call(d[k])}' style='width:110px;padding:7px'>"
         end.join
         checked = d['back_enabled'] ? 'checked' : ''
         "<html><head><meta charset='utf-8'></head><body style='font:14px Arial;background:#17191d;color:#eee;padding:18px'>" \
-        "<h2 style='color:#ff7a00'>TT - NGAN KEO AUTO</h2>" \
-        "<b style='color:#ff7a00'>TAB = CAI DAT | CLICK 2 DIEM TREN CUNG MAT</b>" \
-        "<p>4 thanh mac dinh 17,5 mm. Tam day la bo phan chinh cua ngan keo.</p>" \
+        "<h2 style='color:#ff7a00'>TT - NGĂN KÉO AUTO</h2>" \
+        "<b style='color:#ff7a00'>TAB = CÀI ĐẶT | CLICK 2 ĐIỂM TRÊN CÙNG MẶT</b>" \
+        "<p>4 thành mặc định 17,5 mm. Tấm đáy là bộ phận chính của ngăn kéo.</p>" \
         "<div style='display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid #444'>" \
         "<b>Hậu</b><label style='display:flex;align-items:center;gap:8px'><input id='back_enabled' type='checkbox' #{checked} style='width:20px;height:20px'> BẬT / TẮT</label></div>" \
         "<div style='display:grid;grid-template-columns:1fr 125px;gap:8px;margin-top:12px'>#{fields}</div>" \
@@ -98,9 +98,10 @@ module TranTuan
         alias_method :initialize_before_config_override, :initialize
         def initialize(cfg)
           initialize_before_config_override(cfg)
-          @back_mode = if cfg['back_enabled'] == false || cfg['back_enabled'].to_i == 0
+          enabled = !(cfg['back_enabled'] == false || cfg['back_enabled'].to_s == '0')
+          @back_mode = if !enabled
                          :none
-                       elsif (cfg['back_edge_offset'].to_f).abs < 0.001
+                       elsif cfg['back_edge_offset'].to_f.abs < 0.001
                          :phủ
                        else
                          :lọt
@@ -110,9 +111,10 @@ module TranTuan
         alias_method :apply_settings_before_config_override, :apply_settings
         def apply_settings(cfg)
           apply_settings_before_config_override(cfg)
-          @back_mode = if cfg['back_enabled'] == false || cfg['back_enabled'].to_i == 0
+          enabled = !(cfg['back_enabled'] == false || cfg['back_enabled'].to_s == '0')
+          @back_mode = if !enabled
                          :none
-                       elsif (cfg['back_edge_offset'].to_f).abs < 0.001
+                       elsif cfg['back_edge_offset'].to_f.abs < 0.001
                          :phủ
                        else
                          :lọt
