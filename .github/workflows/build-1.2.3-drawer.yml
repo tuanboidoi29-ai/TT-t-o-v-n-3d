@@ -1,6 +1,6 @@
-name: Build TT Tạo Ngăn Kéo 1.2.9
+name: Build TT Tạo Ngăn Kéo 1.3.0
 
-# 1.2.9: fix zero-width selection and raytest depth stopping at 17.5 mm wall.
+# 1.3.0: full 3D live preview of drawer before creation.
 on:
   workflow_dispatch:
   push:
@@ -10,6 +10,7 @@ on:
       - 'release_1.0.5/TT_TaoVan/update.rb'
       - 'release_1.0.5/TT_TaoVan/drawer.rb'
       - 'release_1.0.5/TT_TaoVan/drawer_config.rb'
+      - 'release_1.0.5/TT_TaoVan/drawer_preview.rb'
       - 'release_1.0.5/TT_TaoVan/core.rb'
       - 'release_1.0.5/TT_TaoVan/box.rb'
       - 'release_1.0.5/TT_TaoVan/version.txt'
@@ -20,7 +21,7 @@ permissions:
   actions: read
 
 concurrency:
-  group: tt-tao-van-1-2-9
+  group: tt-tao-van-1-3-0
   cancel-in-progress: false
 
 jobs:
@@ -35,7 +36,7 @@ jobs:
           set -euo pipefail
           git fetch origin main
           git reset --hard origin/main
-      - name: Build RBZ 1.2.9
+      - name: Build RBZ 1.3.0
         shell: bash
         run: |
           set -euo pipefail
@@ -47,24 +48,26 @@ jobs:
           cp release_1.0.5/TT_TaoVan/update.rb build_tt/pkg/TT_TaoVan/update.rb
           cp release_1.0.5/TT_TaoVan/drawer.rb build_tt/pkg/TT_TaoVan/drawer.rb
           cp release_1.0.5/TT_TaoVan/drawer_config.rb build_tt/pkg/TT_TaoVan/drawer_config.rb
+          cp release_1.0.5/TT_TaoVan/drawer_preview.rb build_tt/pkg/TT_TaoVan/drawer_preview.rb
           cp release_1.0.5/TT_TaoVan/core.rb build_tt/pkg/TT_TaoVan/core.rb
           cp release_1.0.5/TT_TaoVan/box.rb build_tt/pkg/TT_TaoVan/box.rb
-          printf '1.2.9\n' > build_tt/pkg/TT_TaoVan/version.txt
+          printf '1.3.0\n' > build_tt/pkg/TT_TaoVan/version.txt
           ruby -c build_tt/pkg/TT_TaoVan/main.rb
           ruby -c build_tt/pkg/TT_TaoVan/update.rb
           ruby -c build_tt/pkg/TT_TaoVan/drawer.rb
           ruby -c build_tt/pkg/TT_TaoVan/drawer_config.rb
+          ruby -c build_tt/pkg/TT_TaoVan/drawer_preview.rb
           ruby -c build_tt/pkg/TT_TaoVan/core.rb
           ruby -c build_tt/pkg/TT_TaoVan/box.rb
-          rm -f TT_TaoVan_1.2.9_TaoNganKeo.rbz
-          (cd build_tt/pkg && zip -qr ../../TT_TaoVan_1.2.9_TaoNganKeo.rbz .)
-          unzip -t TT_TaoVan_1.2.9_TaoNganKeo.rbz >/dev/null
-          sha256sum TT_TaoVan_1.2.9_TaoNganKeo.rbz | awk '{print $1}' > rbz.sha256
+          rm -f TT_TaoVan_1.3.0_TaoNganKeo.rbz
+          (cd build_tt/pkg && zip -qr ../../TT_TaoVan_1.3.0_TaoNganKeo.rbz .)
+          unzip -t TT_TaoVan_1.3.0_TaoNganKeo.rbz >/dev/null
+          sha256sum TT_TaoVan_1.3.0_TaoNganKeo.rbz | awk '{print $1}' > rbz.sha256
       - name: Upload RBZ artifact
         uses: actions/upload-artifact@v4
         with:
-          name: TT_TaoVan_1.2.9_TaoNganKeo
-          path: TT_TaoVan_1.2.9_TaoNganKeo.rbz
+          name: TT_TaoVan_1.3.0_TaoNganKeo
+          path: TT_TaoVan_1.3.0_TaoNganKeo.rbz
           if-no-files-found: error
           retention-days: 30
       - name: Prepare manifest
@@ -76,10 +79,10 @@ jobs:
           from pathlib import Path
           p=Path('update.json')
           obj=json.loads(p.read_text(encoding='utf-8'))
-          obj['version']='1.2.9'
-          obj['rbz_url']='https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.2.9_TaoNganKeo.rbz'
+          obj['version']='1.3.0'
+          obj['rbz_url']='https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.3.0_TaoNganKeo.rbz'
           obj['sha256']=Path('rbz.sha256').read_text().strip()
-          obj['notes']='TT Tạo Ngăn Kéo 1.2.9 - sửa lỗi vùng R=0 khi 2 điểm cùng X và sửa raytest không dừng ở lớp thành 17,5 mm. Giữ TAB Cài đặt BẬT/TẮT Hậu; offset mép 9 mm = Hậu lọt; 0 mm = Hậu phủ; offset từ đáy 15 mm tính từ mặt dưới 4 thành; 4 thành 17,5 mm; đáy 9 mm; HOT RELOAD.'
+          obj['notes']='TT Tạo Ngăn Kéo 1.3.0 - thêm PREVIEW 3D trực tiếp khi rê điểm 2: xem riêng 4 thành, tấm đáy và Hậu trước khi click tạo. Giữ BẬT/TẮT Hậu; offset mép 9 mm = Hậu lọt; 0 mm = Hậu phủ; offset đáy 15 mm tính từ mặt dưới 4 thành; 4 thành 17,5 mm; đáy 9 mm; HOT RELOAD.'
           p.write_text(json.dumps(obj,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
           PY
       - name: Publish safely with preserved build
@@ -88,15 +91,15 @@ jobs:
           set -euo pipefail
           git config user.name 'TT Vision Bot'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          cp TT_TaoVan_1.2.9_TaoNganKeo.rbz /tmp/TT_TaoVan_1.2.9_TaoNganKeo.rbz
+          cp TT_TaoVan_1.3.0_TaoNganKeo.rbz /tmp/TT_TaoVan_1.3.0_TaoNganKeo.rbz
           cp update.json /tmp/update.json
           for i in 1 2 3 4 5; do
             git fetch origin main
             git reset --hard origin/main
-            cp /tmp/TT_TaoVan_1.2.9_TaoNganKeo.rbz TT_TaoVan_1.2.9_TaoNganKeo.rbz
+            cp /tmp/TT_TaoVan_1.3.0_TaoNganKeo.rbz TT_TaoVan_1.3.0_TaoNganKeo.rbz
             cp /tmp/update.json update.json
-            git add TT_TaoVan_1.2.9_TaoNganKeo.rbz update.json
-            git commit -m 'Release TT Tao Ngăn Kéo 1.2.9' || true
+            git add TT_TaoVan_1.3.0_TaoNganKeo.rbz update.json
+            git commit -m 'Release TT Tao Ngan Keo 1.3.0' || true
             if git push origin HEAD:main; then exit 0; fi
             sleep 3
           done
