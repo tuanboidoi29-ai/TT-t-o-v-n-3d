@@ -1,7 +1,7 @@
 {
   "name": "TT - tạo ván -Trần Tuấn",
-  "version": "1.2.6",
-  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.2.6_TaoNganKeo.rbz",
-  "sha256": "ba4955b4beb551eccfc72c7c16336637a7d15cd579bce76a65e39bbc7322fbb2",
-  "notes": "TT Tạo Ngăn Kéo 1.2.6 - bổ sung SHIFT để chuyển HẬU LỌT/HẬU PHỦ. Hậu mặc định dày 9 mm, offset từ mép ngoài vào 9 mm, offset từ đáy lên 15 mm; hậu bám theo 4 thành và đúng hệ trục ngăn kéo. Giữ 4 thành 17,5 mm, đáy 9 mm với mặt trên đáy trùng mặt đáy thành, ray 14 mm/bên, chừa sau 60 mm, preview 2 điểm và HOT RELOAD."
+  "version": "1.2.2",
+  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.2.2_TaoNganKeo.rbz",
+  "sha256": "10994cc72fe11fb4bd0869d109cb3f551b213ac46e7f067a621bca8a41e6ff16",
+  "notes": "TT Tạo Ngăn Kéo 1.2.2 - sửa lỗi updater BOM bằng getbyte, không dùng Array#start_with?; Net::HTTP tải binary; UTF-8 an toàn; HOT RELOAD không cần khởi động lại SketchUp; giữ AUTO 2 điểm, tự quét Rộng/Cao/Sâu, ray 14 mm mỗi bên, hông 17,5 mm, preview 3D, tạo liên tục, TAB cài đặt, đơn vị mm."
 }
