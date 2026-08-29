@@ -1,7 +1,7 @@
 {
   "name": "TT - tạo ván -Trần Tuấn",
-  "version": "1.2.6",
-  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.2.6_TaoNganKeo.rbz",
-  "sha256": "617bb7d3b237e0a5fa99552c5499c01dfeb3e0a58ebd3d4b6861177288fb9d20",
-  "notes": "TT Tạo Ngăn Kéo 1.2.6 - bổ sung SHIFT để chuyển HẬU LỌT/HẬU PHỦ. Hậu mặc định dày 9 mm, offset từ mép ngoài vào 9 mm, offset từ đáy lên 15 mm; hậu bám theo 4 thành và đúng hệ trục ngăn kéo. Giữ 4 thành 17,5 mm, đáy 9 mm với mặt trên đáy trùng mặt đáy thành, ray 14 mm/bên, chừa sau 60 mm, preview 2 điểm và HOT RELOAD."
+  "version": "1.2.7",
+  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.2.7_TaoNganKeo.rbz",
+  "sha256": "e0a3a30fc1e925f30f741f80e825104a512e9cab46a6fa8927c67b61dad1a31c",
+  "notes": "TT Tạo Ngăn Kéo 1.2.7 - gói updater mới chống cache để nút Cập nhật nhận đúng phiên bản. Giữ SHIFT chuyển HẬU LỌT/HẬU PHỦ; hậu 9 mm, offset mép ngoài 9 mm, từ đáy lên 15 mm; 4 thành 17,5 mm; đáy 9 mm, mặt trên đáy trùng mặt đáy thành; ray 14 mm/bên; chừa sau 60 mm; HOT RELOAD."
 }
