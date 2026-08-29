@@ -2,6 +2,6 @@
   "name": "TT - tạo ván -Trần Tuấn",
   "version": "1.3.1",
   "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.3.1_TaoNganKeo.rbz",
-  "sha256": "9e282edbdbd1c49df519b23bcb39942f7a863957ddeee58cdddef333f3623eca",
+  "sha256": "988b043761c6cc6745ebf62b216d77375fe1a478c33d77b702688b4b0be9e567",
   "notes": "TT Tạo Ngăn Kéo 1.3.1 - bỏ Độ dày tấm hậu riêng; Hậu dùng cùng độ dày tấm đáy. Tắt Hậu = không tạo hậu. Offset mép 9 mm = Hậu lọt. Offset mép 0 mm = Hậu phủ. Offset từ đáy 15 mm tính từ mặt dưới 4 thành. Có Preview 3D đầy đủ trước khi click tạo."
 }
