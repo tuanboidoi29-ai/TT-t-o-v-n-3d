@@ -1,10 +1,11 @@
-name: Build TT Tao Ngan Keo 1.3.3
+name: Build TT Tao Ngan Keo 1.3.4
 on:
   workflow_dispatch:
   push:
     paths:
       - 'release_1.0.5/TT_TaoVan/release_trigger_1.3.3.txt'
       - 'release_1.0.5/TT_TaoVan/drawer_preview.rb'
+      - 'release_1.0.5/TT_TaoVan/drawer_geometry_fix.rb'
       - '.github/workflows/build-1.3.3-drawer.yml'
 permissions:
   contents: write
@@ -27,19 +28,20 @@ jobs:
           cp release_1.0.5/TT_TaoVan/drawer.rb build_tt/pkg/TT_TaoVan/drawer.rb
           cp release_1.0.5/TT_TaoVan/drawer_config.rb build_tt/pkg/TT_TaoVan/drawer_config.rb
           cp release_1.0.5/TT_TaoVan/drawer_preview.rb build_tt/pkg/TT_TaoVan/drawer_preview.rb
+          cp release_1.0.5/TT_TaoVan/drawer_geometry_fix.rb build_tt/pkg/TT_TaoVan/drawer_geometry_fix.rb
           cp release_1.0.5/TT_TaoVan/core.rb build_tt/pkg/TT_TaoVan/core.rb
           cp release_1.0.5/TT_TaoVan/box.rb build_tt/pkg/TT_TaoVan/box.rb
-          printf '1.3.3\n' > build_tt/pkg/TT_TaoVan/version.txt
-          for f in main.rb update.rb drawer.rb drawer_config.rb drawer_preview.rb core.rb box.rb; do ruby -c build_tt/pkg/TT_TaoVan/$f; done
-          rm -f TT_TaoVan_1.3.3_TaoNganKeo.rbz
-          (cd build_tt/pkg && zip -qr ../../TT_TaoVan_1.3.3_TaoNganKeo.rbz .)
-          unzip -t TT_TaoVan_1.3.3_TaoNganKeo.rbz >/dev/null
-          sha256sum TT_TaoVan_1.3.3_TaoNganKeo.rbz | awk '{print $1}' > rbz.sha256
+          printf '1.3.4\n' > build_tt/pkg/TT_TaoVan/version.txt
+          for f in main.rb update.rb drawer.rb drawer_config.rb drawer_preview.rb drawer_geometry_fix.rb core.rb box.rb; do ruby -c build_tt/pkg/TT_TaoVan/$f; done
+          rm -f TT_TaoVan_1.3.4_TaoNganKeo.rbz
+          (cd build_tt/pkg && zip -qr ../../TT_TaoVan_1.3.4_TaoNganKeo.rbz .)
+          unzip -t TT_TaoVan_1.3.4_TaoNganKeo.rbz >/dev/null
+          sha256sum TT_TaoVan_1.3.4_TaoNganKeo.rbz | awk '{print $1}' > rbz.sha256
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: TT_TaoVan_1.3.3_TaoNganKeo
-          path: TT_TaoVan_1.3.3_TaoNganKeo.rbz
+          name: TT_TaoVan_1.3.4_TaoNganKeo
+          path: TT_TaoVan_1.3.4_TaoNganKeo.rbz
           retention-days: 30
       - name: Publish
         shell: bash
@@ -50,20 +52,20 @@ jobs:
           from pathlib import Path
           p=Path('update.json')
           o=json.loads(p.read_text(encoding='utf-8'))
-          o['version']='1.3.3'
-          o['rbz_url']='https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.3.3_TaoNganKeo.rbz'
+          o['version']='1.3.4'
+          o['rbz_url']='https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.3.4_TaoNganKeo.rbz'
           o['sha256']=Path('rbz.sha256').read_text().strip()
-          o['notes']='TT Tạo Ngăn Kéo 1.3.3: sửa lỗi nhận chiều sâu khi rê chuột; không lấy lớp thành 17,5 mm làm chiều sâu; giữ Preview 3D và Hậu Lọt/Hậu Phủ.'
+          o['notes']='TT Tạo Ngăn Kéo 1.3.4: sửa hướng hình học; Thành sau luôn ở cuối khoang; Tấm đáy luôn là tấm đáy nằm ngang; giữ Preview và Hậu Lọt/Hậu Phủ.'
           p.write_text(json.dumps(o,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
           PY
-          cp TT_TaoVan_1.3.3_TaoNganKeo.rbz /tmp/TT_TaoVan_1.3.3_TaoNganKeo.rbz
+          cp TT_TaoVan_1.3.4_TaoNganKeo.rbz /tmp/TT_TaoVan_1.3.4_TaoNganKeo.rbz
           cp update.json /tmp/update.json
           git config user.name 'TT Vision Bot'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git fetch origin main
           git reset --hard origin/main
-          cp /tmp/TT_TaoVan_1.3.3_TaoNganKeo.rbz TT_TaoVan_1.3.3_TaoNganKeo.rbz
+          cp /tmp/TT_TaoVan_1.3.4_TaoNganKeo.rbz TT_TaoVan_1.3.4_TaoNganKeo.rbz
           cp /tmp/update.json update.json
-          git add TT_TaoVan_1.3.3_TaoNganKeo.rbz update.json
-          git commit -m 'Publish TT Tao Ngan Keo 1.3.3' || true
+          git add TT_TaoVan_1.3.4_TaoNganKeo.rbz update.json
+          git commit -m 'Publish TT Tao Ngan Keo 1.3.4' || true
           git push origin HEAD:main
