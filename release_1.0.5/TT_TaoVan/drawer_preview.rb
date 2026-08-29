@@ -1,4 +1,4 @@
-# TT - NGAN KEO AUTO - PREVIEW + DEPTH FIX 1.3.3
+# TT - NGAN KEO AUTO - PREVIEW + DEPTH FIX 1.3.4
 module TranTuan
   module TaoVan
     module Drawer
@@ -6,7 +6,6 @@ module TranTuan
         alias_method :tt_preview_draw_original_133, :draw unless method_defined?(:tt_preview_draw_original_133)
         alias_method :tt_measure_original_133, :measure unless method_defined?(:tt_measure_original_133)
 
-        # Chieu sau: bo qua cac lop thanh va lay mat trong truoc cap mat ngoai cuoi tia.
         def depth_from_region(a,b)
           xmin,xmax,zmin,zmax=normalized_region(a,b)
           center=Geom::Point3d.new((xmin+xmax)*0.5,0,(zmin+zmax)*0.5).transform(@frame)
@@ -61,7 +60,6 @@ module TranTuan
           tt_preview_draw_original_133(view)
         end
 
-        # Hau dung cung do day tam day; khong co thong so day hau rieng.
         def add_rear(g,x,y,z,rw,rd,rh,t)
           panel_t=Drawer.mm(@cfg['bottom_t']); edge=Drawer.mm(@cfg['back_edge_offset']); bottom=Drawer.mm(@cfg['back_bottom_offset'])
           raise 'Độ dày tấm đáy phải lớn hơn 0.' if panel_t<=0
@@ -85,3 +83,6 @@ module TranTuan
     end
   end
 end
+
+fix=File.join(File.dirname(__FILE__),'drawer_geometry_fix.rb')
+load(fix) if File.file?(fix)
