@@ -2,6 +2,6 @@
   "name": "TT - tạo ván -Trần Tuấn",
   "version": "1.3.3",
   "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.3.3_TaoNganKeo.rbz",
-  "sha256": "6248eaa2530add1d8f45d3f9926bd6b8d555f7c64d013d2e57648033628e9ea0",
+  "sha256": "8ee494de09ece36a0e560a7aac08225b4d8f69be4ebfc205786b2e010d639037",
   "notes": "TT Tạo Ngăn Kéo 1.3.3: sửa lỗi nhận chiều sâu khi rê chuột; không lấy lớp thành 17,5 mm làm chiều sâu; giữ Preview 3D và Hậu Lọt/Hậu Phủ."
 }
