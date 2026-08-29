@@ -2,7 +2,8 @@
 module TranTuan
   module TaoVan
     module VisionUpdate
-      OFFICIAL_MANIFEST='https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/update.json'.freeze
+      # Cache-busting query để SketchUp không nhận manifest cũ từ cache.
+      OFFICIAL_MANIFEST='https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/update.json?v=126'.freeze
       class << self
         def run
           current=current_version
@@ -38,7 +39,7 @@ module TranTuan
           require 'json'; require 'net/http'; require 'uri'
           uri=URI.parse(utf8_text(url))
           req=Net::HTTP::Get.new(utf8_text(uri.request_uri))
-          req['Cache-Control']='no-cache, no-store, max-age=0'; req['Pragma']='no-cache'; req['User-Agent']='TT-TaoVan-VisionUpdater/1.2.4'
+          req['Cache-Control']='no-cache, no-store, max-age=0'; req['Pragma']='no-cache'; req['User-Agent']='TT-TaoVan-VisionUpdater/1.2.6'
           h=Net::HTTP.new(utf8_text(uri.host),uri.port); h.use_ssl=(uri.scheme=='https'); h.open_timeout=8; h.read_timeout=12
           r=h.request(req); raise "HTTP #{r.code}" unless r.code.to_i==200
           body=r.body.to_s.dup
@@ -68,7 +69,7 @@ module TranTuan
         def download_binary(url,tmp)
           uri=URI.parse(utf8_text(url))
           req=Net::HTTP::Get.new(utf8_text(uri.request_uri))
-          req['Cache-Control']='no-cache, no-store, max-age=0'; req['Pragma']='no-cache'; req['User-Agent']='TT-TaoVan-VisionUpdater/1.2.4'
+          req['Cache-Control']='no-cache, no-store, max-age=0'; req['Pragma']='no-cache'; req['User-Agent']='TT-TaoVan-VisionUpdater/1.2.6'
           http=Net::HTTP.new(utf8_text(uri.host),uri.port); http.use_ssl=(uri.scheme=='https'); http.open_timeout=10; http.read_timeout=60
           response=http.request(req)
           code=response.code.to_i
@@ -108,14 +109,12 @@ module TranTuan
             Sketchup.active_model.select_tool(nil)
           rescue
           end
-          # Đóng dialog cũ trước khi nạp code mới, tránh HtmlDialog giữ giao diện cũ.
           begin
             drawer=TranTuan::TaoVan::Drawer if defined?(TranTuan::TaoVan::Drawer)
             dlg=drawer.instance_variable_get(:@dialog) if drawer
             dlg.close if dlg && dlg.respond_to?(:close)
           rescue
           end
-          # Nạp lại file bằng load, không dùng Sketchup.require vì require sẽ cache file cũ.
           files=%w[core.rb box.rb drawer.rb main.rb]
           files.each do |name|
             path=File.join(root,name)
@@ -123,7 +122,6 @@ module TranTuan
           end
           up=File.join(root,'update.rb')
           load(up) if File.file?(up)
-          # Xóa tham chiếu dialog cũ sau khi reload để lần TAB tiếp theo tạo UI hoàn toàn mới.
           begin
             drawer=TranTuan::TaoVan::Drawer
             drawer.remove_instance_variable(:@dialog) if drawer.instance_variable_defined?(:@dialog)
