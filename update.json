@@ -1,7 +1,7 @@
 {
   "name": "TT - tạo ván -Trần Tuấn",
-  "version": "1.2.2",
-  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.2.2_TaoNganKeo.rbz",
-  "sha256": "82822fa3863fe5a59fa36e5e3b2b222bfa2562462baaed1b59b8ad3a314b2c6c",
-  "notes": "TT Tạo Ngăn Kéo 1.2.2 - sửa lỗi updater BOM bằng getbyte, không dùng Array#start_with?; Net::HTTP tải binary; UTF-8 an toàn; HOT RELOAD không cần khởi động lại SketchUp; giữ AUTO 2 điểm, tự quét Rộng/Cao/Sâu, ray 14 mm mỗi bên, hông 17,5 mm, preview 3D, tạo liên tục, TAB cài đặt, đơn vị mm."
+  "version": "1.3.0",
+  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.3.0_TaoNganKeo.rbz",
+  "sha256": "86f2dd02d92e61fd2ffa84b937ce5e35269d25e9b25f8896c7d6d885484ab37d",
+  "notes": "TT Tạo Ngăn Kéo 1.3.0 - thêm PREVIEW 3D trực tiếp khi rê điểm 2: xem riêng 4 thành, tấm đáy và Hậu trước khi click tạo. Giữ BẬT/TẮT Hậu; offset mép 9 mm = Hậu lọt; 0 mm = Hậu phủ; offset đáy 15 mm tính từ mặt dưới 4 thành; 4 thành 17,5 mm; đáy 9 mm; HOT RELOAD."
 }
