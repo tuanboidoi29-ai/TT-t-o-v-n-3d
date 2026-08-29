@@ -1,7 +1,7 @@
 {
   "name": "TT - tạo ván -Trần Tuấn",
-  "version": "1.2.8",
-  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.2.8_TaoNganKeo.rbz",
-  "sha256": "7d33b4c08d9f2506912f6e615ad2a54e17e108c1ab60466a61e96e5d9bbc88e6",
-  "notes": "TT Tạo Ngăn Kéo 1.2.8 - TAB Cài đặt có nút BẬT/TẮT HẬU. Tắt Hậu: không tạo hậu. Offset mép ngoài 9 mm: Hậu lọt. Offset mép ngoài 0 mm: Hậu phủ. Offset từ đáy 15 mm: tính từ mặt dưới của 4 thành. SHIFT là phím tắt bật/tắt Hậu. Giữ 4 thành 17,5 mm, đáy 9 mm và HOT RELOAD."
+  "version": "1.2.9",
+  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.2.9_TaoNganKeo.rbz",
+  "sha256": "38782afa1e061a99f29843c7c7aca4ea6fab6a9b1da1d66e6df5c5ea9676a4b5",
+  "notes": "TT Tạo Ngăn Kéo 1.2.9 - sửa lỗi vùng R=0 khi 2 điểm cùng X và sửa raytest không dừng ở lớp thành 17,5 mm. Giữ TAB Cài đặt BẬT/TẮT Hậu; offset mép 9 mm = Hậu lọt; 0 mm = Hậu phủ; offset từ đáy 15 mm tính từ mặt dưới 4 thành; 4 thành 17,5 mm; đáy 9 mm; HOT RELOAD."
 }
