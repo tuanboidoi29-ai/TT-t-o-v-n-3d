@@ -10,7 +10,7 @@ module TranTuan
       module_function
 
       class << self
-        alias_method :defaults_before_config_override, :defaults
+        alias_method :defaults_before_config_override, :defaults unless method_defined?(:defaults_before_config_override)
       end
 
       def defaults
@@ -21,7 +21,7 @@ module TranTuan
       module_function :defaults
 
       class << self
-        alias_method :show_settings_before_config_override, :show_settings
+        alias_method :show_settings_before_config_override, :show_settings unless method_defined?(:show_settings_before_config_override)
       end
 
       def show_settings(tool=nil)
@@ -44,12 +44,9 @@ module TranTuan
             raise 'Thông số phải là số mm không âm.' if vals.values_at('rail_gap','gap_top','gap_bottom','gap_front','depth_reserve','wall_t','bottom_t','back_t','back_edge_offset','back_bottom_offset').any? { |v| !v.is_a?(Numeric) || !v.finite? || v < 0 }
             raise 'Độ dày 4 thành phải lớn hơn 0.' if vals['wall_t'] <= 0
             raise 'Độ dày tấm hậu phải lớn hơn 0.' if vals['back_t'] <= 0
-
-            # Offset là nguồn quyết định chế độ: 0 = phủ, 9 = lọt.
             vals['back_edge_offset'] = 0.0 if vals['back_edge_offset'].abs < 0.001
             vals['back_edge_offset'] = 9.0 if (vals['back_edge_offset'] - 9.0).abs < 0.001
             vals['back_bottom_offset'] = 15.0 if (vals['back_bottom_offset'] - 15.0).abs < 0.001
-
             model = Sketchup.active_model
             vals.each { |k,v| model.set_attribute(DICT, k, v.is_a?(Numeric) ? v.to_f : (v ? 1 : 0)) }
             @dialog.close
@@ -75,8 +72,8 @@ module TranTuan
         end.join
         checked = d['back_enabled'] ? 'checked' : ''
         "<html><head><meta charset='utf-8'></head><body style='font:14px Arial;background:#17191d;color:#eee;padding:18px'>" \
-        "<h2 style='color:#ff7a00'>TT - NGĂN KÉO AUTO</h2>" \
-        "<b style='color:#ff7a00'>TAB = CÀI ĐẶT | CLICK 2 ĐIỂM TRÊN CÙNG MẶT</b>" \
+        "<h2 style='color:#ff7a00'>TT - NGAN KEO AUTO</h2>" \
+        "<b style='color:#ff7a00'>TAB = CAI DAT | CLICK 2 DIEM TREN CUNG MAT</b>" \
         "<p>4 thành mặc định 17,5 mm. Tấm đáy là bộ phận chính của ngăn kéo.</p>" \
         "<div style='display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid #444'>" \
         "<b>Hậu</b><label style='display:flex;align-items:center;gap:8px'><input id='back_enabled' type='checkbox' #{checked} style='width:20px;height:20px'> BẬT / TẮT</label></div>" \
@@ -95,7 +92,7 @@ module TranTuan
       module_function :settings_html
 
       class TwoPointTool
-        alias_method :initialize_before_config_override, :initialize
+        alias_method :initialize_before_config_override, :initialize unless method_defined?(:initialize_before_config_override)
         def initialize(cfg)
           initialize_before_config_override(cfg)
           enabled = !(cfg['back_enabled'] == false || cfg['back_enabled'].to_s == '0')
@@ -108,7 +105,7 @@ module TranTuan
                        end
         end
 
-        alias_method :apply_settings_before_config_override, :apply_settings
+        alias_method :apply_settings_before_config_override, :apply_settings unless method_defined?(:apply_settings_before_config_override)
         def apply_settings(cfg)
           apply_settings_before_config_override(cfg)
           enabled = !(cfg['back_enabled'] == false || cfg['back_enabled'].to_s == '0')
@@ -122,7 +119,7 @@ module TranTuan
           status("ĐÃ LƯU → HẬU #{back_mode_name} | CLICK ĐIỂM 1")
         end
 
-        alias_method :onKeyDown_before_config_override, :onKeyDown
+        alias_method :onKeyDown_before_config_override, :onKeyDown unless method_defined?(:onKeyDown_before_config_override)
         def onKeyDown(key, repeat, *args)
           if key == SHIFT_KEY && !repeat
             enabled = !(@back_mode != :none)
@@ -141,6 +138,59 @@ module TranTuan
             return true
           end
           onKeyDown_before_config_override(key, repeat, *args)
+        end
+      end
+
+      # Fix 1.2.9: lấy chiều sâu qua nhiều lần raytest, bỏ qua mặt đối diện
+      # của chính tấm thành (thường đúng bằng 17,5 mm). Khi raytest đầu tiên
+      # chạm thành dày 17,5 mm, tiếp tục ray từ sau mặt đó để tìm mặt khoang.
+      class TwoPointTool
+        alias_method :depth_from_region_before_129, :depth_from_region unless method_defined?(:depth_from_region_before_129)
+        def depth_from_region(a,b)
+          xmin,xmax,zmin,zmax = normalized_region(a,b)
+          o = Geom::Point3d.new((xmin+xmax)*0.5, 0, (zmin+zmax)*0.5).transform(@frame)
+          dir = unit(@frame.yaxis)
+          model = Sketchup.active_model
+          start = o + dir.clone.tap { |v| v.length = 0.5.mm }
+          traveled = 0.0
+          wall = [@cfg['wall_t'].to_f, 0.0].max
+          12.times do
+            hit = model.raytest([start, dir])
+            break unless hit && hit[0].is_a?(Geom::Point3d)
+            hp = hit[0]
+            seg = start.distance(hp).to_mm
+            break if seg <= 0.01
+            traveled += seg
+            # Bỏ qua lớp mặt/thành đầu tiên và tiếp tục vào khoang.
+            start = hp + dir.clone.tap { |v| v.length = 0.5.mm }
+            next if traveled <= wall + 2.0
+            # Nếu đã đi qua lớp thành, đây là mặt giới hạn khoang hợp lệ.
+            return traveled
+          end
+          0.0
+        rescue
+          0.0
+        end
+      end
+
+      # Fix 1.2.9: nếu 2 điểm cùng X (R=0), dùng chiều rộng thực của Face
+      # thay vì báo vùng rộng 0 mm. Hai điểm vẫn quyết định cao độ.
+      class TwoPointTool
+        alias_method :normalized_region_before_129, :normalized_region unless method_defined?(:normalized_region_before_129)
+        def normalized_region(a,b)
+          qa = frame_point(locked_point(a)); qb = frame_point(locked_point(b))
+          xmin = [qa.x,qb.x].min; xmax = [qa.x,qb.x].max
+          zmin = [qa.z,qb.z].min; zmax = [qa.z,qb.z].max
+          if (xmax-xmin).abs < 0.1.mm && @face
+            tr = @path ? @path.transformation : Geom::Transformation.new
+            pts = @face.vertices.map { |v| v.position.transform(tr).transform(@frame.inverse) }
+            fx = pts.map(&:x)
+            xmin = fx.min
+            xmax = fx.max
+          end
+          [xmin,xmax,zmin,zmax]
+        rescue
+          normalized_region_before_129(a,b)
         end
       end
     end
