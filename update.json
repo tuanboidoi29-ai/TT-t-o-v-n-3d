@@ -1,7 +1,7 @@
 {
   "name": "TT - tạo ván -Trần Tuấn",
-  "version": "1.3.4",
-  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.3.4_TaoNganKeo.rbz",
-  "sha256": "665de4654c3c695a4d29f1c6a6c70e3fea60e6242684b17130aaf13810dc7c49",
-  "notes": "TT Tạo Ngăn Kéo 1.3.4: sửa hướng hình học; Thành sau luôn ở cuối khoang; Tấm đáy luôn là tấm đáy nằm ngang; giữ Preview và Hậu Lọt/Hậu Phủ."
+  "version": "1.3.5",
+  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_TaoVan_1.3.5_TaoNganKeo.rbz",
+  "sha256": "fa5db556f27ce07d3c097a12e7a075f474cf9ceb54974f4420815a1a8bc8fb88",
+  "notes": "TT Tạo Ngăn Kéo 1.3.5: Hậu Lọt/Hậu Phủ không tạo thêm tấm hậu đứng riêng; tấm đáy vẫn là tấm đáy; sửa hướng hình học."
 }
