@@ -12,6 +12,8 @@ module TranTuan
     Sketchup.require(BOX)
     DRAWER = File.join(ROOT, 'drawer.rb') unless const_defined?(:DRAWER)
     Sketchup.require(DRAWER)
+    DRAWER_CONFIG = File.join(ROOT, 'drawer_config.rb') unless const_defined?(:DRAWER_CONFIG)
+    load(DRAWER_CONFIG) if File.file?(DRAWER_CONFIG)
 
     class << self
       def register_ui
@@ -39,9 +41,6 @@ module TranTuan
         set_command_icons(@detail_command, 'xuat_chi_tiet_16.png', 'xuat_chi_tiet_32.png', icon_dir)
 
         @update_command ||= UI::Command.new('TT - Cập nhật Vision') do
-          # QUAN TRỌNG: luôn LOAD updater hiện tại.
-          # Sketchup.require chỉ nạp lần đầu, vì vậy updater cũ có thể còn nằm trong bộ nhớ
-          # sau khi RBZ mới đã được cài và gây lỗi start_with? của Array.
           raise 'Không tìm thấy update.rb.' unless File.file?(UPDATE)
           load(UPDATE)
           TranTuan::TaoVan::VisionUpdate.run
