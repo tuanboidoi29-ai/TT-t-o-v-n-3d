@@ -9,7 +9,7 @@ require 'digest'
 
 module TranTuanNoiThat
   ROOT = __dir__.freeze unless const_defined?(:ROOT)
-  VERSION = '1.1.2'.freeze unless const_defined?(:VERSION)
+  VERSION = '1.2.0'.freeze unless const_defined?(:VERSION)
   NAME = 'TRẦN TUẤN NỘI THẤT'.freeze unless const_defined?(:NAME)
   MANIFEST_URL = 'https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/update.json'.freeze unless const_defined?(:MANIFEST_URL)
 
@@ -27,7 +27,7 @@ module TranTuanNoiThat
     end
 
     def reload_runtime
-      %w[board_tool.rb box_tool.rb settings.rb updater.rb].each do |file|
+      %w[board_tool.rb box_tool.rb drawer_tool.rb settings.rb updater.rb].each do |file|
         load File.join(ROOT, file)
       end
       true
@@ -53,6 +53,7 @@ module TranTuanNoiThat
       end
 
       install_box_ui
+      install_drawer_ui
       @toolbar.restore if @toolbar
     end
 
@@ -63,6 +64,17 @@ module TranTuanNoiThat
 
       @box_ui_installed = true
       cmd = command('Tạo Khối BOX', 'box.svg', 'Tạo BOX khối đặc hoặc khung') { Box.show_dialog }
+      (@main_menu || UI.menu('Extensions')).add_item(cmd)
+      @toolbar.add_item(cmd) if @toolbar
+      @toolbar.show if @toolbar
+    end
+
+    def install_drawer_ui
+      return if @drawer_ui_installed
+      return unless defined?(TranTuanNoiThat::Drawer)
+
+      @drawer_ui_installed = true
+      cmd = command('Vẽ Ngăn Kéo', 'drawer.svg', 'Vẽ ngăn kéo 5 tấm theo vùng P1/P2') { Drawer.activate }
       (@main_menu || UI.menu('Extensions')).add_item(cmd)
       @toolbar.add_item(cmd) if @toolbar
       @toolbar.show if @toolbar

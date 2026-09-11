@@ -1,10 +1,10 @@
-TRẦN TUẤN NỘI THẤT v1.1.2
+TRẦN TUẤN NỘI THẤT v1.2.0
 Creator: TRẦN TUẤN
 Tương thích: SketchUp 2021–2025
 
 CÀI ĐẶT
 1. Mở Extension Manager > Install Extension.
-2. Chọn TRAN_TUAN_NOI_THAT_V1.1.2.rbz.
+2. Chọn TRAN_TUAN_NOI_THAT_V1.2.0.rbz.
 3. Mở toolbar TRẦN TUẤN NỘI THẤT nếu toolbar chưa hiện.
 
 VẼ VÁN
@@ -20,6 +20,13 @@ TẠO KHỐI BOX
 3. Bấm TẠO BOX để mở preview màu cam bám theo con trỏ.
 4. Di chuột đến vị trí cần đặt và click để xác nhận tạo BOX.
 5. Có thể tiếp tục đặt nhiều BOX; nhấn ESC để thoát.
+
+VẼ NGĂN KÉO
+1. Bấm Vẽ Ngăn Kéo, click P1 tại góc dưới mặt trước.
+2. Click P2 tại góc đối diện để khóa vùng; lúc này chưa tạo thật.
+3. Preview hiển thị 4 thanh và 1 tấm đáy cho từng ngăn kéo.
+4. Nhấn TAB mở cài đặt; bấm ÁP DỤNG để cập nhật preview trực tiếp.
+5. Click trong model để tạo; mỗi tấm là Group con nằm trong Group ngăn kéo cha.
 
 CÀI ĐẶT CHUNG
 - Độ dày ván mặc định.
