@@ -11,6 +11,7 @@ module TranTuanNoiThat
       'bottom_offset' => 5.0, 'bottom_thickness' => 9.0,
       'side_thickness' => 17.5, 'bottom_shift' => 10.0,
       'mark_contact' => false,
+      'reverse_depth' => false,
       'fallback_depth' => 500.0
     }.freeze
 
@@ -65,7 +66,7 @@ module TranTuanNoiThat
       data['quantity'] = [[raw['quantity'].to_i, 1].max, 50].min
       data['orientation'] = raw['orientation'].to_s == 'horizontal' ? 'horizontal' : 'vertical'
       data['bottom_mode'] = raw['bottom_mode'].to_s == 'custom' ? 'custom' : 'cover'
-      numeric = DEFAULTS.keys - %w[quantity orientation bottom_mode mark_contact]
+      numeric = DEFAULTS.keys - %w[quantity orientation bottom_mode mark_contact reverse_depth]
       raise 'Các thông số kích thước không được âm.' if numeric.any? { |key| data[key].to_f < 0 }
       raise 'Độ dày tấm phải lớn hơn 0.' unless data['bottom_thickness'] > 0 && data['side_thickness'] > 0
       raise 'Chiều cao thanh phải lớn hơn 0.' unless data['side_height'] > 0
@@ -90,6 +91,7 @@ module TranTuanNoiThat
         <div class="field"><label>Tịnh tiến tấm đáy (mm)</label><input id="bottom_shift" type="number" step="0.1"></div>
         <div class="field wide"><label>Chiều sâu dự phòng khi không dò thấy hậu (mm)</label><input id="fallback_depth" type="number" step="0.1"></div>
         <div class="field wide"><label>Hướng tạo</label><div class="modes"><label><input type="radio" name="orientation" value="vertical"> Dọc</label><label><input type="radio" name="orientation" value="horizontal"> Ngang</label></div></div>
+        <div class="field wide"><label>Hướng chiều sâu</label><div class="modes"><label><input id="reverse_depth" type="checkbox"> Đảo hướng ngăn kéo trước/sau</label></div></div>
         <div class="field wide"><label>Chế độ tấm đáy</label><div class="modes"><label><input type="radio" name="bottom_mode" value="cover"> Phủ 4 cạnh ngoài</label><label><input type="radio" name="bottom_mode" value="custom"> Tùy chỉnh offset</label></div></div>
         <div class="field wide"><label>Đánh dấu tiếp diện</label><div class="modes"><label><input id="mark_contact" type="checkbox"> Đánh dấu biên thanh giao nhau với tấm đáy</label></div></div>
         </div><button onclick="applyNow()">ÁP DỤNG - CẬP NHẬT PREVIEW</button><div id="msg"></div><div class="note">Tịnh tiến chỉ nâng tấm đáy; 4 thanh giữ nguyên. Click trong model sau khi chỉnh xong để tạo thật.</div>
@@ -99,11 +101,13 @@ module TranTuanNoiThat
         document.querySelector(`input[name=orientation][value="${initial.orientation}"]`).checked=true;
         document.querySelector(`input[name=bottom_mode][value="${initial.bottom_mode}"]`).checked=true;
         document.getElementById('mark_contact').checked=initial.mark_contact===true||initial.mark_contact==='true';
+        document.getElementById('reverse_depth').checked=initial.reverse_depth===true||initial.reverse_depth==='true';
         function value(id){return document.getElementById(id).value}
-        function applyNow(){const data={};['side_height','rail_gap','bottom_clearance','back_clearance','quantity','front_gap','bottom_thickness','side_thickness','bottom_offset','bottom_shift','fallback_depth'].forEach(k=>data[k]=value(k));data.orientation=document.querySelector('input[name=orientation]:checked').value;data.bottom_mode=document.querySelector('input[name=bottom_mode]:checked').value;data.mark_contact=document.getElementById('mark_contact').checked;sketchup.apply(JSON.stringify(data))}
+        function applyNow(){const data={};['side_height','rail_gap','bottom_clearance','back_clearance','quantity','front_gap','bottom_thickness','side_thickness','bottom_offset','bottom_shift','fallback_depth'].forEach(k=>data[k]=value(k));data.orientation=document.querySelector('input[name=orientation]:checked').value;data.bottom_mode=document.querySelector('input[name=bottom_mode]:checked').value;data.mark_contact=document.getElementById('mark_contact').checked;data.reverse_depth=document.getElementById('reverse_depth').checked;sketchup.apply(JSON.stringify(data))}
         function syncContact(){const custom=document.querySelector('input[name=bottom_mode]:checked').value==='custom';const mark=document.getElementById('mark_contact');mark.disabled=!custom;if(!custom)mark.checked=false;applyNow()}
         document.querySelectorAll('input[name=bottom_mode]').forEach(el=>el.addEventListener('change',syncContact));
         document.getElementById('mark_contact').addEventListener('change',applyNow);
+        document.getElementById('reverse_depth').addEventListener('change',applyNow);
         document.getElementById('mark_contact').disabled=initial.bottom_mode!=='custom';
         if(initial.bottom_mode!=='custom')document.getElementById('mark_contact').checked=false;
         function notice(text,bad){const e=document.getElementById('msg');e.textContent=text;e.style.color=bad?'#ff6767':'#67d78a'}
@@ -140,7 +144,11 @@ module TranTuanNoiThat
       end
 
       def update_options(values)
+        old_reverse = @options['reverse_depth']
         @options = Drawer.normalize(values)
+        if @state == 2 && old_reverse != @options['reverse_depth']
+          @depth_axis = @depth_axis.reverse
+        end
         @depth_length = @options['fallback_depth'].mm if @state < 2 || !@rear_detected
         Sketchup.active_model.active_view.invalidate
         status
@@ -205,11 +213,12 @@ module TranTuanNoiThat
           view.draw(GL_LINES, box_lines(points))
         end
         if @options['bottom_mode'] == 'custom' && @options['mark_contact']
-          lines = contact_lines(parts)
-          unless lines.empty?
+          surfaces = contact_surfaces(parts)
+          unless surfaces.empty?
             view.drawing_color = CONTACT_COLOR
-            view.line_width = 4
-            view.draw(GL_LINES, lines)
+            surfaces.each { |surface| view.draw(GL_QUADS, surface) }
+            view.line_width = 3
+            surfaces.each { |surface| view.draw(GL_LINE_LOOP, surface) }
           end
         end
       end
@@ -249,9 +258,10 @@ module TranTuanNoiThat
           @depth_length = @options['fallback_depth'].mm
           @depth_axis = view.camera.direction.dot(Y_AXIS) > 0 ? Y_AXIS : Y_AXIS.reverse
         end
+        @depth_axis = @depth_axis.reverse if @options['reverse_depth']
       rescue StandardError
         @depth_length = @options['fallback_depth'].mm
-        @depth_axis = Y_AXIS
+        @depth_axis = @options['reverse_depth'] ? Y_AXIS.reverse : Y_AXIS
         @rear_detected = false
       end
 
@@ -330,10 +340,10 @@ module TranTuanNoiThat
         [[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]].flat_map { |a,b| [p[a],p[b]] }
       end
 
-      def contact_lines(parts)
+      def contact_surfaces(parts)
         bottoms = parts.select { |part| part[:bottom] }
         rails = parts.reject { |part| part[:bottom] }
-        lines = []
+        surfaces = []
         tolerance = 0.2.mm
 
         bottoms.each do |bottom|
@@ -345,15 +355,25 @@ module TranTuanNoiThat
             next unless x1 - x0 > tolerance && y1 - y0 > tolerance
             next unless bz <= rz + rh + tolerance && bz + bh >= rz - tolerance
 
-            z = [[bz + bh, rz].min, [bz, rz].max].max
-            p0 = Geom::Point3d.new(x0, y0, z)
-            p1 = Geom::Point3d.new(x1, y0, z)
-            p2 = Geom::Point3d.new(x1, y1, z)
-            p3 = Geom::Point3d.new(x0, y1, z)
-            lines.concat([p0,p1,p1,p2,p2,p3,p3,p0])
+            z0 = bz
+            z1 = bz + bh
+            name = rail[:name]
+            if name.start_with?('THANH_TRAI')
+              x = rx + rw
+              surfaces << [Geom::Point3d.new(x,y0,z0), Geom::Point3d.new(x,y1,z0), Geom::Point3d.new(x,y1,z1), Geom::Point3d.new(x,y0,z1)]
+            elsif name.start_with?('THANH_PHAI')
+              x = rx
+              surfaces << [Geom::Point3d.new(x,y0,z0), Geom::Point3d.new(x,y0,z1), Geom::Point3d.new(x,y1,z1), Geom::Point3d.new(x,y1,z0)]
+            elsif name.start_with?('THANH_TRUOC')
+              y = ry + rd
+              surfaces << [Geom::Point3d.new(x0,y,z0), Geom::Point3d.new(x0,y,z1), Geom::Point3d.new(x1,y,z1), Geom::Point3d.new(x1,y,z0)]
+            elsif name.start_with?('THANH_SAU')
+              y = ry
+              surfaces << [Geom::Point3d.new(x0,y,z0), Geom::Point3d.new(x1,y,z0), Geom::Point3d.new(x1,y,z1), Geom::Point3d.new(x0,y,z1)]
+            end
           end
         end
-        lines
+        surfaces
       end
 
       def add_panel(parent, part)
