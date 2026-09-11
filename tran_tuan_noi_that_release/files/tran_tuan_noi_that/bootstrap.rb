@@ -1,0 +1,77 @@
+# encoding: UTF-8
+require 'sketchup.rb'
+require 'json'
+require 'net/http'
+require 'uri'
+require 'fileutils'
+require 'tmpdir'
+require 'digest'
+
+module TranTuanNoiThat
+  ROOT = __dir__.freeze unless const_defined?(:ROOT)
+  VERSION = '1.0.0'.freeze unless const_defined?(:VERSION)
+  NAME = 'TRẦN TUẤN NỘI THẤT'.freeze unless const_defined?(:NAME)
+  MANIFEST_URL = 'https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/update.json'.freeze unless const_defined?(:MANIFEST_URL)
+
+  class << self
+    def setting(key, default = nil)
+      Sketchup.read_default(NAME, key.to_s, default)
+    end
+
+    def save_setting(key, value)
+      Sketchup.write_default(NAME, key.to_s, value)
+    end
+
+    def current_version
+      setting('installed_version', VERSION).to_s
+    end
+
+    def reload_runtime
+      %w[board_tool.rb settings.rb updater.rb].each do |file|
+        load File.join(ROOT, file)
+      end
+      true
+    rescue StandardError => error
+      UI.messagebox("Không thể nạp lại hệ thống:\n#{error.message}")
+      false
+    end
+
+    def install_ui
+      return if @ui_installed
+      @ui_installed = true
+
+      main_menu = UI.menu('Extensions').add_submenu(NAME)
+      commands = [
+        command('Vẽ Ván', 've_van.svg', 'Vẽ ván 3D theo P1/P2') { Board.activate },
+        command('Cài Đặt Chung', 'settings.svg', 'Mở cài đặt toàn hệ thống') { Settings.show },
+        command('Kiểm Tra Cập Nhật', 'update.svg', 'Kiểm tra và nạp phiên bản mới') { Updater.check(true) }
+      ]
+      commands.each { |cmd| main_menu.add_item(cmd) }
+
+      toolbar = UI::Toolbar.new(NAME)
+      commands.each { |cmd| toolbar.add_item(cmd) }
+      toolbar.restore
+      @toolbar = toolbar
+    end
+
+    def command(title, icon_name, description, &block)
+      cmd = UI::Command.new(title, &block)
+      icon = File.join(ROOT, 'icons', icon_name)
+      cmd.small_icon = icon
+      cmd.large_icon = icon
+      cmd.tooltip = title
+      cmd.status_bar_text = description
+      cmd
+    end
+
+    def boot
+      reload_runtime
+      install_ui
+      return if @startup_check_scheduled
+      @startup_check_scheduled = true
+      UI.start_timer(3.0, false) { Updater.check(false) if setting('auto_update', true) }
+    end
+  end
+end
+
+TranTuanNoiThat.boot

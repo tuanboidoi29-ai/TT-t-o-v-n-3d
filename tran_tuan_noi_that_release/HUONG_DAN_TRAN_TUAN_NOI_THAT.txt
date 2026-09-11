@@ -1,0 +1,27 @@
+TRẦN TUẤN NỘI THẤT v1.0.0
+Creator: TRẦN TUẤN
+Tương thích: SketchUp 2021–2025
+
+CÀI ĐẶT
+1. Mở Extension Manager > Install Extension.
+2. Chọn TRAN_TUAN_NOI_THAT_V1.0.0.rbz.
+3. Mở toolbar TRẦN TUẤN NỘI THẤT nếu toolbar chưa hiện.
+
+VẼ VÁN
+1. Bấm Vẽ Ván và nhập độ dày.
+2. Click P1, kéo chéo, click P2 để khóa mặt.
+3. Nhấn TAB đổi hướng TRONG/NGOÀI.
+4. Click tạo Group ván thật. Ctrl+Z để hoàn tác.
+
+CÀI ĐẶT CHUNG
+- Độ dày ván mặc định.
+- Tự kiểm tra cập nhật.
+- Kênh cập nhật.
+- Nạp lại toàn bộ module mà không khởi động lại SketchUp.
+
+CẬP NHẬT
+- Kiểm tra manifest HTTPS trên GitHub.
+- Chỉ chấp nhận đường dẫn nằm trong thư mục Plugins.
+- Kiểm tra SHA-256 từng file nếu manifest cung cấp.
+- Tạo bản sao lưu trước khi thay file.
+- Nạp lại module mới ngay trong phiên SketchUp.
