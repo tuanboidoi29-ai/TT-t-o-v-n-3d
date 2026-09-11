@@ -138,6 +138,8 @@ module TranTuanNoiThat
       def reset
         @state = 0
         @p1 = @p2 = nil
+        @origin = @axis_u = @axis_v = @surface_normal = nil
+        @span_u = @span_v = nil
         @depth_axis = Y_AXIS
         @depth_length = @options['fallback_depth'].mm
         status
@@ -159,7 +161,7 @@ module TranTuanNoiThat
           @ip.pick(view, x, y)
         elsif @state == 1
           @ip.pick(view, x, y, @ip1)
-          @p2 = @ip.position if @ip.valid?
+          update_second_point(@ip.position) if @ip.valid?
           analyze_depth(view) if valid_front?
         end
         view.tooltip = @ip.tooltip if @ip.valid?
@@ -170,12 +172,16 @@ module TranTuanNoiThat
         if @state.zero?
           @ip.pick(view, x, y)
           return UI.beep unless @ip.valid?
+          unless setup_face_axes(@ip)
+            UI.messagebox('P1 phải nằm trên một mặt tủ (Face).')
+            return
+          end
           @ip1.copy!(@ip)
           @p1 = @ip.position
           @state = 1
         elsif @state == 1
           @ip.pick(view, x, y, @ip1)
-          @p2 = @ip.position if @ip.valid?
+          update_second_point(@ip.position) if @ip.valid?
           return UI.beep unless valid_front?
           analyze_depth(view)
           @state = 2
@@ -232,17 +238,58 @@ module TranTuanNoiThat
       private
 
       def valid_front?
-        return false unless @p1 && @p2
-        dx = (@p2.x - @p1.x).abs
-        dz = (@p2.z - @p1.z).abs
-        dx > 1.mm && dz > 1.mm
+        @origin && @axis_u && @axis_v && @span_u && @span_v &&
+          @span_u.abs > 1.mm && @span_v.abs > 1.mm
+      end
+
+      def setup_face_axes(input_point)
+        face = input_point.face
+        return false unless face
+
+        normal = face.normal.transform(input_point.transformation)
+        return false unless normal.valid? && normal.length > 0
+        normal.normalize!
+
+        vertical = projected_axis(Z_AXIS, normal)
+        vertical = projected_axis(Y_AXIS, normal) if vertical.length < 0.01
+        vertical = projected_axis(X_AXIS, normal) if vertical.length < 0.01
+        return false if vertical.length < 0.01
+        vertical.normalize!
+        horizontal = vertical.cross(normal)
+        return false if horizontal.length < 0.01
+        horizontal.normalize!
+
+        @origin = input_point.position
+        @surface_normal = normal
+        @axis_v = vertical
+        @axis_u = horizontal
+        @depth_axis = normal
+        true
+      rescue StandardError
+        false
+      end
+
+      def projected_axis(axis, normal)
+        dot = axis.dot(normal)
+        Geom::Vector3d.new(
+          axis.x - normal.x * dot,
+          axis.y - normal.y * dot,
+          axis.z - normal.z * dot
+        )
+      end
+
+      def update_second_point(point)
+        @p2 = point
+        delta = @origin.vector_to(point)
+        @span_u = delta.dot(@axis_u)
+        @span_v = delta.dot(@axis_v)
       end
 
       def analyze_depth(view)
-        @depth_axis = Y_AXIS
+        @depth_axis = @surface_normal
         @rear_detected = false
-        mid = Geom::Point3d.new((@p1.x + @p2.x) * 0.5, @p1.y, (@p1.z + @p2.z) * 0.5)
-        candidates = [Y_AXIS, Y_AXIS.reverse].filter_map do |axis|
+        mid = local_point(@span_u * 0.5, 0, @span_v * 0.5, @surface_normal)
+        candidates = [@surface_normal, @surface_normal.reverse].filter_map do |axis|
           hit = Sketchup.active_model.raytest([mid.offset(axis, 2.mm), axis], true)
           next unless hit && hit[0]
           distance = mid.distance(hit[0])
@@ -256,23 +303,23 @@ module TranTuanNoiThat
           @rear_detected = true
         else
           @depth_length = @options['fallback_depth'].mm
-          @depth_axis = view.camera.direction.dot(Y_AXIS) > 0 ? Y_AXIS : Y_AXIS.reverse
+          @depth_axis = view.camera.direction.dot(@surface_normal) > 0 ? @surface_normal : @surface_normal.reverse
         end
         @depth_axis = @depth_axis.reverse if @options['reverse_depth']
       rescue StandardError
         @depth_length = @options['fallback_depth'].mm
-        @depth_axis = @options['reverse_depth'] ? Y_AXIS.reverse : Y_AXIS
+        base = @surface_normal || Y_AXIS
+        @depth_axis = @options['reverse_depth'] ? base.reverse : base
         @rear_detected = false
       end
 
       def preview_parts
         return [] unless valid_front?
         quantity = @options['quantity'].to_i
-        x_min, x_max = [@p1.x, @p2.x].minmax
-        z_min, z_max = [@p1.z, @p2.z].minmax
-        front_y = @p1.y
-        back_y = front_y + @depth_axis.y * [@depth_length - @options['back_clearance'].mm, 1.mm].max
-        y_min, y_max = [front_y, back_y].minmax
+        x_min, x_max = [0, @span_u].minmax
+        z_min, z_max = [0, @span_v].minmax
+        y_min = 0
+        y_max = [@depth_length - @options['back_clearance'].mm, 1.mm].max
         parts = []
 
         quantity.times do |index|
@@ -325,11 +372,17 @@ module TranTuanNoiThat
       end
 
       def box_points(x, y, z, width, depth, height)
-        p0 = Geom::Point3d.new(x, y, z)
-        p1 = Geom::Point3d.new(x + width, y, z)
-        p2 = Geom::Point3d.new(x + width, y + depth, z)
-        p3 = Geom::Point3d.new(x, y + depth, z)
-        [p0,p1,p2,p3,p0.offset(Z_AXIS,height),p1.offset(Z_AXIS,height),p2.offset(Z_AXIS,height),p3.offset(Z_AXIS,height)]
+        p0 = local_point(x, y, z)
+        p1 = local_point(x + width, y, z)
+        p2 = local_point(x + width, y + depth, z)
+        p3 = local_point(x, y + depth, z)
+        [p0,p1,p2,p3,p0.offset(@axis_v,height),p1.offset(@axis_v,height),p2.offset(@axis_v,height),p3.offset(@axis_v,height)]
+      end
+
+      def local_point(x, y, z, depth_axis = @depth_axis)
+        point = @origin.offset(@axis_u, x)
+        point = point.offset(depth_axis, y)
+        point.offset(@axis_v, z)
       end
 
       def box_faces(p)
@@ -360,16 +413,16 @@ module TranTuanNoiThat
             name = rail[:name]
             if name.start_with?('THANH_TRAI')
               x = rx + rw
-              surfaces << [Geom::Point3d.new(x,y0,z0), Geom::Point3d.new(x,y1,z0), Geom::Point3d.new(x,y1,z1), Geom::Point3d.new(x,y0,z1)]
+              surfaces << [local_point(x,y0,z0), local_point(x,y1,z0), local_point(x,y1,z1), local_point(x,y0,z1)]
             elsif name.start_with?('THANH_PHAI')
               x = rx
-              surfaces << [Geom::Point3d.new(x,y0,z0), Geom::Point3d.new(x,y0,z1), Geom::Point3d.new(x,y1,z1), Geom::Point3d.new(x,y1,z0)]
+              surfaces << [local_point(x,y0,z0), local_point(x,y0,z1), local_point(x,y1,z1), local_point(x,y1,z0)]
             elsif name.start_with?('THANH_TRUOC')
               y = ry + rd
-              surfaces << [Geom::Point3d.new(x0,y,z0), Geom::Point3d.new(x0,y,z1), Geom::Point3d.new(x1,y,z1), Geom::Point3d.new(x1,y,z0)]
+              surfaces << [local_point(x0,y,z0), local_point(x0,y,z1), local_point(x1,y,z1), local_point(x1,y,z0)]
             elsif name.start_with?('THANH_SAU')
               y = ry
-              surfaces << [Geom::Point3d.new(x0,y,z0), Geom::Point3d.new(x1,y,z0), Geom::Point3d.new(x1,y,z1), Geom::Point3d.new(x0,y,z1)]
+              surfaces << [local_point(x0,y,z0), local_point(x1,y,z0), local_point(x1,y,z1), local_point(x0,y,z1)]
             end
           end
         end
@@ -382,7 +435,7 @@ module TranTuanNoiThat
         points = box_points(x, y, z, width, depth, height)
         face = child.entities.add_face(points[0], points[1], points[2], points[3])
         raise "Không tạo được #{part[:name]}." unless face && face.valid?
-        face.reverse! if face.normal.dot(Z_AXIS) < 0
+        face.reverse! if face.normal.dot(@axis_v) < 0
         face.pushpull(height)
         child.name = part[:name]
         child.set_attribute('TRẦN TUẤN NỘI THẤT', 'chi_tiet', part[:name])
@@ -411,8 +464,8 @@ module TranTuanNoiThat
 
       def status
         Sketchup.status_text = case @state
-        when 0 then 'VẼ NGĂN KÉO: Click P1 tại góc dưới mặt trước.'
-        when 1 then 'Click P2 tại góc đối diện để khóa vùng và xem preview.'
+        when 0 then 'VẼ NGĂN KÉO: Click P1 trên một mặt tủ bất kỳ.'
+        when 1 then 'Click P2 trên mặt tủ để khóa vùng và xem preview.'
         else 'TAB mở cài đặt | Click tạo ngăn kéo | ESC vẽ lại.'
         end
       end
