@@ -13,6 +13,14 @@ module TranTuanNoiThat
 
     class Tool
       TAB = 9
+      SNAP_RADIUS = 10
+      SNAP_OFFSETS = [
+        [0, 0],
+        [-SNAP_RADIUS, 0], [SNAP_RADIUS, 0],
+        [0, -SNAP_RADIUS], [0, SNAP_RADIUS],
+        [-SNAP_RADIUS, -SNAP_RADIUS], [SNAP_RADIUS, -SNAP_RADIUS],
+        [-SNAP_RADIUS, SNAP_RADIUS], [SNAP_RADIUS, SNAP_RADIUS]
+      ].freeze
       FACE = Sketchup::Color.new(255, 164, 70, 105)
       SIDE = Sketchup::Color.new(255, 125, 25, 72)
       EDGE = Sketchup::Color.new(235, 92, 0, 255)
@@ -21,6 +29,7 @@ module TranTuanNoiThat
         @thickness = thickness
         @ip = Sketchup::InputPoint.new
         @ip1 = Sketchup::InputPoint.new
+        @snap_probes = SNAP_OFFSETS.map { Sketchup::InputPoint.new }
         reset
       end
 
@@ -45,10 +54,10 @@ module TranTuanNoiThat
 
       def onMouseMove(flags, x, y, view)
         if @state.zero?
-          @ip.pick(view, x, y)
+          pick_nearest(view, x, y, @ip)
           view.tooltip = @ip.tooltip if @ip.valid?
         elsif @state == 1
-          @ip.pick(view, x, y, @ip1)
+          pick_nearest(view, x, y, @ip, @ip1)
           rectangle(view, x, y)
           view.tooltip = size_text if valid?
         end
@@ -57,7 +66,7 @@ module TranTuanNoiThat
 
       def onLButtonDown(flags, x, y, view)
         if @state.zero?
-          @ip.pick(view, x, y)
+          pick_nearest(view, x, y, @ip)
           return unless @ip.valid?
           @ip1.copy!(@ip)
           @sx, @sy = x, y
@@ -113,6 +122,38 @@ module TranTuanNoiThat
       end
 
       private
+
+      # InputPoint.pick đã hỗ trợ inference của SketchUp. Các điểm dò xung quanh
+      # giúp chọn đúng inference gần con trỏ nhất khi người dùng không đặt chuột
+      # chính xác lên đỉnh/cạnh, kể cả hình học trong Group/Component lồng nhau.
+      def pick_nearest(view, x, y, target, reference = nil)
+        best = nil
+        best_score = nil
+
+        SNAP_OFFSETS.each_with_index do |offset, index|
+          probe = @snap_probes[index]
+          reference ? probe.pick(view, x + offset[0], y + offset[1], reference) : probe.pick(view, x + offset[0], y + offset[1])
+          next unless probe.valid?
+
+          screen = view.screen_coords(probe.position)
+          distance = Math.hypot(screen.x - x, screen.y - y)
+          next if distance > SNAP_RADIUS + 2
+
+          # Ưu tiên đỉnh thật, sau đó điểm trên cạnh/face, rồi mới tới điểm tự do.
+          priority = probe.vertex ? 0 : (probe.edge ? 1 : (probe.face ? 2 : 3))
+          score = [distance.round(4), priority, index]
+          if best_score.nil? || (score <=> best_score) == -1
+            best = probe
+            best_score = score
+          end
+        end
+
+        best ? target.copy!(best) : target.clear
+        target.valid?
+      rescue StandardError
+        reference ? target.pick(view, x, y, reference) : target.pick(view, x, y)
+        target.valid?
+      end
 
       def rectangle(view, x, y)
         origin = @ip1.position
