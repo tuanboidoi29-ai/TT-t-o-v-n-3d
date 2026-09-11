@@ -1,10 +1,10 @@
-TRẦN TUẤN NỘI THẤT v1.4.1
+TRẦN TUẤN NỘI THẤT v1.5.0
 Creator: TRẦN TUẤN
 Tương thích: SketchUp 2021–2025
 
 CÀI ĐẶT
 1. Mở Extension Manager > Install Extension.
-2. Chọn TRAN_TUAN_NOI_THAT_V1.4.1.rbz.
+2. Chọn TRAN_TUAN_NOI_THAT_V1.5.0.rbz.
 3. Mở toolbar TRẦN TUẤN NỘI THẤT nếu toolbar chưa hiện.
 
 VẼ VÁN
@@ -32,6 +32,15 @@ VẼ NGĂN KÉO
 4. Nhấn TAB mở cài đặt; bấm ÁP DỤNG để cập nhật preview trực tiếp.
 5. Click trong model để tạo; mỗi tấm là Group con nằm trong Group ngăn kéo cha.
 6. Tùy chỉnh + Đánh dấu tiếp diện sẽ tạo biên dạng thật trên 4 thanh, gắn Tag ABF_TIEP_DIEN_DAY_NGAN_KEO.
+
+BO CONG KHỐI
+1. Bấm icon Bo Cong Khối trên toolbar.
+2. Bảng màu cam hiển thị CUNG LỒI và CUNG LÕM; nhấn TAB để đổi nhanh.
+3. Di chuột sát đỉnh của mặt đang chỉnh sửa để xem preview màu cam.
+4. Gõ đường kính rồi Enter, hoặc nhập tại bảng; preview cập nhật ngay.
+5. Click đỉnh hợp lệ để bo. Nếu là mặt của khối đặc, công cụ cắt tới mặt đối diện.
+6. Góc/đường kính không hợp lệ được báo preview đỏ và không cho tạo.
+7. Ctrl+Z hoàn tác trọn một lần bo cong.
 
 CÀI ĐẶT CHUNG
 - Độ dày ván mặc định.
