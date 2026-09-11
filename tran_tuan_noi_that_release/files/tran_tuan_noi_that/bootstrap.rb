@@ -9,7 +9,7 @@ require 'digest'
 
 module TranTuanNoiThat
   ROOT = __dir__.freeze unless const_defined?(:ROOT)
-  VERSION = '1.0.1'.freeze unless const_defined?(:VERSION)
+  VERSION = '1.1.0'.freeze unless const_defined?(:VERSION)
   NAME = 'TRẦN TUẤN NỘI THẤT'.freeze unless const_defined?(:NAME)
   MANIFEST_URL = 'https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/update.json'.freeze unless const_defined?(:MANIFEST_URL)
 
@@ -27,7 +27,7 @@ module TranTuanNoiThat
     end
 
     def reload_runtime
-      %w[board_tool.rb settings.rb updater.rb].each do |file|
+      %w[board_tool.rb box_tool.rb settings.rb updater.rb].each do |file|
         load File.join(ROOT, file)
       end
       true
@@ -43,6 +43,7 @@ module TranTuanNoiThat
       main_menu = UI.menu('Extensions').add_submenu(NAME)
       commands = [
         command('Vẽ Ván', 've_van.svg', 'Vẽ ván 3D theo P1/P2') { Board.activate },
+        command('Tạo Khối BOX', 'box.svg', 'Tạo BOX khối đặc hoặc khung') { Box.show_dialog },
         command('Cài Đặt Chung', 'settings.svg', 'Mở cài đặt toàn hệ thống') { Settings.show },
         command('Kiểm Tra Cập Nhật', 'update.svg', 'Kiểm tra và nạp phiên bản mới') { Updater.check(true) }
       ]

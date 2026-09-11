@@ -1,18 +1,20 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "channel": "stable",
-  "notes": "Vẽ Ván tự động bắt điểm gần con trỏ: ưu tiên đỉnh, cạnh, mặt và hỗ trợ Group/Component lồng nhau.",
-  "rbz_url": "https://github.com/tuanboidoi29-ai/TT-t-o-v-n-3d/raw/main/tran_tuan_noi_that_release/TRAN_TUAN_NOI_THAT_V1.0.1.rbz",
+  "notes": "Thêm Tạo Khối BOX: nhập Cao/Rộng/Sâu, chọn khối đặc hoặc khung, preview màu cam bám chuột và click để đặt.",
+  "rbz_url": "https://github.com/tuanboidoi29-ai/TT-t-o-v-n-3d/raw/main/tran_tuan_noi_that_release/TRAN_TUAN_NOI_THAT_V1.1.0.rbz",
   "files": [
-    {"path":"TranTuanNoiThat.rb","url":"https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/files/TranTuanNoiThat.rb","sha256":"3727e5b3311d287d37ba0906477f9d167da45b2603a2ad6ae3f4bcf1f0ef411f"},
-    {"path":"tran_tuan_noi_that/bootstrap.rb","url":"https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/files/tran_tuan_noi_that/bootstrap.rb","sha256":"061efb8f4e5ff6f59a9bace3f5ae3509ba8eaec3c2d7a178b060f0583d4c9ad8"},
+    {"path":"TranTuanNoiThat.rb","url":"https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/files/TranTuanNoiThat.rb","sha256":"7864612e6f615813d87a2694fd4bf3d05b1693376895ebbf4f839f69af096f4d"},
+    {"path":"tran_tuan_noi_that/bootstrap.rb","url":"https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/files/tran_tuan_noi_that/bootstrap.rb","sha256":"f041519bbbce1ead87be361270e968ef395983918b6c11051c81fb3c96404948"},
     {"path":"tran_tuan_noi_that/board_tool.rb","url":"https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/files/tran_tuan_noi_that/board_tool.rb","sha256":"2a52f42f6d6a26a5941954020c5d6486144057bd7bb4a074c430bab591df7ebb"},
+    {"path":"tran_tuan_noi_that/box_tool.rb","url":"https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/files/tran_tuan_noi_that/box_tool.rb","sha256":"483be1fa993fb7a2a44a7f625cb2143d3fb4d6b0c0d35bd1d8421a83d56bd453"},
     {"path":"tran_tuan_noi_that/settings.rb","url":"https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/files/tran_tuan_noi_that/settings.rb","sha256":"7e454d45806b6052af3db79ff40891c47d3311ac3a3aaec77225964be8f615cf"},
     {"path":"tran_tuan_noi_that/updater.rb","url":"https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/files/tran_tuan_noi_that/updater.rb","sha256":"771ee32762d6ec7ad311dbc52f70fde4ebdbe6216a11b949e7b69bf43bfe14b7"},
     {"path":"tran_tuan_noi_that/ui/settings.html","url":"https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/files/tran_tuan_noi_that/ui/settings.html","sha256":"4ce69bd9aa045186d9b1e2e139719b775e7bc0f2f68f808ae326e186e4b8700c"},
     {"path":"tran_tuan_noi_that/icons/main.svg","url":"https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/files/tran_tuan_noi_that/icons/main.svg","sha256":"dcc77bbd1fd28fb5fcb94c32a5e3f48559af0ef62a2d429720f76c792a4d5c97"},
     {"path":"tran_tuan_noi_that/icons/ve_van.svg","url":"https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/files/tran_tuan_noi_that/icons/ve_van.svg","sha256":"321c9e5b3a29b2e7d8a029ddf4bf28b2e76ffed5b4a2035f88a2ce7c17f1e014"},
+    {"path":"tran_tuan_noi_that/icons/box.svg","url":"https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/files/tran_tuan_noi_that/icons/box.svg","sha256":"cada72d3957496f3d7008e955e2d0a817497197a7e0f40d6e8d180eccdbab292"},
     {"path":"tran_tuan_noi_that/icons/settings.svg","url":"https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/files/tran_tuan_noi_that/icons/settings.svg","sha256":"c0c86c0c885c3fae5214a0989b356ba401d67212fb89980ad9c883c6bd8b56c0"},
     {"path":"tran_tuan_noi_that/icons/update.svg","url":"https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/files/tran_tuan_noi_that/icons/update.svg","sha256":"6b0746bcb82a3a17ffa98d69f73592881c99b06d8288cd20031d59fbe5a6be3b"}
   ]
