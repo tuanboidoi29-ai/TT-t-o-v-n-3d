@@ -87,3 +87,15 @@ module TranTuanNoiThat
     end
   end
 end
+
+# Khi updater mới được nạp bởi phiên bản cũ, nạp lại bootstrap để đăng ký ngay
+# các command/toolbar mới. Cờ bảo vệ ngăn vòng lặp trong reload_runtime.
+if TranTuanNoiThat.instance_variable_get(:@ui_installed) &&
+   !TranTuanNoiThat.instance_variable_get(:@hot_bootstrap_loading)
+  begin
+    TranTuanNoiThat.instance_variable_set(:@hot_bootstrap_loading, true)
+    load File.join(TranTuanNoiThat::ROOT, 'bootstrap.rb')
+  ensure
+    TranTuanNoiThat.instance_variable_set(:@hot_bootstrap_loading, false)
+  end
+end
