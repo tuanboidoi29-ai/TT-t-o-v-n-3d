@@ -13,13 +13,17 @@ module TranTuanNoiThat
 
     class Tool
       TAB = 9
-      SNAP_RADIUS = 10
+      KEY_LEFT = 37
+      KEY_UP = 38
+      KEY_RIGHT = 39
+      KEY_DOWN = 40
+      SNAP_RADIUS = 14
       SNAP_OFFSETS = [
         [0, 0],
+        [-6, 0], [6, 0], [0, -6], [0, 6],
+        [-10, -10], [10, -10], [-10, 10], [10, 10],
         [-SNAP_RADIUS, 0], [SNAP_RADIUS, 0],
-        [0, -SNAP_RADIUS], [0, SNAP_RADIUS],
-        [-SNAP_RADIUS, -SNAP_RADIUS], [SNAP_RADIUS, -SNAP_RADIUS],
-        [-SNAP_RADIUS, SNAP_RADIUS], [SNAP_RADIUS, SNAP_RADIUS]
+        [0, -SNAP_RADIUS], [0, SNAP_RADIUS]
       ].freeze
       FACE = Sketchup::Color.new(255, 164, 70, 105)
       SIDE = Sketchup::Color.new(255, 125, 25, 72)
@@ -40,7 +44,8 @@ module TranTuanNoiThat
       def reset
         @state = 0
         @direction = 1
-        @base = @normal = @axes = nil
+        @base = @normal = @axes = @face_axes = nil
+        @plane_label = 'TỰ ĐỘNG'
         @sx = @sy = nil
         @ip.clear
         @ip1.clear
@@ -69,6 +74,11 @@ module TranTuanNoiThat
           pick_nearest(view, x, y, @ip)
           return unless @ip.valid?
           @ip1.copy!(@ip)
+          @face_axes = axes_from_face(@ip)
+          if @face_axes
+            @axes = @face_axes
+            @plane_label = plane_name(@axes)
+          end
           @sx, @sy = x, y
           @state = 1
         elsif @state == 1
@@ -84,14 +94,33 @@ module TranTuanNoiThat
       end
 
       def onKeyDown(key, repeat, flags, view)
-        return unless key == TAB && @state == 2
-        @direction *= -1
+        if @state == 1
+          case key
+          when KEY_UP
+            lock_plane([X_AXIS, Y_AXIS], 'NGANG XY')
+          when KEY_LEFT
+            lock_plane([X_AXIS, Z_AXIS], 'ĐỨNG XZ')
+          when KEY_RIGHT
+            lock_plane([Y_AXIS, Z_AXIS], 'ĐỨNG YZ')
+          when KEY_DOWN
+            @axes = nil
+            @face_axes = nil
+            @plane_label = 'TỰ ĐỘNG'
+          else
+            return
+          end
+        elsif key == TAB && @state == 2
+          @direction *= -1
+        else
+          return
+        end
         status
         view.invalidate
       end
 
       def draw(view)
         @ip.draw(view) if @state.zero? && @ip.display?
+        @ip.draw(view) if @state == 1 && @ip.display?
         @ip1.draw(view) if @state > 0 && @ip1.display?
         return unless valid?
         view.line_width = 2
@@ -161,8 +190,15 @@ module TranTuanNoiThat
         candidate_axes = choose_axes(delta, view)
         @axes ||= candidate_axes if @sx && Math.hypot(x - @sx, y - @sy) >= 8
         axes = @axes || candidate_axes
+        @plane_label = plane_name(axes) if @axes.nil?
         normal = axes[0].cross(axes[1])
-        point = Geom.intersect_line_plane(view.pickray(x, y), [origin, normal])
+        point = nil
+        if @ip.valid?
+          picked = @ip.position
+          distance = origin.vector_to(picked).dot(normal)
+          point = picked.offset(normal, -distance)
+        end
+        point ||= Geom.intersect_line_plane(view.pickray(x, y), [origin, normal])
         return unless point
         vector = origin.vector_to(point)
         a = vector.dot(axes[0]); b = vector.dot(axes[1])
@@ -174,10 +210,40 @@ module TranTuanNoiThat
       end
 
       def choose_axes(delta, view)
+        return @face_axes if @face_axes
         list = [X_AXIS, Y_AXIS, Z_AXIS]
         return list.sort_by { |axis| -delta.dot(axis).abs }.first(2) if delta && delta.length > 0.1.mm
         n = list.max_by { |axis| view.camera.direction.dot(axis).abs }
         list.reject { |axis| axis.parallel?(n) }
+      end
+
+      def axes_from_face(input_point)
+        face = input_point.face
+        return nil unless face
+        normal = face.normal.transform(input_point.transformation)
+        return nil unless normal && normal.length > 0
+        normal.normalize!
+        axes = [X_AXIS, Y_AXIS, Z_AXIS]
+        index = axes.each_index.max_by { |i| normal.dot(axes[i]).abs }
+        case index
+        when 0 then [Y_AXIS, Z_AXIS]
+        when 1 then [X_AXIS, Z_AXIS]
+        else [X_AXIS, Y_AXIS]
+        end
+      rescue StandardError
+        nil
+      end
+
+      def lock_plane(axes, label)
+        @axes = axes
+        @face_axes = axes
+        @plane_label = label
+      end
+
+      def plane_name(axes)
+        return 'NGANG XY' if axes.include?(X_AXIS) && axes.include?(Y_AXIS)
+        return 'ĐỨNG XZ' if axes.include?(X_AXIS) && axes.include?(Z_AXIS)
+        'ĐỨNG YZ'
       end
 
       def valid?
@@ -218,7 +284,7 @@ module TranTuanNoiThat
       def status
         Sketchup.status_text = case @state
         when 0 then 'VẼ VÁN: Click P1. ESC để thoát.'
-        when 1 then 'Kéo chéo và click P2 để khóa mặt.'
+        when 1 then "P2 tự bắt điểm | #{@plane_label} | ↑ XY, ← XZ, → YZ, ↓ Tự động"
         else "#{@direction > 0 ? 'NGOÀI' : 'TRONG'} | TAB đổi hướng | Click tạo ván"
         end
       end

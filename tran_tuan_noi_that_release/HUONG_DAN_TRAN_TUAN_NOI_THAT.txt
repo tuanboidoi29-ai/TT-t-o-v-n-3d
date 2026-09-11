@@ -1,18 +1,21 @@
-TRẦN TUẤN NỘI THẤT v1.3.1
+TRẦN TUẤN NỘI THẤT v1.4.0
 Creator: TRẦN TUẤN
 Tương thích: SketchUp 2021–2025
 
 CÀI ĐẶT
 1. Mở Extension Manager > Install Extension.
-2. Chọn TRAN_TUAN_NOI_THAT_V1.3.1.rbz.
+2. Chọn TRAN_TUAN_NOI_THAT_V1.4.0.rbz.
 3. Mở toolbar TRẦN TUẤN NỘI THẤT nếu toolbar chưa hiện.
 
 VẼ VÁN
 1. Bấm Vẽ Ván và nhập độ dày.
-2. Đưa chuột gần đỉnh/cạnh/mặt; hệ thống tự bắt điểm gần nhất trong vùng 10 px.
+2. Đưa chuột gần đỉnh/cạnh/mặt; hệ thống tự bắt điểm gần nhất trong vùng 14 px.
 3. Click P1, kéo chéo, click P2 để khóa mặt.
 4. Nhấn TAB đổi hướng TRONG/NGOÀI.
 5. Click tạo Group ván thật. Ctrl+Z để hoàn tác.
+6. P2 tự bắt điểm thật trong vùng 14 px và hiển thị dấu inference.
+7. Khi kéo P2: mũi tên lên khóa XY, trái khóa XZ, phải khóa YZ, xuống trả về tự động.
+8. Có thể kéo chéo từ trên xuống, dưới lên, trái sang phải hoặc phải sang trái.
 
 TẠO KHỐI BOX
 1. Bấm Tạo Khối BOX.
