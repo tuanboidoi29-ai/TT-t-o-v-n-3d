@@ -394,9 +394,13 @@ module TranTuanNoiThat
       end
 
       def contact_surfaces(parts)
+        contact_profiles(parts).map { |profile| profile[:points] }
+      end
+
+      def contact_profiles(parts)
         bottoms = parts.select { |part| part[:bottom] }
         rails = parts.reject { |part| part[:bottom] }
-        surfaces = []
+        profiles = []
         tolerance = 0.2.mm
 
         bottoms.each do |bottom|
@@ -411,22 +415,53 @@ module TranTuanNoiThat
             z0 = bz
             z1 = bz + bh
             name = rail[:name]
+            points = nil
             if name.start_with?('THANH_TRAI')
               x = rx + rw
-              surfaces << [local_point(x,y0,z0), local_point(x,y1,z0), local_point(x,y1,z1), local_point(x,y0,z1)]
+              points = [local_point(x,y0,z0), local_point(x,y1,z0), local_point(x,y1,z1), local_point(x,y0,z1)]
             elsif name.start_with?('THANH_PHAI')
               x = rx
-              surfaces << [local_point(x,y0,z0), local_point(x,y0,z1), local_point(x,y1,z1), local_point(x,y1,z0)]
+              points = [local_point(x,y0,z0), local_point(x,y0,z1), local_point(x,y1,z1), local_point(x,y1,z0)]
             elsif name.start_with?('THANH_TRUOC')
               y = ry + rd
-              surfaces << [local_point(x0,y,z0), local_point(x0,y,z1), local_point(x1,y,z1), local_point(x1,y,z0)]
+              points = [local_point(x0,y,z0), local_point(x0,y,z1), local_point(x1,y,z1), local_point(x1,y,z0)]
             elsif name.start_with?('THANH_SAU')
               y = ry
-              surfaces << [local_point(x0,y,z0), local_point(x1,y,z0), local_point(x1,y,z1), local_point(x0,y,z1)]
+              points = [local_point(x0,y,z0), local_point(x1,y,z0), local_point(x1,y,z1), local_point(x0,y,z1)]
             end
+            profiles << { rail_name: name, points: points } if points
           end
         end
-        surfaces
+        profiles
+      end
+
+      def add_contact_profiles(parts, created_groups)
+        return unless @options['bottom_mode'] == 'custom' && @options['mark_contact']
+
+        model = Sketchup.active_model
+        tag = model.layers['ABF_TIEP_DIEN_DAY_NGAN_KEO'] || model.layers.add('ABF_TIEP_DIEN_DAY_NGAN_KEO')
+        thickness_mm = @options['bottom_thickness'].to_f
+
+        contact_profiles(parts).each do |profile|
+          group = created_groups[profile[:rail_name]]
+          next unless group && group.valid?
+
+          points = profile[:points]
+          edges = []
+          4.times do |index|
+            edge = group.entities.add_line(points[index], points[(index + 1) % 4])
+            edges << edge if edge && edge.valid?
+          end
+          edges.each do |edge|
+            edge.layer = tag
+            edge.set_attribute('ABF', 'loai', 'TIEP_DIEN_TAM_DAY')
+            edge.set_attribute('ABF', 'do_day_mm', thickness_mm)
+            edge.set_attribute('TRẦN TUẤN NỘI THẤT', 'tiep_dien_tam_day', true)
+            edge.set_attribute('TRẦN TUẤN NỘI THẤT', 'do_day_tiep_dien_mm', thickness_mm)
+          end
+          group.set_attribute('ABF', 'tiep_dien_tam_day_mm', thickness_mm)
+          group.set_attribute('TRẦN TUẤN NỘI THẤT', 'co_tiep_dien_tam_day', true)
+        end
       end
 
       def add_panel(parent, part)
@@ -452,7 +487,9 @@ module TranTuanNoiThat
           suffix = quantity == 1 ? '' : format('_%02d', index + 1)
           parent.name = "NGAN_KEO#{suffix}"
           selected = parts.select { |part| part[:name].end_with?(suffix) }
-          selected.each { |part| add_panel(parent, part) }
+          created_groups = {}
+          selected.each { |part| created_groups[part[:name]] = add_panel(parent, part) }
+          add_contact_profiles(selected, created_groups)
           parent.set_attribute('TRẦN TUẤN NỘI THẤT', 'stt', index + 1) if quantity > 1
           parent.set_attribute('TRẦN TUẤN NỘI THẤT', 'loai', 'NGAN_KEO')
         end
