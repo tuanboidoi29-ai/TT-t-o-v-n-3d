@@ -9,8 +9,9 @@ module TranTuanNoiThat
     SEGMENTS = 18
 
     def activate
-      diameter = TranTuanNoiThat.setting('round_diameter', 40.0).to_f
-      @tool = Tool.new([diameter, 0.1].max.mm)
+      saved = TranTuanNoiThat.setting('round_radius', nil)
+      radius = saved.nil? ? TranTuanNoiThat.setting('round_diameter', 40.0).to_f / 2.0 : saved.to_f
+      @tool = Tool.new([radius, 0.1].max.mm)
       Sketchup.active_model.select_tool(@tool)
       show_palette(@tool)
     end
@@ -22,9 +23,9 @@ module TranTuanNoiThat
         scrollable: false, resizable: false, width: 360, height: 245,
         style: UI::HtmlDialog::STYLE_UTILITY
       )
-      @palette.set_html(palette_html(tool.mode, tool.diameter.to_mm))
+      @palette.set_html(palette_html(tool.mode, tool.radius.to_mm))
       @palette.add_action_callback('set_mode') { |_c, value| tool.set_mode(value.to_s == 'concave' ? :concave : :convex) }
-      @palette.add_action_callback('set_diameter') { |_c, value| tool.set_diameter_mm(value.to_f) }
+      @palette.add_action_callback('set_radius') { |_c, value| tool.set_radius_mm(value.to_f) }
       @palette.add_action_callback('close_tool') { |_c| Sketchup.active_model.select_tool(nil) }
       @palette.set_on_closed { @palette = nil }
       @palette.show
@@ -35,12 +36,12 @@ module TranTuanNoiThat
       @palette = nil
     end
 
-    def sync_palette(mode, diameter)
+    def sync_palette(mode, radius)
       return unless @palette && @palette.visible?
-      @palette.execute_script("syncState(#{JSON.generate(mode.to_s)}, #{diameter.to_mm})")
+      @palette.execute_script("syncState(#{JSON.generate(mode.to_s)}, #{radius.to_mm})")
     end
 
-    def palette_html(mode, diameter)
+    def palette_html(mode, radius)
       <<~HTML
         <!doctype html><html><head><meta charset="UTF-8"><style>
         *{box-sizing:border-box}body{margin:0;padding:16px;background:#242424;color:#fff;font:14px Arial}
@@ -51,30 +52,30 @@ module TranTuanNoiThat
         .hint{margin-top:12px;color:#ccc;font-size:12px;line-height:1.45}.close{margin-top:10px;width:100%;padding:7px;background:#333;border-color:#555}
         </style></head><body><h3>BO CONG KHỐI</h3><div class="modes">
         <button id="convex" onclick="mode('convex')">CUNG LỒI</button><button id="concave" onclick="mode('concave')">CUNG LÕM</button></div>
-        <div class="row"><b>Đường kính</b><input id="diameter" type="number" min="0.1" step="0.1" value="#{diameter}" onchange="diameter()"><span>mm</span></div>
-        <div class="hint">TAB: đổi chế độ · Gõ số: đổi đường kính<br>Di chuột vào đỉnh để xem trước, click để bo.</div>
+        <div class="row"><b>Bán kính R</b><input id="radius" type="number" min="0.1" step="0.1" value="#{radius}" onchange="radius()"><span>mm</span></div>
+        <div class="hint">TAB: đổi chế độ · Gõ số: nhập trực tiếp bán kính R<br>Di chuột vào đỉnh Group/Component để xem trước.</div>
         <button class="close" onclick="sketchup.close_tool()">ĐÓNG</button>
         <script>
         function mode(v){sketchup.set_mode(v)}
-        function diameter(){sketchup.set_diameter(document.getElementById('diameter').value)}
-        function syncState(m,d){document.getElementById('convex').classList.toggle('active',m==='convex');document.getElementById('concave').classList.toggle('active',m==='concave');document.getElementById('diameter').value=Number(d).toFixed(1)}
-        syncState(#{JSON.generate(mode.to_s)},#{diameter});
+        function radius(){sketchup.set_radius(document.getElementById('radius').value)}
+        function syncState(m,r){document.getElementById('convex').classList.toggle('active',m==='convex');document.getElementById('concave').classList.toggle('active',m==='concave');document.getElementById('radius').value=Number(r).toFixed(1)}
+        syncState(#{JSON.generate(mode.to_s)},#{radius});
         </script></body></html>
       HTML
     end
 
     class Tool
-      attr_reader :mode, :diameter
+      attr_reader :mode, :radius
 
-      def initialize(diameter)
-        @diameter = diameter
+      def initialize(radius)
+        @radius = radius
         @mode = :convex
         @ip = Sketchup::InputPoint.new
         @candidate = nil
       end
 
       def activate
-        Sketchup.vcb_label = 'Đường kính'
+        Sketchup.vcb_label = 'Bán kính R'
         update_status
       end
 
@@ -84,7 +85,7 @@ module TranTuanNoiThat
       end
 
       def resume(view)
-        Sketchup.vcb_label = 'Đường kính'
+        Sketchup.vcb_label = 'Bán kính R'
         update_status
         view.invalidate
       end
@@ -92,7 +93,7 @@ module TranTuanNoiThat
       def onMouseMove(_flags, x, y, view)
         @ip.pick(view, x, y)
         @candidate = build_candidate(@ip)
-        view.tooltip = @candidate ? "#{label} - Ø#{fmt_mm(@diameter)} mm" : 'Đưa chuột sát một đỉnh thuộc mặt đang chỉnh sửa'
+        view.tooltip = @candidate ? "#{label} - R#{fmt_mm(@radius)} mm" : 'Đưa chuột sát một đỉnh của Group/Component'
         view.invalidate
       end
 
@@ -115,10 +116,10 @@ module TranTuanNoiThat
       def onUserText(text, view)
         length = Sketchup.parse_length(text)
         if length && length > 0
-          @diameter = length
-          TranTuanNoiThat.save_setting('round_diameter', @diameter.to_mm)
+          @radius = length
+          TranTuanNoiThat.save_setting('round_radius', @radius.to_mm)
           @candidate = build_candidate(@ip)
-          Round.sync_palette(@mode, @diameter)
+          Round.sync_palette(@mode, @radius)
           update_status
           view.invalidate
         else
@@ -136,17 +137,17 @@ module TranTuanNoiThat
       def set_mode(value)
         @mode = value
         @candidate = build_candidate(@ip)
-        Round.sync_palette(@mode, @diameter)
+        Round.sync_palette(@mode, @radius)
         update_status
         Sketchup.active_model.active_view.invalidate
       end
 
-      def set_diameter_mm(value)
+      def set_radius_mm(value)
         return UI.beep unless value > 0
-        @diameter = value.mm
-        TranTuanNoiThat.save_setting('round_diameter', value)
+        @radius = value.mm
+        TranTuanNoiThat.save_setting('round_radius', value)
         @candidate = build_candidate(@ip)
-        Round.sync_palette(@mode, @diameter)
+        Round.sync_palette(@mode, @radius)
         update_status
         Sketchup.active_model.active_view.invalidate
       end
@@ -175,10 +176,11 @@ module TranTuanNoiThat
       private
 
       def build_candidate(ip)
-        return nil unless ip.valid? && ip.vertex && ip.face
+        return nil unless ip.valid? && ip.vertex
         model = Sketchup.active_model
-        face = ip.face
-        return nil unless face.valid? && face.parent == model.active_entities
+        tr = ip.transformation || model.edit_transform
+        face = pick_face(ip, tr)
+        return nil unless face && face.valid?
         vertices = face.outer_loop.vertices
         index = vertices.index(ip.vertex)
         return nil unless index
@@ -190,7 +192,7 @@ module TranTuanNoiThat
         vb = next_point - origin
         return nil if va.length < 0.001 || vb.length < 0.001
         angle = va.angle_between(vb)
-        radius = @diameter / 2.0
+        radius = @radius
         tangent = @mode == :convex ? radius / Math.tan(angle / 2.0) : radius
         valid = angle > 0.02 && angle < Math::PI - 0.02 && tangent > 0 && tangent < va.length * 0.98 && tangent < vb.length * 0.98
         tangent = [tangent, va.length * 0.95, vb.length * 0.95].min unless valid
@@ -198,11 +200,23 @@ module TranTuanNoiThat
         b = origin.offset(vb.normalize, tangent)
         arc = arc_points(origin, a, b, face.normal, radius, angle)
         points = [origin, a] + arc[1..-2] + [b]
-        tr = model.edit_transform
         { face: face, vertex: vertex, local_points: points, world_points: points.map { |p| p.transform(tr) },
-          world_vertex: origin.transform(tr), valid: valid, normal: face.normal }
+          world_vertex: origin.transform(tr), valid: valid, normal: face.normal,
+          entities: face.parent, transformation: tr }
       rescue StandardError
         nil
+      end
+
+      def pick_face(ip, transformation)
+        vertex = ip.vertex
+        direct = ip.face
+        return direct if direct && direct.valid? && direct.vertices.include?(vertex)
+
+        camera_direction = Sketchup.active_model.active_view.camera.direction
+        vertex.faces.select(&:valid?).max_by do |face|
+          world_normal = face.normal.transform(transformation).normalize
+          world_normal.dot(camera_direction).abs
+        end
       end
 
       def arc_points(vertex, a, b, normal, radius, angle)
@@ -233,7 +247,7 @@ module TranTuanNoiThat
 
       def apply_round(data)
         model = Sketchup.active_model
-        entities = model.active_entities
+        entities = data[:entities]
         model.start_operation("TRẦN TUẤN - #{label}", true)
         before = entities.grep(Sketchup::Face)
         curve = data[:local_points][1..-2]
@@ -242,7 +256,7 @@ module TranTuanNoiThat
         cut_face = candidates.reject { |f| before.include?(f) }.min_by(&:area)
         cut_face ||= candidates.min_by(&:area)
         raise 'Không tách được vùng bo cong tại góc này.' unless cut_face && cut_face.valid?
-        depth = solid_depth(cut_face, data[:normal])
+        depth = solid_depth(cut_face, data[:normal], data[:transformation])
         if depth && depth > 0.1.mm
           cut_face.pushpull(-depth)
         else
@@ -254,11 +268,10 @@ module TranTuanNoiThat
         UI.messagebox("Không thể bo cong:\n#{error.message}")
       end
 
-      def solid_depth(face, normal)
+      def solid_depth(face, normal, transformation)
         model = Sketchup.active_model
-        tr = model.edit_transform
-        world_normal = normal.transform(tr).normalize
-        world_origin = face.bounds.center.transform(tr)
+        world_normal = normal.transform(transformation).normalize
+        world_origin = face.bounds.center.transform(transformation)
         inward = world_normal.reverse
         hit = model.raytest([world_origin.offset(inward, 0.5.mm), inward], true)
         return nil unless hit
@@ -273,8 +286,8 @@ module TranTuanNoiThat
       end
 
       def update_status
-        Sketchup.vcb_value = fmt_mm(@diameter)
-        Sketchup.status_text = "#{label}: rê vào đỉnh để preview màu cam · gõ đường kính · TAB đổi chế độ · click để tạo"
+        Sketchup.vcb_value = fmt_mm(@radius)
+        Sketchup.status_text = "#{label}: rê vào đỉnh Group/Component · gõ bán kính R · TAB đổi chế độ · click để tạo"
       end
 
       def fmt_mm(length)
