@@ -99,7 +99,7 @@ module TranTuanNoiThat
 
     class Tool
       TAB = 9
-      BOTTOM_COLOR = Sketchup::Color.new(70, 160, 255, 90)
+      BOTTOM_COLOR = Sketchup::Color.new(145, 215, 255, 105)
       RAIL_COLOR = Sketchup::Color.new(255, 145, 45, 90)
       EDGE_COLOR = Sketchup::Color.new(225, 88, 0, 255)
 
@@ -279,10 +279,13 @@ module TranTuanNoiThat
           { name: "THANH_TRUOC#{tag}", box: [x0+thick, y0, rail_z, x1-x0-thick*2, thick, front_h] },
           { name: "THANH_SAU#{tag}", box: [x0+thick, y1-thick, rail_z, x1-x0-thick*2, thick, side_h] }
         ]
-        inset = @options['bottom_mode'] == 'custom' ? @options['bottom_offset'].mm : 0
+        cover_bottom = @options['bottom_mode'] == 'cover'
+        inset = cover_bottom ? 0 : @options['bottom_offset'].mm
         bx0, bx1 = x0 + inset, x1 - inset
         by0, by1 = y0 + inset, y1 - inset
-        bottom_z = base_z + @options['bottom_shift'].mm
+        # Chế độ phủ: mặt trên đáy chạm đúng mặt dưới 4 thanh và bốn cạnh
+        # trùng với mép ngoài của hệ thanh. Tịnh tiến chỉ áp dụng cho tùy chỉnh.
+        bottom_z = cover_bottom ? rail_z - bottom_t : base_z + @options['bottom_shift'].mm
         parts << { name: "TAM_DAY#{tag}", box: [bx0, by0, bottom_z, bx1-bx0, by1-by0, bottom_t], bottom: true }
         parts
       end
