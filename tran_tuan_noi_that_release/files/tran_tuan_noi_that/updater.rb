@@ -3,7 +3,9 @@ module TranTuanNoiThat
   module Updater
     extend self
     def check(interactive = true)
-      manifest = JSON.parse(get(TranTuanNoiThat::MANIFEST_URL))
+      separator = TranTuanNoiThat::MANIFEST_URL.include?('?') ? '&' : '?'
+      manifest_url = "#{TranTuanNoiThat::MANIFEST_URL}#{separator}tt_cache=#{Time.now.to_i}"
+      manifest = JSON.parse(get(manifest_url))
       latest = manifest.fetch('version').to_s
       unless newer?(latest, TranTuanNoiThat.current_version)
         return UI.messagebox("Đang dùng phiên bản mới nhất: #{TranTuanNoiThat.current_version}") if interactive
@@ -56,7 +58,12 @@ module TranTuanNoiThat
       raise 'Quá nhiều lần chuyển hướng.' if limit <= 0
       uri = URI.parse(url)
       raise 'Chỉ cho phép cập nhật HTTPS.' unless uri.is_a?(URI::HTTPS)
-      request = Net::HTTP::Get.new(uri.request_uri, 'User-Agent' => 'TranTuanNoiThat-SketchUp/1.0')
+      request = Net::HTTP::Get.new(
+        uri.request_uri,
+        'User-Agent' => 'TranTuanNoiThat-SketchUp/1.0',
+        'Cache-Control' => 'no-cache, no-store',
+        'Pragma' => 'no-cache'
+      )
       response = Net::HTTP.start(uri.host, uri.port, use_ssl: true, open_timeout: 10, read_timeout: 20) { |http| http.request(request) }
       return get(URI.join(uri, response['location']).to_s, limit - 1) if response.is_a?(Net::HTTPRedirection)
       raise "Máy chủ trả về HTTP #{response.code}" unless response.is_a?(Net::HTTPSuccess)
