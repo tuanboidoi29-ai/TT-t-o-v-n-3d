@@ -10,6 +10,7 @@ module TranTuanNoiThat
       'front_gap' => 10.0, 'bottom_mode' => 'cover',
       'bottom_offset' => 5.0, 'bottom_thickness' => 9.0,
       'side_thickness' => 17.5, 'bottom_shift' => 10.0,
+      'mark_contact' => false,
       'fallback_depth' => 500.0
     }.freeze
 
@@ -53,12 +54,18 @@ module TranTuanNoiThat
     def normalize(raw)
       data = {}
       DEFAULTS.each do |key, default|
-        data[key] = default.is_a?(String) ? raw[key].to_s : raw[key].to_f
+        data[key] = if default == true || default == false
+                      raw[key] == true || raw[key].to_s == 'true'
+                    elsif default.is_a?(String)
+                      raw[key].to_s
+                    else
+                      raw[key].to_f
+                    end
       end
       data['quantity'] = [[raw['quantity'].to_i, 1].max, 50].min
       data['orientation'] = raw['orientation'].to_s == 'horizontal' ? 'horizontal' : 'vertical'
       data['bottom_mode'] = raw['bottom_mode'].to_s == 'custom' ? 'custom' : 'cover'
-      numeric = DEFAULTS.keys - %w[quantity orientation bottom_mode]
+      numeric = DEFAULTS.keys - %w[quantity orientation bottom_mode mark_contact]
       raise 'Các thông số kích thước không được âm.' if numeric.any? { |key| data[key].to_f < 0 }
       raise 'Độ dày tấm phải lớn hơn 0.' unless data['bottom_thickness'] > 0 && data['side_thickness'] > 0
       raise 'Chiều cao thanh phải lớn hơn 0.' unless data['side_height'] > 0
@@ -84,14 +91,21 @@ module TranTuanNoiThat
         <div class="field wide"><label>Chiều sâu dự phòng khi không dò thấy hậu (mm)</label><input id="fallback_depth" type="number" step="0.1"></div>
         <div class="field wide"><label>Hướng tạo</label><div class="modes"><label><input type="radio" name="orientation" value="vertical"> Dọc</label><label><input type="radio" name="orientation" value="horizontal"> Ngang</label></div></div>
         <div class="field wide"><label>Chế độ tấm đáy</label><div class="modes"><label><input type="radio" name="bottom_mode" value="cover"> Phủ 4 cạnh ngoài</label><label><input type="radio" name="bottom_mode" value="custom"> Tùy chỉnh offset</label></div></div>
+        <div class="field wide"><label>Đánh dấu tiếp diện</label><div class="modes"><label><input id="mark_contact" type="checkbox"> Đánh dấu biên thanh giao nhau với tấm đáy</label></div></div>
         </div><button onclick="applyNow()">ÁP DỤNG - CẬP NHẬT PREVIEW</button><div id="msg"></div><div class="note">Tịnh tiến chỉ nâng tấm đáy; 4 thanh giữ nguyên. Click trong model sau khi chỉnh xong để tạo thật.</div>
         <script>
         const initial=#{json};
         Object.keys(initial).forEach(k=>{const el=document.getElementById(k);if(el)el.value=initial[k]});
         document.querySelector(`input[name=orientation][value="${initial.orientation}"]`).checked=true;
         document.querySelector(`input[name=bottom_mode][value="${initial.bottom_mode}"]`).checked=true;
+        document.getElementById('mark_contact').checked=initial.mark_contact===true||initial.mark_contact==='true';
         function value(id){return document.getElementById(id).value}
-        function applyNow(){const data={};['side_height','rail_gap','bottom_clearance','back_clearance','quantity','front_gap','bottom_thickness','side_thickness','bottom_offset','bottom_shift','fallback_depth'].forEach(k=>data[k]=value(k));data.orientation=document.querySelector('input[name=orientation]:checked').value;data.bottom_mode=document.querySelector('input[name=bottom_mode]:checked').value;sketchup.apply(JSON.stringify(data))}
+        function applyNow(){const data={};['side_height','rail_gap','bottom_clearance','back_clearance','quantity','front_gap','bottom_thickness','side_thickness','bottom_offset','bottom_shift','fallback_depth'].forEach(k=>data[k]=value(k));data.orientation=document.querySelector('input[name=orientation]:checked').value;data.bottom_mode=document.querySelector('input[name=bottom_mode]:checked').value;data.mark_contact=document.getElementById('mark_contact').checked;sketchup.apply(JSON.stringify(data))}
+        function syncContact(){const custom=document.querySelector('input[name=bottom_mode]:checked').value==='custom';const mark=document.getElementById('mark_contact');mark.disabled=!custom;if(!custom)mark.checked=false;applyNow()}
+        document.querySelectorAll('input[name=bottom_mode]').forEach(el=>el.addEventListener('change',syncContact));
+        document.getElementById('mark_contact').addEventListener('change',applyNow);
+        document.getElementById('mark_contact').disabled=initial.bottom_mode!=='custom';
+        if(initial.bottom_mode!=='custom')document.getElementById('mark_contact').checked=false;
         function notice(text,bad){const e=document.getElementById('msg');e.textContent=text;e.style.color=bad?'#ff6767':'#67d78a'}
         </script></body></html>
       HTML
@@ -102,6 +116,7 @@ module TranTuanNoiThat
       BOTTOM_COLOR = Sketchup::Color.new(145, 215, 255, 105)
       RAIL_COLOR = Sketchup::Color.new(255, 145, 45, 90)
       EDGE_COLOR = Sketchup::Color.new(225, 88, 0, 255)
+      CONTACT_COLOR = Sketchup::Color.new(0, 255, 135, 255)
 
       attr_reader :options
 
@@ -180,13 +195,22 @@ module TranTuanNoiThat
         @ip.draw(view) if @ip.display?
         @ip1.draw(view) if @state > 0 && @ip1.display?
         return unless valid_front?
-        preview_parts.each do |part|
+        parts = preview_parts
+        parts.each do |part|
           points = box_points(*part[:box])
           view.drawing_color = part[:bottom] ? BOTTOM_COLOR : RAIL_COLOR
           box_faces(points).each { |face| view.draw(GL_QUADS, face) }
           view.drawing_color = EDGE_COLOR
           view.line_width = 1
           view.draw(GL_LINES, box_lines(points))
+        end
+        if @options['bottom_mode'] == 'custom' && @options['mark_contact']
+          lines = contact_lines(parts)
+          unless lines.empty?
+            view.drawing_color = CONTACT_COLOR
+            view.line_width = 4
+            view.draw(GL_LINES, lines)
+          end
         end
       end
 
@@ -304,6 +328,32 @@ module TranTuanNoiThat
 
       def box_lines(p)
         [[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]].flat_map { |a,b| [p[a],p[b]] }
+      end
+
+      def contact_lines(parts)
+        bottoms = parts.select { |part| part[:bottom] }
+        rails = parts.reject { |part| part[:bottom] }
+        lines = []
+        tolerance = 0.2.mm
+
+        bottoms.each do |bottom|
+          bx, by, bz, bw, bd, bh = bottom[:box]
+          rails.each do |rail|
+            rx, ry, rz, rw, rd, rh = rail[:box]
+            x0 = [bx, rx].max; x1 = [bx + bw, rx + rw].min
+            y0 = [by, ry].max; y1 = [by + bd, ry + rd].min
+            next unless x1 - x0 > tolerance && y1 - y0 > tolerance
+            next unless bz <= rz + rh + tolerance && bz + bh >= rz - tolerance
+
+            z = [[bz + bh, rz].min, [bz, rz].max].max
+            p0 = Geom::Point3d.new(x0, y0, z)
+            p1 = Geom::Point3d.new(x1, y0, z)
+            p2 = Geom::Point3d.new(x1, y1, z)
+            p3 = Geom::Point3d.new(x0, y1, z)
+            lines.concat([p0,p1,p1,p2,p2,p3,p3,p0])
+          end
+        end
+        lines
       end
 
       def add_panel(parent, part)
