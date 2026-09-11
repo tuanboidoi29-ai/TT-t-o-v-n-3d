@@ -45,6 +45,8 @@ module TranTuanNoiThat
         @state = 0
         @direction = 1
         @base = @normal = @axes = @face_axes = nil
+        @plane_mode = :auto
+        @auto_axes = nil
         @plane_label = 'TỰ ĐỘNG'
         @sx = @sy = nil
         @ip.clear
@@ -77,6 +79,7 @@ module TranTuanNoiThat
           @face_axes = axes_from_face(@ip)
           if @face_axes
             @axes = @face_axes
+            @plane_mode = :face
             @plane_label = plane_name(@axes)
           end
           @sx, @sy = x, y
@@ -105,6 +108,8 @@ module TranTuanNoiThat
           when KEY_DOWN
             @axes = nil
             @face_axes = nil
+            @plane_mode = :auto
+            @auto_axes = nil
             @plane_label = 'TỰ ĐỘNG'
           else
             return
@@ -188,9 +193,8 @@ module TranTuanNoiThat
         origin = @ip1.position
         delta = @ip.valid? ? origin.vector_to(@ip.position) : nil
         candidate_axes = choose_axes(delta, view)
-        @axes ||= candidate_axes if @sx && Math.hypot(x - @sx, y - @sy) >= 8
-        axes = @axes || candidate_axes
-        @plane_label = plane_name(axes) if @axes.nil?
+        axes = (@plane_mode == :auto ? candidate_axes : @axes) || candidate_axes
+        @plane_label = "TỰ ĐỘNG - #{plane_name(axes)}" if @plane_mode == :auto
         normal = axes[0].cross(axes[1])
         point = nil
         if @ip.valid?
@@ -210,11 +214,35 @@ module TranTuanNoiThat
       end
 
       def choose_axes(delta, view)
-        return @face_axes if @face_axes
+        return @axes if @plane_mode != :auto && @axes
+
+        # Khi P2 đang bắt trên Face, chính Face đó là chỉ dẫn hướng đáng tin cậy nhất.
+        point_face_axes = axes_from_face(@ip) if @ip && @ip.valid?
+        if point_face_axes && delta && delta.length > 2.mm
+          @auto_axes = point_face_axes
+          return @auto_axes
+        end
+
         list = [X_AXIS, Y_AXIS, Z_AXIS]
-        return list.sort_by { |axis| -delta.dot(axis).abs }.first(2) if delta && delta.length > 0.1.mm
+        if delta && delta.length > 0.1.mm
+          values = list.map { |axis| delta.dot(axis).abs }
+          candidates = [
+            [[X_AXIS, Y_AXIS], values[0] + values[1]],
+            [[X_AXIS, Z_AXIS], values[0] + values[2]],
+            [[Y_AXIS, Z_AXIS], values[1] + values[2]]
+          ].sort_by { |item| -item[1] }
+
+          best_axes, best_score = candidates[0]
+          if @auto_axes
+            current = candidates.find { |item| plane_name(item[0]) == plane_name(@auto_axes) }
+            # Giữ hướng hiện tại nếu chênh lệch dưới 15% để chống đảo hướng/rung.
+            return @auto_axes if current && current[1] >= best_score * 0.85
+          end
+          @auto_axes = best_axes
+          return @auto_axes
+        end
         n = list.max_by { |axis| view.camera.direction.dot(axis).abs }
-        list.reject { |axis| axis.parallel?(n) }
+        @auto_axes = list.reject { |axis| axis.parallel?(n) }
       end
 
       def axes_from_face(input_point)
@@ -237,6 +265,7 @@ module TranTuanNoiThat
       def lock_plane(axes, label)
         @axes = axes
         @face_axes = axes
+        @plane_mode = :manual
         @plane_label = label
       end
 
