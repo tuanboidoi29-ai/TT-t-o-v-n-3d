@@ -277,7 +277,7 @@ module TranTuanNoiThat
           { name: "THANH_TRAI#{tag}", box: [x0, y0, rail_z, thick, y1-y0, side_h] },
           { name: "THANH_PHAI#{tag}", box: [x1-thick, y0, rail_z, thick, y1-y0, side_h] },
           { name: "THANH_TRUOC#{tag}", box: [x0+thick, y0, rail_z, x1-x0-thick*2, thick, front_h] },
-          { name: "THANH_HAU#{tag}", box: [x0+thick, y1-thick, rail_z, x1-x0-thick*2, thick, side_h] }
+          { name: "THANH_SAU#{tag}", box: [x0+thick, y1-thick, rail_z, x1-x0-thick*2, thick, side_h] }
         ]
         inset = @options['bottom_mode'] == 'custom' ? @options['bottom_offset'].mm : 0
         bx0, bx1 = x0 + inset, x1 - inset

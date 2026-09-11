@@ -1,10 +1,10 @@
-TRẦN TUẤN NỘI THẤT v1.2.0
+TRẦN TUẤN NỘI THẤT v1.2.1
 Creator: TRẦN TUẤN
 Tương thích: SketchUp 2021–2025
 
 CÀI ĐẶT
 1. Mở Extension Manager > Install Extension.
-2. Chọn TRAN_TUAN_NOI_THAT_V1.2.0.rbz.
+2. Chọn TRAN_TUAN_NOI_THAT_V1.2.1.rbz.
 3. Mở toolbar TRẦN TUẤN NỘI THẤT nếu toolbar chưa hiện.
 
 VẼ VÁN
