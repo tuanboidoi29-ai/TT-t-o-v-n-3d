@@ -200,9 +200,11 @@ module TranTuanNoiThat
         b = origin.offset(vb.normalize, tangent)
         arc = arc_points(origin, a, b, face.normal, radius, angle)
         points = [origin, a] + arc[1..-2] + [b]
+        owner = face.parent
+        entities = owner.respond_to?(:entities) ? owner.entities : owner
         { face: face, vertex: vertex, local_points: points, world_points: points.map { |p| p.transform(tr) },
           world_vertex: origin.transform(tr), valid: valid, normal: face.normal,
-          entities: face.parent, transformation: tr }
+          entities: entities, transformation: tr }
       rescue StandardError
         nil
       end
