@@ -128,6 +128,7 @@ module TranTuanNoiThat
         @options = Drawer.normalize(options)
         @ip = Sketchup::InputPoint.new
         @ip1 = Sketchup::InputPoint.new
+        @ip2 = Sketchup::InputPoint.new
         reset
       end
 
@@ -137,7 +138,8 @@ module TranTuanNoiThat
 
       def reset
         @state = 0
-        @p1 = @p2 = nil
+        @manual_mode = false
+        @p1 = @p2 = @p3 = nil
         @origin = @axis_u = @axis_v = @surface_normal = nil
         @span_u = @span_v = nil
         @depth_axis = Y_AXIS
@@ -148,10 +150,10 @@ module TranTuanNoiThat
       def update_options(values)
         old_reverse = @options['reverse_depth']
         @options = Drawer.normalize(values)
-        if @state == 2 && old_reverse != @options['reverse_depth']
+        if ready? && old_reverse != @options['reverse_depth']
           @depth_axis = @depth_axis.reverse
         end
-        @depth_length = @options['fallback_depth'].mm if @state < 2 || !@rear_detected
+        @depth_length = @options['fallback_depth'].mm unless ready? && @rear_detected
         Sketchup.active_model.active_view.invalidate
         status
       end
@@ -161,8 +163,21 @@ module TranTuanNoiThat
           @ip.pick(view, x, y)
         elsif @state == 1
           @ip.pick(view, x, y, @ip1)
-          update_second_point(@ip.position) if @ip.valid?
-          analyze_depth(view) if valid_front?
+          if @ip.valid?
+            if @manual_mode
+              @p2 = @ip.position
+            else
+              update_second_point(@ip.position)
+              analyze_depth(view) if valid_front?
+            end
+          end
+        elsif @state == 2 && @manual_mode
+          @ip.pick(view, x, y, @ip2)
+          if @ip.valid?
+            @p3 = @ip.position
+            setup_manual_axes(@p1, @p2, @p3)
+            analyze_depth(view) if valid_front?
+          end
         end
         view.tooltip = @ip.tooltip if @ip.valid?
         view.invalidate
@@ -172,19 +187,36 @@ module TranTuanNoiThat
         if @state.zero?
           @ip.pick(view, x, y)
           return UI.beep unless @ip.valid?
-          unless setup_face_axes(@ip)
-            UI.messagebox('P1 phải nằm trên một mặt tủ (Face).')
-            return
-          end
           @ip1.copy!(@ip)
           @p1 = @ip.position
+          if setup_face_axes(@ip)
+            @manual_mode = false
+          else
+            @manual_mode = true
+            clear_axes
+          end
           @state = 1
         elsif @state == 1
           @ip.pick(view, x, y, @ip1)
-          update_second_point(@ip.position) if @ip.valid?
-          return UI.beep unless valid_front?
+          return UI.beep unless @ip.valid?
+          if @manual_mode
+            @p2 = @ip.position
+            return UI.beep unless @p1.distance(@p2) > 1.mm
+            @ip2.copy!(@ip)
+            @state = 2
+          else
+            update_second_point(@ip.position)
+            return UI.beep unless valid_front?
+            analyze_depth(view)
+            @state = 3
+          end
+        elsif @state == 2 && @manual_mode
+          @ip.pick(view, x, y, @ip2)
+          return UI.beep unless @ip.valid?
+          @p3 = @ip.position
+          return UI.beep unless setup_manual_axes(@p1, @p2, @p3) && valid_front?
           analyze_depth(view)
-          @state = 2
+          @state = 3
         else
           return UI.beep if preview_parts.empty?
           create_drawers
@@ -195,7 +227,7 @@ module TranTuanNoiThat
       end
 
       def onKeyDown(key, _repeat, _flags, view)
-        return unless key == TAB && @state == 2
+        return unless key == TAB && ready?
         Drawer.show_settings(self)
         view.invalidate
       end
@@ -208,6 +240,12 @@ module TranTuanNoiThat
       def draw(view)
         @ip.draw(view) if @ip.display?
         @ip1.draw(view) if @state > 0 && @ip1.display?
+        @ip2.draw(view) if @manual_mode && @state > 1 && @ip2.display?
+        if @manual_mode && @state == 1 && @p1 && @p2
+          view.drawing_color = EDGE_COLOR
+          view.line_width = 2
+          view.draw(GL_LINES, [@p1, @p2])
+        end
         return unless valid_front?
         parts = preview_parts
         parts.each do |part|
@@ -236,6 +274,15 @@ module TranTuanNoiThat
       end
 
       private
+
+      def ready?
+        @state >= 3
+      end
+
+      def clear_axes
+        @origin = @axis_u = @axis_v = @surface_normal = nil
+        @span_u = @span_v = nil
+      end
 
       def valid_front?
         @origin && @axis_u && @axis_v && @span_u && @span_v &&
@@ -266,6 +313,40 @@ module TranTuanNoiThat
         @depth_axis = normal
         true
       rescue StandardError
+        false
+      end
+
+      def setup_manual_axes(point1, point2, point3)
+        axis_u = point1.vector_to(point2)
+        return false unless axis_u.valid? && axis_u.length > 1.mm
+        axis_u.normalize!
+
+        raw = point1.vector_to(point3)
+        dot = raw.dot(axis_u)
+        axis_v = Geom::Vector3d.new(
+          raw.x - axis_u.x * dot,
+          raw.y - axis_u.y * dot,
+          raw.z - axis_u.z * dot
+        )
+        return false unless axis_v.valid? && axis_v.length > 1.mm
+        axis_v.normalize!
+
+        normal = axis_u.cross(axis_v)
+        return false unless normal.valid? && normal.length > 0.01
+        normal.normalize!
+
+        @origin = point1
+        @p2 = point2
+        @p3 = point3
+        @axis_u = axis_u
+        @axis_v = axis_v
+        @surface_normal = normal
+        @span_u = point1.vector_to(point2).dot(axis_u)
+        @span_v = point1.vector_to(point3).dot(axis_v)
+        @depth_axis = normal
+        true
+      rescue StandardError
+        clear_axes
         false
       end
 
@@ -501,9 +582,14 @@ module TranTuanNoiThat
 
       def status
         Sketchup.status_text = case @state
-        when 0 then 'VẼ NGĂN KÉO: Click P1 trên một mặt tủ bất kỳ.'
-        when 1 then 'Click P2 trên mặt tủ để khóa vùng và xem preview.'
-        else 'TAB mở cài đặt | Click tạo ngăn kéo | ESC vẽ lại.'
+        when 0
+          'VẼ NGĂN KÉO: Click P1. Có Face sẽ tự nhận mặt tủ; không có Face sẽ chuyển sang bắt 3 điểm.'
+        when 1
+          @manual_mode ? 'BẮT 3 ĐIỂM: Click P2 xác định chiều ngang.' : 'Click P2 trên mặt tủ để khóa vùng và xem preview.'
+        when 2
+          'BẮT 3 ĐIỂM: Click P3 xác định chiều cao và mặt phẳng ngăn kéo.'
+        else
+          'TAB mở cài đặt | Click tạo ngăn kéo | ESC vẽ lại.'
         end
       end
     end
