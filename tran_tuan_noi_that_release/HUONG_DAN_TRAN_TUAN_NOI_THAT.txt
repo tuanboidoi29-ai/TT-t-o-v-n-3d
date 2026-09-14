@@ -1,10 +1,10 @@
-TRẦN TUẤN NỘI THẤT v1.6.0
+TRẦN TUẤN NỘI THẤT v1.6.1
 Creator: TRẦN TUẤN
 Tương thích: SketchUp 2021–2025
 
 CÀI ĐẶT
 1. Mở Extension Manager > Install Extension.
-2. Chọn TRAN_TUAN_NOI_THAT_V1.6.0.rbz.
+2. Chọn TRAN_TUAN_NOI_THAT_V1.6.1.rbz.
 3. Mở toolbar TRẦN TUẤN NỘI THẤT nếu toolbar chưa hiện.
 
 VẼ VÁN
@@ -38,10 +38,12 @@ BO CONG KHỐI
 2. Bảng màu cam hiển thị CUNG LỒI và CUNG LÕM; nhấn TAB để đổi nhanh.
 3. Di chuột sát đỉnh của Group/Component để xem preview màu cam.
 4. Gõ trực tiếp bán kính R rồi Enter, hoặc nhập tại bảng; preview cập nhật ngay.
-5. Độ mịn cung cho phép 4–96 đoạn, tự lưu cho lần sử dụng sau.
-6. Công cụ tự đi vào Group/Component lồng nhiều cấp, không cần Explode.
-7. Click đỉnh hợp lệ để cắt tới mặt đối diện và nối kín toàn bộ mặt cong.
-8. Nếu biên chưa kín, thao tác tự hủy; Ctrl+Z hoàn tác trọn một lần bo cong.
+5. Độ mịn cung cho phép 4–96 đoạn; bấm LƯU CÀI ĐẶT để dùng lại lần sau.
+6. Chỉ giữ đường biên ngoài; đường chia giữa cung được Soft, Smooth và Hidden.
+7. Công cụ tự đi vào Group/Component lồng nhiều cấp, không cần Explode.
+8. Vùng bắt đỉnh 24 px giúp chọn góc nhạy hơn.
+9. Click đỉnh hợp lệ để cắt tới mặt đối diện và nối kín toàn bộ mặt cong.
+10. Nếu biên chưa kín, thao tác tự hủy; Ctrl+Z hoàn tác trọn một lần bo cong.
 
 CÀI ĐẶT CHUNG
 - Độ dày ván mặc định.

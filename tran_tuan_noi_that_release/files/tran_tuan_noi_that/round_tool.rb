@@ -9,6 +9,7 @@ module TranTuanNoiThat
     DEFAULT_SEGMENTS = 24
     MIN_SEGMENTS = 4
     MAX_SEGMENTS = 96
+    SNAP_PIXELS = 24
 
     def activate
       saved = TranTuanNoiThat.setting('round_radius', nil)
@@ -25,13 +26,14 @@ module TranTuanNoiThat
       @palette.close if @palette && @palette.visible?
       @palette = UI::HtmlDialog.new(
         dialog_title: 'BO CONG KHỐI', preferences_key: 'TranTuanNoiThat.Round',
-        scrollable: false, resizable: false, width: 360, height: 245,
+        scrollable: false, resizable: false, width: 360, height: 300,
         style: UI::HtmlDialog::STYLE_UTILITY
       )
       @palette.set_html(palette_html(tool.mode, tool.radius.to_mm, tool.segments))
       @palette.add_action_callback('set_mode') { |_c, value| tool.set_mode(value.to_s == 'concave' ? :concave : :convex) }
       @palette.add_action_callback('set_radius') { |_c, value| tool.set_radius_mm(value.to_f) }
       @palette.add_action_callback('set_segments') { |_c, value| tool.set_segments(value.to_i) }
+      @palette.add_action_callback('save_settings') { |_c| tool.save_settings; @palette.execute_script("saved()") }
       @palette.add_action_callback('close_tool') { |_c| Sketchup.active_model.select_tool(nil) }
       @palette.set_on_closed { @palette = nil }
       @palette.show
@@ -55,18 +57,20 @@ module TranTuanNoiThat
         button{padding:12px 6px;border:2px solid #f47b20;border-radius:8px;background:#3a2a20;color:#ffb06b;font-weight:bold;cursor:pointer}
         button.active{background:#f47b20;color:#fff}.row{display:flex;align-items:center;gap:9px;margin-top:14px}
         input{min-width:0;flex:1;padding:9px;border:1px solid #f47b20;border-radius:6px;background:#171717;color:#fff}
-        .hint{margin-top:12px;color:#ccc;font-size:12px;line-height:1.45}.close{margin-top:10px;width:100%;padding:7px;background:#333;border-color:#555}
+        .hint{margin-top:12px;color:#ccc;font-size:12px;line-height:1.45}.save,.close{margin-top:9px;width:100%;padding:8px}.save{background:#f47b20;color:#fff}.close{background:#333;border-color:#555}
         </style></head><body><h3>BO CONG KHỐI</h3><div class="modes">
         <button id="convex" onclick="mode('convex')">CUNG LỒI</button><button id="concave" onclick="mode('concave')">CUNG LÕM</button></div>
         <div class="row"><b>Bán kính R</b><input id="radius" type="number" min="0.1" step="0.1" value="#{radius}" onchange="radius()"><span>mm</span></div>
         <div class="row"><b>Độ mịn cung</b><input id="segments" type="number" min="4" max="96" step="1" value="#{segments}" onchange="segments()"><span>đoạn</span></div>
-        <div class="hint">TAB: đổi chế độ · Gõ số: nhập trực tiếp bán kính R<br>Độ mịn 4–96 đoạn được tự động lưu.</div>
+        <div id="hint" class="hint">TAB: đổi chế độ · Các đường chia giữa cung sẽ được làm mịn và ẩn.</div>
+        <button class="save" onclick="sketchup.save_settings()">LƯU CÀI ĐẶT</button>
         <button class="close" onclick="sketchup.close_tool()">ĐÓNG</button>
         <script>
         function mode(v){sketchup.set_mode(v)}
         function radius(){sketchup.set_radius(document.getElementById('radius').value)}
         function segments(){sketchup.set_segments(document.getElementById('segments').value)}
         function syncState(m,r,s){document.getElementById('convex').classList.toggle('active',m==='convex');document.getElementById('concave').classList.toggle('active',m==='concave');document.getElementById('radius').value=Number(r).toFixed(1);document.getElementById('segments').value=s}
+        function saved(){const h=document.getElementById('hint');h.textContent='Đã lưu bán kính, độ mịn và chế độ.';h.style.color='#75e889'}
         syncState(#{JSON.generate(mode.to_s)},#{radius},#{segments});
         </script></body></html>
       HTML
@@ -100,15 +104,17 @@ module TranTuanNoiThat
       end
 
       def onMouseMove(_flags, x, y, view)
+        @last_view, @last_x, @last_y = view, x, y
         @ip.pick(view, x, y)
-        @candidate = build_candidate(@ip)
+        @candidate = build_candidate(@ip) || nearby_candidate(view, x, y)
         view.tooltip = @candidate ? "#{label} - R#{fmt_mm(@radius)} mm" : 'Đưa chuột sát một đỉnh của Group/Component'
         view.invalidate
       end
 
       def onLButtonDown(_flags, x, y, view)
+        @last_view, @last_x, @last_y = view, x, y
         @ip.pick(view, x, y)
-        @candidate = build_candidate(@ip)
+        @candidate = build_candidate(@ip) || nearby_candidate(view, x, y)
         return UI.beep unless @candidate && @candidate[:valid]
         apply_round(@candidate)
         @candidate = nil
@@ -127,7 +133,7 @@ module TranTuanNoiThat
         if length && length > 0
           @radius = length
           TranTuanNoiThat.save_setting('round_radius', @radius.to_mm)
-          @candidate = build_candidate(@ip)
+          @candidate = refresh_candidate
           Round.sync_palette(@mode, @radius, @segments)
           update_status
           view.invalidate
@@ -146,7 +152,7 @@ module TranTuanNoiThat
       def set_mode(value)
         @mode = value
         TranTuanNoiThat.save_setting('round_mode', @mode.to_s)
-        @candidate = build_candidate(@ip)
+        @candidate = refresh_candidate
         Round.sync_palette(@mode, @radius, @segments)
         update_status
         Sketchup.active_model.active_view.invalidate
@@ -156,7 +162,7 @@ module TranTuanNoiThat
         return UI.beep unless value > 0
         @radius = value.mm
         TranTuanNoiThat.save_setting('round_radius', value)
-        @candidate = build_candidate(@ip)
+        @candidate = refresh_candidate
         Round.sync_palette(@mode, @radius, @segments)
         update_status
         Sketchup.active_model.active_view.invalidate
@@ -165,9 +171,15 @@ module TranTuanNoiThat
       def set_segments(value)
         @segments = [[value.to_i, Round::MIN_SEGMENTS].max, Round::MAX_SEGMENTS].min
         TranTuanNoiThat.save_setting('round_segments', @segments)
-        @candidate = build_candidate(@ip)
+        @candidate = refresh_candidate
         Round.sync_palette(@mode, @radius, @segments)
         Sketchup.active_model.active_view.invalidate
+      end
+
+      def save_settings
+        TranTuanNoiThat.save_setting('round_radius', @radius.to_mm)
+        TranTuanNoiThat.save_setting('round_segments', @segments)
+        TranTuanNoiThat.save_setting('round_mode', @mode.to_s)
       end
 
       def draw(view)
@@ -193,16 +205,61 @@ module TranTuanNoiThat
 
       private
 
+      def refresh_candidate
+        direct = build_candidate(@ip)
+        return direct if direct
+        return nil unless @last_view && @last_x && @last_y
+        nearby_candidate(@last_view, @last_x, @last_y)
+      end
+
       def build_candidate(ip)
         return nil unless ip.valid? && ip.vertex
         model = Sketchup.active_model
-        tr = ip.transformation || model.edit_transform
-        face = pick_face(ip, tr)
+        transformation = ip.transformation || model.edit_transform
+        build_candidate_from(ip.vertex, ip.face, transformation)
+      rescue StandardError
+        nil
+      end
+
+      def nearby_candidate(view, x, y)
+        helper = view.pick_helper
+        helper.do_pick(x, y, Round::SNAP_PIXELS)
+        best = nil
+        (0...helper.count).each do |index|
+          leaf = helper.leaf_at(index)
+          transformation = helper.transformation_at(index)
+          vertices =
+            if leaf.is_a?(Sketchup::Vertex)
+              [leaf]
+            elsif leaf.is_a?(Sketchup::Edge)
+              leaf.vertices
+            elsif leaf.is_a?(Sketchup::Face)
+              leaf.vertices
+            else
+              []
+            end
+          vertices.each do |vertex|
+            world = vertex.position.transform(transformation)
+            screen = view.screen_coords(world)
+            distance = Math.sqrt((screen.x - x)**2 + (screen.y - y)**2)
+            next if distance > Round::SNAP_PIXELS
+            direct_face = leaf.is_a?(Sketchup::Face) ? leaf : nil
+            item = [distance, vertex, direct_face, transformation]
+            best = item if best.nil? || distance < best[0]
+          end
+        end
+        return nil unless best
+        build_candidate_from(best[1], best[2], best[3])
+      rescue StandardError
+        nil
+      end
+
+      def build_candidate_from(vertex, direct_face, transformation)
+        face = pick_face(vertex, direct_face, transformation)
         return nil unless face && face.valid?
         vertices = face.outer_loop.vertices
-        index = vertices.index(ip.vertex)
+        index = vertices.index(vertex)
         return nil unless index
-        vertex = vertices[index]
         prev_point = vertices[(index - 1) % vertices.length].position
         next_point = vertices[(index + 1) % vertices.length].position
         origin = vertex.position
@@ -210,28 +267,26 @@ module TranTuanNoiThat
         vb = next_point - origin
         return nil if va.length < 0.001 || vb.length < 0.001
         angle = va.angle_between(vb)
-        radius = @radius
-        tangent = @mode == :convex ? radius / Math.tan(angle / 2.0) : radius
-        valid = angle > 0.02 && angle < Math::PI - 0.02 && tangent > 0 && tangent < va.length * 0.98 && tangent < vb.length * 0.98
+        tangent = @mode == :convex ? @radius / Math.tan(angle / 2.0) : @radius
+        valid = angle > 0.02 && angle < Math::PI - 0.02 && tangent > 0 &&
+                tangent < va.length * 0.98 && tangent < vb.length * 0.98
         tangent = [tangent, va.length * 0.95, vb.length * 0.95].min unless valid
         a = origin.offset(va.normalize, tangent)
         b = origin.offset(vb.normalize, tangent)
-        arc = arc_points(origin, a, b, face.normal, radius, angle)
+        arc = arc_points(origin, a, b, face.normal, @radius, angle)
         points = [origin, a] + arc[1..-2] + [b]
         owner = face.parent
         entities = owner.respond_to?(:entities) ? owner.entities : owner
-        { face: face, vertex: vertex, local_points: points, world_points: points.map { |p| p.transform(tr) },
-          world_vertex: origin.transform(tr), valid: valid, normal: face.normal,
-          entities: entities, transformation: tr }
+        { face: face, vertex: vertex, local_points: points,
+          world_points: points.map { |point| point.transform(transformation) },
+          world_vertex: origin.transform(transformation), valid: valid, normal: face.normal,
+          entities: entities, transformation: transformation }
       rescue StandardError
         nil
       end
 
-      def pick_face(ip, transformation)
-        vertex = ip.vertex
-        direct = ip.face
-        return direct if direct && direct.valid? && direct.vertices.include?(vertex)
-
+      def pick_face(vertex, direct_face, transformation)
+        return direct_face if direct_face && direct_face.valid? && direct_face.vertices.include?(vertex)
         camera_direction = Sketchup.active_model.active_view.camera.direction
         vertex.faces.select(&:valid?).max_by do |face|
           world_normal = face.normal.transform(transformation).normalize
@@ -280,6 +335,7 @@ module TranTuanNoiThat
         raise 'Không tìm thấy mặt đối diện để nối kín khối.' unless push_distance && push_distance.abs > 0.1.mm
         cut_face.pushpull(push_distance)
         heal_arc_boundaries(entities, data[:local_points][1..-1], data[:normal], push_distance)
+        smooth_internal_edges(entities, data[:local_points][1..-1], data[:normal], push_distance)
         verify_closed_round(entities, data[:local_points][1..-1], data[:normal], push_distance)
         model.commit_operation
       rescue StandardError => error
@@ -329,6 +385,27 @@ module TranTuanNoiThat
           next false unless face.valid?
           state = face.classify_point(center)
           [Sketchup::Face::PointInside, Sketchup::Face::PointOnEdge, Sketchup::Face::PointOnVertex].include?(state)
+        end
+      end
+
+      def smooth_internal_edges(entities, top_arc, normal, push_distance)
+        top_arc[1...-1].each do |top_point|
+          bottom_point = top_point.offset(normal, push_distance)
+          edge = find_edge(entities, top_point, bottom_point)
+          next unless edge && edge.valid?
+          edge.soft = true
+          edge.smooth = true
+          edge.hidden = true
+        end
+      end
+
+      def find_edge(entities, point_a, point_b)
+        tolerance = 0.01.mm
+        entities.grep(Sketchup::Edge).find do |edge|
+          a = edge.start.position
+          b = edge.end.position
+          (a.distance(point_a) < tolerance && b.distance(point_b) < tolerance) ||
+            (a.distance(point_b) < tolerance && b.distance(point_a) < tolerance)
         end
       end
 
