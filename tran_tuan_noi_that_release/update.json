@@ -1,19 +1,19 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.6.1",
+  "version": "1.6.2",
   "channel": "stable",
-  "notes": "Bo Cong thêm nút Lưu Cài Đặt, ẩn/Soft/Smooth các đường chia giữa cung và tăng vùng bắt đỉnh lên 24 px.",
-  "rbz_url": "https://github.com/tuanboidoi29-ai/TT-t-o-v-n-3d/raw/main/tran_tuan_noi_that_release/TRAN_TUAN_NOI_THAT_V1.6.1.rbz",
+  "notes": "Sửa ẩn đường chia cung: nhận diện các cạnh mới theo chiều dày, giữ nguyên hai biên đầu/cuối.",
+  "rbz_url": "https://github.com/tuanboidoi29-ai/TT-t-o-v-n-3d/raw/main/tran_tuan_noi_that_release/TRAN_TUAN_NOI_THAT_V1.6.2.rbz",
   "files": [
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/files/TranTuanNoiThat.rb",
-      "sha256": "59a8c752bb16223cbfcd01ff7a1d31c2fac11f8dfea36ca236e7bcde345f0586"
+      "sha256": "56b4547470b0ef1eb0cbfb29cb0b368d5c614188e985e91fcae9ba34a0fdb8c8"
     },
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "4d3f01c066564310433bfda23a2a92941dc4a602adf420aed1b1edcf2481131c"
+      "sha256": "b1477ead5fb4cd16b582adcd9e9cd9245269f9cc77da91b57a51346473064fb6"
     },
     {
       "path": "tran_tuan_noi_that/board_tool.rb",
@@ -33,7 +33,7 @@
     {
       "path": "tran_tuan_noi_that/round_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/files/tran_tuan_noi_that/round_tool.rb",
-      "sha256": "772f33cae6eb83147f6f0c8778309379e4a43a82d6bc04727e686f4ee935f7e4"
+      "sha256": "99f61ba9b3b4a718251e13c28829682266fb238855f6625023f4eedbaf1605d8"
     },
     {
       "path": "tran_tuan_noi_that/settings.rb",

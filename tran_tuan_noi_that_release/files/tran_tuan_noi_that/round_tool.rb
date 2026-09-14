@@ -325,6 +325,7 @@ module TranTuanNoiThat
         entities = data[:entities]
         model.start_operation("TRẦN TUẤN - #{label}", true)
         before = entities.grep(Sketchup::Face)
+        edges_before = entities.grep(Sketchup::Edge)
         curve = data[:local_points][1..-1]
         entities.add_edges(curve)
         candidates = data[:vertex].faces.select { |f| f.valid? && f.normal.parallel?(data[:normal]) }
@@ -335,7 +336,7 @@ module TranTuanNoiThat
         raise 'Không tìm thấy mặt đối diện để nối kín khối.' unless push_distance && push_distance.abs > 0.1.mm
         cut_face.pushpull(push_distance)
         heal_arc_boundaries(entities, data[:local_points][1..-1], data[:normal], push_distance)
-        smooth_internal_edges(entities, data[:local_points][1..-1], data[:normal], push_distance)
+        smooth_internal_edges(entities, edges_before, data[:local_points][1..-1], data[:normal])
         verify_closed_round(entities, data[:local_points][1..-1], data[:normal], push_distance)
         model.commit_operation
       rescue StandardError => error
@@ -388,24 +389,21 @@ module TranTuanNoiThat
         end
       end
 
-      def smooth_internal_edges(entities, top_arc, normal, push_distance)
-        top_arc[1...-1].each do |top_point|
-          bottom_point = top_point.offset(normal, push_distance)
-          edge = find_edge(entities, top_point, bottom_point)
-          next unless edge && edge.valid?
+      def smooth_internal_edges(entities, edges_before, top_arc, normal)
+        seam_points = [top_arc.first, top_arc.last]
+        entities.grep(Sketchup::Edge).each do |edge|
+          next unless edge.valid?
+          next if edges_before.include?(edge)
+          direction = edge.end.position - edge.start.position
+          next unless direction.valid? && direction.parallel?(normal)
+          on_seam = seam_points.any? do |point|
+            edge.start.position.distance_to_line([point, normal]) < 0.5.mm &&
+              edge.end.position.distance_to_line([point, normal]) < 0.5.mm
+          end
+          next if on_seam
           edge.soft = true
           edge.smooth = true
           edge.hidden = true
-        end
-      end
-
-      def find_edge(entities, point_a, point_b)
-        tolerance = 0.01.mm
-        entities.grep(Sketchup::Edge).find do |edge|
-          a = edge.start.position
-          b = edge.end.position
-          (a.distance(point_a) < tolerance && b.distance(point_b) < tolerance) ||
-            (a.distance(point_b) < tolerance && b.distance(point_a) < tolerance)
         end
       end
 
