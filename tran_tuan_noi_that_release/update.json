@@ -1,19 +1,19 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.8.6",
+  "version": "1.8.7",
   "channel": "stable",
-  "notes": "Sửa Nesting sinh thêm tấm: bỏ Group rãnh phụ, đặt Line thật ABF_RANHAM_NK ở cấp Group ngăn kéo cha.",
-  "rbz_url": "https://github.com/tuanboidoi29-ai/TT-t-o-v-n-3d/raw/main/tran_tuan_noi_that_release/TRAN_TUAN_NOI_THAT_V1.8.6.rbz",
+  "notes": "Sửa Nesting tạo hai tấm đáy và không thấy rãnh: Line ABF_RANHAM_NK đặt ngoài Group ngăn kéo, hiện rõ màu xanh.",
+  "rbz_url": "https://github.com/tuanboidoi29-ai/TT-t-o-v-n-3d/raw/main/tran_tuan_noi_that_release/TRAN_TUAN_NOI_THAT_V1.8.7.rbz",
   "files": [
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/files/TranTuanNoiThat.rb",
-      "sha256": "bbfb9c2d322adef01a3cb47f6313cb260257861f59659fb36a2688a446f4330b"
+      "sha256": "37479ca749ecc18a7c1b556aa4bd9eba54dd8524c11cf70aed73f435e95e43e5"
     },
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "c755565f937c5afa8866aa0784755124900b05d8c8fcb86f6076f60aee23f55b"
+      "sha256": "25bfafb3983e796e5c776e97b456fa36908deb6af252334fd1e48fe4e9aefdec"
     },
     {
       "path": "tran_tuan_noi_that/board_tool.rb",
@@ -28,7 +28,7 @@
     {
       "path": "tran_tuan_noi_that/drawer_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/files/tran_tuan_noi_that/drawer_tool.rb",
-      "sha256": "3cc5640ab6a31c2c7aef95dc705bda25053193ee40e5a4b9d35157e46157984c"
+      "sha256": "9dcc7d06d245f86b2203857804eb29ed403d31bbfc9c422a89e29defd787523b"
     },
     {
       "path": "tran_tuan_noi_that/round_tool.rb",

@@ -528,15 +528,19 @@ module TranTuanNoiThat
           next unless group && group.valid?
 
           points = profile[:points]
-          # Line thật đặt ở cấp Group ngăn kéo cha: không chia mặt của tấm
-          # và không tạo Group phụ khiến Nesting hiểu nhầm thành tấm mới.
+          # Line thật đặt ngoài Group ngăn kéo: không làm Group cha có hình học
+          # rời khiến Nesting hiểu khung bao thành một tấm đáy thứ hai.
           edges = []
           4.times do |index|
-            edge = parent.entities.add_line(points[index], points[(index + 1) % 4])
+            edge = model.active_entities.add_line(points[index], points[(index + 1) % 4])
             edges << edge if edge && edge.valid?
           end
           edges.each do |edge|
             edge.layer = tag
+            edge.hidden = false
+            edge.soft = false
+            edge.smooth = false
+            edge.material = Sketchup::Color.new(0, 190, 90)
             edge.set_attribute('ABF', 'loai', 'RANHAM_NK')
             edge.set_attribute('ABF', 'do_day_mm', thickness_mm)
             edge.set_attribute('TRẦN TUẤN NỘI THẤT', 'tiep_dien_tam_day', true)

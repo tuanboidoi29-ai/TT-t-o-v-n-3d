@@ -1,4 +1,4 @@
-TRẦN TUẤN NỘI THẤT v1.8.6
+TRẦN TUẤN NỘI THẤT v1.8.7
 Creator: TRẦN TUẤN
 Tương thích: SketchUp 2021–2025
 
@@ -73,3 +73,6 @@ Nếu số phiên bản đúng nhưng file thiếu/sai SHA-256, hệ thống s�
 
 SỬA NESTING
 Line ABF_RANHAM_NK nằm ở Group ngăn kéo cha, không tạo Group/tấm phụ.
+
+SỬA NESTING/RÃNH
+Line ABF_RANHAM_NK nằm ngoài Group ngăn kéo, màu xanh, không sinh tấm đáy trùng.
