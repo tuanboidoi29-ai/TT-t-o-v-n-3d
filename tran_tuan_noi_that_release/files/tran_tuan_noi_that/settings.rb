@@ -7,7 +7,7 @@ module TranTuanNoiThat
         @dialog.bring_to_front
         return
       end
-      @dialog = UI::HtmlDialog.new(dialog_title: 'TRẦN TUẤN - CÀI ĐẶT CHUNG', preferences_key: 'TranTuanNoiThat.Settings', scrollable: true, resizable: true, width: 520, height: 570, style: UI::HtmlDialog::STYLE_DIALOG)
+      @dialog = UI::HtmlDialog.new(dialog_title: 'TRẦN TUẤN - CÀI ĐẶT CHUNG', preferences_key: 'TranTuanNoiThat.Settings', scrollable: true, resizable: true, width: 540, height: 700, style: UI::HtmlDialog::STYLE_DIALOG)
       @dialog.set_file(File.join(TranTuanNoiThat::ROOT, 'ui', 'settings.html'))
       @dialog.add_action_callback('ready') { |_ctx| sync }
       @dialog.add_action_callback('save') do |_ctx, json|
@@ -17,6 +17,9 @@ module TranTuanNoiThat
         TranTuanNoiThat.save_setting('thickness', thickness)
         TranTuanNoiThat.save_setting('auto_update', !!data['auto_update'])
         TranTuanNoiThat.save_setting('update_channel', data['channel'].to_s)
+        %w[board box drawer round].each do |feature|
+          TranTuanNoiThat.save_setting("feature_#{feature}", !!data["feature_#{feature}"])
+        end
         notify('Đã lưu cài đặt chung.', 'ok')
       rescue StandardError => error
         notify(error.message, 'error')
@@ -34,7 +37,11 @@ module TranTuanNoiThat
         version: TranTuanNoiThat.current_version,
         thickness: TranTuanNoiThat.setting('thickness', 18.0),
         auto_update: TranTuanNoiThat.setting('auto_update', true),
-        channel: TranTuanNoiThat.setting('update_channel', 'stable')
+        channel: TranTuanNoiThat.setting('update_channel', 'stable'),
+        feature_board: TranTuanNoiThat.feature_enabled?(:board),
+        feature_box: TranTuanNoiThat.feature_enabled?(:box),
+        feature_drawer: TranTuanNoiThat.feature_enabled?(:drawer),
+        feature_round: TranTuanNoiThat.feature_enabled?(:round)
       }
       @dialog.execute_script("window.setSettings(#{JSON.generate(payload)})")
     end

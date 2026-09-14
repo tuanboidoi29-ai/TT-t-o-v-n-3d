@@ -1,19 +1,19 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.6.2",
+  "version": "1.7.0",
   "channel": "stable",
-  "notes": "Sửa ẩn đường chia cung: nhận diện các cạnh mới theo chiều dày, giữ nguyên hai biên đầu/cuối.",
-  "rbz_url": "https://github.com/tuanboidoi29-ai/TT-t-o-v-n-3d/raw/main/tran_tuan_noi_that_release/TRAN_TUAN_NOI_THAT_V1.6.2.rbz",
+  "notes": "Cài Đặt Chung thêm công tắc bật/tắt riêng Vẽ Ván, BOX, Ngăn Kéo và Bo Cong; áp dụng ngay không cần khởi động lại.",
+  "rbz_url": "https://github.com/tuanboidoi29-ai/TT-t-o-v-n-3d/raw/main/tran_tuan_noi_that_release/TRAN_TUAN_NOI_THAT_V1.7.0.rbz",
   "files": [
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/files/TranTuanNoiThat.rb",
-      "sha256": "56b4547470b0ef1eb0cbfb29cb0b368d5c614188e985e91fcae9ba34a0fdb8c8"
+      "sha256": "bd7febab19de6c0d019a1eb46d458f4a7795e211d4feda361d2ae03b91deb6ac"
     },
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "b1477ead5fb4cd16b582adcd9e9cd9245269f9cc77da91b57a51346473064fb6"
+      "sha256": "904195a5cc2c55d29cfceef5de09866a4a15f49fb3536b287832f56befdbcf01"
     },
     {
       "path": "tran_tuan_noi_that/board_tool.rb",
@@ -38,7 +38,7 @@
     {
       "path": "tran_tuan_noi_that/settings.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/files/tran_tuan_noi_that/settings.rb",
-      "sha256": "7e454d45806b6052af3db79ff40891c47d3311ac3a3aaec77225964be8f615cf"
+      "sha256": "fafd891054b6473e94de26f188afe04f443b61b22b88f5d71f77c0bf3ff85033"
     },
     {
       "path": "tran_tuan_noi_that/updater.rb",
@@ -48,7 +48,7 @@
     {
       "path": "tran_tuan_noi_that/ui/settings.html",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/files/tran_tuan_noi_that/ui/settings.html",
-      "sha256": "4ce69bd9aa045186d9b1e2e139719b775e7bc0f2f68f808ae326e186e4b8700c"
+      "sha256": "3928423b3d0665c8a4fa7320101111dbf2182929df5d6b8c0130ecf701b732af"
     },
     {
       "path": "tran_tuan_noi_that/icons/main.svg",
