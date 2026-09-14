@@ -1,4 +1,4 @@
-TRẦN TUẤN NỘI THẤT v1.8.8
+TRẦN TUẤN NỘI THẤT v1.9.0
 Creator: TRẦN TUẤN
 Tương thích: SketchUp 2021–2025
 
@@ -79,3 +79,6 @@ Line ABF_RANHAM_NK nằm ngoài Group ngăn kéo, màu xanh, không sinh tấm �
 
 BIÊN KHẤU RÃNH
 Edge thật ABF_RANHAM_NK nằm trực tiếp trong từng Group tấm thành; không tạo Group phụ.
+
+CHUẨN ABF KHẤU RÃNH
+Mỗi thành có _ABF_Intersect (4 Edge + 1 Face), Tag ABF_KHAU_RANH_NK, liên kết entityID tấm đáy và mặt is-cnced-face.

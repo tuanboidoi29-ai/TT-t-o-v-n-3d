@@ -516,40 +516,45 @@ module TranTuanNoiThat
         profiles
       end
 
-      def add_contact_profiles(parts, created_groups, parent)
+      def add_contact_profiles(parts, created_groups, _parent)
         return unless @options['bottom_mode'] == 'custom' && @options['mark_contact']
 
         model = Sketchup.active_model
-        tag = model.layers['ABF_RANHAM_NK'] || model.layers.add('ABF_RANHAM_NK')
+        tag = model.layers['ABF_KHAU_RANH_NK'] || model.layers.add('ABF_KHAU_RANH_NK')
         thickness_mm = @options['bottom_thickness'].to_f
+        bottom_pair = created_groups.find { |name, group| name.start_with?('TAM_DAY') && group && group.valid? }
+        bottom_group = bottom_pair && bottom_pair[1]
+        raise 'Không tìm thấy Group tấm đáy để liên kết rãnh ABF.' unless bottom_group
 
         contact_profiles(parts).each do |profile|
-          group = created_groups[profile[:rail_name]]
-          next unless group && group.valid?
+          board = created_groups[profile[:rail_name]]
+          next unless board && board.valid?
 
           points = profile[:points]
-          # Edge thật nằm trực tiếp trong Group của tấm thành tương ứng.
-          # Không tạo Group con/rác; ABF đọc vòng biên này như rãnh khấu.
-          edges = []
-          4.times do |index|
-            edge = group.entities.add_line(points[index], points[(index + 1) % 4])
-            edges << edge if edge && edge.valid?
-          end
-          edges.each do |edge|
-            edge.layer = tag
-            edge.hidden = false
-            edge.soft = false
-            edge.smooth = false
-            edge.material = Sketchup::Color.new(0, 190, 90)
-            edge.set_attribute('ABF', 'loai', 'RANHAM_NK')
-            edge.set_attribute('ABF', 'do_day_mm', thickness_mm)
-            edge.set_attribute('TRẦN TUẤN NỘI THẤT', 'tiep_dien_tam_day', true)
-            edge.set_attribute('TRẦN TUẤN NỘI THẤT', 'do_day_tiep_dien_mm', thickness_mm)
-          end
-          group.set_attribute('ABF', 'ranham_nk', true)
-          group.set_attribute('ABF', 'ranham_nk_do_day_mm', thickness_mm)
-          group.set_attribute('ABF', 'tiep_dien_tam_day_mm', thickness_mm)
-          group.set_attribute('TRẦN TUẤN NỘI THẤT', 'co_tiep_dien_tam_day', true)
+          intersect = board.entities.add_group
+          intersect.name = '_ABF_Intersect'
+          intersect.layer = tag
+          intersect.set_attribute('ABF', 'intersect-group-b-id', bottom_group.entityID)
+          intersect.set_attribute('ABF', 'intersect-offset', 0.0)
+          intersect.set_attribute('ABF', 'is-intersect', true)
+          intersect.set_attribute('ABF', 'setting-name', 'khấu ranh ngăn kéo ')
+
+          face = intersect.entities.add_face(points)
+          raise "Không tạo được mặt rãnh ABF cho #{profile[:rail_name]}." unless face && face.valid?
+          face.layer = tag
+          face.edges.each { |edge| edge.layer = tag }
+
+          # ABF cần biết đúng mặt gia công để giữ vòng biên khi Flatten/Nesting.
+          host_face = board.entities.grep(Sketchup::Face).select do |candidate|
+            points.all? { |point| point.distance_to_plane(candidate.plane).abs <= 0.2.mm }
+          end.max_by(&:area)
+          host_face.set_attribute('ABF', 'is-cnced-face', true) if host_face
+
+          board.set_attribute('ABF', 'is-board', true)
+          board.set_attribute('ABF', 'ranham_nk', true)
+          board.set_attribute('ABF', 'ranham_nk_do_day_mm', thickness_mm)
+          board.set_attribute('TRẦN TUẤN NỘI THẤT', 'co_tiep_dien_tam_day', true)
+          board.set_attribute('TRẦN TUẤN NỘI THẤT', 'do_day_tiep_dien_mm', thickness_mm)
         end
       end
 
@@ -562,6 +567,7 @@ module TranTuanNoiThat
         face.reverse! if face.normal.dot(@axis_v) < 0
         face.pushpull(height)
         child.name = part[:name]
+        child.set_attribute('ABF', 'is-board', true)
         child.set_attribute('TRẦN TUẤN NỘI THẤT', 'chi_tiet', part[:name])
         child
       end
