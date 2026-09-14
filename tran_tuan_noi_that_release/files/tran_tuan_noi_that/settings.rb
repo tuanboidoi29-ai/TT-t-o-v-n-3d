@@ -20,7 +20,8 @@ module TranTuanNoiThat
         %w[board box drawer round].each do |feature|
           TranTuanNoiThat.save_setting("feature_#{feature}", !!data["feature_#{feature}"])
         end
-        notify('Đã lưu cài đặt chung.', 'ok')
+        TranTuanNoiThat.refresh_feature_commands
+        notify('Đã lưu và áp dụng bật/tắt tính năng.', 'ok')
       rescue StandardError => error
         notify(error.message, 'error')
       end

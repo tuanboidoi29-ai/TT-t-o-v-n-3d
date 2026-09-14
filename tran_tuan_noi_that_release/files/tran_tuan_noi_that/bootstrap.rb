@@ -9,7 +9,7 @@ require 'digest'
 
 module TranTuanNoiThat
   ROOT = __dir__.freeze unless const_defined?(:ROOT)
-  VERSION = '1.7.0'.freeze unless const_defined?(:VERSION)
+  VERSION = '1.7.1'.freeze unless const_defined?(:VERSION)
   NAME = 'TRẦN TUẤN NỘI THẤT'.freeze unless const_defined?(:NAME)
   MANIFEST_URL = 'https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/update.json'.freeze unless const_defined?(:MANIFEST_URL)
 
@@ -27,7 +27,29 @@ module TranTuanNoiThat
     end
 
     def feature_enabled?(feature)
-      setting("feature_#{feature}", true) != false
+      value = setting("feature_#{feature}", true)
+      value == true || value.to_s.downcase == 'true' || value.to_s == '1'
+    end
+
+    def refresh_feature_commands
+      return false unless @toolbar
+      features = {
+        'Vẽ Ván' => :board,
+        'Tạo Khối BOX' => :box,
+        'Vẽ Ngăn Kéo' => :drawer,
+        'Bo Cong Khối' => :round
+      }
+      @toolbar.each do |item|
+        next unless item.is_a?(UI::Command)
+        feature = features[item.tooltip.to_s]
+        next unless feature
+        item.set_validation_proc(&feature_validation_proc(feature))
+      end
+      true
+    end
+
+    def feature_validation_proc(feature)
+      proc { feature_enabled?(feature) ? MF_ENABLED : MF_GRAYED }
     end
 
     def reload_runtime
@@ -59,6 +81,7 @@ module TranTuanNoiThat
       install_box_ui
       install_drawer_ui
       install_round_ui
+      refresh_feature_commands
       @toolbar.restore if @toolbar
     end
 

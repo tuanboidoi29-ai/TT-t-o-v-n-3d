@@ -1,19 +1,19 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.7.0",
+  "version": "1.7.1",
   "channel": "stable",
-  "notes": "Cài Đặt Chung thêm công tắc bật/tắt riêng Vẽ Ván, BOX, Ngăn Kéo và Bo Cong; áp dụng ngay không cần khởi động lại.",
-  "rbz_url": "https://github.com/tuanboidoi29-ai/TT-t-o-v-n-3d/raw/main/tran_tuan_noi_that_release/TRAN_TUAN_NOI_THAT_V1.7.0.rbz",
+  "notes": "Sửa bật/tắt sau cập nhật nóng: gắn validation trực tiếp vào các command đang có trên toolbar và chuẩn hóa giá trị boolean.",
+  "rbz_url": "https://github.com/tuanboidoi29-ai/TT-t-o-v-n-3d/raw/main/tran_tuan_noi_that_release/TRAN_TUAN_NOI_THAT_V1.7.1.rbz",
   "files": [
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/files/TranTuanNoiThat.rb",
-      "sha256": "bd7febab19de6c0d019a1eb46d458f4a7795e211d4feda361d2ae03b91deb6ac"
+      "sha256": "8c0826b134c501aaba6c40803a45bdbc6776fd662ee614610e3d2ab68340ca1e"
     },
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "904195a5cc2c55d29cfceef5de09866a4a15f49fb3536b287832f56befdbcf01"
+      "sha256": "bc4eaf2af76abb19720f6531ad60cce131a184008e52d22f453b3b87cb624e00"
     },
     {
       "path": "tran_tuan_noi_that/board_tool.rb",
@@ -38,7 +38,7 @@
     {
       "path": "tran_tuan_noi_that/settings.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/files/tran_tuan_noi_that/settings.rb",
-      "sha256": "fafd891054b6473e94de26f188afe04f443b61b22b88f5d71f77c0bf3ff85033"
+      "sha256": "d9fc6278239089c8d4277fa872e0d0150f672d4279cbab203af7b4493fbe3a44"
     },
     {
       "path": "tran_tuan_noi_that/updater.rb",

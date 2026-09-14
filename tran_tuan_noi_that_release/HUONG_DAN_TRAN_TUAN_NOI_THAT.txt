@@ -1,10 +1,10 @@
-TRẦN TUẤN NỘI THẤT v1.7.0
+TRẦN TUẤN NỘI THẤT v1.7.1
 Creator: TRẦN TUẤN
 Tương thích: SketchUp 2021–2025
 
 CÀI ĐẶT
 1. Mở Extension Manager > Install Extension.
-2. Chọn TRAN_TUAN_NOI_THAT_V1.7.0.rbz.
+2. Chọn TRAN_TUAN_NOI_THAT_V1.7.1.rbz.
 3. Mở toolbar TRẦN TUẤN NỘI THẤT nếu toolbar chưa hiện.
 
 VẼ VÁN
@@ -47,7 +47,7 @@ BO CONG KHỐI
 
 CÀI ĐẶT CHUNG
 - Bật/tắt riêng: Vẽ Ván, Tạo Khối BOX, Vẽ Ngăn Kéo và Bo Cong Khối.
-- Tính năng tắt sẽ bị vô hiệu hóa trên menu và toolbar; bật lại dùng ngay.
+- Tính năng tắt sẽ bị vô hiệu hóa ngay trên menu và toolbar cũ sau cập nhật nóng; bật lại dùng ngay.
 - Độ dày ván mặc định.
 - Tự kiểm tra cập nhật.
 - Kênh cập nhật.
