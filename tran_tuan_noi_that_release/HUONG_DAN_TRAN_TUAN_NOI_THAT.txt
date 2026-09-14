@@ -1,4 +1,4 @@
-TRẦN TUẤN NỘI THẤT v1.8.1
+TRẦN TUẤN NỘI THẤT v1.8.2
 Creator: TRẦN TUẤN
 Tương thích: SketchUp 2021–2025
 
@@ -61,3 +61,6 @@ CẬP NHẬT
 - Kiểm tra SHA-256 từng file nếu manifest cung cấp.
 - Tạo bản sao lưu trước khi thay file.
 - Nạp lại module mới ngay trong phiên SketchUp.
+
+BIÊN GIẢ RAY ABF
+Mỗi ray là Group riêng, có kích thước thật và tên/Tag ABF_RAY_NGAN_KEO_<chiều sâu>mm để ABF thống kê.

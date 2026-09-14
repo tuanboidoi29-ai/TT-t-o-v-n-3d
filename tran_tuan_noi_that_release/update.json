@@ -1,19 +1,19 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.8.1",
+  "version": "1.8.2",
   "channel": "stable",
-  "notes": "Thêm biên dạng ray hình chữ nhật trên hai thành ngăn kéo; chiều dài tự động bằng chiều sâu thực và Tag ABF_RAY_NGAN_KEO_<chiều sâu>mm.",
-  "rbz_url": "https://github.com/tuanboidoi29-ai/TT-t-o-v-n-3d/raw/main/tran_tuan_noi_that_release/TRAN_TUAN_NOI_THAT_V1.8.1.rbz",
+  "notes": "Tạo hai Group biên giả ray để ABF thống kê; kích thước ray tự động theo hở ray, chiều cao ray và chiều sâu ngăn kéo.",
+  "rbz_url": "https://github.com/tuanboidoi29-ai/TT-t-o-v-n-3d/raw/main/tran_tuan_noi_that_release/TRAN_TUAN_NOI_THAT_V1.8.2.rbz",
   "files": [
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/files/TranTuanNoiThat.rb",
-      "sha256": "a197c6e4e769d312326135db5f0b17ac580d94a66d1ba6188ff57bcaf6e9b0eb"
+      "sha256": "d188eab296b3ae6c7a43f8195964537442edb3399ad20e44f56d34fbb56924e1"
     },
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "835173b0909ed835bcbef6bea7776264b9cf2518b17f6099d553c4db86198af7"
+      "sha256": "59418023320b616bdfe14fe8eedbdd2bbe5f94391bfb570b6476245be9508d2f"
     },
     {
       "path": "tran_tuan_noi_that/board_tool.rb",
@@ -28,7 +28,7 @@
     {
       "path": "tran_tuan_noi_that/drawer_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/files/tran_tuan_noi_that/drawer_tool.rb",
-      "sha256": "ac918e1d302cb5340bcce7a119bb30aba1f4d74e0f1f76fe64967640548a12ff"
+      "sha256": "fdbd5338d6dfbf02dcbc9fbabc4100a98a71c6e2f448214749c1d0da71694d54"
     },
     {
       "path": "tran_tuan_noi_that/round_tool.rb",

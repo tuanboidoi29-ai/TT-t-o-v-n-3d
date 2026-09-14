@@ -567,7 +567,13 @@ module TranTuanNoiThat
           side_x = part[:name].start_with?('THANH_TRAI') ? x : x + width
           points = [local_point(side_x,y,z0), local_point(side_x,y+depth,z0),
                     local_point(side_x,y+depth,z1), local_point(side_x,y,z1)]
-          profiles << { rail_name: part[:name], points: points, depth: depth }
+          gap = [@options['rail_gap'].mm, 0.1.mm].max
+          proxy_x = part[:name].start_with?('THANH_TRAI') ? x - gap : x + width
+          profiles << {
+            rail_name: part[:name], points: points, depth: depth,
+            side: (part[:name].start_with?('THANH_TRAI') ? 'TRAI' : 'PHAI'),
+            proxy_box: [proxy_x, y, z0, gap, depth, profile_h]
+          }
         end
         profiles
       end
@@ -578,7 +584,7 @@ module TranTuanNoiThat
         "ABF_RAY_NGAN_KEO_#{text}mm"
       end
 
-      def add_rail_profiles(parts, created_groups)
+      def add_rail_profiles(parts, created_groups, parent)
         return unless @options['mark_rail']
         model = Sketchup.active_model
         rail_profiles(parts).each do |profile|
@@ -596,6 +602,22 @@ module TranTuanNoiThat
             edge.set_attribute('TRẦN TUẤN NỘI THẤT', 'ray_ngan_keo', true)
           end
           group.set_attribute('ABF', 'ray_tag', tag_name)
+
+          # Khối biên giả riêng để ABF có thể thống kê ray như một chi tiết.
+          proxy = add_panel(parent, {
+            name: tag_name,
+            box: profile[:proxy_box],
+            ray_proxy: true
+          })
+          proxy.layer = tag
+          proxy.name = tag_name
+          proxy.set_attribute('ABF', 'name', tag_name)
+          proxy.set_attribute('ABF', 'loai', 'RAY_NGAN_KEO')
+          proxy.set_attribute('ABF', 'chieu_dai_mm', profile[:depth].to_mm)
+          proxy.set_attribute('ABF', 'chieu_sau_ray_mm', profile[:depth].to_mm)
+          proxy.set_attribute('ABF', 'ben', profile[:side])
+          proxy.set_attribute('TRẦN TUẤN NỘI THẤT', 'bien_gia_ray', true)
+          proxy.entities.each { |entity| entity.layer = tag if entity.respond_to?(:layer=) }
         end
       end
 
@@ -625,7 +647,7 @@ module TranTuanNoiThat
           created_groups = {}
           selected.each { |part| created_groups[part[:name]] = add_panel(parent, part) }
           add_contact_profiles(selected, created_groups)
-          add_rail_profiles(selected, created_groups)
+          add_rail_profiles(selected, created_groups, parent)
           parent.set_attribute('TRẦN TUẤN NỘI THẤT', 'stt', index + 1) if quantity > 1
           parent.set_attribute('TRẦN TUẤN NỘI THẤT', 'loai', 'NGAN_KEO')
         end
