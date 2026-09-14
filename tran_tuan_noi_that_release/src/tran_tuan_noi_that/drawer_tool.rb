@@ -11,7 +11,6 @@ module TranTuanNoiThat
       'bottom_offset' => 5.0, 'bottom_thickness' => 9.0,
       'side_thickness' => 17.5, 'bottom_shift' => 10.0,
       'mark_contact' => false,
-      'mark_rail' => true, 'rail_profile_height' => 45.0,
       'reverse_depth' => false,
       'fallback_depth' => 500.0
     }.freeze
@@ -67,7 +66,7 @@ module TranTuanNoiThat
       data['quantity'] = [[raw['quantity'].to_i, 1].max, 50].min
       data['orientation'] = raw['orientation'].to_s == 'horizontal' ? 'horizontal' : 'vertical'
       data['bottom_mode'] = raw['bottom_mode'].to_s == 'custom' ? 'custom' : 'cover'
-      numeric = DEFAULTS.keys - %w[quantity orientation bottom_mode mark_contact mark_rail reverse_depth]
+      numeric = DEFAULTS.keys - %w[quantity orientation bottom_mode mark_contact reverse_depth]
       raise 'Các thông số kích thước không được âm.' if numeric.any? { |key| data[key].to_f < 0 }
       raise 'Độ dày tấm phải lớn hơn 0.' unless data['bottom_thickness'] > 0 && data['side_thickness'] > 0
       raise 'Chiều cao thanh phải lớn hơn 0.' unless data['side_height'] > 0
@@ -94,9 +93,7 @@ module TranTuanNoiThat
         <div class="field wide"><label>Hướng tạo</label><div class="modes"><label><input type="radio" name="orientation" value="vertical"> Dọc</label><label><input type="radio" name="orientation" value="horizontal"> Ngang</label></div></div>
         <div class="field wide"><label>Hướng chiều sâu</label><div class="modes"><label><input id="reverse_depth" type="checkbox"> Đảo hướng ngăn kéo trước/sau</label></div></div>
         <div class="field wide"><label>Chế độ tấm đáy</label><div class="modes"><label><input type="radio" name="bottom_mode" value="cover"> Phủ 4 cạnh ngoài</label><label><input type="radio" name="bottom_mode" value="custom"> Tùy chỉnh offset</label></div></div>
-        <div class="field wide"><label>Đánh dấu tiếp diện</label><div class="modes"><label><input id="mark_contact" type="checkbox"> Đánh dấu biên thanh giao nhau với tấm đáy</label></div></div>
-        <div class="field"><label>Cao biên dạng ray (mm)</label><input id="rail_profile_height" type="number" min="1" step="0.1"></div>
-        <div class="field"><label>Đánh dấu ray</label><div class="modes"><label><input id="mark_rail" type="checkbox"> Tạo biên dạng ray trên hai thành</label></div></div>
+        <div class="field wide"><label>Đánh dấu tiếp diện</label><div class="modes"><label><input id="mark_contact" type="checkbox"> Đánh dấu biên thanh giao nhau với tấm đáy</label></div></div></div>
         </div><button onclick="applyNow()">ÁP DỤNG - CẬP NHẬT PREVIEW</button><div id="msg"></div><div class="note">Tịnh tiến chỉ nâng tấm đáy; 4 thanh giữ nguyên. Click trong model sau khi chỉnh xong để tạo thật.</div>
         <script>
         const initial=#{json};
@@ -105,14 +102,12 @@ module TranTuanNoiThat
         document.querySelector(`input[name=bottom_mode][value="${initial.bottom_mode}"]`).checked=true;
         document.getElementById('mark_contact').checked=initial.mark_contact===true||initial.mark_contact==='true';
         document.getElementById('reverse_depth').checked=initial.reverse_depth===true||initial.reverse_depth==='true';
-        document.getElementById('mark_rail').checked=initial.mark_rail===true||initial.mark_rail==='true';
         function value(id){return document.getElementById(id).value}
-        function applyNow(){const data={};['side_height','rail_gap','bottom_clearance','back_clearance','quantity','front_gap','bottom_thickness','side_thickness','bottom_offset','bottom_shift','fallback_depth','rail_profile_height'].forEach(k=>data[k]=value(k));data.orientation=document.querySelector('input[name=orientation]:checked').value;data.bottom_mode=document.querySelector('input[name=bottom_mode]:checked').value;data.mark_contact=document.getElementById('mark_contact').checked;data.mark_rail=document.getElementById('mark_rail').checked;data.reverse_depth=document.getElementById('reverse_depth').checked;sketchup.apply(JSON.stringify(data))}
+        function applyNow(){const data={};['side_height','rail_gap','bottom_clearance','back_clearance','quantity','front_gap','bottom_thickness','side_thickness','bottom_offset','bottom_shift','fallback_depth'].forEach(k=>data[k]=value(k));data.orientation=document.querySelector('input[name=orientation]:checked').value;data.bottom_mode=document.querySelector('input[name=bottom_mode]:checked').value;data.mark_contact=document.getElementById('mark_contact').checked;data.reverse_depth=document.getElementById('reverse_depth').checked;sketchup.apply(JSON.stringify(data))}
         function syncContact(){const custom=document.querySelector('input[name=bottom_mode]:checked').value==='custom';const mark=document.getElementById('mark_contact');mark.disabled=!custom;if(!custom)mark.checked=false;applyNow()}
         document.querySelectorAll('input[name=bottom_mode]').forEach(el=>el.addEventListener('change',syncContact));
         document.getElementById('mark_contact').addEventListener('change',applyNow);
         document.getElementById('reverse_depth').addEventListener('change',applyNow);
-        document.getElementById('mark_rail').addEventListener('change',applyNow);
         document.getElementById('mark_contact').disabled=initial.bottom_mode!=='custom';
         if(initial.bottom_mode!=='custom')document.getElementById('mark_contact').checked=false;
         function notice(text,bad){const e=document.getElementById('msg');e.textContent=text;e.style.color=bad?'#ff6767':'#67d78a'}
@@ -126,7 +121,6 @@ module TranTuanNoiThat
       RAIL_COLOR = Sketchup::Color.new(255, 145, 45, 90)
       EDGE_COLOR = Sketchup::Color.new(225, 88, 0, 255)
       CONTACT_COLOR = Sketchup::Color.new(0, 255, 135, 255)
-      RAY_MARK_COLOR = Sketchup::Color.new(40, 180, 255, 255)
 
       attr_reader :options
 
@@ -261,11 +255,6 @@ module TranTuanNoiThat
           view.drawing_color = EDGE_COLOR
           view.line_width = 1
           view.draw(GL_LINES, box_lines(points))
-        end
-        if @options['mark_rail']
-          view.drawing_color = RAY_MARK_COLOR
-          view.line_width = 3
-          rail_profiles(parts).each { |profile| view.draw(GL_LINE_LOOP, profile[:points]) }
         end
         if @options['bottom_mode'] == 'custom' && @options['mark_contact']
           surfaces = contact_surfaces(parts)
@@ -531,7 +520,7 @@ module TranTuanNoiThat
         return unless @options['bottom_mode'] == 'custom' && @options['mark_contact']
 
         model = Sketchup.active_model
-        tag = model.layers['ABF_TIEP_DIEN_DAY_NGAN_KEO'] || model.layers.add('ABF_TIEP_DIEN_DAY_NGAN_KEO')
+        tag = model.layers['ABF_RANHAM_NK'] || model.layers.add('ABF_RANHAM_NK')
         thickness_mm = @options['bottom_thickness'].to_f
 
         contact_profiles(parts).each do |profile|
@@ -546,78 +535,15 @@ module TranTuanNoiThat
           end
           edges.each do |edge|
             edge.layer = tag
-            edge.set_attribute('ABF', 'loai', 'TIEP_DIEN_TAM_DAY')
+            edge.set_attribute('ABF', 'loai', 'RANHAM_NK')
             edge.set_attribute('ABF', 'do_day_mm', thickness_mm)
             edge.set_attribute('TRẦN TUẤN NỘI THẤT', 'tiep_dien_tam_day', true)
             edge.set_attribute('TRẦN TUẤN NỘI THẤT', 'do_day_tiep_dien_mm', thickness_mm)
           end
+          group.set_attribute('ABF', 'ranham_nk', true)
+          group.set_attribute('ABF', 'ranham_nk_do_day_mm', thickness_mm)
           group.set_attribute('ABF', 'tiep_dien_tam_day_mm', thickness_mm)
           group.set_attribute('TRẦN TUẤN NỘI THẤT', 'co_tiep_dien_tam_day', true)
-        end
-      end
-
-      def rail_profiles(parts)
-        profiles = []
-        parts.each do |part|
-          next unless part[:name].start_with?('THANH_TRAI', 'THANH_PHAI')
-          x, y, z, width, depth, height = part[:box]
-          profile_h = [[@options['rail_profile_height'].mm, 1.mm].max, height].min
-          z0 = z + (height - profile_h) * 0.5
-          z1 = z0 + profile_h
-          side_x = part[:name].start_with?('THANH_TRAI') ? x : x + width
-          points = [local_point(side_x,y,z0), local_point(side_x,y+depth,z0),
-                    local_point(side_x,y+depth,z1), local_point(side_x,y,z1)]
-          gap = [@options['rail_gap'].mm, 0.1.mm].max
-          proxy_x = part[:name].start_with?('THANH_TRAI') ? x - gap : x + width
-          profiles << {
-            rail_name: part[:name], points: points, depth: depth,
-            side: (part[:name].start_with?('THANH_TRAI') ? 'TRAI' : 'PHAI'),
-            proxy_box: [proxy_x, y, z0, gap, depth, profile_h]
-          }
-        end
-        profiles
-      end
-
-      def rail_tag_name(depth)
-        mm = depth.to_mm
-        text = ((mm - mm.round).abs < 0.01 ? mm.round.to_s : format('%.1f', mm).sub(/\.0$/, ''))
-        "ABF_RAY_NGAN_KEO_#{text}mm"
-      end
-
-      def add_rail_profiles(parts, created_groups, parent)
-        return unless @options['mark_rail']
-        model = Sketchup.active_model
-        rail_profiles(parts).each do |profile|
-          group = created_groups[profile[:rail_name]]
-          next unless group && group.valid?
-          tag_name = rail_tag_name(profile[:depth])
-          tag = model.layers[tag_name] || model.layers.add(tag_name)
-          points = profile[:points]
-          4.times do |index|
-            edge = group.entities.add_line(points[index], points[(index + 1) % 4])
-            next unless edge && edge.valid?
-            edge.layer = tag
-            edge.set_attribute('ABF', 'loai', 'RAY_NGAN_KEO')
-            edge.set_attribute('ABF', 'chieu_sau_ray_mm', profile[:depth].to_mm)
-            edge.set_attribute('TRẦN TUẤN NỘI THẤT', 'ray_ngan_keo', true)
-          end
-          group.set_attribute('ABF', 'ray_tag', tag_name)
-
-          # Khối biên giả riêng để ABF có thể thống kê ray như một chi tiết.
-          proxy = add_panel(parent, {
-            name: tag_name,
-            box: profile[:proxy_box],
-            ray_proxy: true
-          })
-          proxy.layer = tag
-          proxy.name = tag_name
-          proxy.set_attribute('ABF', 'name', tag_name)
-          proxy.set_attribute('ABF', 'loai', 'RAY_NGAN_KEO')
-          proxy.set_attribute('ABF', 'chieu_dai_mm', profile[:depth].to_mm)
-          proxy.set_attribute('ABF', 'chieu_sau_ray_mm', profile[:depth].to_mm)
-          proxy.set_attribute('ABF', 'ben', profile[:side])
-          proxy.set_attribute('TRẦN TUẤN NỘI THẤT', 'bien_gia_ray', true)
-          proxy.entities.each { |entity| entity.layer = tag if entity.respond_to?(:layer=) }
         end
       end
 
@@ -647,7 +573,6 @@ module TranTuanNoiThat
           created_groups = {}
           selected.each { |part| created_groups[part[:name]] = add_panel(parent, part) }
           add_contact_profiles(selected, created_groups)
-          add_rail_profiles(selected, created_groups, parent)
           parent.set_attribute('TRẦN TUẤN NỘI THẤT', 'stt', index + 1) if quantity > 1
           parent.set_attribute('TRẦN TUẤN NỘI THẤT', 'loai', 'NGAN_KEO')
         end

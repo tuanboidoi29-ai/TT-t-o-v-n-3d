@@ -9,7 +9,7 @@ require 'digest'
 
 module TranTuanNoiThat
   ROOT = __dir__.freeze unless const_defined?(:ROOT)
-  VERSION = '1.8.2'.freeze unless const_defined?(:VERSION)
+  VERSION = '1.8.3'.freeze unless const_defined?(:VERSION)
   NAME = 'TRẦN TUẤN NỘI THẤT'.freeze unless const_defined?(:NAME)
   MANIFEST_URL = 'https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/update.json'.freeze unless const_defined?(:MANIFEST_URL)
 
