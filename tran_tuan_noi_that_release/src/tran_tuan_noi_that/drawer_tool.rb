@@ -528,11 +528,11 @@ module TranTuanNoiThat
           next unless group && group.valid?
 
           points = profile[:points]
-          # Line thật đặt ngoài Group ngăn kéo: không làm Group cha có hình học
-          # rời khiến Nesting hiểu khung bao thành một tấm đáy thứ hai.
+          # Edge thật nằm trực tiếp trong Group của tấm thành tương ứng.
+          # Không tạo Group con/rác; ABF đọc vòng biên này như rãnh khấu.
           edges = []
           4.times do |index|
-            edge = model.active_entities.add_line(points[index], points[(index + 1) % 4])
+            edge = group.entities.add_line(points[index], points[(index + 1) % 4])
             edges << edge if edge && edge.valid?
           end
           edges.each do |edge|
