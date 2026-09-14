@@ -516,7 +516,7 @@ module TranTuanNoiThat
         profiles
       end
 
-      def add_contact_profiles(parts, created_groups)
+      def add_contact_profiles(parts, created_groups, parent)
         return unless @options['bottom_mode'] == 'custom' && @options['mark_contact']
 
         model = Sketchup.active_model
@@ -528,18 +528,11 @@ module TranTuanNoiThat
           next unless group && group.valid?
 
           points = profile[:points]
-          # Đặt Line rãnh trong Group con để không chia mặt/không phá Solid
-          # của thành trái, phải; ABF vẫn quét được Group rãnh theo Tag.
-          groove = group.entities.add_group
-          groove.name = 'ABF_RANHAM_NK'
-          groove.layer = tag
-          groove.set_attribute('ABF', 'loai', 'RANHAM_NK')
-          groove.set_attribute('ABF', 'do_day_mm', thickness_mm)
-          groove.set_attribute('TRẦN TUẤN NỘI THẤT', 'ranh_am_ngan_keo', true)
-
+          # Line thật đặt ở cấp Group ngăn kéo cha: không chia mặt của tấm
+          # và không tạo Group phụ khiến Nesting hiểu nhầm thành tấm mới.
           edges = []
           4.times do |index|
-            edge = groove.entities.add_line(points[index], points[(index + 1) % 4])
+            edge = parent.entities.add_line(points[index], points[(index + 1) % 4])
             edges << edge if edge && edge.valid?
           end
           edges.each do |edge|
@@ -581,7 +574,7 @@ module TranTuanNoiThat
           selected = parts.select { |part| part[:name].end_with?(suffix) }
           created_groups = {}
           selected.each { |part| created_groups[part[:name]] = add_panel(parent, part) }
-          add_contact_profiles(selected, created_groups)
+          add_contact_profiles(selected, created_groups, parent)
           parent.set_attribute('TRẦN TUẤN NỘI THẤT', 'stt', index + 1) if quantity > 1
           parent.set_attribute('TRẦN TUẤN NỘI THẤT', 'loai', 'NGAN_KEO')
         end

@@ -1,4 +1,4 @@
-TRẦN TUẤN NỘI THẤT v1.8.5
+TRẦN TUẤN NỘI THẤT v1.8.6
 Creator: TRẦN TUẤN
 Tương thích: SketchUp 2021–2025
 
@@ -70,3 +70,6 @@ Line ABF_RANHAM_NK nằm trong Group con, không chia mặt Solid của thành t
 
 SỬA CẬP NHẬT
 Nếu số phiên bản đúng nhưng file thiếu/sai SHA-256, hệ thống sẽ cho phép sửa và nạp lại.
+
+SỬA NESTING
+Line ABF_RANHAM_NK nằm ở Group ngăn kéo cha, không tạo Group/tấm phụ.
