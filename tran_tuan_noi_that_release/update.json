@@ -1,19 +1,19 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.8.4",
+  "version": "1.8.5",
   "channel": "stable",
-  "notes": "Sửa thành trái/phải không gắn được nhãn: chuyển Line ABF_RANHAM_NK vào Group con, không chia mặt và không phá Solid của tấm.",
-  "rbz_url": "https://github.com/tuanboidoi29-ai/TT-t-o-v-n-3d/raw/main/tran_tuan_noi_that_release/TRAN_TUAN_NOI_THAT_V1.8.4.rbz",
+  "notes": "Sửa cập nhật bị báo mới nhất khi file chưa được nạp: tự kiểm tra SHA-256 và cho phép sửa/nạp lại cùng phiên bản.",
+  "rbz_url": "https://github.com/tuanboidoi29-ai/TT-t-o-v-n-3d/raw/main/tran_tuan_noi_that_release/TRAN_TUAN_NOI_THAT_V1.8.5.rbz",
   "files": [
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/files/TranTuanNoiThat.rb",
-      "sha256": "38128b4da794fd372640d90b104f25554c6606afca70db54b375c0a1339d1049"
+      "sha256": "920b986408cfb23df6e19e29080290d93ec701de53a01157d12ac0624dd7401e"
     },
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "33869dddce8b6e344b3c89f69e78c02e9859ba49e4ef684607217f4af755446d"
+      "sha256": "52331088fa405059823c7290507d5bb8eff0eedaa84772a6abed96735494d208"
     },
     {
       "path": "tran_tuan_noi_that/board_tool.rb",
@@ -43,7 +43,7 @@
     {
       "path": "tran_tuan_noi_that/updater.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/files/tran_tuan_noi_that/updater.rb",
-      "sha256": "03fbfe5ca52c0246cf5e904b7868262e25f1af8445884dd02c61f072e3123adf"
+      "sha256": "22e57a0a56022b28c290c4511eb76c393a6c2afe55288a051cc96e271891c2c0"
     },
     {
       "path": "tran_tuan_noi_that/ui/settings.html",
