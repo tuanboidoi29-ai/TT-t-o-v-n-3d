@@ -1,4 +1,4 @@
-TRẦN TUẤN NỘI THẤT v1.8.3
+TRẦN TUẤN NỘI THẤT v1.8.4
 Creator: TRẦN TUẤN
 Tương thích: SketchUp 2021–2025
 
@@ -64,3 +64,6 @@ CẬP NHẬT
 
 ĐÁNH DẤU RÃNH ABF
 Đường Line thật tại vùng tiếp diện đáy–thành được gắn Tag ABF_RANHAM_NK để ABF nhận rãnh ngăn kéo.
+
+SỬA GẮN NHÃN
+Line ABF_RANHAM_NK nằm trong Group con, không chia mặt Solid của thành trái/phải.

@@ -528,9 +528,18 @@ module TranTuanNoiThat
           next unless group && group.valid?
 
           points = profile[:points]
+          # Đặt Line rãnh trong Group con để không chia mặt/không phá Solid
+          # của thành trái, phải; ABF vẫn quét được Group rãnh theo Tag.
+          groove = group.entities.add_group
+          groove.name = 'ABF_RANHAM_NK'
+          groove.layer = tag
+          groove.set_attribute('ABF', 'loai', 'RANHAM_NK')
+          groove.set_attribute('ABF', 'do_day_mm', thickness_mm)
+          groove.set_attribute('TRẦN TUẤN NỘI THẤT', 'ranh_am_ngan_keo', true)
+
           edges = []
           4.times do |index|
-            edge = group.entities.add_line(points[index], points[(index + 1) % 4])
+            edge = groove.entities.add_line(points[index], points[(index + 1) % 4])
             edges << edge if edge && edge.valid?
           end
           edges.each do |edge|
