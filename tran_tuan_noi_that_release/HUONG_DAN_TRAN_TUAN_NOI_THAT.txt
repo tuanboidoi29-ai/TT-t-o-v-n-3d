@@ -1,4 +1,4 @@
-TRẦN TUẤN NỘI THẤT v1.8.0
+TRẦN TUẤN NỘI THẤT v1.8.1
 Creator: TRẦN TUẤN
 Tương thích: SketchUp 2021–2025
 
@@ -33,7 +33,7 @@ VẼ NGĂN KÉO
 5. Preview hiển thị 4 thanh và 1 tấm đáy cho từng ngăn kéo.
 6. Nhấn TAB mở cài đặt; bấm ÁP DỤNG để cập nhật preview trực tiếp.
 7. Click trong model để tạo; mỗi tấm là Group con nằm trong Group ngăn kéo cha.
-8. Tùy chỉnh + Đánh dấu tiếp diện tạo biên dạng thật và Tag ABF_TIEP_DIEN_DAY_NGAN_KEO.
+8. Tùy chỉnh + Đánh dấu tiếp diện tạo biên dạng thật và Tag ABF_TIEP_DIEN_DAY_NGAN_KEO.\n9. Đánh dấu ray tạo hình chữ nhật trên hai thành; chiều dài bằng chiều sâu và Tag tự đặt ABF_RAY_NGAN_KEO_<chiều sâu>mm.
 
 BO CONG KHỐI
 1. Bấm icon Bo Cong Khối trên toolbar.

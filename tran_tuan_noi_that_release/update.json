@@ -1,19 +1,19 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.8.0",
+  "version": "1.8.1",
   "channel": "stable",
-  "notes": "Vẽ Ngăn Kéo tự nhận mặt tủ; nếu P1 không có Face sẽ tự chuyển sang chế độ bắt 3 điểm P1–P2–P3.",
-  "rbz_url": "https://github.com/tuanboidoi29-ai/TT-t-o-v-n-3d/raw/main/tran_tuan_noi_that_release/TRAN_TUAN_NOI_THAT_V1.8.0.rbz",
+  "notes": "Thêm biên dạng ray hình chữ nhật trên hai thành ngăn kéo; chiều dài tự động bằng chiều sâu thực và Tag ABF_RAY_NGAN_KEO_<chiều sâu>mm.",
+  "rbz_url": "https://github.com/tuanboidoi29-ai/TT-t-o-v-n-3d/raw/main/tran_tuan_noi_that_release/TRAN_TUAN_NOI_THAT_V1.8.1.rbz",
   "files": [
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/files/TranTuanNoiThat.rb",
-      "sha256": "16b05e8aec9d97b8e606413091557d0fa4739a45fde85102c2f0802b33831b7f"
+      "sha256": "a197c6e4e769d312326135db5f0b17ac580d94a66d1ba6188ff57bcaf6e9b0eb"
     },
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "beb8dd22e54b64513b59fde9679eab3f46000b6ef58d3518a08ecc533b55046c"
+      "sha256": "835173b0909ed835bcbef6bea7776264b9cf2518b17f6099d553c4db86198af7"
     },
     {
       "path": "tran_tuan_noi_that/board_tool.rb",
@@ -28,7 +28,7 @@
     {
       "path": "tran_tuan_noi_that/drawer_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/files/tran_tuan_noi_that/drawer_tool.rb",
-      "sha256": "990b3e77404ae114d3de0dea4c9e9c3d456080c072bb683a68d53b3f583b1900"
+      "sha256": "ac918e1d302cb5340bcce7a119bb30aba1f4d74e0f1f76fe64967640548a12ff"
     },
     {
       "path": "tran_tuan_noi_that/round_tool.rb",
