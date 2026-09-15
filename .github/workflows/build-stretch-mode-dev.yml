@@ -13,7 +13,7 @@ jobs:
       - name: Build RBZ
         run: |
           cd tran_tuan_noi_that_release/files
-          zip -r ../../../TRANTUAN_CO_GIAN_MODE_V0.1.0_TEST.rbz TranTuanNoiThat.rb tran_tuan_noi_that
+          zip -r ../../TRANTUAN_CO_GIAN_MODE_V0.1.0_TEST.rbz TranTuanNoiThat.rb tran_tuan_noi_that
       - uses: actions/upload-artifact@v4
         with:
           name: TRANTUAN_CO_GIAN_MODE_V0.1.0_TEST
