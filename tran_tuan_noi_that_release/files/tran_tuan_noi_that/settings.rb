@@ -11,7 +11,7 @@ module TranTuanNoiThat
   load layout_patch_v050 if File.file?(layout_patch_v050)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.34'.freeze
+  VERSION = '1.9.35'.freeze
 
   module Settings
     extend self
