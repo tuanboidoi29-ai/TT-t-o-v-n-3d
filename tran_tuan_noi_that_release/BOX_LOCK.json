@@ -1,7 +1,7 @@
 {
   "locked": true,
   "feature": "Tạo Khối BOX",
-  "system_version": "1.9.24",
+  "system_version": "1.9.26",
   "box_version": "1.1.1",
   "box_tool_path": "tran_tuan_noi_that_release/files/tran_tuan_noi_that/box_tool.rb",
   "box_tool_blob_sha": "d6439091bae7975285c5f8d8a854a78e295ca63f",
