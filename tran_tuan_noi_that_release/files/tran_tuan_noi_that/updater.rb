@@ -1,10 +1,12 @@
 # encoding: UTF-8
+require 'base64'
+
 module TranTuanNoiThat
   module Updater
     extend self
 
     def check(interactive = true)
-      manifest = JSON.parse(get(fresh_url(TranTuanNoiThat::MANIFEST_URL)))
+      manifest = fetch_manifest
       latest = manifest.fetch('version').to_s
       local = TranTuanNoiThat.current_version
 
@@ -28,6 +30,17 @@ module TranTuanNoiThat
       message = "Không kiểm tra được cập nhật:\n#{error.message}"
       interactive ? UI.messagebox(message) : (puts message)
       false
+    end
+
+    def fetch_manifest
+      body = get(fresh_url(TranTuanNoiThat::MANIFEST_URL))
+      parsed = JSON.parse(body)
+      if parsed.is_a?(Hash) && parsed['content'] && parsed['encoding'].to_s.downcase == 'base64'
+        decoded = Base64.decode64(parsed['content'].to_s)
+        JSON.parse(decoded)
+      else
+        parsed
+      end
     end
 
     def install(manifest)
@@ -101,9 +114,11 @@ module TranTuanNoiThat
       raise 'Chỉ cho phép cập nhật HTTPS.' unless uri.is_a?(URI::HTTPS)
       request = Net::HTTP::Get.new(
         uri.request_uri,
-        'User-Agent' => 'TranTuanNoiThat-SketchUp/1.9.3',
+        'User-Agent' => 'TranTuanNoiThat-SketchUp/1.9.4',
         'Cache-Control' => 'no-cache, no-store, max-age=0',
-        'Pragma' => 'no-cache'
+        'Pragma' => 'no-cache',
+        'Accept' => 'application/vnd.github+json',
+        'X-GitHub-Api-Version' => '2022-11-28'
       )
       response = Net::HTTP.start(uri.host, uri.port, use_ssl: true, open_timeout: 10, read_timeout: 25) { |http| http.request(request) }
       return get(URI.join(uri, response['location']).to_s, limit - 1) if response.is_a?(Net::HTTPRedirection)
