@@ -1,17 +1,18 @@
 {
   "locked": false,
   "feature": "Xoay Vân Ván",
-  "system_version": "1.9.37",
-  "grain_version": "3.4.0",
-  "opened_for": "Chuẩn hóa tỷ lệ vân 2440x1220 cho mọi kích thước tấm và bỏ material bake làm màu bị dính vào Face.",
-  "policy": "ĐANG MỞ KHÓA theo yêu cầu TRẦN TUẤN. Có thể tiếp tục test/chỉnh Grain; không sửa các tính năng đang khóa khác.",
+  "system_version": "1.9.39",
+  "grain_version": "3.4.1",
+  "opened_for": "Cố định tuyệt đối tỷ lệ texture theo 1 map = 2440x1220; tấm nhỏ crop, tấm lớn lặp, không co giãn theo kích thước chi tiết.",
+  "policy": "ĐANG MỞ KHÓA theo yêu cầu TRẦN TUẤN. Chỉ tinh chỉnh Grain; không sửa các tính năng khác.",
   "current_fix": {
     "path": "tran_tuan_noi_that_release/files/tran_tuan_noi_that/grain_standard_2440_fix.rb",
-    "blob_sha": "30ddccd852004efa337b7d132d6eed8922a4d5fc"
+    "blob_sha": "3f3e6c1cf3306bba10e03d4f673a510b538c29d3"
   },
   "protected_other_features": {
     "box": "1.1.1",
     "co_gian": "0.9.2",
-    "bo_cong": "2.2.6"
+    "bo_cong": "2.2.6",
+    "layout_stats": "0.7.0"
   }
 }
