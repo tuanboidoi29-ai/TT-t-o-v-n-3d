@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.18",
+  "version": "1.9.19",
   "round_version": "2.2.5",
-  "stretch_mode_version": "0.8.0",
+  "stretch_mode_version": "0.8.1",
   "channel": "stable",
-  "notes": "Bản 1.9.18: Co Giãn Khối MODE V0.8.0 chuyển sang TRUE 3D DETAIL STRETCH. Nếu P1 cắt qua Group/Component, hệ thống không Move parent nữa mà đi vào geometry thật và chỉ dịch các vertex nằm phía P2 theo Model Axis; vertex phía P1 giữ nguyên. Chi tiết cắt qua P1 được kéo dài/ngắn thật; đối tượng nằm hoàn toàn phía P2 mới tịnh tiến nguyên khối. Giữ đa hướng X± Y± Z±, P3/nhập kích thước và 1 Undo. Bo Cong Khối V2.2.5 vẫn KHÓA.",
+  "notes": "Bản 1.9.19: Co Giãn Khối MODE V0.8.1 giữ nguyên TRUE 3D DETAIL STRETCH và nâng preview rõ hơn. P1 hiển thị biên cố định nét dày, vùng tác động phủ cam trong suốt, biên hiện tại và biên mới tách màu rõ, có ghost box, mũi tên kéo lớn và nhãn TĂNG/GIẢM + số mm trực tiếp trên model. Chỉ là overlay preview, chưa sửa geometry cho tới khi xác nhận. Bo Cong Khối V2.2.5 vẫn KHÓA.",
   "rbz_url": "",
   "locked_features": {
     "bo_cong": "2.2.5"
@@ -12,12 +12,12 @@
   "files": [
     {
       "path": "TranTuanNoiThat.rb",
-      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/d1eec7118f8c8b14e474ca57eb7b46124dbab13e/tran_tuan_noi_that_release/files/TranTuanNoiThat.rb",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/985c68f09d3d0bcf689c5fbc07acf91914ce879b/tran_tuan_noi_that_release/files/TranTuanNoiThat.rb",
       "sha256": ""
     },
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
-      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/d8f61f59cb2dee11227d8aed529e77367b54f783/tran_tuan_noi_that_release/files/tran_tuan_noi_that/bootstrap.rb",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/cbeb85957ff2657b4a4568e4722f65aa0b688b69/tran_tuan_noi_that_release/files/tran_tuan_noi_that/bootstrap.rb",
       "sha256": ""
     },
     {
@@ -27,7 +27,7 @@
     },
     {
       "path": "tran_tuan_noi_that/stretch_detail_fix.rb",
-      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/2f1a9003e8cc027784889b00a5dc47e52b93c11f/tran_tuan_noi_that_release/files/tran_tuan_noi_that/stretch_detail_fix.rb",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/d12495232975e9b7694230cd874c78255ec5b05e/tran_tuan_noi_that_release/files/tran_tuan_noi_that/stretch_detail_fix.rb",
       "sha256": ""
     }
   ]
