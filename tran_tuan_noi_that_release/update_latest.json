@@ -1,19 +1,24 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.3",
+  "version": "1.9.4",
   "round_version": "2.2.1",
   "channel": "stable",
-  "notes": "Bo Cong Khối V2.2.1: ẩn đúng toàn bộ cạnh chia độ mịn giữa các mặt cong bằng Soft + Smooth + Hidden; giữ nguyên 2 biên ngoài thật. Đồng bộ loader/bootstrap/updater, không cần khởi động lại.",
+  "notes": "Updater 1.9.4 đọc manifest qua GitHub API, bỏ phụ thuộc cache raw/main. Bo Cong Khối V2.2.1 ẩn các cạnh chia độ mịn bằng Soft + Smooth + Hidden, giữ 2 biên ngoài.",
   "rbz_url": "",
   "files": [
     {
       "path": "TranTuanNoiThat.rb",
-      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/53743bfb26be09d5bbb41944e78c055375845cbc/tran_tuan_noi_that_release/files/TranTuanNoiThat.rb",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/f2c3a9e4eb0fc8713ce3240ac097e46ec9d52e88/tran_tuan_noi_that_release/files/TranTuanNoiThat.rb",
       "sha256": ""
     },
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
-      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/d8fba4a512887678006f034065f242fc4904f6b0/tran_tuan_noi_that_release/files/tran_tuan_noi_that/bootstrap.rb",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/abc4293036b2a639af281defd66248181b0f5b48/tran_tuan_noi_that_release/files/tran_tuan_noi_that/bootstrap.rb",
+      "sha256": ""
+    },
+    {
+      "path": "tran_tuan_noi_that/updater.rb",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/a754d83bbd96dd7cedbb47b73a31869cbefdd486/tran_tuan_noi_that_release/files/tran_tuan_noi_that/updater.rb",
       "sha256": ""
     },
     {
@@ -24,11 +29,6 @@
     {
       "path": "tran_tuan_noi_that/round_smooth_fix.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/e72485b822029d188309dbfd7b09c542c6f32556/tran_tuan_noi_that_release/files/tran_tuan_noi_that/round_smooth_fix.rb",
-      "sha256": ""
-    },
-    {
-      "path": "tran_tuan_noi_that/updater.rb",
-      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/17ab349418453279967e04c9ee8ba46473e4fd62/tran_tuan_noi_that_release/files/tran_tuan_noi_that/updater.rb",
       "sha256": ""
     }
   ]
