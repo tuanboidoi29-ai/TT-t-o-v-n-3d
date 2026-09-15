@@ -13,7 +13,7 @@ module TranTuanNoiThat
   NAME = 'TRẦN TUẤN NỘI THẤT'.freeze unless const_defined?(:NAME, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.9'.freeze
+  VERSION = '1.9.10'.freeze
 
   remove_const(:MANIFEST_URL) if const_defined?(:MANIFEST_URL, false)
   MANIFEST_URL = 'https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/update_latest.json'.freeze
@@ -118,8 +118,6 @@ module TranTuanNoiThat
       @toolbar.show if @toolbar
     end
 
-    # Hot-reload an toàn: không dựa duy nhất vào @round_ui_installed.
-    # Nếu nút Bo Cong bị mất khỏi toolbar, tự tạo lại ngay mà không cần restart.
     def install_round_ui
       return false unless defined?(TranTuanNoiThat::Round)
 
@@ -133,7 +131,6 @@ module TranTuanNoiThat
         :round
       ) { Round.activate }
 
-      # Phiên cũ đã từng đăng ký menu thì không thêm lại để tránh menu trùng.
       unless was_installed || @round_menu_installed
         (@main_menu || UI.menu('Extensions')).add_item(@round_cmd)
         @round_menu_installed = true
