@@ -13,7 +13,7 @@ module TranTuanNoiThat
   NAME = 'TRẦN TUẤN NỘI THẤT'.freeze unless const_defined?(:NAME, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.38'.freeze
+  VERSION = '1.9.39'.freeze
 
   remove_const(:MANIFEST_URL) if const_defined?(:MANIFEST_URL, false)
   MANIFEST_URL = 'https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/update_latest.json'.freeze
@@ -62,7 +62,7 @@ module TranTuanNoiThat
     end
 
     def reload_runtime
-      # Grain: base V3.2.0 -> nhận map V3.2.1 -> căn vân V3.3.0 -> chuẩn 2440/material-safe V3.4.0.
+      # Grain: base V3.2.0 -> nhận map V3.2.1 -> căn vân V3.3.0 -> chuẩn cố định 2440x1220/material-safe V3.4.1.
       # Layout: V0.6.0 compact scope -> V0.7.0 tách LayOut/PDF.
       %w[
         board_tool.rb
@@ -172,7 +172,7 @@ module TranTuanNoiThat
       @grain_cmd ||= command(
         'Xoay Vân Ván',
         'grain.svg',
-        'Chuẩn vân 2440x1220 · tấm lớn/nhỏ giữ nguyên tỷ lệ · material kế thừa vẫn đổi màu được.',
+        '1 map = 2440x1220 cố định · tấm nhỏ crop · tấm lớn lặp · không co giãn texture.',
         :grain
       ) { Grain.activate }
       add_feature_command_once(@grain_cmd, :grain_menu_installed)
