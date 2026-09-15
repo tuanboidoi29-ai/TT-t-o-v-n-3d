@@ -1,15 +1,17 @@
 # encoding: UTF-8
 module TranTuanNoiThat
   # Layout load order bắt buộc:
-  # base -> V0.3.0 -> compat giữ Method gốc -> V0.4.0 -> compat nâng VERSION 0.4.1
+  # base -> V0.3.0 -> compat -> V0.4.0 -> compat -> V0.5.0 stable preview.
   layout_compat = File.join(ROOT, 'layout_stats_v040_compat.rb')
   layout_patch_v040 = File.join(ROOT, 'layout_stats_v040_patch.rb')
+  layout_patch_v050 = File.join(ROOT, 'layout_stats_v050_stable_preview.rb')
   load layout_compat if File.file?(layout_compat)
   load layout_patch_v040 if File.file?(layout_patch_v040)
   load layout_compat if File.file?(layout_compat)
+  load layout_patch_v050 if File.file?(layout_patch_v050)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.33'.freeze
+  VERSION = '1.9.34'.freeze
 
   module Settings
     extend self
