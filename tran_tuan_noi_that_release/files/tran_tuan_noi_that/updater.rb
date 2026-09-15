@@ -1,5 +1,6 @@
 # encoding: UTF-8
 require 'base64'
+require 'cgi'
 
 module TranTuanNoiThat
   module Updater
