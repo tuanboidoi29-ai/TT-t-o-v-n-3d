@@ -6,5 +6,5 @@
   "round_smooth_fix_path": "tran_tuan_noi_that_release/files/tran_tuan_noi_that/round_smooth_fix.rb",
   "round_smooth_fix_blob_sha": "6f5f4f1dc339959df015bc907663b990dc352fe7",
   "policy": "Không sửa code Bo Cong Khối nếu chưa có yêu cầu mở khóa rõ ràng từ TRẦN TUẤN.",
-  "stable_system_version": "1.9.12"
+  "stable_system_version": "1.9.13"
 }
