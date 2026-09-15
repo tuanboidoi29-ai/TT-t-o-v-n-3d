@@ -6,19 +6,21 @@ module TranTuanNoiThat
   load grain_patch_v340 if File.file?(grain_patch_v340)
 
   # Layout load order bắt buộc:
-  # base -> V0.3.0 -> compat -> V0.4.0 -> compat -> V0.5.0 stable preview -> V0.6.0 compact scope.
+  # base -> V0.3.0 -> compat -> V0.4.0 -> compat -> V0.5.0 -> V0.6.0 -> V0.7.0.
   layout_compat = File.join(ROOT, 'layout_stats_v040_compat.rb')
   layout_patch_v040 = File.join(ROOT, 'layout_stats_v040_patch.rb')
   layout_patch_v050 = File.join(ROOT, 'layout_stats_v050_stable_preview.rb')
   layout_patch_v060 = File.join(ROOT, 'layout_stats_v060_compact_scope.rb')
+  layout_patch_v070 = File.join(ROOT, 'layout_stats_v070_export_split.rb')
   load layout_compat if File.file?(layout_compat)
   load layout_patch_v040 if File.file?(layout_patch_v040)
   load layout_compat if File.file?(layout_compat)
   load layout_patch_v050 if File.file?(layout_patch_v050)
   load layout_patch_v060 if File.file?(layout_patch_v060)
+  load layout_patch_v070 if File.file?(layout_patch_v070)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.37'.freeze
+  VERSION = '1.9.38'.freeze
 
   module Settings
     extend self
