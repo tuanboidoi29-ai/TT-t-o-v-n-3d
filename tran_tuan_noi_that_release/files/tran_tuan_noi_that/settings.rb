@@ -17,7 +17,7 @@ module TranTuanNoiThat
         TranTuanNoiThat.save_setting('thickness', thickness)
         TranTuanNoiThat.save_setting('auto_update', !!data['auto_update'])
         TranTuanNoiThat.save_setting('update_channel', data['channel'].to_s)
-        %w[board box drawer round].each do |feature|
+        %w[board box drawer round grain].each do |feature|
           TranTuanNoiThat.save_setting("feature_#{feature}", !!data["feature_#{feature}"])
         end
         TranTuanNoiThat.refresh_feature_commands
@@ -42,7 +42,8 @@ module TranTuanNoiThat
         feature_board: TranTuanNoiThat.feature_enabled?(:board),
         feature_box: TranTuanNoiThat.feature_enabled?(:box),
         feature_drawer: TranTuanNoiThat.feature_enabled?(:drawer),
-        feature_round: TranTuanNoiThat.feature_enabled?(:round)
+        feature_round: TranTuanNoiThat.feature_enabled?(:round),
+        feature_grain: TranTuanNoiThat.feature_enabled?(:grain)
       }
       @dialog.execute_script("window.setSettings(#{JSON.generate(payload)})")
     end
