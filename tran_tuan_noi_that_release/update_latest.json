@@ -1,0 +1,30 @@
+{
+  "name": "TRẦN TUẤN NỘI THẤT",
+  "version": "1.9.2",
+  "round_version": "2.2.0",
+  "channel": "stable",
+  "notes": "Hotfix updater 1.9.2: bỏ cache GitHub, tải file theo commit cố định, tự retry; Bo Cong Khối V2.2.0.",
+  "rbz_url": "",
+  "files": [
+    {
+      "path": "TranTuanNoiThat.rb",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/5944cedaa9e424d4de62c4520df130a44c90a553/tran_tuan_noi_that_release/files/TranTuanNoiThat.rb",
+      "sha256": ""
+    },
+    {
+      "path": "tran_tuan_noi_that/bootstrap.rb",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/1579675aa7cd5ce420b59021945c2ed565687031/tran_tuan_noi_that_release/files/tran_tuan_noi_that/bootstrap.rb",
+      "sha256": ""
+    },
+    {
+      "path": "tran_tuan_noi_that/updater.rb",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/b69a80e596d4a9c12fcf41bdef6aa92b64ba3c43/tran_tuan_noi_that_release/files/tran_tuan_noi_that/updater.rb",
+      "sha256": ""
+    },
+    {
+      "path": "tran_tuan_noi_that/round_tool.rb",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/3df27d64b0bcdede6b595d021105b3252325ee8e/tran_tuan_noi_that_release/files/tran_tuan_noi_that/round_tool.rb",
+      "sha256": ""
+    }
+  ]
+}
