@@ -13,7 +13,7 @@ module TranTuanNoiThat
   NAME = 'TRẦN TUẤN NỘI THẤT'.freeze unless const_defined?(:NAME, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.33'.freeze
+  VERSION = '1.9.34'.freeze
 
   remove_const(:MANIFEST_URL) if const_defined?(:MANIFEST_URL, false)
   MANIFEST_URL = 'https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/update_latest.json'.freeze
@@ -62,8 +62,8 @@ module TranTuanNoiThat
     end
 
     def reload_runtime
-      # Layout giữ nguyên bản khóa V0.4.1.
-      # Grain load base V3.2.0 -> material fix V3.2.1.
+      # Grain V3.2.1 đã KHÓA: base -> material fix, không sửa tiếp.
+      # Layout đang phát triển V0.5.0: base -> V0.3 -> compat/V0.4 -> settings nạp stable preview.
       %w[
         board_tool.rb
         box_tool.rb
@@ -181,7 +181,7 @@ module TranTuanNoiThat
       @layout_stats_cmd ||= command(
         'Xuất Layout + Thống Kê Ván',
         'layout_stats.svg',
-        'A3: xem trước toàn bộ Layout ngay trong bảng · Tổng thể · Trước/Trái/Phải · 3 mặt cắt · Line + X-Ray · thống kê · xuất LayOut/PDF.',
+        'A3: preview ổn định từng trang · Tổng thể · Trước/Trái/Phải · 3 mặt cắt · Line + X-Ray · thống kê · xuất LayOut/PDF.',
         :layout_stats
       ) { LayoutStats.show }
       add_feature_command_once(@layout_stats_cmd, :layout_stats_menu_installed)
