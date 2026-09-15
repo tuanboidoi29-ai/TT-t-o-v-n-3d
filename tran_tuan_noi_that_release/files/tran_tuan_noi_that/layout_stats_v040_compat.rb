@@ -6,16 +6,16 @@
 
 module TranTuanNoiThat
   module LayoutStats
-    class << self
-      unless instance_variable_defined?(:@tt_v040_base_capture_proc)
-        if respond_to?(:capture_inline_previews, true)
-          @tt_v040_base_capture_proc = method(:capture_inline_previews)
-        end
+    unless instance_variable_defined?(:@tt_v040_base_capture_proc)
+      if respond_to?(:capture_inline_previews, true)
+        @tt_v040_base_capture_proc = method(:capture_inline_previews)
       end
+    end
 
+    class << self
       unless method_defined?(:tt_v040_base_capture_inline_previews)
         def tt_v040_base_capture_inline_previews(model, cut_offset_mm)
-          base = @tt_v040_base_capture_proc
+          base = instance_variable_get(:@tt_v040_base_capture_proc)
           raise 'Engine preview Layout V0.3.0 chưa được nạp.' unless base
           base.call(model, cut_offset_mm)
         end
