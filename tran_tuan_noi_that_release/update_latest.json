@@ -1,23 +1,30 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.22",
+  "version": "1.9.23",
+  "box_version": "1.1.0",
   "round_version": "2.2.5",
   "stretch_mode_version": "0.9.2",
   "channel": "stable",
-  "notes": "Bản 1.9.22: Co Giãn Khối MODE V0.9.2 sửa AUTO scope để khung preview nét đứt ôm sát module dưới P1, không phóng theo toàn active context hoặc wrapper ngoài quá lớn. Khi P1 nằm trong nhiều Group/Component lồng nhau, hệ thống ưu tiên container sâu nhất gần P1; nếu không có container con vẫn lấy Group/Component gần P1 làm scope. Giữ nguyên TRUE 3D DETAIL STRETCH, AUTO QUÉT, preview nét đứt và Bo Cong Khối V2.2.5 vẫn KHÓA.",
+  "notes": "Bản 1.9.23: Tạo Khối BOX V1.1.0 thêm SHIFT xoay hướng 90 độ quanh điểm đặt. Mỗi lần nhấn SHIFT chuyển 0° -> 90° -> 180° -> 270° -> 0°; preview xoay ngay và BOX thật tạo đúng hướng preview. Lưu attribute huong_xoay_do. Co Giãn Khối MODE V0.9.2 vẫn tạm KHÓA và Bo Cong Khối V2.2.5 vẫn KHÓA.",
   "rbz_url": "",
   "locked_features": {
-    "bo_cong": "2.2.5"
+    "bo_cong": "2.2.5",
+    "co_gian": "0.9.2"
   },
   "files": [
     {
       "path": "TranTuanNoiThat.rb",
-      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/507940f99ae9c407b2c1c7b745c19ac74ad2eda3/tran_tuan_noi_that_release/files/TranTuanNoiThat.rb",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/ce543ab1c2c2abd560917f442c6b8ef458ba8f47/tran_tuan_noi_that_release/files/TranTuanNoiThat.rb",
       "sha256": ""
     },
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
-      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/09e9f3f2a76cdb8137176a1a9fc97c7965aa549e/tran_tuan_noi_that_release/files/tran_tuan_noi_that/bootstrap.rb",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/39783740a429ef2e9bb0b5115fc1eb94b72dd9cf/tran_tuan_noi_that_release/files/tran_tuan_noi_that/bootstrap.rb",
+      "sha256": ""
+    },
+    {
+      "path": "tran_tuan_noi_that/box_tool.rb",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/c04f35f6f17b7eb3e9c981e85e1ad85a2bf20088/tran_tuan_noi_that_release/files/tran_tuan_noi_that/box_tool.rb",
       "sha256": ""
     },
     {
