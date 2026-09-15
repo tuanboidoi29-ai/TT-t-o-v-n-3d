@@ -3,9 +3,19 @@
   "version": "1.9.3",
   "round_version": "2.2.1",
   "channel": "stable",
-  "notes": "Bo Cong Khối V2.2.1: ẩn đúng toàn bộ cạnh chia độ mịn giữa các mặt cong bằng Soft + Smooth + Hidden; giữ nguyên 2 biên ngoài thật. Updater nạp hotfix ngay, không cần khởi động lại.",
+  "notes": "Bo Cong Khối V2.2.1: ẩn đúng toàn bộ cạnh chia độ mịn giữa các mặt cong bằng Soft + Smooth + Hidden; giữ nguyên 2 biên ngoài thật. Đồng bộ loader/bootstrap/updater, không cần khởi động lại.",
   "rbz_url": "",
   "files": [
+    {
+      "path": "TranTuanNoiThat.rb",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/53743bfb26be09d5bbb41944e78c055375845cbc/tran_tuan_noi_that_release/files/TranTuanNoiThat.rb",
+      "sha256": ""
+    },
+    {
+      "path": "tran_tuan_noi_that/bootstrap.rb",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/d8fba4a512887678006f034065f242fc4904f6b0/tran_tuan_noi_that_release/files/tran_tuan_noi_that/bootstrap.rb",
+      "sha256": ""
+    },
     {
       "path": "tran_tuan_noi_that/round_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/3df27d64b0bcdede6b595d021105b3252325ee8e/tran_tuan_noi_that_release/files/tran_tuan_noi_that/round_tool.rb",
