@@ -1,18 +1,51 @@
 # encoding: UTF-8
-# TRẦN TUẤN - Bo Cong Khối V2.2.5
-# FIX: bo liên tiếp trên khối đã bo + làm mịn lại TOÀN BỘ cung sau mỗi lần bo.
+# TRẦN TUẤN - Bo Cong Khối V2.2.6
+# FIX:
+# - Giữ HIỆN đúng 2 đường biên đầu tiên và cuối cùng của mỗi cung bo.
+# - Chỉ làm mịn/ẩn các đường chia nằm GIỮA cung.
+# - Khi bo tiếp góc 2/3/4, các đường biên cung cũ đã đánh dấu vẫn được giữ hiện.
+# - Preview chỉ nhấn mạnh 2 đường biên đầu/cuối, không vẽ đường giữa gây nhầm.
 
 module TranTuanNoiThat
   module Round
     remove_const(:VERSION) if const_defined?(:VERSION, false)
-    VERSION = '2.2.5'.freeze
+    VERSION = '2.2.6'.freeze
+
+    BOUNDARY_DICT = 'TRẦN TUẤN BO CONG'.freeze unless const_defined?(:BOUNDARY_DICT, false)
+    BOUNDARY_KEY  = 'duong_bien_cung'.freeze unless const_defined?(:BOUNDARY_KEY, false)
 
     class Tool
+      # Preview V2.2.6: hiện đúng 2 đường biên đầu/cuối của cung.
+      def draw(view)
+        return unless @candidate
+
+        color = @candidate[:valid] ? Round::ORANGE : Round::RED
+        view.drawing_color = color
+        view.line_width = 4
+
+        if @candidate[:arc] && @candidate[:back_arc]
+          view.draw(GL_LINE_STRIP, @candidate[:arc])
+          view.draw(GL_LINE_STRIP, @candidate[:back_arc])
+
+          if @candidate[:arc].length >= 2 && @candidate[:back_arc].length >= 2
+            boundary_lines = [
+              @candidate[:arc].first, @candidate[:back_arc].first,
+              @candidate[:arc].last,  @candidate[:back_arc].last
+            ]
+            view.line_width = 5
+            view.draw(GL_LINES, boundary_lines)
+          end
+        end
+
+        view.draw_points([@candidate[:vertex]], 10, 3, color) if @candidate[:vertex]
+      rescue StandardError => error
+        puts "[TT Round draw V#{Round::VERSION}] #{error.class}: #{error.message}"
+      end
+
       private
 
       # Sau khi khối đã có cung, Face dưới con trỏ có thể là một mặt segment cong.
-      # Không lấy nhầm mặt segment đó làm mặt profile. Chỉ nhận Face có thể xuyên
-      # qua khối theo một vector song song ổn định (prism_depth trả về hợp lệ).
+      # Chỉ nhận Face có thể xuyên qua khối theo một vector song song ổn định.
       def pick_face(vertex, direct_face, tr)
         candidates = vertex.faces.select { |f| f.valid? && f.loops.length == 1 }
         return nil if candidates.empty?
@@ -30,16 +63,13 @@ module TranTuanNoiThat
         viable.max_by do |face|
           n = face.normal.transform(tr)
           n.normalize! if n.length > 0.001
-          # Ưu tiên mặt nhìn thấy rõ; nếu ngang nhau ưu tiên profile có nhiều cạnh.
           [n.dot(camera).abs, face.outer_loop.edges.length]
         end
       rescue StandardError
         nil
       end
 
-      # Bỏ điều kiện cũ faces == n+2 / edges == n*3 vì sau khi bo một hay nhiều
-      # góc topology đã có nhiều segment. Việc xác nhận hướng xuyên khối được giao
-      # cho prism_depth ở bước build phía sau.
+      # Cho phép bo liên tiếp trên khối đã có nhiều segment cong.
       def prism_reason(entities, face)
         return 'Mặt có lỗ chưa được hỗ trợ.' unless face.loops.length == 1
         if entities.any? { |e| e.is_a?(Sketchup::Group) || e.is_a?(Sketchup::ComponentInstance) || e.is_a?(Sketchup::Image) }
@@ -66,6 +96,9 @@ module TranTuanNoiThat
                  entities.grep(Sketchup::Edge).length == data[:edge_count]
             raise 'Hình học đã đổi sau preview. Hãy rê chuột bắt lại góc.'
           end
+
+          # Lưu vị trí các đường biên cung đã có từ lần bo trước.
+          old_boundary_specs = capture_boundary_specs(entities)
 
           profile = data[:profile]
           back = profile.map { |p| p.offset(data[:depth]) }
@@ -95,27 +128,72 @@ module TranTuanNoiThat
             curved_faces << side if range && i >= range.begin && i < range.end
           end
 
-          # Cung vừa bo: dùng cạnh chung thật giữa các mặt segment liền nhau.
+          # Hai đường biên mới chính là cạnh xuyên chiều dày tại điểm đầu và cuối cung.
+          current_boundary_specs = []
+          if range
+            current_boundary_specs << [clone_point(profile[range.begin]), clone_point(back[range.begin])]
+            current_boundary_specs << [clone_point(profile[range.end]), clone_point(back[range.end])]
+          end
+
+          boundary_specs = old_boundary_specs + current_boundary_specs
+          protected_edges = resolve_boundary_edges(entities, boundary_specs)
+
+          # Chỉ ẩn seam nội bộ giữa các mặt segment cong.
           hide_curve_internal_seams(curved_faces)
 
-          # Quan trọng: lần bo sau dựng lại topology nên mọi seam cũ có thể hiện lại.
-          # Quét TOÀN BỘ khối, không phụ thuộc hướng bo hiện tại. Cạnh có 2 mặt kề
-          # đổi hướng nhỏ là seam làm mịn; cạnh biên thật 90° vẫn được giữ nguyên.
-          smooth_all_curved_seams(entities)
+          # Giữ mịn các cung cũ sau khi topology được dựng lại,
+          # nhưng TUYỆT ĐỐI không làm mịn 2 đường biên đã bảo vệ.
+          smooth_all_curved_seams(entities, protected_edges)
+
+          # Ép 2 biên đầu/cuối thành cạnh thật nhìn thấy và đánh dấu cho lần bo sau.
+          protected_edges.each { |edge| harden_boundary_edge(edge) }
 
           open_count = entities.grep(Sketchup::Edge).count { |e| e.valid? && e.faces.length != 2 }
           raise "Khối sau bo chưa kín (#{open_count} cạnh hở)." if open_count > 0
 
           model.commit_operation
-          status('đã bo xong · giữ mịn toàn bộ cung cũ + mới')
+          status('đã bo xong · 2 biên đầu/cuối HIỆN · các đường giữa đã LÀM MỊN')
         rescue StandardError => error
           model.abort_operation
           UI.messagebox("Không thể bo cong V#{Round::VERSION}:\n#{error.message}")
         end
       end
 
+      # Lưu lại vị trí các biên cung đã được đánh dấu trước khi dựng lại topology.
+      def capture_boundary_specs(entities)
+        entities.grep(Sketchup::Edge).each_with_object([]) do |edge, specs|
+          next unless edge.valid?
+          next unless edge.get_attribute(Round::BOUNDARY_DICT, Round::BOUNDARY_KEY, false)
+          specs << [clone_point(edge.start.position), clone_point(edge.end.position)]
+        end
+      rescue StandardError
+        []
+      end
+
+      def resolve_boundary_edges(entities, specs)
+        edges = entities.grep(Sketchup::Edge).select(&:valid?)
+        found = []
+
+        specs.each do |a, b|
+          edge = edges.find do |candidate|
+            p1 = candidate.start.position
+            p2 = candidate.end.position
+            (round_close?(p1, a) && round_close?(p2, b)) ||
+              (round_close?(p1, b) && round_close?(p2, a))
+          end
+          found << edge if edge && !found.include?(edge)
+        end
+
+        found
+      rescue StandardError
+        []
+      end
+
+      # Chỉ seam nằm giữa hai segment cong liền nhau mới được ẩn.
+      # Hai seam ngoài cùng không nằm trong each_cons nên luôn được giữ cho bước bảo vệ.
       def hide_curve_internal_seams(curved_faces)
         return if curved_faces.nil? || curved_faces.length < 2
+
         curved_faces.each_cons(2) do |face_a, face_b|
           next unless face_a && face_b && face_a.valid? && face_b.valid?
           edge = (face_a.edges & face_b.edges).find do |candidate|
@@ -125,13 +203,14 @@ module TranTuanNoiThat
         end
       end
 
-      # Không lọc theo depth_vector nữa. Đây là điểm sửa chính cho trường hợp
-      # bo tiếp ở hướng khác hoặc bo góc thứ 2/3/4 làm seam cũ hiện trở lại.
-      def smooth_all_curved_seams(entities, _depth_vector = nil)
+      # Làm mịn toàn khối để các cung cũ không hiện seam trở lại sau lần bo mới.
+      # protected_edges là danh sách 2 đường biên đầu/cuối của mọi cung đã đánh dấu.
+      def smooth_all_curved_seams(entities, protected_edges = [])
         max_angle = 50.0 * Math::PI / 180.0
 
         entities.grep(Sketchup::Edge).each do |edge|
           next unless edge.valid? && edge.faces.length == 2
+          next if protected_edges.include?(edge)
 
           f1, f2 = edge.faces
           next unless f1.valid? && f2.valid?
@@ -150,11 +229,31 @@ module TranTuanNoiThat
         end
       end
 
+      def harden_boundary_edge(edge)
+        return unless edge && edge.valid?
+        edge.soft = false
+        edge.smooth = false
+        edge.hidden = false
+        edge.set_attribute(Round::BOUNDARY_DICT, Round::BOUNDARY_KEY, true)
+      rescue StandardError => error
+        puts "[TT Round boundary] #{error.class}: #{error.message}"
+      end
+
       def soften_edge(edge)
         return unless edge && edge.valid?
         edge.soft = true
         edge.smooth = true
         edge.hidden = true
+      end
+
+      def clone_point(point)
+        Geom::Point3d.new(point.x, point.y, point.z)
+      end
+
+      def round_close?(a, b)
+        a.distance(b) <= 0.01.mm
+      rescue StandardError
+        false
       end
     end
   end
