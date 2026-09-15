@@ -1,10 +1,14 @@
 {
   "locked": false,
   "feature": "Xoay Vân Ván",
-  "system_version": "1.9.34",
-  "grain_version": "3.2.1",
-  "opened_for": "Chỉnh lại khổ ván và căn vân gỗ đều, đúng tỉ lệ texture theo yêu cầu TRẦN TUẤN.",
-  "policy": "ĐANG MỞ KHÓA theo yêu cầu TRẦN TUẤN.",
+  "system_version": "1.9.35",
+  "grain_version": "3.3.0",
+  "opened_for": "Chỉnh khổ ván và căn vân gỗ đều, giữ đúng scale texture.",
+  "policy": "ĐANG MỞ KHÓA theo yêu cầu TRẦN TUẤN. Có thể tiếp tục test/chỉnh Grain; không sửa các tính năng đang khóa khác.",
+  "current_fix": {
+    "path": "tran_tuan_noi_that_release/files/tran_tuan_noi_that/grain_align_fix.rb",
+    "blob_sha": "00fd7f2d5f34b392dbf5de5e8db5bf16138b5ac7"
+  },
   "protected_other_features": {
     "box": "1.1.1",
     "co_gian": "0.9.2",
