@@ -13,7 +13,7 @@ module TranTuanNoiThat
   NAME = 'TRẦN TUẤN NỘI THẤT'.freeze unless const_defined?(:NAME, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.22'.freeze
+  VERSION = '1.9.23'.freeze
 
   remove_const(:MANIFEST_URL) if const_defined?(:MANIFEST_URL, false)
   MANIFEST_URL = 'https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/update_latest.json'.freeze
@@ -123,7 +123,12 @@ module TranTuanNoiThat
       return if @box_ui_installed
       return unless defined?(TranTuanNoiThat::Box)
       @box_ui_installed = true
-      cmd = command('Tạo Khối BOX', 'box.svg', 'Tạo BOX khối đặc hoặc khung', :box) { Box.show_dialog }
+      cmd = command(
+        'Tạo Khối BOX',
+        'box.svg',
+        'Tạo BOX khối đặc/khung · SHIFT xoay 90° khi đặt',
+        :box
+      ) { Box.show_dialog }
       (@main_menu || UI.menu('Extensions')).add_item(cmd)
       @toolbar.add_item(cmd) if @toolbar
       @toolbar.show if @toolbar
