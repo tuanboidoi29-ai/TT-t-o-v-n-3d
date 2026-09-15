@@ -5,8 +5,8 @@ require 'extensions.rb'
 module TranTuanNoiThat
   unless file_loaded?(__FILE__)
     ext = SketchupExtension.new('TRẦN TUẤN NỘI THẤT', 'tran_tuan_noi_that/bootstrap')
-    ext.description = 'Hệ thống công cụ nội thất TRẦN TUẤN: Vẽ Ván, BOX, Ngăn Kéo, Bo Cong Khối, Co Giãn Khối MODE, Xoay Vân Ván nhận map màu/texture Face/Group/Component, Xuất Layout + Thống Kê Ván.'
-    ext.version = '1.9.33'
+    ext.description = 'Hệ thống công cụ nội thất TRẦN TUẤN: Vẽ Ván, BOX, Ngăn Kéo, Bo Cong Khối, Co Giãn Khối MODE, Xoay Vân Ván, Xuất Layout + Thống Kê Ván với preview ổn định từng trang.'
+    ext.version = '1.9.34'
     ext.creator = 'TRẦN TUẤN'
     ext.copyright = '2026 TRẦN TUẤN'
     Sketchup.register_extension(ext, true)
