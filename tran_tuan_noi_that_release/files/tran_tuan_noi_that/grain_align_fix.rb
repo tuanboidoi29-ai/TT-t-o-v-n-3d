@@ -21,7 +21,6 @@ module TranTuanNoiThat
         old_l = Sketchup.read_default(PREF, 'board_length_mm', 2440.0).to_f
         old_w = Sketchup.read_default(PREF, 'board_width_mm', 1220.0).to_f
 
-        # Chỉ đổi đúng bộ mặc định cũ; khổ người dùng tự nhập được giữ nguyên.
         if (old_l - 2440.0).abs < 0.01 && (old_w - 1220.0).abs < 0.01
           Sketchup.write_default(PREF, 'board_length_mm', 2800.0)
           Sketchup.write_default(PREF, 'board_width_mm', 1220.0)
@@ -70,6 +69,8 @@ module TranTuanNoiThat
     end
 
     class Tool
+      alias_method :tt_v330_save_metadata_base, :save_metadata unless method_defined?(:tt_v330_save_metadata_base)
+
       private
 
       def texture_dimensions(material)
@@ -93,7 +94,6 @@ module TranTuanNoiThat
         grain.normalize! if grain.length > 0.0001
         cross.normalize! if cross.length > 0.0001
 
-        # Tâm tile nằm đúng tâm mặt. Không scale texture theo chiều dài/rộng chi tiết.
         center = face.bounds.center.project_to_plane(face.plane)
         origin = center.offset(grain, -u_len * 0.5).offset(cross, -v_len * 0.5)
 
@@ -112,7 +112,7 @@ module TranTuanNoiThat
       end
 
       def save_metadata(target, material, analysis, mode)
-        super
+        tt_v330_save_metadata_base(target, material, analysis, mode)
         target.set_attribute(DICT, 'sheet_length_mm', @sheet_l)
         target.set_attribute(DICT, 'sheet_width_mm', @sheet_w)
         target.set_attribute(DICT, 'texture_align', 'center_keep_scale')
