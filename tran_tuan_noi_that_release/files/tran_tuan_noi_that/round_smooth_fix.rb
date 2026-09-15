@@ -1,17 +1,18 @@
 # encoding: UTF-8
-# TRẦN TUẤN - Bo Cong Khối V2.2.2
-# FIX TRIỆT ĐỂ: ẩn seam bằng cạnh chung giữa 2 Face cong liền nhau.
+# TRẦN TUẤN - Bo Cong Khối V2.2.3
+# FIX: bo lần 2+ vẫn giữ Soft/Smooth/Hidden của các cung đã bo trước.
 
 module TranTuanNoiThat
   module Round
     remove_const(:VERSION) if const_defined?(:VERSION, false)
-    VERSION = '2.2.2'.freeze
+    VERSION = '2.2.3'.freeze
 
     class Tool
       private
 
-      # Ghi đè thao tác bo để giữ trực tiếp danh sách các Face thuộc cung.
-      # Không còn dò seam theo tọa độ/khoảng cách.
+      # Mỗi lần bo engine phải dựng lại toàn bộ khối. Vì vậy trước khi xóa hình học
+      # phải ghi nhớ các seam đã được làm mịn ở những cung trước, rồi phục hồi chúng
+      # ngay trong cùng operation. Nhờ đó bo góc 2, 3, 4... không làm hiện lại đường chia.
       def apply_round(data)
         model = Sketchup.active_model
         entities = data[:entities]
@@ -23,6 +24,7 @@ module TranTuanNoiThat
             raise 'Hình học đã đổi sau preview. Hãy rê chuột bắt lại góc.'
           end
 
+          preserved = capture_smooth_edges(entities)
           profile = data[:profile]
           back = profile.map { |p| p.offset(data[:depth]) }
           range = data[:arc_range]
@@ -51,53 +53,84 @@ module TranTuanNoiThat
             side.material = data[:side_mat] if data[:side_mat]
             side.back_material = data[:side_back_mat] if data[:side_back_mat]
 
-            if range && i >= range.begin && i < range.end
-              curved_faces << side
-            end
+            curved_faces << side if range && i >= range.begin && i < range.end
           end
 
+          # 1) Ẩn seam của cung vừa bo bằng cạnh chung giữa các Face cong.
           hide_curve_internal_seams(curved_faces)
+
+          # 2) Khôi phục seam đã ẩn của tất cả cung bo trước đó.
+          restore_smooth_edges(entities, preserved)
 
           open_count = entities.grep(Sketchup::Edge).count { |e| e.valid? && e.faces.length != 2 }
           raise "Khối sau bo chưa kín (#{open_count} cạnh hở)." if open_count > 0
 
           model.commit_operation
-          status('đã bo xong · seam độ mịn đã ẩn · Ctrl+Z hoàn tác 1 lần')
+          status('đã bo xong · giữ mịn tất cả cung trước · Ctrl+Z hoàn tác 1 lần')
         rescue StandardError => error
           model.abort_operation
           UI.messagebox("Không thể bo cong V#{Round::VERSION}:\n#{error.message}")
         end
       end
 
-      # Chỉ ẩn cạnh CHUNG của hai Face cong liên tiếp.
-      # Hai đường biên ngoài đầu/cuối của cung không có hai Face cong kẹp hai bên,
-      # vì vậy luôn được giữ lại.
       def hide_curve_internal_seams(curved_faces)
         return if curved_faces.nil? || curved_faces.length < 2
-
-        hidden_count = 0
 
         curved_faces.each_cons(2) do |face_a, face_b|
           next unless face_a && face_b && face_a.valid? && face_b.valid?
 
-          shared = face_a.edges & face_b.edges
-          edge = shared.find do |candidate|
-            candidate.valid? &&
-              candidate.faces.include?(face_a) &&
-              candidate.faces.include?(face_b)
+          edge = (face_a.edges & face_b.edges).find do |candidate|
+            candidate.valid? && candidate.faces.include?(face_a) && candidate.faces.include?(face_b)
           end
           next unless edge
 
           edge.soft = true
           edge.smooth = true
           edge.hidden = true
-          hidden_count += 1
         end
+      end
 
-        expected = curved_faces.length - 1
-        if hidden_count != expected
-          puts "[TT Bo Cong V#{Round::VERSION}] Seam ẩn: #{hidden_count}/#{expected}"
+      # Lưu chính hai đầu cạnh + trạng thái. Point3d độc lập với Entity nên vẫn dùng được
+      # sau khi toàn bộ hình học cũ bị erase.
+      def capture_smooth_edges(entities)
+        entities.grep(Sketchup::Edge).each_with_object([]) do |edge, list|
+          next unless edge.valid?
+          next unless edge.hidden? || edge.soft? || edge.smooth?
+
+          list << {
+            a: Geom::Point3d.new(edge.start.position.x, edge.start.position.y, edge.start.position.z),
+            b: Geom::Point3d.new(edge.end.position.x, edge.end.position.y, edge.end.position.z),
+            hidden: edge.hidden?,
+            soft: edge.soft?,
+            smooth: edge.smooth?
+          }
         end
+      end
+
+      def restore_smooth_edges(entities, records)
+        return if records.nil? || records.empty?
+
+        edges = entities.grep(Sketchup::Edge).select(&:valid?)
+        tolerance = 0.05.mm
+
+        records.each do |record|
+          edge = edges.find do |candidate|
+            edge_matches_points?(candidate, record[:a], record[:b], tolerance)
+          end
+          next unless edge
+
+          edge.soft = true if record[:soft]
+          edge.smooth = true if record[:smooth]
+          edge.hidden = true if record[:hidden]
+        end
+      end
+
+      def edge_matches_points?(edge, a, b, tolerance)
+        p1 = edge.start.position
+        p2 = edge.end.position
+        direct = p1.distance(a) <= tolerance && p2.distance(b) <= tolerance
+        reverse = p1.distance(b) <= tolerance && p2.distance(a) <= tolerance
+        direct || reverse
       end
     end
   end
