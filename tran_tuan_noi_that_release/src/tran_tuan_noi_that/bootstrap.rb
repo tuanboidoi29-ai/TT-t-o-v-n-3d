@@ -13,10 +13,10 @@ module TranTuanNoiThat
   NAME = 'TRẦN TUẤN NỘI THẤT'.freeze unless const_defined?(:NAME, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.4'.freeze
+  VERSION = '1.9.10'.freeze
 
   remove_const(:MANIFEST_URL) if const_defined?(:MANIFEST_URL, false)
-  MANIFEST_URL = 'https://api.github.com/repos/tuanboidoi29-ai/TT-t-o-v-n-3d/contents/tran_tuan_noi_that_release/update.json?ref=main'.freeze
+  MANIFEST_URL = 'https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/update_latest.json'.freeze
 
   class << self
     def setting(key, default = nil)
@@ -38,7 +38,12 @@ module TranTuanNoiThat
 
     def refresh_feature_commands
       return false unless @toolbar
-      features = {'Vẽ Ván'=>:board,'Tạo Khối BOX'=>:box,'Vẽ Ngăn Kéo'=>:drawer,'Bo Cong Khối'=>:round}
+      features = {
+        'Vẽ Ván' => :board,
+        'Tạo Khối BOX' => :box,
+        'Vẽ Ngăn Kéo' => :drawer,
+        'Bo Cong Khối' => :round
+      }
       @toolbar.each do |item|
         next unless item.is_a?(UI::Command)
         feature = features[item.tooltip.to_s]
@@ -46,6 +51,8 @@ module TranTuanNoiThat
         item.set_validation_proc(&feature_validation_proc(feature))
       end
       true
+    rescue StandardError
+      false
     end
 
     def feature_validation_proc(feature)
@@ -53,7 +60,9 @@ module TranTuanNoiThat
     end
 
     def reload_runtime
-      %w[board_tool.rb box_tool.rb drawer_tool.rb round_tool.rb settings.rb updater.rb].each { |file| load File.join(ROOT, file) }
+      %w[board_tool.rb box_tool.rb drawer_tool.rb round_tool.rb settings.rb updater.rb].each do |file|
+        load File.join(ROOT, file)
+      end
       smooth_fix = File.join(ROOT, 'round_smooth_fix.rb')
       load smooth_fix if File.file?(smooth_fix)
       true
@@ -72,40 +81,98 @@ module TranTuanNoiThat
           command('Cài Đặt Chung', 'settings.svg', 'Mở cài đặt toàn hệ thống') { Settings.show },
           command('Kiểm Tra Cập Nhật', 'update.svg', 'Kiểm tra và nạp phiên bản mới') { Updater.check(true) }
         ]
-        commands.each { |cmd| @main_menu.add_item(cmd); @toolbar.add_item(cmd) }
+        commands.each do |cmd|
+          @main_menu.add_item(cmd)
+          @toolbar.add_item(cmd)
+        end
       end
+
       install_box_ui
       install_drawer_ui
       install_round_ui
       refresh_feature_commands
-      @toolbar.restore if @toolbar
+      if @toolbar
+        @toolbar.restore
+        @toolbar.show
+      end
+      true
     end
 
     def install_box_ui
-      return if @box_ui_installed || !defined?(TranTuanNoiThat::Box)
+      return if @box_ui_installed
+      return unless defined?(TranTuanNoiThat::Box)
       @box_ui_installed = true
       cmd = command('Tạo Khối BOX', 'box.svg', 'Tạo BOX khối đặc hoặc khung', :box) { Box.show_dialog }
-      (@main_menu || UI.menu('Extensions')).add_item(cmd); @toolbar.add_item(cmd) if @toolbar; @toolbar.show if @toolbar
+      (@main_menu || UI.menu('Extensions')).add_item(cmd)
+      @toolbar.add_item(cmd) if @toolbar
+      @toolbar.show if @toolbar
     end
 
     def install_drawer_ui
-      return if @drawer_ui_installed || !defined?(TranTuanNoiThat::Drawer)
+      return if @drawer_ui_installed
+      return unless defined?(TranTuanNoiThat::Drawer)
       @drawer_ui_installed = true
       cmd = command('Vẽ Ngăn Kéo', 'drawer.svg', 'Vẽ ngăn kéo 5 tấm theo vùng P1/P2', :drawer) { Drawer.activate }
-      (@main_menu || UI.menu('Extensions')).add_item(cmd); @toolbar.add_item(cmd) if @toolbar; @toolbar.show if @toolbar
+      (@main_menu || UI.menu('Extensions')).add_item(cmd)
+      @toolbar.add_item(cmd) if @toolbar
+      @toolbar.show if @toolbar
     end
 
     def install_round_ui
-      return if @round_ui_installed || !defined?(TranTuanNoiThat::Round)
+      return false unless defined?(TranTuanNoiThat::Round)
+
+      was_installed = !!@round_ui_installed
       @round_ui_installed = true
-      cmd = command('Bo Cong Khối', 'bo_cong.svg', 'Bo cung lồi/lõm tại góc; TAB đổi chế độ', :round) { Round.activate }
-      (@main_menu || UI.menu('Extensions')).add_item(cmd); @toolbar.add_item(cmd) if @toolbar; @toolbar.show if @toolbar
+
+      @round_cmd ||= command(
+        'Bo Cong Khối',
+        'bo_cong.svg',
+        'Bo cung lồi/lõm tại góc; TAB đổi chế độ',
+        :round
+      ) { Round.activate }
+
+      unless was_installed || @round_menu_installed
+        (@main_menu || UI.menu('Extensions')).add_item(@round_cmd)
+        @round_menu_installed = true
+      end
+
+      if @toolbar && !toolbar_has_command?(@toolbar, 'Bo Cong Khối')
+        @toolbar.add_item(@round_cmd)
+      end
+
+      if @toolbar
+        @toolbar.restore
+        @toolbar.show
+      end
+      true
+    rescue StandardError => error
+      puts "[TT UI Round] #{error.class}: #{error.message}"
+      false
+    end
+
+    def toolbar_has_command?(toolbar, tooltip)
+      toolbar.each do |item|
+        next unless item.is_a?(UI::Command)
+        return true if item.tooltip.to_s == tooltip.to_s
+      end
+      false
+    rescue StandardError
+      false
     end
 
     def command(title, icon_name, description, feature = nil, &block)
-      cmd = UI::Command.new(title) { feature.nil? || feature_enabled?(feature) ? block.call : UI.messagebox("Tính năng #{title} đang tắt trong Cài Đặt Chung.") }
+      cmd = UI::Command.new(title) do
+        if feature.nil? || feature_enabled?(feature)
+          block.call
+        else
+          UI.messagebox("Tính năng #{title} đang tắt trong Cài Đặt Chung.")
+        end
+      end
       icon = File.join(ROOT, 'icons', icon_name)
-      cmd.small_icon = icon; cmd.large_icon = icon; cmd.tooltip = title; cmd.status_bar_text = description
+      cmd.small_icon = icon
+      cmd.large_icon = icon
+      cmd.tooltip = title
+      cmd.status_bar_text = description
       cmd.set_validation_proc { feature_enabled?(feature) ? MF_ENABLED : MF_GRAYED } if feature
       cmd
     end
