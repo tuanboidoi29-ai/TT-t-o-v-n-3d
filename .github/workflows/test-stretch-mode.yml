@@ -1,0 +1,19 @@
+name: Test Co Gian Khoi MODE
+
+on:
+  push:
+    branches:
+      - feature/co-gian-mode-v1
+
+jobs:
+  ruby-syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.1'
+      - name: Check Ruby syntax
+        run: |
+          ruby -c tran_tuan_noi_that_release/files/tran_tuan_noi_that/stretch_mode_tool.rb
+          ruby -c tran_tuan_noi_that_release/files/tran_tuan_noi_that/bootstrap.rb
