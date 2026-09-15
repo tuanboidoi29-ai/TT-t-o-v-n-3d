@@ -7,7 +7,7 @@
   "policy": "ĐANG MỞ KHÓA theo yêu cầu TRẦN TUẤN để test/tinh chỉnh LayoutStats V0.6.0. Không tự sửa BOX, Co Giãn hoặc Bo Cong.",
   "current_fix": {
     "path": "tran_tuan_noi_that_release/files/tran_tuan_noi_that/layout_stats_v060_compact_scope.rb",
-    "blob_sha": "b3199a50f474d4a8d9447eb6317272007a048d96"
+    "blob_sha": "a62cc4174cea1bb29181e72549d4303674c98599"
   },
   "protected_other_features": {
     "box": "1.1.1",
