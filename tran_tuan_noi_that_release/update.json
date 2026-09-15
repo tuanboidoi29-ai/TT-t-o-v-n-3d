@@ -1,19 +1,20 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.0",
+  "version": "1.9.1",
+  "round_version": "2.2.0",
   "channel": "stable",
-  "notes": "Tương thích đúng chuẩn ABF: _ABF_Intersect, ABF_KHAU_RANH_NK, liên kết entityID tấm đáy, is-cnced-face và is-board.",
+  "notes": "Bo Cong Khối V2.2.0: preview 3D hai mặt, bo lồi/lõm xuyên chiều dày, kiểm tra khối kín, một thao tác Undo; hệ thống cập nhật nóng lên 1.9.1.",
   "rbz_url": "https://github.com/tuanboidoi29-ai/TT-t-o-v-n-3d/raw/main/tran_tuan_noi_that_release/TRAN_TUAN_NOI_THAT_V1.9.0.rbz",
   "files": [
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/files/TranTuanNoiThat.rb",
-      "sha256": "5df99d2ba273f57b05f9bd31c592a6b6a36b47b487cb3f45e1e12031cd45a6fe"
+      "sha256": ""
     },
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "282f7d8c104867c395f2c82c8c4fc0282f1f10f9b98c1c0b2dc983743a724833"
+      "sha256": ""
     },
     {
       "path": "tran_tuan_noi_that/board_tool.rb",
@@ -33,12 +34,12 @@
     {
       "path": "tran_tuan_noi_that/round_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/files/tran_tuan_noi_that/round_tool.rb",
-      "sha256": "99f61ba9b3b4a718251e13c28829682266fb238855f6625023f4eedbaf1605d8"
+      "sha256": ""
     },
     {
       "path": "tran_tuan_noi_that/settings.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/files/tran_tuan_noi_that/settings.rb",
-      "sha256": "d9fc6278239089c8d4277fa872e0d0150f672d4279cbab203af7b4493fbe3a44"
+      "sha256": "d9fc6278239089c8d4277fa872e0d0150f67212fb89980ad9c883c6bd8b56c0"
     },
     {
       "path": "tran_tuan_noi_that/updater.rb",
