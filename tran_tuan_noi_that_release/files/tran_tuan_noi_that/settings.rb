@@ -1,5 +1,11 @@
 # encoding: UTF-8
 module TranTuanNoiThat
+  layout_patch_v040 = File.join(ROOT, 'layout_stats_v040_patch.rb')
+  load layout_patch_v040 if File.file?(layout_patch_v040)
+
+  remove_const(:VERSION) if const_defined?(:VERSION, false)
+  VERSION = '1.9.30'.freeze
+
   module Settings
     extend self
     def show
