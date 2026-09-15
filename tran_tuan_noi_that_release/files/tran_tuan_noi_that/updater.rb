@@ -59,12 +59,22 @@ module TranTuanNoiThat
       ok = TranTuanNoiThat.reload_runtime
       raise 'Đã chép file nhưng không thể nạp mã mới.' unless ok
 
+      load_round_fix
       TranTuanNoiThat.save_setting('installed_version', manifest['version'])
       Settings.notify("Đã cập nhật và nạp phiên bản #{manifest['version']}.", 'ok') if defined?(Settings)
       UI.messagebox("Cập nhật #{manifest['version']} thành công.\nKhông cần khởi động lại SketchUp.")
       true
     ensure
       FileUtils.remove_entry(staging) if staging && File.directory?(staging)
+    end
+
+    def load_round_fix
+      file = File.join(TranTuanNoiThat::ROOT, 'round_smooth_fix.rb')
+      load(file) if File.file?(file)
+      true
+    rescue StandardError => error
+      puts "[TT Round Smooth Fix] #{error.class}: #{error.message}"
+      false
     end
 
     def download_verified(url, expected, relative)
@@ -91,7 +101,7 @@ module TranTuanNoiThat
       raise 'Chỉ cho phép cập nhật HTTPS.' unless uri.is_a?(URI::HTTPS)
       request = Net::HTTP::Get.new(
         uri.request_uri,
-        'User-Agent' => 'TranTuanNoiThat-SketchUp/1.9.2',
+        'User-Agent' => 'TranTuanNoiThat-SketchUp/1.9.3',
         'Cache-Control' => 'no-cache, no-store, max-age=0',
         'Pragma' => 'no-cache'
       )
@@ -146,3 +156,5 @@ if TranTuanNoiThat.instance_variable_get(:@ui_installed) &&
     TranTuanNoiThat.instance_variable_set(:@hot_bootstrap_loading, false)
   end
 end
+
+TranTuanNoiThat::Updater.load_round_fix if defined?(TranTuanNoiThat::Updater)
