@@ -12,7 +12,7 @@ module TranTuanNoiThat
   NAME = 'TRẦN TUẤN NỘI THẤT'.freeze unless const_defined?(:NAME, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.2'.freeze
+  VERSION = '1.9.3'.freeze
 
   remove_const(:MANIFEST_URL) if const_defined?(:MANIFEST_URL, false)
   MANIFEST_URL = 'https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/update_latest.json'.freeze
@@ -60,6 +60,8 @@ module TranTuanNoiThat
       %w[board_tool.rb box_tool.rb drawer_tool.rb round_tool.rb settings.rb updater.rb].each do |file|
         load File.join(ROOT, file)
       end
+      fix = File.join(ROOT, 'round_smooth_fix.rb')
+      load fix if File.file?(fix)
       true
     rescue StandardError => error
       UI.messagebox("Không thể nạp lại hệ thống:\n#{error.message}")
