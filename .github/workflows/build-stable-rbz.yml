@@ -26,30 +26,26 @@ jobs:
               > /tmp/grain_tool_combined.rb
           ruby -c /tmp/grain_tool_combined.rb
           ruby -c tran_tuan_noi_that_release/files/tran_tuan_noi_that/grain_material_fix.rb
+          ruby -c tran_tuan_noi_that_release/files/tran_tuan_noi_that/grain_align_fix.rb
           ruby -c tran_tuan_noi_that_release/files/tran_tuan_noi_that/layout_stats_v050_stable_preview.rb
-          grep -q "grain_material_fix.rb" tran_tuan_noi_that_release/files/tran_tuan_noi_that/bootstrap.rb
-          grep -q "layout_stats_v050_stable_preview.rb" tran_tuan_noi_that_release/files/tran_tuan_noi_that/settings.rb
-          grep -q "VERSION = '3.2.1'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/grain_material_fix.rb
-          grep -q "VERSION = '0.5.0'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/layout_stats_v050_stable_preview.rb
-          grep -q "VERSION = '1.9.34'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/bootstrap.rb
-          grep -q "VERSION = '1.9.34'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/settings.rb
-          grep -q '"version": "1.9.34"' tran_tuan_noi_that_release/update_latest.json
-          grep -q '"grain_version": "3.2.1"' tran_tuan_noi_that_release/update_latest.json
-          grep -q '"layout_stats_version": "0.5.0"' tran_tuan_noi_that_release/update_latest.json
-          grep -q '"grain": "3.2.1"' tran_tuan_noi_that_release/update_latest.json
-          grep -q '"locked": true' tran_tuan_noi_that_release/GRAIN_LOCK.json
-          grep -q '"locked": false' tran_tuan_noi_that_release/LAYOUT_STATS_LOCK.json
+          grep -q "grain_align_fix.rb" tran_tuan_noi_that_release/files/tran_tuan_noi_that/bootstrap.rb
+          grep -q "VERSION = '3.3.0'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/grain_align_fix.rb
+          grep -q "VERSION = '1.9.35'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/bootstrap.rb
+          grep -q "VERSION = '1.9.35'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/settings.rb
+          grep -q '"version": "1.9.35"' tran_tuan_noi_that_release/update_latest.json
+          grep -q '"grain_version": "3.3.0"' tran_tuan_noi_that_release/update_latest.json
+          grep -q '"locked": false' tran_tuan_noi_that_release/GRAIN_LOCK.json
 
       - name: Build RBZ
         shell: bash
         run: |
           set -euo pipefail
           cd tran_tuan_noi_that_release/files
-          zip -r "$GITHUB_WORKSPACE/TRANTUAN_NOI_THAT_1.9.34_STABLE.rbz" .
+          zip -r "$GITHUB_WORKSPACE/TRANTUAN_NOI_THAT_1.9.35_STABLE.rbz" .
 
       - name: Upload RBZ artifact
         uses: actions/upload-artifact@v4
         with:
-          name: TRANTUAN_NOI_THAT_1.9.34_STABLE
-          path: TRANTUAN_NOI_THAT_1.9.34_STABLE.rbz
+          name: TRANTUAN_NOI_THAT_1.9.35_STABLE
+          path: TRANTUAN_NOI_THAT_1.9.35_STABLE.rbz
           if-no-files-found: error
