@@ -1,0 +1,30 @@
+name: Build Stable RBZ
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-rbz:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build RBZ
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd tran_tuan_noi_that_release/files
+          zip -r "$GITHUB_WORKSPACE/TRANTUAN_NOI_THAT_1.9.10_STABLE.rbz" .
+
+      - name: Upload RBZ artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: TRANTUAN_NOI_THAT_1.9.10_STABLE
+          path: TRANTUAN_NOI_THAT_1.9.10_STABLE.rbz
+          if-no-files-found: error
