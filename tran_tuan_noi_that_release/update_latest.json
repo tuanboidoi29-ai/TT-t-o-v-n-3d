@@ -1,14 +1,14 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.5",
-  "round_version": "2.2.2",
+  "version": "1.9.6",
+  "round_version": "2.2.4",
   "channel": "stable",
-  "notes": "Bo Cong Khối V2.2.2: ẩn seam bằng chính cạnh chung giữa hai Face cong liền kề, không dò tọa độ; giữ nguyên 2 biên ngoài thật của cung.",
+  "notes": "Bo Cong Khối V2.2.4: sau mỗi lần bo quét lại toàn bộ seam chạy theo chiều dày và làm mịn lại tất cả cung cũ + mới; bo góc 2, 3, 4 không làm hiện lại đường chia.",
   "rbz_url": "",
   "files": [
     {
       "path": "tran_tuan_noi_that/round_smooth_fix.rb",
-      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/63e5d7ae3f4da59ced8482922712931bee983279/tran_tuan_noi_that_release/files/tran_tuan_noi_that/round_smooth_fix.rb",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/65088c9def05413ed6c48d0917f007c311c9bd28/tran_tuan_noi_that_release/files/tran_tuan_noi_that/round_smooth_fix.rb",
       "sha256": ""
     }
   ]
