@@ -3,145 +3,31 @@ module TranTuanNoiThat
   module Round
     extend self
 
-    ORANGE = Sketchup::Color.new(244, 123, 32, 210)
-    FILL = Sketchup::Color.new(255, 151, 61, 75)
-    ERROR = Sketchup::Color.new(230, 55, 55, 230)
-    DEFAULT_SEGMENTS = 24
-    MIN_SEGMENTS = 4
-    MAX_SEGMENTS = 96
-    SNAP_PIXELS = 24
+    VERSION = '2.2.0'.freeze
+    ORANGE = Sketchup::Color.new(244, 123, 32, 220)
+    RED = Sketchup::Color.new(230, 55, 55, 230)
+    SNAP = 28
+    MIN_SEG = 4
+    MAX_SEG = 96
 
     def activate
-      saved = TranTuanNoiThat.setting('round_radius', nil)
-      radius = saved.nil? ? TranTuanNoiThat.setting('round_diameter', 40.0).to_f / 2.0 : saved.to_f
-      segments = TranTuanNoiThat.setting('round_segments', DEFAULT_SEGMENTS).to_i
-      segments = [[segments, MIN_SEGMENTS].max, MAX_SEGMENTS].min
+      r = TranTuanNoiThat.setting('round_radius', 20.0).to_f
+      seg = TranTuanNoiThat.setting('round_segments', 24).to_i
+      seg = [[seg, MIN_SEG].max, MAX_SEG].min
       mode = TranTuanNoiThat.setting('round_mode', 'convex').to_s == 'concave' ? :concave : :convex
-      @tool = Tool.new([radius, 0.1].max.mm, segments, mode)
-      Sketchup.active_model.select_tool(@tool)
-      show_palette(@tool)
-    end
-
-    def show_palette(tool)
-      @palette.close if @palette && @palette.visible?
-      @palette = UI::HtmlDialog.new(
-        dialog_title: 'BO CONG KHỐI', preferences_key: 'TranTuanNoiThat.Round',
-        scrollable: false, resizable: false, width: 360, height: 300,
-        style: UI::HtmlDialog::STYLE_UTILITY
-      )
-      @palette.set_html(palette_html(tool.mode, tool.radius.to_mm, tool.segments))
-      @palette.add_action_callback('set_mode') { |_c, value| tool.set_mode(value.to_s == 'concave' ? :concave : :convex) }
-      @palette.add_action_callback('set_radius') { |_c, value| tool.set_radius_mm(value.to_f) }
-      @palette.add_action_callback('set_segments') { |_c, value| tool.set_segments(value.to_i) }
-      @palette.add_action_callback('save_settings') { |_c| tool.save_settings; @palette.execute_script("saved()") }
-      @palette.add_action_callback('close_tool') { |_c| Sketchup.active_model.select_tool(nil) }
-      @palette.set_on_closed { @palette = nil }
-      @palette.show
-    end
-
-    def close_palette
-      @palette.close if @palette && @palette.visible?
-      @palette = nil
-    end
-
-    def sync_palette(mode, radius, segments)
-      return unless @palette && @palette.visible?
-      @palette.execute_script("syncState(#{JSON.generate(mode.to_s)}, #{radius.to_mm}, #{segments})")
-    end
-
-    def palette_html(mode, radius, segments)
-      <<~HTML
-        <!doctype html><html><head><meta charset="UTF-8"><style>
-        *{box-sizing:border-box}body{margin:0;padding:16px;background:#242424;color:#fff;font:14px Arial}
-        h3{margin:0 0 12px;color:#ff9a3d}.modes{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-        button{padding:12px 6px;border:2px solid #f47b20;border-radius:8px;background:#3a2a20;color:#ffb06b;font-weight:bold;cursor:pointer}
-        button.active{background:#f47b20;color:#fff}.row{display:flex;align-items:center;gap:9px;margin-top:14px}
-        input{min-width:0;flex:1;padding:9px;border:1px solid #f47b20;border-radius:6px;background:#171717;color:#fff}
-        .hint{margin-top:12px;color:#ccc;font-size:12px;line-height:1.45}.save,.close{margin-top:9px;width:100%;padding:8px}.save{background:#f47b20;color:#fff}.close{background:#333;border-color:#555}
-        </style></head><body><h3>BO CONG KHỐI</h3><div class="modes">
-        <button id="convex" onclick="mode('convex')">CUNG LỒI</button><button id="concave" onclick="mode('concave')">CUNG LÕM</button></div>
-        <div class="row"><b>Bán kính R</b><input id="radius" type="number" min="0.1" step="0.1" value="#{radius}" onchange="radius()"><span>mm</span></div>
-        <div class="row"><b>Độ mịn cung</b><input id="segments" type="number" min="4" max="96" step="1" value="#{segments}" onchange="segments()"><span>đoạn</span></div>
-        <div id="hint" class="hint">TAB: đổi chế độ · Các đường chia giữa cung sẽ được làm mịn và ẩn.</div>
-        <button class="save" onclick="sketchup.save_settings()">LƯU CÀI ĐẶT</button>
-        <button class="close" onclick="sketchup.close_tool()">ĐÓNG</button>
-        <script>
-        function mode(v){sketchup.set_mode(v)}
-        function radius(){sketchup.set_radius(document.getElementById('radius').value)}
-        function segments(){sketchup.set_segments(document.getElementById('segments').value)}
-        function syncState(m,r,s){document.getElementById('convex').classList.toggle('active',m==='convex');document.getElementById('concave').classList.toggle('active',m==='concave');document.getElementById('radius').value=Number(r).toFixed(1);document.getElementById('segments').value=s}
-        function saved(){const h=document.getElementById('hint');h.textContent='Đã lưu bán kính, độ mịn và chế độ.';h.style.color='#75e889'}
-        syncState(#{JSON.generate(mode.to_s)},#{radius},#{segments});
-        </script></body></html>
-      HTML
+      Sketchup.active_model.select_tool(Tool.new([r, 0.1].max.mm, seg, mode))
     end
 
     class Tool
-      attr_reader :mode, :radius, :segments
-
       def initialize(radius, segments, mode)
-        @radius = radius
-        @segments = segments
-        @mode = mode
+        @radius, @segments, @mode = radius, segments, mode
         @ip = Sketchup::InputPoint.new
         @candidate = nil
       end
 
       def activate
         Sketchup.vcb_label = 'Bán kính R'
-        update_status
-      end
-
-      def deactivate(view)
-        Round.close_palette
-        view.invalidate
-      end
-
-      def resume(view)
-        Sketchup.vcb_label = 'Bán kính R'
-        update_status
-        view.invalidate
-      end
-
-      def onMouseMove(_flags, x, y, view)
-        @last_view, @last_x, @last_y = view, x, y
-        @ip.pick(view, x, y)
-        @candidate = build_candidate(@ip) || nearby_candidate(view, x, y)
-        view.tooltip = @candidate ? "#{label} - R#{fmt_mm(@radius)} mm" : 'Đưa chuột sát một đỉnh của Group/Component'
-        view.invalidate
-      end
-
-      def onLButtonDown(_flags, x, y, view)
-        @last_view, @last_x, @last_y = view, x, y
-        @ip.pick(view, x, y)
-        @candidate = build_candidate(@ip) || nearby_candidate(view, x, y)
-        return UI.beep unless @candidate && @candidate[:valid]
-        apply_round(@candidate)
-        @candidate = nil
-        view.invalidate
-      end
-
-      def onKeyDown(key, _repeat, _flags, view)
-        return unless key == 9
-        set_mode(@mode == :convex ? :concave : :convex)
-        view.invalidate
-        true
-      end
-
-      def onUserText(text, view)
-        length = Sketchup.parse_length(text)
-        if length && length > 0
-          @radius = length
-          TranTuanNoiThat.save_setting('round_radius', @radius.to_mm)
-          @candidate = refresh_candidate
-          Round.sync_palette(@mode, @radius, @segments)
-          update_status
-          view.invalidate
-        else
-          UI.beep
-        end
-      rescue StandardError
-        UI.beep
+        status
       end
 
       def onCancel(_reason, view)
@@ -149,285 +35,330 @@ module TranTuanNoiThat
         view.invalidate
       end
 
-      def set_mode(value)
-        @mode = value
+      def onKeyDown(key, _repeat, _flags, view)
+        return false unless key == 9
+        @mode = (@mode == :convex ? :concave : :convex)
         TranTuanNoiThat.save_setting('round_mode', @mode.to_s)
-        @candidate = refresh_candidate
-        Round.sync_palette(@mode, @radius, @segments)
-        update_status
-        Sketchup.active_model.active_view.invalidate
+        @candidate = repick
+        status
+        view.invalidate
+        true
       end
 
-      def set_radius_mm(value)
-        return UI.beep unless value > 0
-        @radius = value.mm
-        TranTuanNoiThat.save_setting('round_radius', value)
-        @candidate = refresh_candidate
-        Round.sync_palette(@mode, @radius, @segments)
-        update_status
-        Sketchup.active_model.active_view.invalidate
-      end
-
-      def set_segments(value)
-        @segments = [[value.to_i, Round::MIN_SEGMENTS].max, Round::MAX_SEGMENTS].min
-        TranTuanNoiThat.save_setting('round_segments', @segments)
-        @candidate = refresh_candidate
-        Round.sync_palette(@mode, @radius, @segments)
-        Sketchup.active_model.active_view.invalidate
-      end
-
-      def save_settings
+      def onUserText(text, view)
+        value = Sketchup.parse_length(text)
+        return UI.beep unless value && value > 0
+        @radius = value
         TranTuanNoiThat.save_setting('round_radius', @radius.to_mm)
-        TranTuanNoiThat.save_setting('round_segments', @segments)
-        TranTuanNoiThat.save_setting('round_mode', @mode.to_s)
+        @candidate = repick
+        status
+        view.invalidate
+      rescue StandardError
+        UI.beep
+      end
+
+      def onMouseMove(_flags, x, y, view)
+        @last_view, @last_x, @last_y = view, x, y
+        @ip.pick(view, x, y)
+        @candidate = candidate_from_ip || nearby(view, x, y)
+        view.tooltip = tooltip
+        view.invalidate
+      rescue StandardError => error
+        @candidate = nil
+        puts "[TT Round V#{Round::VERSION}] #{error.class}: #{error.message}"
+      end
+
+      def onLButtonDown(_flags, x, y, view)
+        @last_view, @last_x, @last_y = view, x, y
+        @ip.pick(view, x, y)
+        @candidate = candidate_from_ip || nearby(view, x, y)
+        return UI.beep unless @candidate && @candidate[:valid]
+        apply_round(@candidate)
+        @candidate = nil
+        view.invalidate
       end
 
       def draw(view)
-        @ip.draw(view) if @ip.display?
         return unless @candidate
-        color = @candidate[:valid] ? Round::ORANGE : Round::ERROR
-        points = @candidate[:world_points]
-        if points && points.length > 2
-          view.drawing_color = @candidate[:valid] ? Round::FILL : Round::ERROR
-          view.draw(GL_POLYGON, points)
-          view.drawing_color = color
-          view.line_width = 4
-          view.draw(GL_LINE_STRIP, points[1..-1])
-          view.draw_points([@candidate[:world_vertex]], 10, 3, color)
+        color = @candidate[:valid] ? Round::ORANGE : Round::RED
+        view.drawing_color = color
+        view.line_width = 4
+        if @candidate[:arc]
+          view.draw(GL_LINE_STRIP, @candidate[:arc])
+          view.draw(GL_LINE_STRIP, @candidate[:back_arc])
+          lines = []
+          [0, @candidate[:arc].length / 2, @candidate[:arc].length - 1].uniq.each do |i|
+            lines.concat([@candidate[:arc][i], @candidate[:back_arc][i]])
+          end
+          view.line_width = 2
+          view.draw(GL_LINES, lines)
         end
-      end
-
-      def getExtents
-        box = Geom::BoundingBox.new
-        @candidate[:world_points].each { |p| box.add(p) } if @candidate
-        box
+        view.draw_points([@candidate[:vertex]], 10, 3, color) if @candidate[:vertex]
       end
 
       private
 
-      def refresh_candidate
-        direct = build_candidate(@ip)
-        return direct if direct
+      def status(extra = nil)
+        Sketchup.vcb_value = format('%.1f', @radius.to_mm)
+        mode = @mode == :convex ? 'CUNG LỒI' : 'CUNG LÕM'
+        Sketchup.status_text = "TT BO CONG KHỐI V#{Round::VERSION} | #{mode} | #{extra || 'rê sát góc · nhập R · TAB đổi chế độ · click để bo'}"
+      end
+
+      def tooltip
+        return 'Rê sát một góc của khối Group/Component kín' unless @candidate
+        return @candidate[:reason].to_s unless @candidate[:valid]
+        "#{@mode == :convex ? 'CUNG LỒI' : 'CUNG LÕM'} · R#{format('%.1f', @radius.to_mm)} mm · V#{Round::VERSION}"
+      end
+
+      def repick
         return nil unless @last_view && @last_x && @last_y
-        nearby_candidate(@last_view, @last_x, @last_y)
+        @ip.pick(@last_view, @last_x, @last_y)
+        candidate_from_ip || nearby(@last_view, @last_x, @last_y)
       end
 
-      def build_candidate(ip)
-        return nil unless ip.valid? && ip.vertex
-        model = Sketchup.active_model
-        transformation = ip.transformation || model.edit_transform
-        build_candidate_from(ip.vertex, ip.face, transformation)
-      rescue StandardError
-        nil
+      def candidate_from_ip
+        return nil unless @ip.valid? && @ip.vertex
+        tr = @ip.transformation || Sketchup.active_model.edit_transform
+        build(@ip.vertex, @ip.face, tr)
       end
 
-      def nearby_candidate(view, x, y)
-        helper = view.pick_helper
-        helper.do_pick(x, y, Round::SNAP_PIXELS)
+      def nearby(view, x, y)
+        ph = view.pick_helper
+        ph.do_pick(x, y, Round::SNAP)
         best = nil
-        (0...helper.count).each do |index|
-          leaf = helper.leaf_at(index)
-          transformation = helper.transformation_at(index)
-          vertices =
-            if leaf.is_a?(Sketchup::Vertex)
-              [leaf]
-            elsif leaf.is_a?(Sketchup::Edge)
-              leaf.vertices
-            elsif leaf.is_a?(Sketchup::Face)
-              leaf.vertices
-            else
-              []
-            end
+        ph.count.times do |i|
+          leaf = ph.leaf_at(i)
+          tr = ph.transformation_at(i)
+          vertices = if leaf.is_a?(Sketchup::Vertex)
+                       [leaf]
+                     elsif leaf.is_a?(Sketchup::Edge)
+                       leaf.vertices
+                     elsif leaf.is_a?(Sketchup::Face)
+                       leaf.outer_loop.vertices
+                     else
+                       []
+                     end
           vertices.each do |vertex|
-            world = vertex.position.transform(transformation)
-            screen = view.screen_coords(world)
-            distance = Math.sqrt((screen.x - x)**2 + (screen.y - y)**2)
-            next if distance > Round::SNAP_PIXELS
-            direct_face = leaf.is_a?(Sketchup::Face) ? leaf : nil
-            item = [distance, vertex, direct_face, transformation]
-            best = item if best.nil? || distance < best[0]
+            screen = view.screen_coords(vertex.position.transform(tr))
+            d = Math.sqrt((screen.x - x)**2 + (screen.y - y)**2)
+            next if d > Round::SNAP
+            item = [d, vertex, leaf.is_a?(Sketchup::Face) ? leaf : nil, tr]
+            best = item if best.nil? || d < best[0]
           end
         end
-        return nil unless best
-        build_candidate_from(best[1], best[2], best[3])
+        best ? build(best[1], best[2], best[3]) : nil
       rescue StandardError
         nil
       end
 
-      def build_candidate_from(vertex, direct_face, transformation)
-        face = pick_face(vertex, direct_face, transformation)
+      def build(vertex, direct_face, tr)
+        face = pick_face(vertex, direct_face, tr)
         return nil unless face && face.valid?
+        entities = face.parent
+        entities = entities.entities if entities.respond_to?(:entities)
+        return nil unless entities.respond_to?(:grep)
+
+        reason = prism_reason(entities, face)
+        return invalid(vertex, tr, reason) if reason
+
         vertices = face.outer_loop.vertices
         index = vertices.index(vertex)
         return nil unless index
-        prev_point = vertices[(index - 1) % vertices.length].position
-        next_point = vertices[(index + 1) % vertices.length].position
         origin = vertex.position
-        va = prev_point - origin
-        vb = next_point - origin
+        va = vertices[(index - 1) % vertices.length].position - origin
+        vb = vertices[(index + 1) % vertices.length].position - origin
         return nil if va.length < 0.001 || vb.length < 0.001
+        la, lb = va.length, vb.length
+        va.normalize!; vb.normalize!
         angle = va.angle_between(vb)
+        return invalid(vertex, tr, 'Góc này không hợp lệ để bo.') if angle <= 0.02 || angle >= Math::PI - 0.02
+
         tangent = @mode == :convex ? @radius / Math.tan(angle / 2.0) : @radius
-        valid = angle > 0.02 && angle < Math::PI - 0.02 && tangent > 0 &&
-                tangent < va.length * 0.98 && tangent < vb.length * 0.98
-        tangent = [tangent, va.length * 0.95, vb.length * 0.95].min unless valid
-        a = origin.offset(va.normalize, tangent)
-        b = origin.offset(vb.normalize, tangent)
-        arc = arc_points(origin, a, b, face.normal, @radius, angle)
-        points = [origin, a] + arc[1..-2] + [b]
-        owner = face.parent
-        entities = owner.respond_to?(:entities) ? owner.entities : owner
-        { face: face, vertex: vertex, local_points: points,
-          world_points: points.map { |point| point.transform(transformation) },
-          world_vertex: origin.transform(transformation), valid: valid, normal: face.normal,
-          entities: entities, transformation: transformation }
-      rescue StandardError
+        return invalid(vertex, tr, 'Bán kính R quá lớn so với cạnh tại góc này.') unless tangent.finite? && tangent > 0 && tangent < [la, lb].min - 0.01.mm
+
+        a = origin.offset(va, tangent)
+        b = origin.offset(vb, tangent)
+        center = if @mode == :convex
+                   bis = va + vb
+                   return invalid(vertex, tr, 'Không xác định được tâm cung.') if bis.length < 0.001
+                   bis.normalize!
+                   origin.offset(bis, @radius / Math.sin(angle / 2.0))
+                 else
+                   origin
+                 end
+        normal = face.normal.clone
+        normal.normalize!
+        arc = arc_points(center, a, b, normal)
+        return invalid(vertex, tr, 'Không tạo được cung bo.') unless arc && arc.length >= 3
+
+        allowed = [Sketchup::Face::PointInside, Sketchup::Face::PointOnEdge, Sketchup::Face::PointOnVertex]
+        return invalid(vertex, tr, 'Cung bo nằm ngoài mặt đang chọn.') unless allowed.include?(face.classify_point(arc[arc.length / 2]))
+
+        depth = prism_depth(face, vertex)
+        return invalid(vertex, tr, 'Không xác định được chiều dày khối kín.') unless depth
+
+        profile = []
+        arc_range = nil
+        vertices.each_with_index do |v, i|
+          if i == index
+            first = profile.length
+            arc.each { |p| profile << Geom::Point3d.new(p.x, p.y, p.z) }
+            arc_range = (first..profile.length - 1)
+          else
+            p = v.position
+            profile << Geom::Point3d.new(p.x, p.y, p.z)
+          end
+        end
+
+        {
+          valid: true, entities: entities, normal: normal, profile: profile, arc_range: arc_range,
+          depth: depth[:vector], face_count: entities.grep(Sketchup::Face).length,
+          edge_count: entities.grep(Sketchup::Edge).length,
+          front_mat: face.material, front_back_mat: face.back_material,
+          rear_mat: depth[:opposite].material, rear_back_mat: depth[:opposite].back_material,
+          side_mat: dominant(entities.grep(Sketchup::Face) - [face, depth[:opposite]], false),
+          side_back_mat: dominant(entities.grep(Sketchup::Face) - [face, depth[:opposite]], true),
+          arc: arc.map { |p| p.transform(tr) },
+          back_arc: arc.map { |p| p.offset(depth[:vector]).transform(tr) },
+          vertex: origin.transform(tr)
+        }
+      rescue StandardError => error
+        puts "[TT Round build] #{error.class}: #{error.message}"
         nil
       end
 
-      def pick_face(vertex, direct_face, transformation)
-        return direct_face if direct_face && direct_face.valid? && direct_face.vertices.include?(vertex)
-        camera_direction = Sketchup.active_model.active_view.camera.direction
+      def invalid(vertex, tr, reason)
+        { valid: false, reason: reason, vertex: vertex.position.transform(tr) }
+      end
+
+      def pick_face(vertex, direct_face, tr)
+        return direct_face if direct_face && direct_face.valid? && direct_face.outer_loop.vertices.include?(vertex)
+        camera = Sketchup.active_model.active_view.camera.direction
         vertex.faces.select(&:valid?).max_by do |face|
-          world_normal = face.normal.transform(transformation).normalize
-          world_normal.dot(camera_direction).abs
+          n = face.normal.transform(tr)
+          n.normalize!
+          n.dot(camera).abs
         end
       end
 
-      def arc_points(vertex, a, b, normal, radius, angle)
-        if @mode == :concave
-          center = vertex
-        else
-          ua = (a - vertex).normalize
-          ub = (b - vertex).normalize
-          bisector = (ua + ub).normalize
-          center = vertex.offset(bisector, radius / Math.sin(angle / 2.0))
+      def prism_reason(entities, face)
+        return 'Mặt có lỗ chưa được hỗ trợ.' unless face.loops.length == 1
+        return 'Khối có Group/Component con; hãy bo từng khối trực tiếp.' if entities.any? { |e| e.is_a?(Sketchup::Group) || e.is_a?(Sketchup::ComponentInstance) || e.is_a?(Sketchup::Image) }
+        parent = entities.respond_to?(:parent) ? entities.parent : nil
+        if parent.is_a?(Sketchup::ComponentDefinition) && parent.instances.length > 1
+          return 'Component có nhiều bản sao. Hãy Make Unique trước khi bo.'
         end
-        start = a - center
-        finish = b - center
-        signed = start.angle_between(finish)
-        sign = start.cross(finish).dot(normal) >= 0 ? 1.0 : -1.0
-        signed *= sign
-        if @mode == :convex
-          mid = start.transform(Geom::Transformation.rotation(ORIGIN, normal, signed / 2.0))
-          alt = signed > 0 ? signed - 2.0 * Math::PI : signed + 2.0 * Math::PI
-          alt_mid = start.transform(Geom::Transformation.rotation(ORIGIN, normal, alt / 2.0))
-          signed = alt if center.offset(alt_mid).distance(vertex) < center.offset(mid).distance(vertex)
+        n = face.outer_loop.edges.length
+        faces = entities.grep(Sketchup::Face)
+        edges = entities.grep(Sketchup::Edge)
+        return 'Chỉ hỗ trợ khối lăng trụ kín đơn giản.' unless n >= 3 && faces.length == n + 2 && edges.length == n * 3
+        return 'Khối đang có cạnh hở.' unless edges.all? { |e| e.faces.length == 2 }
+        nil
+      end
+
+      def prism_depth(face, vertex)
+        face_edges = face.edges
+        extra = vertex.edges.reject { |e| face_edges.include?(e) }
+        return nil unless extra.length == 1
+        vector = extra[0].other_vertex(vertex).position - vertex.position
+        return nil if vector.length < 0.001
+        dir = vector.clone; dir.normalize!
+        normal = face.normal.clone; normal.normalize!
+        return nil if dir.dot(normal).abs < 0.999
+        opposite = extra[0].other_vertex(vertex).faces.find do |f|
+          next false if f == face || !f.valid? || f.loops.length != 1
+          n = f.normal.clone; n.normalize!
+          n.dot(normal).abs > 0.999
         end
+        return nil unless opposite
+        len = vector.length
+        face.outer_loop.vertices.each do |v|
+          cross = v.edges.reject { |e| face_edges.include?(e) }
+          return nil unless cross.length == 1
+          ev = cross[0].other_vertex(v).position - v.position
+          return nil if ev.length < 0.001
+          edir = ev.clone; edir.normalize!
+          return nil if edir.dot(dir).abs < 0.999 || (ev.length - len).abs > 0.01.mm
+        end
+        { vector: vector, opposite: opposite }
+      end
+
+      def arc_points(center, a, b, normal)
+        v1, v2 = a - center, b - center
+        angle = Math.atan2(normal.dot(v1.cross(v2)), v1.dot(v2))
+        angle -= 2.0 * Math::PI if angle > Math::PI
+        angle += 2.0 * Math::PI if angle < -Math::PI
+        return nil if angle.abs < 0.001
         (0..@segments).map do |i|
-          vector = start.transform(Geom::Transformation.rotation(ORIGIN, normal, signed * i / @segments.to_f))
-          center.offset(vector)
+          a.transform(Geom::Transformation.rotation(center, normal, angle * i.to_f / @segments))
         end
       end
 
       def apply_round(data)
         model = Sketchup.active_model
         entities = data[:entities]
-        model.start_operation("TRẦN TUẤN - #{label}", true)
-        before = entities.grep(Sketchup::Face)
-        edges_before = entities.grep(Sketchup::Edge)
-        curve = data[:local_points][1..-1]
-        entities.add_edges(curve)
-        candidates = data[:vertex].faces.select { |f| f.valid? && f.normal.parallel?(data[:normal]) }
-        cut_face = candidates.reject { |f| before.include?(f) }.min_by(&:area)
-        cut_face ||= candidates.min_by(&:area)
-        raise 'Không tách được vùng bo cong tại góc này.' unless cut_face && cut_face.valid?
-        push_distance = solid_depth(cut_face, data[:normal], entities)
-        raise 'Không tìm thấy mặt đối diện để nối kín khối.' unless push_distance && push_distance.abs > 0.1.mm
-        cut_face.pushpull(push_distance)
-        heal_arc_boundaries(entities, data[:local_points][1..-1], data[:normal], push_distance)
-        smooth_internal_edges(entities, edges_before, data[:local_points][1..-1], data[:normal])
-        verify_closed_round(entities, data[:local_points][1..-1], data[:normal], push_distance)
-        model.commit_operation
-      rescue StandardError => error
-        model.abort_operation if model
-        UI.messagebox("Không thể bo cong:\n#{error.message}")
-      end
-
-      def solid_depth(face, normal, entities)
-        origin = face.bounds.center
-        hits = []
-        [normal, normal.reverse].each do |direction|
-          entities.grep(Sketchup::Face).each do |target|
-            next unless target.valid? && target != face
-            next unless target.normal.parallel?(normal)
-            point = Geom.intersect_line_plane([origin, direction], target.plane)
-            next unless point
-            distance = (point - origin).dot(direction)
-            next unless distance > 0.1.mm
-            state = target.classify_point(point)
-            next if state == Sketchup::Face::PointOutside || state == Sketchup::Face::PointUnknown
-            sign = direction.dot(normal) >= 0 ? 1.0 : -1.0
-            hits << distance * sign
+        model.start_operation("TRẦN TUẤN - BO CONG V#{Round::VERSION}", true)
+        begin
+          unless entities.grep(Sketchup::Face).length == data[:face_count] && entities.grep(Sketchup::Edge).length == data[:edge_count]
+            raise 'Hình học đã đổi sau preview. Hãy rê chuột bắt lại góc.'
           end
-        end
-        hits.min_by(&:abs)
-      rescue StandardError
-        nil
-      end
+          profile = data[:profile]
+          back = profile.map { |p| p.offset(data[:depth]) }
+          entities.erase_entities(entities.grep(Sketchup::Face) + entities.grep(Sketchup::Edge))
 
-      def heal_arc_boundaries(entities, top_arc, normal, push_distance)
-        bottom_arc = top_arc.map { |point| point.offset(normal, push_distance) }
-        (0...(top_arc.length - 1)).each do |index|
-          points = [top_arc[index], top_arc[index + 1], bottom_arc[index + 1], bottom_arc[index]]
-          next if side_face_exists?(entities, points)
-          face = entities.add_face(points)
-          face.reverse! if face && face.valid? && face.normal.dot(normal.cross(top_arc[index + 1] - top_arc[index])) < 0
-        end
-      end
+          front = entities.add_face(profile)
+          raise 'Không tạo lại được mặt đầu.' unless front
+          front.reverse! if front.normal.dot(data[:normal]) < 0
+          front.material = data[:front_mat] if data[:front_mat]
+          front.back_material = data[:front_back_mat] if data[:front_back_mat]
 
-      def side_face_exists?(entities, points)
-        center = Geom::Point3d.new(
-          points.sum { |p| p.x } / points.length.to_f,
-          points.sum { |p| p.y } / points.length.to_f,
-          points.sum { |p| p.z } / points.length.to_f
-        )
-        entities.grep(Sketchup::Face).any? do |face|
-          next false unless face.valid?
-          state = face.classify_point(center)
-          [Sketchup::Face::PointInside, Sketchup::Face::PointOnEdge, Sketchup::Face::PointOnVertex].include?(state)
-        end
-      end
+          rear = entities.add_face(back.reverse)
+          raise 'Không tạo lại được mặt đối diện.' unless rear
+          rear.reverse! if rear.normal.dot(data[:normal]) > 0
+          rear.material = data[:rear_mat] if data[:rear_mat]
+          rear.back_material = data[:rear_back_mat] if data[:rear_back_mat]
 
-      def smooth_internal_edges(entities, edges_before, top_arc, normal)
-        seam_points = [top_arc.first, top_arc.last]
-        entities.grep(Sketchup::Edge).each do |edge|
-          next unless edge.valid?
-          next if edges_before.include?(edge)
-          direction = edge.end.position - edge.start.position
-          next unless direction.valid? && direction.parallel?(normal)
-          on_seam = seam_points.any? do |point|
-            edge.start.position.distance_to_line([point, normal]) < 0.5.mm &&
-              edge.end.position.distance_to_line([point, normal]) < 0.5.mm
+          profile.length.times do |i|
+            j = (i + 1) % profile.length
+            side = entities.add_face(profile[i], profile[j], back[j], back[i])
+            raise "Không tạo được mặt hông #{i + 1}." unless side
+            side.material = data[:side_mat] if data[:side_mat]
+            side.back_material = data[:side_back_mat] if data[:side_back_mat]
           end
-          next if on_seam
+          smooth_seams(entities, profile, back, data[:arc_range])
+          open_count = entities.grep(Sketchup::Edge).count { |e| e.faces.length != 2 }
+          raise "Khối sau bo chưa kín (#{open_count} cạnh hở)." if open_count > 0
+          model.commit_operation
+          status('đã bo xong · tiếp tục chọn góc khác · Ctrl+Z hoàn tác 1 lần')
+        rescue StandardError => error
+          model.abort_operation
+          UI.messagebox("Không thể bo cong V#{Round::VERSION}:\n#{error.message}")
+        end
+      end
+
+      def smooth_seams(entities, profile, back, range)
+        return unless range
+        ((range.begin + 1)...range.end).each do |i|
+          edge = entities.grep(Sketchup::Edge).find do |e|
+            a, b = e.start.position, e.end.position
+            (close?(a, profile[i]) && close?(b, back[i])) || (close?(a, back[i]) && close?(b, profile[i]))
+          end
+          next unless edge
           edge.soft = true
           edge.smooth = true
           edge.hidden = true
         end
       end
 
-      def verify_closed_round(entities, top_arc, normal, push_distance)
-        bottom_arc = top_arc.map { |point| point.offset(normal, push_distance) }
-        sample_points = top_arc + bottom_arc
-        open_edges = entities.grep(Sketchup::Edge).select do |edge|
-          next false unless edge.valid? && edge.faces.length < 2
-          sample_points.any? { |point| edge.bounds.contains?(point) }
-        end
-        raise 'Các đường biên sau khi bo chưa được nối kín.' unless open_edges.empty?
+      def close?(a, b)
+        a.distance(b) <= 0.001.mm
       end
 
-      def label
-        @mode == :convex ? 'BO CUNG LỒI' : 'BO CUNG LÕM'
-      end
-
-      def update_status
-        Sketchup.vcb_value = fmt_mm(@radius)
-        Sketchup.status_text = "#{label}: rê vào đỉnh Group/Component · gõ bán kính R · TAB đổi chế độ · click để tạo"
-      end
-
-      def fmt_mm(length)
-        format('%.1f', length.to_mm)
+      def dominant(faces, back)
+        counts = Hash.new(0)
+        faces.each { |f| counts[back ? f.back_material : f.material] += 1 }
+        pair = counts.max_by { |_m, count| count }
+        pair ? pair[0] : nil
       end
     end
   end
