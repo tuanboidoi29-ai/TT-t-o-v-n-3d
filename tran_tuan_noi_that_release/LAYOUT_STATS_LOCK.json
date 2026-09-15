@@ -1,14 +1,17 @@
 {
   "locked": false,
   "feature": "Xuất Layout + Thống Kê Ván",
-  "system_version": "1.9.33",
-  "layout_stats_version": "0.4.1",
-  "opened_for": "Sửa lỗi Xem trước Layout làm SketchUp sập/đơ; tối ưu render preview theo từng bước để ổn định và mượt hơn.",
-  "policy": "ĐANG MỞ KHÓA theo yêu cầu TRẦN TUẤN để sửa ổn định preview. BOX, Co Giãn, Bo Cong và Grain V3.2.1 vẫn khóa.",
+  "system_version": "1.9.36",
+  "layout_stats_version": "0.6.0",
+  "opened_for": "Tăng độ nét preview, chỉ lấy đúng vùng chọn, tự tách nhiều Group MODE thành nhiều bộ Layout và tối ưu bố trí A3 gọn hơn.",
+  "policy": "ĐANG MỞ KHÓA theo yêu cầu TRẦN TUẤN để test/tinh chỉnh LayoutStats V0.6.0. Không tự sửa BOX, Co Giãn hoặc Bo Cong.",
+  "current_fix": {
+    "path": "tran_tuan_noi_that_release/files/tran_tuan_noi_that/layout_stats_v060_compact_scope.rb",
+    "blob_sha": "b3199a50f474d4a8d9447eb6317272007a048d96"
+  },
   "protected_other_features": {
     "box": "1.1.1",
     "co_gian": "0.9.2",
-    "bo_cong": "2.2.6",
-    "grain": "3.2.1"
+    "bo_cong": "2.2.6"
   }
 }
