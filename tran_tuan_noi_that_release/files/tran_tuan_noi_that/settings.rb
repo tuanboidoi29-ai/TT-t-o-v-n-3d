@@ -1,9 +1,12 @@
 # encoding: UTF-8
 module TranTuanNoiThat
-  # Grain V3.4.1 phải nạp sau base/material/alignment để cố định tuyệt đối 1 map = 2440x1220
-  # và giải phóng material từng bị bake xuống Face.
+  # Grain load order: V3.4.1 fixed sheet -> V3.5.0 production scan -> hotfix.
   grain_patch_v341 = File.join(ROOT, 'grain_standard_2440_fix.rb')
+  grain_patch_v350 = File.join(ROOT, 'grain_production_v350.rb')
+  grain_patch_v350_hotfix = File.join(ROOT, 'grain_production_v350_hotfix.rb')
   load grain_patch_v341 if File.file?(grain_patch_v341)
+  load grain_patch_v350 if File.file?(grain_patch_v350)
+  load grain_patch_v350_hotfix if File.file?(grain_patch_v350_hotfix)
 
   # Layout load order bắt buộc:
   # base -> V0.3.0 -> compat -> V0.4.0 -> compat -> V0.5.0 -> V0.6.0 -> V0.7.0.
@@ -20,7 +23,7 @@ module TranTuanNoiThat
   load layout_patch_v070 if File.file?(layout_patch_v070)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.39'.freeze
+  VERSION = '1.9.40'.freeze
 
   module Settings
     extend self
