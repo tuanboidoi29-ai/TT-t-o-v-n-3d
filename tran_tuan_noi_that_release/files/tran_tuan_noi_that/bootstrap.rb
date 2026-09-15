@@ -13,7 +13,7 @@ module TranTuanNoiThat
   NAME = 'TRẦN TUẤN NỘI THẤT'.freeze unless const_defined?(:NAME, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.7'.freeze
+  VERSION = '1.9.9'.freeze
 
   remove_const(:MANIFEST_URL) if const_defined?(:MANIFEST_URL, false)
   MANIFEST_URL = 'https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/update_latest.json'.freeze
@@ -51,6 +51,8 @@ module TranTuanNoiThat
         item.set_validation_proc(&feature_validation_proc(feature))
       end
       true
+    rescue StandardError
+      false
     end
 
     def feature_validation_proc(feature)
@@ -89,7 +91,11 @@ module TranTuanNoiThat
       install_drawer_ui
       install_round_ui
       refresh_feature_commands
-      @toolbar.restore if @toolbar
+      if @toolbar
+        @toolbar.restore
+        @toolbar.show
+      end
+      true
     end
 
     def install_box_ui
@@ -112,14 +118,49 @@ module TranTuanNoiThat
       @toolbar.show if @toolbar
     end
 
+    # Hot-reload an toàn: không dựa duy nhất vào @round_ui_installed.
+    # Nếu nút Bo Cong bị mất khỏi toolbar, tự tạo lại ngay mà không cần restart.
     def install_round_ui
-      return if @round_ui_installed
-      return unless defined?(TranTuanNoiThat::Round)
+      return false unless defined?(TranTuanNoiThat::Round)
+
+      was_installed = !!@round_ui_installed
       @round_ui_installed = true
-      cmd = command('Bo Cong Khối', 'bo_cong.svg', 'Bo cung lồi/lõm tại góc; TAB đổi chế độ', :round) { Round.activate }
-      (@main_menu || UI.menu('Extensions')).add_item(cmd)
-      @toolbar.add_item(cmd) if @toolbar
-      @toolbar.show if @toolbar
+
+      @round_cmd ||= command(
+        'Bo Cong Khối',
+        'bo_cong.svg',
+        'Bo cung lồi/lõm tại góc; TAB đổi chế độ',
+        :round
+      ) { Round.activate }
+
+      # Phiên cũ đã từng đăng ký menu thì không thêm lại để tránh menu trùng.
+      unless was_installed || @round_menu_installed
+        (@main_menu || UI.menu('Extensions')).add_item(@round_cmd)
+        @round_menu_installed = true
+      end
+
+      if @toolbar && !toolbar_has_command?(@toolbar, 'Bo Cong Khối')
+        @toolbar.add_item(@round_cmd)
+      end
+
+      if @toolbar
+        @toolbar.restore
+        @toolbar.show
+      end
+      true
+    rescue StandardError => error
+      puts "[TT UI Round] #{error.class}: #{error.message}"
+      false
+    end
+
+    def toolbar_has_command?(toolbar, tooltip)
+      toolbar.each do |item|
+        next unless item.is_a?(UI::Command)
+        return true if item.tooltip.to_s == tooltip.to_s
+      end
+      false
+    rescue StandardError
+      false
     end
 
     def command(title, icon_name, description, feature = nil, &block)
