@@ -6,6 +6,6 @@
   "round_smooth_fix_path": "tran_tuan_noi_that_release/files/tran_tuan_noi_that/round_smooth_fix.rb",
   "round_smooth_fix_blob_sha": "9a76afff0ac41cf292fb9d68640c499376ecc624",
   "policy": "Không sửa code Bo Cong Khối nếu chưa có yêu cầu mở khóa rõ ràng từ TRẦN TUẤN.",
-  "stable_system_version": "1.9.25",
+  "stable_system_version": "1.9.26",
   "stable_behavior": "Giữ hiện đúng 2 đường biên đầu/cuối của mỗi cung; chỉ làm mịn các đường chia ở giữa."
 }
