@@ -3,6 +3,8 @@ module TranTuanNoiThat
   module Box
     extend self
 
+    VERSION = '1.1.0'.freeze unless const_defined?(:VERSION, false)
+
     def show_dialog
       if @dialog && @dialog.visible?
         @dialog.bring_to_front
@@ -61,7 +63,7 @@ module TranTuanNoiThat
         button{width:100%;margin-top:22px;padding:13px;border:0;border-radius:8px;background:#f47b20;color:white;font-size:16px;font-weight:bold;cursor:pointer}
         #msg{height:18px;color:#ff6767;margin-top:10px}
         </style></head><body>
-        <h2>TẠO KHỐI BOX</h2><div class="sub">TRẦN TUẤN NỘI THẤT</div>
+        <h2>TẠO KHỐI BOX</h2><div class="sub">TRẦN TUẤN NỘI THẤT · SHIFT xoay hướng khi đặt BOX</div>
         <label class="title">Cao (mm)</label><input id="height" type="number" min="0.1" step="0.1" value="#{height}">
         <label class="title">Rộng (mm)</label><input id="width" type="number" min="0.1" step="0.1" value="#{width}">
         <label class="title">Sâu (mm)</label><input id="depth" type="number" min="0.1" step="0.1" value="#{depth}">
@@ -88,6 +90,7 @@ module TranTuanNoiThat
     class Tool
       FACE = Sketchup::Color.new(255, 164, 70, 75)
       EDGE = Sketchup::Color.new(235, 92, 0, 255)
+      TEXT = Sketchup::Color.new(255, 130, 20, 255)
 
       def initialize(width, depth, height, mode)
         @width = width
@@ -96,13 +99,17 @@ module TranTuanNoiThat
         @mode = mode
         @ip = Sketchup::InputPoint.new
         @origin = nil
+        @rotation_index = 0
+        @shift_down = false
       end
 
       def activate
-        Sketchup.status_text = 'TẠO BOX: Di chuột chọn vị trí đặt, click để tạo. ESC để thoát.'
+        update_status
       end
 
-      def deactivate(view); view.invalidate; end
+      def deactivate(view)
+        view.invalidate if view
+      end
 
       def onMouseMove(_flags, x, y, view)
         @ip.pick(view, x, y)
@@ -119,6 +126,24 @@ module TranTuanNoiThat
         view.invalidate
       end
 
+      # SHIFT xoay 90 độ quanh chính điểm đặt BOX.
+      # Có khóa @shift_down để tránh việc giữ phím làm nhảy nhiều hướng do key-repeat.
+      def onKeyDown(key, _repeat, _flags, view)
+        return unless shift_key?(key)
+        return if @shift_down
+
+        @shift_down = true
+        @rotation_index = (@rotation_index + 1) % 4
+        update_status
+        view.invalidate
+      rescue StandardError => error
+        puts "[TT BOX SHIFT] #{error.class}: #{error.message}"
+      end
+
+      def onKeyUp(key, _repeat, _flags, _view)
+        @shift_down = false if shift_key?(key)
+      end
+
       def onCancel(_reason, view)
         Sketchup.active_model.select_tool(nil)
         view.invalidate
@@ -127,14 +152,18 @@ module TranTuanNoiThat
       def draw(view)
         @ip.draw(view) if @ip.display?
         return unless @origin
+
         points = corners(@origin)
-        view.line_width = 2
+        view.line_width = 3
         view.drawing_color = EDGE
         view.draw(GL_LINES, edge_lines(points))
-        return if @mode == :frame
 
-        view.drawing_color = FACE
-        faces(points).each { |face| view.draw(GL_QUADS, face) }
+        unless @mode == :frame
+          view.drawing_color = FACE
+          faces(points).each { |face| view.draw(GL_QUADS, face) }
+        end
+
+        draw_direction_label(view, points)
       end
 
       def getExtents
@@ -145,9 +174,31 @@ module TranTuanNoiThat
 
       private
 
+      def shift_key?(key)
+        key == 16 || (defined?(VK_SHIFT) && key == VK_SHIFT)
+      end
+
+      def rotation_degrees
+        @rotation_index * 90
+      end
+
+      # Trục RỘNG/SÂU sau khi quay quanh Z.
+      # Giữ nguyên kích thước thật, chỉ đổi hướng; cross(x,y) luôn là +Z.
+      def plan_vectors
+        case @rotation_index
+        when 1
+          [Geom::Vector3d.new(0, @width, 0), Geom::Vector3d.new(-@depth, 0, 0)]
+        when 2
+          [Geom::Vector3d.new(-@width, 0, 0), Geom::Vector3d.new(0, -@depth, 0)]
+        when 3
+          [Geom::Vector3d.new(0, -@width, 0), Geom::Vector3d.new(@depth, 0, 0)]
+        else
+          [Geom::Vector3d.new(@width, 0, 0), Geom::Vector3d.new(0, @depth, 0)]
+        end
+      end
+
       def corners(origin)
-        x = Geom::Vector3d.new(@width, 0, 0)
-        y = Geom::Vector3d.new(0, @depth, 0)
+        x, y = plan_vectors
         z = Geom::Vector3d.new(0, 0, @height)
         p0 = origin
         p1 = origin.offset(x)
@@ -166,6 +217,34 @@ module TranTuanNoiThat
          [p[1],p[5],p[6],p[2]],[p[2],p[6],p[7],p[3]],[p[3],p[7],p[4],p[0]]]
       end
 
+      def draw_direction_label(view, points)
+        center = Geom::Point3d.new(
+          points.map(&:x).sum / points.length.to_f,
+          points.map(&:y).sum / points.length.to_f,
+          points.map(&:z).sum / points.length.to_f
+        )
+        screen = view.screen_coords(center)
+        label = "SHIFT XOAY · #{rotation_degrees}°"
+        begin
+          view.draw_text(
+            Geom::Point3d.new(screen.x + 12, screen.y - 18, 0),
+            label,
+            size: 14,
+            bold: true,
+            color: TEXT
+          )
+        rescue StandardError
+          view.drawing_color = TEXT
+          view.draw_text(Geom::Point3d.new(screen.x + 12, screen.y - 18, 0), label)
+        end
+      rescue StandardError
+        nil
+      end
+
+      def update_status
+        Sketchup.status_text = "TẠO BOX: Di chuột chọn vị trí · SHIFT xoay 90° (hiện #{rotation_degrees}°) · Click tạo · ESC thoát."
+      end
+
       def create_box
         model = Sketchup.active_model
         model.start_operation('TRẦN TUẤN - Tạo Khối BOX', true)
@@ -180,11 +259,16 @@ module TranTuanNoiThat
           p = corners(@origin)
           edge_lines(p).each_slice(2) { |a, b| group.entities.add_line(a, b) }
         end
+
         group.name = @mode == :solid ? 'TT_BOX_DAC' : 'TT_BOX_KHUNG'
-        group.set_attribute('TRẦN TUẤN NỘI THẤT', 'loai', @mode == :solid ? 'BOX_DAC' : 'BOX_KHUNG')
-        group.set_attribute('TRẦN TUẤN NỘI THẤT', 'rong_mm', @width.to_mm)
-        group.set_attribute('TRẦN TUẤN NỘI THẤT', 'sau_mm', @depth.to_mm)
-        group.set_attribute('TRẦN TUẤN NỘI THẤT', 'cao_mm', @height.to_mm)
+        dict = 'TRẦN TUẤN NỘI THẤT'
+        group.set_attribute(dict, 'loai', @mode == :solid ? 'BOX_DAC' : 'BOX_KHUNG')
+        group.set_attribute(dict, 'rong_mm', @width.to_mm)
+        group.set_attribute(dict, 'sau_mm', @depth.to_mm)
+        group.set_attribute(dict, 'cao_mm', @height.to_mm)
+        group.set_attribute(dict, 'huong_xoay_do', rotation_degrees)
+        group.set_attribute(dict, 'box_version', VERSION)
+
         model.commit_operation
         model.selection.clear
         model.selection.add(group)
