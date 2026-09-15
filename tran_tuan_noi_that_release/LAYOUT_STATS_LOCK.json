@@ -1,13 +1,13 @@
 {
   "locked": false,
   "feature": "Xuất Layout + Thống Kê Ván",
-  "system_version": "1.9.36",
-  "layout_stats_version": "0.6.0",
-  "opened_for": "Tăng độ nét preview, chỉ lấy đúng vùng chọn, tự tách nhiều Group MODE thành nhiều bộ Layout và tối ưu bố trí A3 gọn hơn.",
-  "policy": "ĐANG MỞ KHÓA theo yêu cầu TRẦN TUẤN để test/tinh chỉnh LayoutStats V0.6.0. Không tự sửa BOX, Co Giãn hoặc Bo Cong.",
+  "system_version": "1.9.38",
+  "layout_stats_version": "0.7.0",
+  "opened_for": "Tách Xuất LayOut chỉ phối cảnh/kỹ thuật và Xuất PDF trực tiếp phối cảnh + thống kê ván.",
+  "policy": "ĐANG MỞ KHÓA theo yêu cầu TRẦN TUẤN để test/tinh chỉnh LayoutStats V0.7.0. Không tự sửa BOX, Co Giãn hoặc Bo Cong.",
   "current_fix": {
-    "path": "tran_tuan_noi_that_release/files/tran_tuan_noi_that/layout_stats_v060_compact_scope.rb",
-    "blob_sha": "a62cc4174cea1bb29181e72549d4303674c98599"
+    "path": "tran_tuan_noi_that_release/files/tran_tuan_noi_that/layout_stats_v070_export_split.rb",
+    "blob_sha": "pending"
   },
   "protected_other_features": {
     "box": "1.1.1",
