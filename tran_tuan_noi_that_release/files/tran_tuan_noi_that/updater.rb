@@ -5,6 +5,11 @@ module TranTuanNoiThat
   module Updater
     extend self
 
+    RAW_MANIFEST_URL = 'https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/update_latest.json'.freeze
+    API_MANIFEST_URL = 'https://api.github.com/repos/tuanboidoi29-ai/TT-t-o-v-n-3d/contents/tran_tuan_noi_that_release/update_latest.json?ref=main'.freeze
+    OPEN_TIMEOUT = 3
+    READ_TIMEOUT = 6
+
     def check(interactive = true)
       manifest = fetch_manifest
       latest = manifest.fetch('version').to_s
@@ -27,20 +32,24 @@ module TranTuanNoiThat
       return false unless answer == IDYES
       install(manifest)
     rescue StandardError => error
-      message = "Không kiểm tra được cập nhật:\n#{error.message}"
+      message = "Không kiểm tra được cập nhật:\n#{friendly_error(error)}"
       interactive ? UI.messagebox(message) : (puts message)
       false
     end
 
     def fetch_manifest
-      body = get(fresh_url(TranTuanNoiThat::MANIFEST_URL))
-      parsed = JSON.parse(body)
-      if parsed.is_a?(Hash) && parsed['content'] && parsed['encoding'].to_s.downcase == 'base64'
-        decoded = Base64.decode64(parsed['content'].to_s)
-        JSON.parse(decoded)
-      else
-        parsed
+      errors = []
+      [RAW_MANIFEST_URL, API_MANIFEST_URL].each do |url|
+        begin
+          body = get(fresh_url(url))
+          manifest = decode_json_payload(body)
+          return manifest if manifest.is_a?(Hash) && manifest['version'] && manifest['files']
+          errors << "Dữ liệu manifest không hợp lệ từ #{URI.parse(url).host}"
+        rescue StandardError => error
+          errors << "#{URI.parse(url).host}: #{friendly_error(error)}"
+        end
       end
+      raise "Không lấy được dữ liệu cập nhật từ cả 2 máy chủ.\n#{errors.join("\n")}"
     end
 
     def install(manifest)
@@ -91,16 +100,61 @@ module TranTuanNoiThat
     end
 
     def download_verified(url, expected, relative)
-      last_actual = nil
-      3.times do
-        bytes = get(fresh_url(url))
-        return bytes if expected.empty?
-        actual = Digest::SHA256.hexdigest(bytes).downcase
-        return bytes if actual == expected
-        last_actual = actual
-        sleep(0.15)
+      errors = []
+      candidate_urls(url).each do |candidate|
+        begin
+          bytes = download_bytes(candidate)
+          if expected.empty? || Digest::SHA256.hexdigest(bytes).downcase == expected
+            return bytes
+          end
+          errors << "#{URI.parse(candidate).host}: sai SHA"
+        rescue StandardError => error
+          errors << "#{URI.parse(candidate).host}: #{friendly_error(error)}"
+        end
       end
-      raise "Sai mã kiểm tra: #{relative}\nMong đợi: #{expected}\nNhận được: #{last_actual}"
+      raise "Không tải được #{relative}.\n#{errors.join("\n")}"
+    end
+
+    def candidate_urls(url)
+      list = [fresh_url(url)]
+      api = raw_to_api(url)
+      list << fresh_url(api) if api
+      list.uniq
+    end
+
+    def raw_to_api(url)
+      uri = URI.parse(url)
+      return nil unless uri.host == 'raw.githubusercontent.com'
+      parts = uri.path.sub(%r{\A/}, '').split('/')
+      return nil if parts.length < 4
+      owner = parts.shift
+      repo = parts.shift
+      ref = parts.shift
+      path = parts.join('/')
+      "https://api.github.com/repos/#{owner}/#{repo}/contents/#{path}?ref=#{CGI.escape(ref)}"
+    rescue StandardError
+      nil
+    end
+
+    def download_bytes(url)
+      body = get(url)
+      uri = URI.parse(url)
+      if uri.host == 'api.github.com' && uri.path.include?('/contents/')
+        parsed = JSON.parse(body)
+        if parsed.is_a?(Hash) && parsed['content'] && parsed['encoding'].to_s.downcase == 'base64'
+          return Base64.decode64(parsed['content'].to_s)
+        end
+      end
+      body
+    end
+
+    def decode_json_payload(body)
+      parsed = JSON.parse(body)
+      if parsed.is_a?(Hash) && parsed['content'] && parsed['encoding'].to_s.downcase == 'base64'
+        JSON.parse(Base64.decode64(parsed['content'].to_s))
+      else
+        parsed
+      end
     end
 
     def fresh_url(url)
@@ -108,22 +162,49 @@ module TranTuanNoiThat
       "#{url}#{separator}tt_cache=#{Time.now.to_i}_#{rand(1_000_000)}"
     end
 
-    def get(url, limit = 5)
+    def get(url, limit = 4)
       raise 'Quá nhiều lần chuyển hướng.' if limit <= 0
       uri = URI.parse(url)
       raise 'Chỉ cho phép cập nhật HTTPS.' unless uri.is_a?(URI::HTTPS)
-      request = Net::HTTP::Get.new(
-        uri.request_uri,
-        'User-Agent' => 'TranTuanNoiThat-SketchUp/1.9.4',
+
+      headers = {
+        'User-Agent' => 'TranTuanNoiThat-SketchUp/1.9.7',
         'Cache-Control' => 'no-cache, no-store, max-age=0',
-        'Pragma' => 'no-cache',
-        'Accept' => 'application/vnd.github+json',
-        'X-GitHub-Api-Version' => '2022-11-28'
-      )
-      response = Net::HTTP.start(uri.host, uri.port, use_ssl: true, open_timeout: 10, read_timeout: 25) { |http| http.request(request) }
-      return get(URI.join(uri, response['location']).to_s, limit - 1) if response.is_a?(Net::HTTPRedirection)
+        'Pragma' => 'no-cache'
+      }
+      if uri.host == 'api.github.com'
+        headers['Accept'] = 'application/vnd.github+json'
+        headers['X-GitHub-Api-Version'] = '2022-11-28'
+      end
+
+      request = Net::HTTP::Get.new(uri.request_uri, headers)
+      response = Net::HTTP.start(
+        uri.host,
+        uri.port,
+        use_ssl: true,
+        open_timeout: OPEN_TIMEOUT,
+        read_timeout: READ_TIMEOUT
+      ) { |http| http.request(request) }
+
+      if response.is_a?(Net::HTTPRedirection)
+        location = response['location']
+        raise 'Máy chủ chuyển hướng nhưng thiếu địa chỉ.' if location.to_s.empty?
+        return get(URI.join(uri, location).to_s, limit - 1)
+      end
+
       raise "Máy chủ trả về HTTP #{response.code}" unless response.is_a?(Net::HTTPSuccess)
       response.body
+    end
+
+    def friendly_error(error)
+      case error
+      when Net::OpenTimeout, Net::ReadTimeout
+        'Kết nối GitHub quá thời gian; đã tự chuyển máy chủ dự phòng.'
+      when SocketError
+        'Không phân giải được địa chỉ GitHub.'
+      else
+        error.message.to_s.empty? ? error.class.to_s : error.message.to_s
+      end
     end
 
     def files_outdated?(manifest)
