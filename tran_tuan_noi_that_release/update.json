@@ -1,14 +1,19 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.8",
+  "version": "1.9.9",
   "round_version": "2.2.5",
   "channel": "stable",
-  "notes": "Bo Cong Khối V2.2.5: cho phép bo tiếp trên khối đã bo, không còn khóa sai bởi điều kiện lăng trụ ban đầu; sau mỗi lần bo quét toàn bộ cạnh giữa các mặt đổi hướng nhỏ và Soft + Smooth + Hidden lại mọi cung cũ + mới, kể cả khi các lần bo theo hướng khác nhau.",
+  "notes": "Hotfix UI 1.9.9: khôi phục nút/menu Bo Cong Khối sau hot-reload; không thay đổi engine Bo Cong V2.2.5.",
   "rbz_url": "",
   "files": [
     {
-      "path": "tran_tuan_noi_that/round_smooth_fix.rb",
-      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/40c70a873e2ac1f54ce91a227de11347304f0175/tran_tuan_noi_that_release/files/tran_tuan_noi_that/round_smooth_fix.rb",
+      "path": "TranTuanNoiThat.rb",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/2c3cf7ae7dfcdc73d3f12b14b74be7a3a5f7bc6c/tran_tuan_noi_that_release/files/TranTuanNoiThat.rb",
+      "sha256": ""
+    },
+    {
+      "path": "tran_tuan_noi_that/bootstrap.rb",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/e2b88dad86009a76f8407c3d7ffb671e0fbde372/tran_tuan_noi_that_release/files/tran_tuan_noi_that/bootstrap.rb",
       "sha256": ""
     }
   ]
