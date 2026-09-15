@@ -1,17 +1,15 @@
 # encoding: UTF-8
-# TRẦN TUẤN NỘI THẤT - CO GIÃN KHỐI MODE V0.4.0 - QUÉT VÙNG
+# TRẦN TUẤN NỘI THẤT - CO GIÃN KHỐI MODE V0.5.0 - QUÉT VÙNG SAFE
 #
-# Quy trình:
-# 1) Bật tool -> kéo khung QUÉT đúng vùng cần co/kéo.
-# 2) Thả chuột -> rê chuột để chọn trục X/Y/Z (hoặc phím mũi tên khóa trục).
-# 3) Click điểm bắt đầu -> kéo -> click xác nhận.
-#
-# Nguyên tắc giống STRETCH:
-# - Group/Component nằm hoàn toàn trong vùng quét: di chuyển nguyên khối.
-# - Group/Component bị vùng quét cắt qua: KHÔNG scale cả khối.
-#   Hệ thống đi vào đúng instance path và chỉ dịch các Vertex nằm trong vùng quét.
-# - Nếu có Group/Component lồng: parent không bị kéo lặp; mỗi nhánh chỉ xử lý đúng một lần.
-# - Component dùng chung sẽ Make Unique trước khi sửa geometry.
+# Mục tiêu:
+# - QUÉT đúng vùng cần co/kéo, không cần chọn cả module.
+# - KHÔNG bao giờ chọn vertex theo khung 2D để kéo trực tiếp (nguyên nhân gây mặt tam giác/spike).
+# - Vùng quét chỉ xác định đối tượng và ĐẦU min/max nào của tấm nằm trong vùng.
+# - Tấm LEAF dài theo trục: chỉ dịch TOÀN BỘ mặt đầu cực trị -> giữ mặt phẳng, giữ độ dày.
+# - Tấm mỏng theo trục: dịch nguyên Group/Component.
+# - Cụm nested (ngăn kéo/ray/phụ kiện): giữ nguyên hình dạng; không biến dạng mesh bên trong.
+# - Chỉ mở tối đa 1 lớp container thuần để lấy các tấm/cụm trực tiếp.
+# - Component dùng chung được Make Unique trước khi sửa geometry.
 # - Một lượt co/kéo = một Undo.
 # - TAB: quét vùng mới. ESC: hủy bước hiện tại / thoát tool.
 
@@ -19,13 +17,21 @@ require 'sketchup.rb'
 
 module TranTuanNoiThat
   module StretchMode
-    %i[VERSION AXES AXIS_COLORS MIN_SCAN_PX GUIDE_LENGTH].each do |name|
+    %i[
+      VERSION AXES AXIS_COLORS MIN_SCAN_PX GUIDE_LENGTH
+      MAX_CONTAINER_DEPTH THIN_AXIS_MAX THIN_AXIS_RATIO END_TOL_MIN END_TOL_MAX
+    ].each do |name|
       remove_const(name) if const_defined?(name, false)
     end
 
-    VERSION = '0.4.0'.freeze
+    VERSION = '0.5.0'.freeze
     MIN_SCAN_PX = 5.0
     GUIDE_LENGTH = 500.mm
+    MAX_CONTAINER_DEPTH = 1
+    THIN_AXIS_MAX = 120.mm
+    THIN_AXIS_RATIO = 0.18
+    END_TOL_MIN = 0.25.mm
+    END_TOL_MAX = 2.mm
 
     AXES = [
       Geom::Vector3d.new(1, 0, 0),
@@ -58,7 +64,7 @@ module TranTuanNoiThat
       end
 
       def activate
-        Sketchup.set_status_text('CO GIÃN MODE · Kéo khung QUÉT đúng VÙNG cần co/kéo.', SB_PROMPT)
+        update_status('CO GIÃN MODE · QUÉT đúng VÙNG đầu tấm/cụm cần kéo.')
         @model.active_view.invalidate
       end
 
@@ -73,7 +79,7 @@ module TranTuanNoiThat
           @mode = :axis
           @drag_start_coord = nil
           @delta = 0.0
-          update_status('Đã hủy kéo · rê chuột chọn lại trục hoặc TAB quét vùng mới.')
+          update_status('Đã hủy kéo · chọn lại trục hoặc TAB quét vùng mới.')
         when :axis
           reset_scan
           update_status('Kéo khung QUÉT vùng mới.')
@@ -119,7 +125,7 @@ module TranTuanNoiThat
         update_status
         view.invalidate
       rescue StandardError => error
-        puts "[TT Stretch Region move] #{error.class}: #{error.message}"
+        puts "[TT Stretch Region Safe move] #{error.class}: #{error.message}"
       end
 
       def onLButtonDown(_flags, x, y, view)
@@ -147,12 +153,12 @@ module TranTuanNoiThat
         when :drag
           commit_stretch(view)
           reset_scan
-          update_status('Đã co/kéo vùng xong · QUÉT vùng tiếp theo.')
+          update_status('Đã co/kéo vùng SAFE xong · QUÉT vùng tiếp theo.')
         end
         view.invalidate
       rescue StandardError => error
         UI.messagebox("Co Giãn Khối MODE V#{VERSION}:\n#{error.message}")
-        puts "[TT Stretch Region click] #{error.class}: #{error.message}"
+        puts "[TT Stretch Region Safe click] #{error.class}: #{error.message}"
       end
 
       def onLButtonUp(_flags, x, y, view)
@@ -167,8 +173,9 @@ module TranTuanNoiThat
 
       def onUserText(text, view)
         return UI.beep unless @mode == :drag && @axis
-        value = text.to_s.strip.to_l
-        @delta = value
+        raw = text.to_s.strip
+        return UI.beep if raw.empty?
+        @delta = raw.to_l
         update_vcb
         update_status("Khoảng co/kéo: #{Sketchup.format_length(@delta)} · click để xác nhận.")
         view.invalidate
@@ -178,14 +185,13 @@ module TranTuanNoiThat
 
       def draw(view)
         draw_scan_rectangle(view, @scan_start, @scan_current, false) if @mode == :scan && @scanning
-
         if (@mode == :axis || @mode == :drag) && @scan_rect
           draw_fixed_scan_rect(view)
           draw_axis_guides(view)
           draw_moved_scan_rect(view) if @mode == :drag && @axis && @delta.abs > 0.001.mm
         end
       rescue StandardError => error
-        puts "[TT Stretch Region draw] #{error.class}: #{error.message}"
+        puts "[TT Stretch Region Safe draw] #{error.class}: #{error.message}"
       end
 
       def getExtents
@@ -227,7 +233,6 @@ module TranTuanNoiThat
       def finish_scan(view)
         @scanning = false
         return false unless @scan_start && @scan_current
-
         if (@scan_current.x - @scan_start.x).abs < MIN_SCAN_PX ||
            (@scan_current.y - @scan_start.y).abs < MIN_SCAN_PX
           UI.beep
@@ -259,7 +264,7 @@ module TranTuanNoiThat
         @axis_locked = false
         @mode = :axis
         @model.selection.clear
-        update_status("Đã nhận vùng co/kéo · #{@affected_count} khối liên quan · rê chuột chọn trục X/Y/Z.")
+        update_status("Đã nhận vùng · #{@affected_count} khối liên quan · chọn trục X/Y/Z.")
         true
       end
 
@@ -281,7 +286,6 @@ module TranTuanNoiThat
         origin_screen = view.screen_coords(origin_world)
         best_axis = nil
         best_score = -1.0
-
         3.times do |axis|
           p_root = @anchor_root + (AXES[axis] * GUIDE_LENGTH)
           p_screen = view.screen_coords(root_to_world(p_root))
@@ -321,8 +325,7 @@ module TranTuanNoiThat
         world_axis = AXES[@axis].transform(@context_to_world)
         return nil if world_axis.length < 0.001
         world_axis.normalize!
-        line = [root_to_world(@anchor_root), world_axis]
-        points = Geom.closest_points(view.pickray(x, y), line)
+        points = Geom.closest_points(view.pickray(x, y), [root_to_world(@anchor_root), world_axis])
         points && points[1]
       rescue StandardError
         nil
@@ -334,18 +337,20 @@ module TranTuanNoiThat
         raise 'Chưa chọn trục co/kéo.' unless @axis
 
         root_vector = begin_root_vector
-        @model.start_operation("TRẦN TUẤN - Co Giãn Vùng V#{VERSION}", true)
+        @model.start_operation("TRẦN TUẤN - Co Giãn Vùng SAFE V#{VERSION}", true)
         begin
           actions = []
+          action_keys = {}
           @scope.each do |entity|
             next unless entity.valid?
-            collect_instance_actions(
+            collect_safe_actions(
               entity,
-              @model.active_entities,
               Geom::Transformation.new,
               view,
               root_vector,
-              actions
+              actions,
+              action_keys,
+              0
             )
           end
           actions.each { |action| apply_action(action) }
@@ -357,8 +362,15 @@ module TranTuanNoiThat
         end
       end
 
-      def collect_instance_actions(entity, parent_entities, parent_to_root, view, root_vector, actions)
+      # SAFE TREE RULES:
+      # 1. entity hoàn toàn trong vùng -> move nguyên instance.
+      # 2. crossing + pure container ở depth 0 -> mở đúng 1 lớp.
+      # 3. crossing + nested assembly -> giữ nguyên hình dạng; chỉ move nếu đầu của assembly nằm trong vùng.
+      # 4. crossing + leaf -> nếu mỏng theo trục: move nguyên khối; nếu dài: kéo đúng mặt đầu cực trị.
+      def collect_safe_actions(entity, parent_to_root, view, root_vector, actions, action_keys, depth)
         return unless entity.valid?
+        key = entity_key(entity)
+        return if action_keys[key]
 
         rect = instance_screen_rect(entity, parent_to_root, view)
         return unless rect
@@ -366,66 +378,209 @@ module TranTuanNoiThat
         return if relation == :outside
 
         if relation == :inside
-          actions << {
-            kind: :move_instance,
-            entity: entity,
-            parent_to_root: parent_to_root,
-            root_vector: root_vector
-          }
+          add_move_action(entity, parent_to_root, root_vector, actions, action_keys)
           return
         end
 
-        # Bị vùng quét cắt qua: tuyệt đối không move/scale cả parent.
-        # Nếu là Component dùng chung, tách definition trước khi sửa geometry/child.
+        definition = entity.definition
+        children = definition.entities.to_a.select { |e| e.valid? && selectable?(e) }
+        raw_edges = definition.entities.grep(Sketchup::Edge).select(&:valid?)
+        pure_container = raw_edges.empty? && !children.empty?
+        entity_to_root = parent_to_root * entity.transformation
+
+        if pure_container && depth < MAX_CONTAINER_DEPTH
+          children.each do |child|
+            collect_safe_actions(child, entity_to_root, view, root_vector, actions, action_keys, depth + 1)
+          end
+          return
+        end
+
+        if !children.empty?
+          # Assembly thật: tuyệt đối không kéo mesh con. Chỉ di chuyển nguyên cụm nếu đầu đang quét thuộc vùng.
+          end_sign = chosen_end_sign_for_instance(entity, parent_to_root, view)
+          add_move_action(entity, parent_to_root, root_vector, actions, action_keys) if end_sign
+          return
+        end
+
+        collect_leaf_action(entity, parent_to_root, view, root_vector, actions, action_keys)
+      end
+
+      def collect_leaf_action(entity, parent_to_root, view, root_vector, actions, action_keys)
         if entity.is_a?(Sketchup::ComponentInstance) && entity.definition.instances.length > 1
           entity.make_unique
         end
 
         definition = entity.definition
-        entities = definition.entities
-        entity_to_root = parent_to_root * entity.transformation
-
-        raw_edges = entities.grep(Sketchup::Edge).select(&:valid?)
-        collect_vertex_action(entities, raw_edges, entity_to_root, view, root_vector, actions) unless raw_edges.empty?
-
-        entities.to_a.each do |child|
-          next unless child.valid? && selectable?(child)
-          collect_instance_actions(child, entities, entity_to_root, view, root_vector, actions)
+        edges = definition.entities.grep(Sketchup::Edge).select(&:valid?)
+        if edges.empty?
+          end_sign = chosen_end_sign_for_instance(entity, parent_to_root, view)
+          add_move_action(entity, parent_to_root, root_vector, actions, action_keys) if end_sign
+          return
         end
+
+        entity_to_root = parent_to_root * entity.transformation
+        vertices = edges.flat_map(&:vertices).select(&:valid?).uniq
+        data = vertex_axis_data(vertices, entity_to_root)
+        return unless data
+
+        span = data[:max] - data[:min]
+        return if span <= 0.001.mm
+        other_span = max_other_axis_span(vertices, entity_to_root, @axis)
+        thin_limit = [THIN_AXIS_MAX, other_span * THIN_AXIS_RATIO].min
+        end_sign = chosen_end_sign_for_vertices(vertices, entity_to_root, view, data)
+        return unless end_sign
+
+        if span <= thin_limit
+          add_move_action(entity, parent_to_root, root_vector, actions, action_keys)
+          return
+        end
+
+        extreme = end_sign > 0 ? data[:max] : data[:min]
+        tol = [[span * 0.002, END_TOL_MIN].max, END_TOL_MAX].min
+        end_vertices = vertices.select do |vertex|
+          p = vertex.position.transform(entity_to_root)
+          (coord(p, @axis) - extreme).abs <= tol
+        end
+
+        # Không đủ một mặt đầu rõ ràng => không deform để tránh phá mesh.
+        if end_vertices.length < 2 || end_vertices.length >= vertices.length
+          add_move_action(entity, parent_to_root, root_vector, actions, action_keys)
+          return
+        end
+
+        local_vector = root_vector.transform(entity_to_root.inverse)
+        action_keys[entity_key(entity)] = true
+        actions << {
+          kind: :move_end_vertices,
+          entities: definition.entities,
+          vertices: end_vertices,
+          vector: local_vector
+        }
       end
 
-      def collect_vertex_action(entities, edges, local_to_root, view, root_vector, actions)
-        vertices = edges.flat_map(&:vertices).select(&:valid?).uniq
-        selected = vertices.select do |vertex|
-          root_point = vertex.position.transform(local_to_root)
-          screen = view.screen_coords(root_to_world(root_point))
-          point_in_rect?(screen.x, screen.y, @scan_rect)
-        end
-        return if selected.empty?
-
-        local_vector = root_vector.transform(local_to_root.inverse)
+      def add_move_action(entity, parent_to_root, root_vector, actions, action_keys)
+        key = entity_key(entity)
+        return if action_keys[key]
+        action_keys[key] = true
         actions << {
-          kind: :move_vertices,
-          entities: entities,
-          vertices: selected,
-          vector: local_vector
+          kind: :move_instance,
+          entity: entity,
+          parent_to_root: parent_to_root,
+          root_vector: root_vector
         }
       end
 
       def apply_action(action)
         case action[:kind]
         when :move_instance
-          parent_to_root = action[:parent_to_root]
-          local_vector = action[:root_vector].transform(parent_to_root.inverse)
-          transform = Geom::Transformation.translation(local_vector)
-          action[:entity].transform!(transform)
-        when :move_vertices
+          local_vector = action[:root_vector].transform(action[:parent_to_root].inverse)
+          action[:entity].transform!(Geom::Transformation.translation(local_vector))
+        when :move_end_vertices
           vectors = Array.new(action[:vertices].length) do
             v = action[:vector]
             Geom::Vector3d.new(v.x, v.y, v.z)
           end
           action[:entities].transform_by_vectors(action[:vertices], vectors)
         end
+      end
+
+      def entity_key(entity)
+        entity.respond_to?(:persistent_id) ? entity.persistent_id : entity.object_id
+      end
+
+      def vertex_axis_data(vertices, local_to_root)
+        coords = vertices.map { |v| coord(v.position.transform(local_to_root), @axis) }
+        return nil if coords.empty?
+        { min: coords.min, max: coords.max }
+      rescue StandardError
+        nil
+      end
+
+      def max_other_axis_span(vertices, local_to_root, ignored_axis)
+        spans = []
+        3.times do |axis|
+          next if axis == ignored_axis
+          values = vertices.map { |v| coord(v.position.transform(local_to_root), axis) }
+          spans << (values.max - values.min) unless values.empty?
+        end
+        spans.max || 0.0
+      rescue StandardError
+        0.0
+      end
+
+      def chosen_end_sign_for_instance(entity, parent_to_root, view)
+        tr = parent_to_root * entity.transformation
+        bb = entity.definition.bounds
+        points = 8.times.map { |i| bb.corner(i).transform(tr) }
+        choose_end_sign_from_root_points(points, view)
+      rescue StandardError
+        nil
+      end
+
+      def chosen_end_sign_for_vertices(vertices, local_to_root, view, data)
+        span = data[:max] - data[:min]
+        tol = [[span * 0.01, 0.5.mm].max, 5.mm].min
+        min_points = []
+        max_points = []
+        vertices.each do |vertex|
+          p = vertex.position.transform(local_to_root)
+          c = coord(p, @axis)
+          min_points << p if (c - data[:min]).abs <= tol
+          max_points << p if (c - data[:max]).abs <= tol
+        end
+        choose_end_sign_from_sets(min_points, max_points, view)
+      rescue StandardError
+        nil
+      end
+
+      def choose_end_sign_from_root_points(points, view)
+        values = points.map { |p| coord(p, @axis) }
+        return nil if values.empty?
+        min_c = values.min
+        max_c = values.max
+        tol = [(max_c - min_c) * 0.01, 0.5.mm].max
+        min_points = points.select { |p| (coord(p, @axis) - min_c).abs <= tol }
+        max_points = points.select { |p| (coord(p, @axis) - max_c).abs <= tol }
+        choose_end_sign_from_sets(min_points, max_points, view)
+      end
+
+      def choose_end_sign_from_sets(min_points, max_points, view)
+        min_score = end_screen_score(min_points, view)
+        max_score = end_screen_score(max_points, view)
+        return nil if min_score <= 0.0 && max_score <= 0.0
+        return 1 if max_score > min_score
+        return -1 if min_score > max_score
+
+        # Hòa điểm: đầu nào gần tâm vùng quét hơn thì chọn.
+        cx = (@scan_rect[0] + @scan_rect[2]) * 0.5
+        cy = (@scan_rect[1] + @scan_rect[3]) * 0.5
+        min_d = screen_set_distance(min_points, view, cx, cy)
+        max_d = screen_set_distance(max_points, view, cx, cy)
+        max_d < min_d ? 1 : -1
+      end
+
+      def end_screen_score(points, view)
+        return 0.0 if points.empty?
+        inside = 0
+        points.each do |p|
+          screen = view.screen_coords(root_to_world(p))
+          inside += 1 if point_in_rect?(screen.x, screen.y, @scan_rect)
+        end
+        inside.to_f / points.length.to_f
+      rescue StandardError
+        0.0
+      end
+
+      def screen_set_distance(points, view, cx, cy)
+        return Float::INFINITY if points.empty?
+        points.map do |p|
+          s = view.screen_coords(root_to_world(p))
+          dx = s.x.to_f - cx
+          dy = s.y.to_f - cy
+          Math.sqrt(dx * dx + dy * dy)
+        end.min
+      rescue StandardError
+        Float::INFINITY
       end
 
       def instance_screen_rect(entity, parent_to_root, view)
@@ -503,7 +658,6 @@ module TranTuanNoiThat
       end
 
       def draw_axis_guides(view)
-        origin = root_to_world(@anchor_root)
         3.times do |axis|
           vector = AXES[axis] * GUIDE_LENGTH
           p1 = root_to_world(@anchor_root - vector)
@@ -564,7 +718,7 @@ module TranTuanNoiThat
         unless text
           text = case @mode
                  when :scan
-                   @scanning ? 'Đang QUÉT VÙNG · thả chuột để chốt.' : 'QUÉT VÙNG cần co/kéo · không cần quét cả module.'
+                   @scanning ? 'Đang QUÉT VÙNG · thả chuột để chốt.' : 'QUÉT VÙNG đầu tấm/cụm cần co/kéo · không quét cả module.'
                  when :axis
                    axis_text = @axis ? axis_name(@axis) : '-'
                    "Vùng đã chốt · trục #{axis_text} · rê chuột chọn hướng hoặc ←Y →X ↑Z · click bắt đầu."
@@ -572,7 +726,7 @@ module TranTuanNoiThat
                    update_vcb
                    "Đang kéo trục #{axis_name(@axis)} · #{Sketchup.format_length(@delta)} · click xác nhận · ESC hủy."
                  else
-                   'CO GIÃN VÙNG'
+                   'CO GIÃN VÙNG SAFE'
                  end
         end
         Sketchup.set_status_text(text, SB_PROMPT)
