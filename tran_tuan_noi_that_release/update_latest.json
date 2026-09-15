@@ -1,19 +1,19 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.33",
+  "version": "1.9.34",
   "box_version": "1.1.1",
   "round_version": "2.2.6",
   "stretch_mode_version": "0.9.2",
   "grain_version": "3.2.1",
-  "layout_stats_version": "0.4.1",
+  "layout_stats_version": "0.5.0",
   "channel": "stable",
-  "notes": "Bản 1.9.33: tạm khóa Xuất Layout + Thống Kê Ván tại V0.4.1 và mở Xoay Vân Ván. Grain V3.2.1 sửa nhận diện map màu/material texture: ưu tiên texture ở Face trước/sau, nhận material gán ở Group/Component và material kế thừa từ các cấp cha trong pick path; quét batch truyền material kế thừa xuống các Group/Component con; khi texture kế thừa hệ thống bake material vào mặt chính rồi position_material để xoay vân thật. BOX V1.1.1, Co Giãn V0.9.2, Bo Cong V2.2.6 và LayoutStats V0.4.1 giữ khóa nguyên.",
+  "notes": "Bản 1.9.34: khóa lại Xoay Vân Ván V3.2.1 sau khi hoàn tất nhận diện map màu/texture. Mở và nâng Xuất Layout + Thống Kê Ván lên V0.5.0 để sửa lỗi preview làm SketchUp đơ/sập: bỏ render 8 ảnh liên tục trong một callback, chuyển sang render từng trang bằng timer, trả quyền điều khiển cho SketchUp giữa các bước, giảm preview còn 480x340 JPEG nén không antialias, đẩy từng trang sang HtmlDialog ngay thay vì giữ toàn bộ Base64 trong Ruby RAM, có token hủy job cũ khi quét lại/đóng bảng. Chỉ bật Xuất LayOut/PDF sau khi toàn bộ preview hoàn tất và dữ liệu không đổi. BOX V1.1.1, Co Giãn V0.9.2, Bo Cong V2.2.6 và Grain V3.2.1 vẫn khóa nguyên.",
   "rbz_url": "",
   "locked_features": {
     "box": "1.1.1",
     "co_gian": "0.9.2",
     "bo_cong": "2.2.6",
-    "layout_stats": "0.4.1"
+    "grain": "3.2.1"
   },
   "files": [
     {"path":"TranTuanNoiThat.rb","url":"https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/files/TranTuanNoiThat.rb","sha256":""},
@@ -28,6 +28,7 @@
     {"path":"tran_tuan_noi_that/layout_stats_v030_patch.rb","url":"https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/files/tran_tuan_noi_that/layout_stats_v030_patch.rb","sha256":""},
     {"path":"tran_tuan_noi_that/layout_stats_v040_compat.rb","url":"https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/files/tran_tuan_noi_that/layout_stats_v040_compat.rb","sha256":""},
     {"path":"tran_tuan_noi_that/layout_stats_v040_patch.rb","url":"https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/files/tran_tuan_noi_that/layout_stats_v040_patch.rb","sha256":""},
+    {"path":"tran_tuan_noi_that/layout_stats_v050_stable_preview.rb","url":"https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/files/tran_tuan_noi_that/layout_stats_v050_stable_preview.rb","sha256":""},
     {"path":"tran_tuan_noi_that/icons/layout_stats.svg","url":"https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/files/tran_tuan_noi_that/icons/layout_stats.svg","sha256":""},
     {"path":"tran_tuan_noi_that/settings.rb","url":"https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/files/tran_tuan_noi_that/settings.rb","sha256":""},
     {"path":"tran_tuan_noi_that/updater.rb","url":"https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/files/tran_tuan_noi_that/updater.rb","sha256":""},
