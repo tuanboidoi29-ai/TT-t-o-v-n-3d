@@ -13,7 +13,7 @@ module TranTuanNoiThat
   NAME = 'TRẦN TUẤN NỘI THẤT'.freeze unless const_defined?(:NAME, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.35'.freeze
+  VERSION = '1.9.37'.freeze
 
   remove_const(:MANIFEST_URL) if const_defined?(:MANIFEST_URL, false)
   MANIFEST_URL = 'https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/update_latest.json'.freeze
@@ -62,8 +62,8 @@ module TranTuanNoiThat
     end
 
     def reload_runtime
-      # Grain: base V3.2.0 -> nhận map V3.2.1 -> khổ/căn vân V3.3.0.
-      # Layout giữ V0.5.0 stable preview.
+      # Grain: base V3.2.0 -> nhận map V3.2.1 -> căn vân V3.3.0 -> chuẩn 2440/material-safe V3.4.0.
+      # Layout: V0.6.0 compact scope.
       %w[
         board_tool.rb
         box_tool.rb
@@ -73,6 +73,7 @@ module TranTuanNoiThat
         grain_tool.rb
         grain_material_fix.rb
         grain_align_fix.rb
+        grain_standard_2440_fix.rb
         layout_stats_tool.rb
         layout_stats_v030_patch.rb
         layout_stats_v040_compat.rb
@@ -168,7 +169,12 @@ module TranTuanNoiThat
     def install_grain_ui
       return false unless defined?(TranTuanNoiThat::Grain)
       @grain_ui_installed = true
-      @grain_cmd ||= command('Xoay Vân Ván', 'grain.svg', 'Khổ ván chuẩn · nhận map màu/texture · căn tâm vân đều, giữ đúng scale.', :grain) { Grain.activate }
+      @grain_cmd ||= command(
+        'Xoay Vân Ván',
+        'grain.svg',
+        'Chuẩn vân 2440x1220 · tấm lớn/nhỏ giữ nguyên tỷ lệ · material kế thừa vẫn đổi màu được.',
+        :grain
+      ) { Grain.activate }
       add_feature_command_once(@grain_cmd, :grain_menu_installed)
       true
     rescue StandardError => error
@@ -182,7 +188,7 @@ module TranTuanNoiThat
       @layout_stats_cmd ||= command(
         'Xuất Layout + Thống Kê Ván',
         'layout_stats.svg',
-        'A3: preview ổn định từng trang · Tổng thể · Trước/Trái/Phải · 3 mặt cắt · Line + X-Ray · thống kê · xuất LayOut/PDF.',
+        'A3 tối ưu: scope MODE · nhiều Layout · preview nét · bố trí nhiều cảnh/trang · thống kê · PDF.',
         :layout_stats
       ) { LayoutStats.show }
       add_feature_command_once(@layout_stats_cmd, :layout_stats_menu_installed)
