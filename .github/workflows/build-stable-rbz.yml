@@ -26,11 +26,11 @@ jobs:
         run: |
           set -euo pipefail
           cd tran_tuan_noi_that_release/files
-          zip -r "$GITHUB_WORKSPACE/TRANTUAN_NOI_THAT_1.9.21_STABLE.rbz" .
+          zip -r "$GITHUB_WORKSPACE/TRANTUAN_NOI_THAT_1.9.22_STABLE.rbz" .
 
       - name: Upload RBZ artifact
         uses: actions/upload-artifact@v4
         with:
-          name: TRANTUAN_NOI_THAT_1.9.21_STABLE
-          path: TRANTUAN_NOI_THAT_1.9.21_STABLE.rbz
+          name: TRANTUAN_NOI_THAT_1.9.22_STABLE
+          path: TRANTUAN_NOI_THAT_1.9.22_STABLE.rbz
           if-no-files-found: error
