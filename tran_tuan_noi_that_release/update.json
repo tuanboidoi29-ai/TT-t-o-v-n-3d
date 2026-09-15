@@ -1,34 +1,14 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.4",
-  "round_version": "2.2.1",
+  "version": "1.9.5",
+  "round_version": "2.2.2",
   "channel": "stable",
-  "notes": "Updater 1.9.4 đọc manifest qua GitHub API, bỏ phụ thuộc cache raw/main. Bo Cong Khối V2.2.1 ẩn các cạnh chia độ mịn bằng Soft + Smooth + Hidden, giữ 2 biên ngoài.",
+  "notes": "Bo Cong Khối V2.2.2: ẩn seam bằng chính cạnh chung giữa hai Face cong liền kề, không dò tọa độ; giữ nguyên 2 biên ngoài thật của cung.",
   "rbz_url": "",
   "files": [
     {
-      "path": "TranTuanNoiThat.rb",
-      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/f2c3a9e4eb0fc8713ce3240ac097e46ec9d52e88/tran_tuan_noi_that_release/files/TranTuanNoiThat.rb",
-      "sha256": ""
-    },
-    {
-      "path": "tran_tuan_noi_that/bootstrap.rb",
-      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/abc4293036b2a639af281defd66248181b0f5b48/tran_tuan_noi_that_release/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": ""
-    },
-    {
-      "path": "tran_tuan_noi_that/updater.rb",
-      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/a754d83bbd96dd7cedbb47b73a31869cbefdd486/tran_tuan_noi_that_release/files/tran_tuan_noi_that/updater.rb",
-      "sha256": ""
-    },
-    {
-      "path": "tran_tuan_noi_that/round_tool.rb",
-      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/3df27d64b0bcdede6b595d021105b3252325ee8e/tran_tuan_noi_that_release/files/tran_tuan_noi_that/round_tool.rb",
-      "sha256": ""
-    },
-    {
       "path": "tran_tuan_noi_that/round_smooth_fix.rb",
-      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/e72485b822029d188309dbfd7b09c542c6f32556/tran_tuan_noi_that_release/files/tran_tuan_noi_that/round_smooth_fix.rb",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/63e5d7ae3f4da59ced8482922712931bee983279/tran_tuan_noi_that_release/files/tran_tuan_noi_that/round_smooth_fix.rb",
       "sha256": ""
     }
   ]
