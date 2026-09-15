@@ -31,7 +31,11 @@ module TranTuanNoiThat
     AUTO_SCAN_ALPHA = 38
 
     class Tool
-      unless method_defined?(:tt_v081_initialize)
+      aliases_ready =
+        (method_defined?(:tt_v081_on_key_down) || private_method_defined?(:tt_v081_on_key_down)) &&
+        (method_defined?(:tt_v081_initialize) || private_method_defined?(:tt_v081_initialize))
+
+      unless aliases_ready
         alias_method :tt_v081_initialize, :initialize
         alias_method :tt_v081_activate, :activate
         alias_method :tt_v081_on_key_down, :onKeyDown
