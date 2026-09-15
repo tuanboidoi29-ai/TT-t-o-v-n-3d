@@ -1,0 +1,14 @@
+{
+  "locked": true,
+  "feature": "Xuất Layout + Thống Kê Ván",
+  "system_version": "1.9.32",
+  "layout_stats_version": "0.4.1",
+  "policy": "Tạm thời KHÓA code chức năng Xuất Layout + Thống Kê Ván. Không sửa các file Layout nếu chưa có yêu cầu MỞ KHÓA rõ ràng từ TRẦN TUẤN.",
+  "locked_files": {
+    "tran_tuan_noi_that_release/files/tran_tuan_noi_that/layout_stats_tool.rb": "cf4d62f292109751c307be49b26023951ca04f01",
+    "tran_tuan_noi_that_release/files/tran_tuan_noi_that/layout_stats_v030_patch.rb": "d86c5d15a5b2ee6cb44a66806042597bebbff0e0",
+    "tran_tuan_noi_that_release/files/tran_tuan_noi_that/layout_stats_v040_compat.rb": "ba0c860154d2b8feaf8984af665021671b7fd6a3",
+    "tran_tuan_noi_that_release/files/tran_tuan_noi_that/layout_stats_v040_patch.rb": "95b8536ada66f5dfe6f746313705b4c995f32b99",
+    "tran_tuan_noi_that_release/files/tran_tuan_noi_that/icons/layout_stats.svg": "ec056f20c26b84eaa2a8561062145122aea10b25"
+  }
+}
