@@ -1,5 +1,10 @@
 # encoding: UTF-8
 module TranTuanNoiThat
+  # Grain V3.4.0 phải nạp sau base/material/alignment để sửa chuẩn 2440x1220
+  # và giải phóng material từng bị bake xuống Face.
+  grain_patch_v340 = File.join(ROOT, 'grain_standard_2440_fix.rb')
+  load grain_patch_v340 if File.file?(grain_patch_v340)
+
   # Layout load order bắt buộc:
   # base -> V0.3.0 -> compat -> V0.4.0 -> compat -> V0.5.0 stable preview -> V0.6.0 compact scope.
   layout_compat = File.join(ROOT, 'layout_stats_v040_compat.rb')
@@ -13,7 +18,7 @@ module TranTuanNoiThat
   load layout_patch_v060 if File.file?(layout_patch_v060)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.36'.freeze
+  VERSION = '1.9.37'.freeze
 
   module Settings
     extend self
