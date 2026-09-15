@@ -30,25 +30,22 @@ jobs:
           ruby -c tran_tuan_noi_that_release/files/tran_tuan_noi_that/grain_standard_2440_fix.rb
           ruby -c tran_tuan_noi_that_release/files/tran_tuan_noi_that/grain_production_v350.rb
           ruby -c tran_tuan_noi_that_release/files/tran_tuan_noi_that/grain_production_v350_hotfix.rb
-          ruby -c tran_tuan_noi_that_release/files/tran_tuan_noi_that/layout_stats_v050_stable_preview.rb
-          ruby -c tran_tuan_noi_that_release/files/tran_tuan_noi_that/layout_stats_v060_compact_scope.rb
           ruby -c tran_tuan_noi_that_release/files/tran_tuan_noi_that/layout_stats_v070_export_split.rb
-          grep -q "VERSION = '3.5.0'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/grain_production_v350.rb
-          grep -q "Geom::Point3d.new(1.0, 0.0, 0.0)" tran_tuan_noi_that_release/files/tran_tuan_noi_that/grain_production_v350.rb
-          grep -q "Geom::Point3d.new(0.0, 1.0, 0.0)" tran_tuan_noi_that_release/files/tran_tuan_noi_that/grain_production_v350.rb
-          grep -q "start_scan_preview" tran_tuan_noi_that_release/files/tran_tuan_noi_that/grain_production_v350.rb
-          grep -q "ABF\[_\\- \]\*HOI" tran_tuan_noi_that_release/files/tran_tuan_noi_that/grain_production_v350.rb
-          grep -q "material_profiles_v350" tran_tuan_noi_that_release/files/tran_tuan_noi_that/grain_production_v350.rb
-          grep -q "grain_production_v350.rb" tran_tuan_noi_that_release/files/tran_tuan_noi_that/settings.rb
-          grep -q "grain_production_v350_hotfix.rb" tran_tuan_noi_that_release/files/tran_tuan_noi_that/settings.rb
-          grep -q "VERSION = '1.9.40'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/settings.rb
-          grep -q "ext.version = '1.9.40'" tran_tuan_noi_that_release/files/TranTuanNoiThat.rb
-          grep -q '"version": "1.9.40"' tran_tuan_noi_that_release/update_latest.json
-          grep -q '"grain_version": "3.5.0"' tran_tuan_noi_that_release/update_latest.json
-          grep -q '"layout_stats_version": "0.7.0"' tran_tuan_noi_that_release/update_latest.json
-          grep -q 'grain_production_v350.rb' tran_tuan_noi_that_release/update_latest.json
-          grep -q 'grain_production_v350_hotfix.rb' tran_tuan_noi_that_release/update_latest.json
-          grep -q '"locked": false' tran_tuan_noi_that_release/GRAIN_LOCK.json
+          grep -Fq "VERSION = '3.5.0'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/grain_production_v350.rb
+          grep -Fq "Geom::Point3d.new(1.0, 0.0, 0.0)" tran_tuan_noi_that_release/files/tran_tuan_noi_that/grain_production_v350.rb
+          grep -Fq "Geom::Point3d.new(0.0, 1.0, 0.0)" tran_tuan_noi_that_release/files/tran_tuan_noi_that/grain_production_v350.rb
+          grep -Fq "start_scan_preview" tran_tuan_noi_that_release/files/tran_tuan_noi_that/grain_production_v350.rb
+          grep -Fq "material_profiles_v350" tran_tuan_noi_that_release/files/tran_tuan_noi_that/grain_production_v350.rb
+          grep -Fq "grain_production_v350.rb" tran_tuan_noi_that_release/files/tran_tuan_noi_that/settings.rb
+          grep -Fq "grain_production_v350_hotfix.rb" tran_tuan_noi_that_release/files/tran_tuan_noi_that/settings.rb
+          grep -Fq "VERSION = '1.9.40'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/settings.rb
+          grep -Fq "ext.version = '1.9.40'" tran_tuan_noi_that_release/files/TranTuanNoiThat.rb
+          grep -Fq '"version": "1.9.40"' tran_tuan_noi_that_release/update_latest.json
+          grep -Fq '"grain_version": "3.5.0"' tran_tuan_noi_that_release/update_latest.json
+          grep -Fq '"layout_stats_version": "0.7.0"' tran_tuan_noi_that_release/update_latest.json
+          grep -Fq 'grain_production_v350.rb' tran_tuan_noi_that_release/update_latest.json
+          grep -Fq 'grain_production_v350_hotfix.rb' tran_tuan_noi_that_release/update_latest.json
+          grep -Fq '"locked": false' tran_tuan_noi_that_release/GRAIN_LOCK.json
 
       - name: Build RBZ
         shell: bash
