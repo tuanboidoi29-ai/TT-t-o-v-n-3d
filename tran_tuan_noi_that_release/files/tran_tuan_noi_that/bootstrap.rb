@@ -13,7 +13,7 @@ module TranTuanNoiThat
   NAME = 'TRẦN TUẤN NỘI THẤT'.freeze unless const_defined?(:NAME, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.23'.freeze
+  VERSION = '1.9.25'.freeze
 
   remove_const(:MANIFEST_URL) if const_defined?(:MANIFEST_URL, false)
   MANIFEST_URL = 'https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/update_latest.json'.freeze
@@ -144,7 +144,6 @@ module TranTuanNoiThat
       @toolbar.show if @toolbar
     end
 
-    # BO CONG KHỐI V2.2.5 đang khóa - không thay đổi engine.
     def install_round_ui
       return false unless defined?(TranTuanNoiThat::Round)
 
@@ -154,7 +153,7 @@ module TranTuanNoiThat
       @round_cmd ||= command(
         'Bo Cong Khối',
         'bo_cong.svg',
-        'Bo cung lồi/lõm tại góc; TAB đổi chế độ',
+        'Bo cung lồi/lõm tại góc; TAB đổi chế độ; giữ 2 biên đầu/cuối',
         :round
       ) { Round.activate }
 
@@ -206,7 +205,7 @@ module TranTuanNoiThat
 
     def toolbar_has_command?(toolbar, tooltip)
       return false unless toolbar
-      toolbar.each do |item|
+      @toolbar.each do |item|
         next unless item.is_a?(UI::Command)
         return true if item.tooltip.to_s == tooltip.to_s
       end
