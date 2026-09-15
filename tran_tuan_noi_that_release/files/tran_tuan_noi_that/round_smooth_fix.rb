@@ -1,14 +1,60 @@
 # encoding: UTF-8
-# TRẦN TUẤN - Bo Cong Khối V2.2.4
-# FIX MULTI-ROUND: bo góc 2, 3, 4... vẫn giữ toàn bộ cung cũ mịn.
+# TRẦN TUẤN - Bo Cong Khối V2.2.5
+# FIX: bo liên tiếp trên khối đã bo + làm mịn lại TOÀN BỘ cung sau mỗi lần bo.
 
 module TranTuanNoiThat
   module Round
     remove_const(:VERSION) if const_defined?(:VERSION, false)
-    VERSION = '2.2.4'.freeze
+    VERSION = '2.2.5'.freeze
 
     class Tool
       private
+
+      # Sau khi khối đã có cung, Face dưới con trỏ có thể là một mặt segment cong.
+      # Không lấy nhầm mặt segment đó làm mặt profile. Chỉ nhận Face có thể xuyên
+      # qua khối theo một vector song song ổn định (prism_depth trả về hợp lệ).
+      def pick_face(vertex, direct_face, tr)
+        candidates = vertex.faces.select { |f| f.valid? && f.loops.length == 1 }
+        return nil if candidates.empty?
+
+        if direct_face && direct_face.valid? &&
+           direct_face.outer_loop.vertices.include?(vertex) &&
+           prism_depth(direct_face, vertex)
+          return direct_face
+        end
+
+        viable = candidates.select { |face| prism_depth(face, vertex) }
+        return nil if viable.empty?
+
+        camera = Sketchup.active_model.active_view.camera.direction
+        viable.max_by do |face|
+          n = face.normal.transform(tr)
+          n.normalize! if n.length > 0.001
+          # Ưu tiên mặt nhìn thấy rõ; nếu ngang nhau ưu tiên profile có nhiều cạnh.
+          [n.dot(camera).abs, face.outer_loop.edges.length]
+        end
+      rescue StandardError
+        nil
+      end
+
+      # Bỏ điều kiện cũ faces == n+2 / edges == n*3 vì sau khi bo một hay nhiều
+      # góc topology đã có nhiều segment. Việc xác nhận hướng xuyên khối được giao
+      # cho prism_depth ở bước build phía sau.
+      def prism_reason(entities, face)
+        return 'Mặt có lỗ chưa được hỗ trợ.' unless face.loops.length == 1
+        if entities.any? { |e| e.is_a?(Sketchup::Group) || e.is_a?(Sketchup::ComponentInstance) || e.is_a?(Sketchup::Image) }
+          return 'Khối có Group/Component con; hãy bo từng khối trực tiếp.'
+        end
+
+        parent = entities.respond_to?(:parent) ? entities.parent : nil
+        if parent.is_a?(Sketchup::ComponentDefinition) && parent.instances.length > 1
+          return 'Component có nhiều bản sao. Hãy Make Unique trước khi bo.'
+        end
+
+        edges = entities.grep(Sketchup::Edge)
+        return 'Khối đang có cạnh hở.' if edges.empty? || edges.any? { |e| !e.valid? || e.faces.length != 2 }
+        nil
+      end
 
       def apply_round(data)
         model = Sketchup.active_model
@@ -49,19 +95,19 @@ module TranTuanNoiThat
             curved_faces << side if range && i >= range.begin && i < range.end
           end
 
-          # Cung vừa bo: ẩn seam bằng cạnh chung thật giữa các Face cong.
+          # Cung vừa bo: dùng cạnh chung thật giữa các mặt segment liền nhau.
           hide_curve_internal_seams(curved_faces)
 
-          # QUAN TRỌNG: mỗi lần bo engine dựng lại TOÀN BỘ khối nên các seam
-          # của cung cũ cũng bị tái tạo. Quét lại toàn bộ các cạnh chạy theo
-          # chiều dày và làm mịn nếu hai mặt bên kề nhau đổi hướng nhỏ.
-          smooth_all_curved_seams(entities, data[:depth])
+          # Quan trọng: lần bo sau dựng lại topology nên mọi seam cũ có thể hiện lại.
+          # Quét TOÀN BỘ khối, không phụ thuộc hướng bo hiện tại. Cạnh có 2 mặt kề
+          # đổi hướng nhỏ là seam làm mịn; cạnh biên thật 90° vẫn được giữ nguyên.
+          smooth_all_curved_seams(entities)
 
           open_count = entities.grep(Sketchup::Edge).count { |e| e.valid? && e.faces.length != 2 }
           raise "Khối sau bo chưa kín (#{open_count} cạnh hở)." if open_count > 0
 
           model.commit_operation
-          status('đã bo xong · tất cả cung cũ + mới đều được làm mịn')
+          status('đã bo xong · giữ mịn toàn bộ cung cũ + mới')
         rescue StandardError => error
           model.abort_operation
           UI.messagebox("Không thể bo cong V#{Round::VERSION}:\n#{error.message}")
@@ -79,28 +125,17 @@ module TranTuanNoiThat
         end
       end
 
-      def smooth_all_curved_seams(entities, depth_vector)
-        return unless depth_vector && depth_vector.length > 0.001
-        depth_dir = depth_vector.clone
-        depth_dir.normalize!
-
-        # Segments tối thiểu 4 có thể tạo góc giữa 2 mặt khoảng 45°.
-        # Chọn 50° để bắt được mọi seam của cung nhưng giữ góc tủ 90°.
+      # Không lọc theo depth_vector nữa. Đây là điểm sửa chính cho trường hợp
+      # bo tiếp ở hướng khác hoặc bo góc thứ 2/3/4 làm seam cũ hiện trở lại.
+      def smooth_all_curved_seams(entities, _depth_vector = nil)
         max_angle = 50.0 * Math::PI / 180.0
 
         entities.grep(Sketchup::Edge).each do |edge|
           next unless edge.valid? && edge.faces.length == 2
 
-          ev = edge.end.position - edge.start.position
-          next if ev.length < 0.001
-          edir = ev.clone
-          edir.normalize!
-
-          # Chỉ làm mịn cạnh chạy xuyên theo chiều dày của khối.
-          # Không đụng đường biên trên/dưới của tấm.
-          next if edir.dot(depth_dir).abs < 0.998
-
           f1, f2 = edge.faces
+          next unless f1.valid? && f2.valid?
+
           n1 = f1.normal.clone
           n2 = f2.normal.clone
           next if n1.length < 0.001 || n2.length < 0.001
