@@ -1,7 +1,7 @@
 {
   "locked": true,
   "feature": "Co Giãn Khối MODE",
-  "system_version": "1.9.22",
+  "system_version": "1.9.23",
   "stretch_mode_version": "0.9.2",
   "policy": "Tạm thời KHÓA code chức năng Co Giãn Khối MODE. Không sửa các file co giãn nếu chưa có yêu cầu MỞ KHÓA rõ ràng từ TRẦN TUẤN.",
   "locked_paths": [
