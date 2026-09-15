@@ -1,29 +1,14 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.7",
-  "round_version": "2.2.4",
+  "version": "1.9.8",
+  "round_version": "2.2.5",
   "channel": "stable",
-  "notes": "Hotfix 1.9.7: sửa lỗi execution expired khi kiểm tra cập nhật; ưu tiên Raw GitHub, tự chuyển GitHub API khi timeout, rút ngắn thời gian chờ. Giữ Bo Cong Khối V2.2.4.",
+  "notes": "Bo Cong Khối V2.2.5: cho phép bo tiếp trên khối đã bo, không còn khóa sai bởi điều kiện lăng trụ ban đầu; sau mỗi lần bo quét toàn bộ cạnh giữa các mặt đổi hướng nhỏ và Soft + Smooth + Hidden lại mọi cung cũ + mới, kể cả khi các lần bo theo hướng khác nhau.",
   "rbz_url": "",
   "files": [
     {
-      "path": "TranTuanNoiThat.rb",
-      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/db11ef483cd89bb763c5d696006753a1734b9162/tran_tuan_noi_that_release/files/TranTuanNoiThat.rb",
-      "sha256": ""
-    },
-    {
-      "path": "tran_tuan_noi_that/bootstrap.rb",
-      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/6b4f615515b0cf26139ef6ec9ed221809a3deb43/tran_tuan_noi_that_release/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": ""
-    },
-    {
-      "path": "tran_tuan_noi_that/updater.rb",
-      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/ea637081c81837e20bca2482a2e46133de670cce/tran_tuan_noi_that_release/files/tran_tuan_noi_that/updater.rb",
-      "sha256": ""
-    },
-    {
       "path": "tran_tuan_noi_that/round_smooth_fix.rb",
-      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/65088c9def05413ed6c48d0917f007c311c9bd28/tran_tuan_noi_that_release/files/tran_tuan_noi_that/round_smooth_fix.rb",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/40c70a873e2ac1f54ce91a227de11347304f0175/tran_tuan_noi_that_release/files/tran_tuan_noi_that/round_smooth_fix.rb",
       "sha256": ""
     }
   ]
