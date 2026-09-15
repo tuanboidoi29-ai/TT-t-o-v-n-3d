@@ -1,13 +1,13 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.38",
+  "version": "1.9.39",
   "box_version": "1.1.1",
   "round_version": "2.2.6",
   "stretch_mode_version": "0.9.2",
-  "grain_version": "3.4.0",
+  "grain_version": "3.4.1",
   "layout_stats_version": "0.7.0",
   "channel": "stable",
-  "notes": "Bản 1.9.38: LayoutStats V0.7.0 tách rõ hai luồng xuất. Xuất LayOut chỉ tạo 3 trang phối cảnh/kỹ thuật compact A3 gồm Tổng quan + Line/X-Ray, Mặt đứng Trước/Trái/Phải và Mặt cắt Trước/Trái/Phải; không thêm bảng thống kê ván. Xuất PDF dựng tài liệu tạm trong RAM và xuất trực tiếp PDF gồm toàn bộ 3 trang phối cảnh/kỹ thuật + các trang thống kê ván, không lưu file .layout trung gian. Giữ nguyên scope MODE, multi MODE, preview tuần tự và bố cục V0.6.0. Grain V3.4.0 giữ nguyên.",
+  "notes": "Bản 1.9.39: Xoay Vân Ván V3.4.1 cố định tuyệt đối tỷ lệ texture theo nguyên tắc 1 map = 1 tấm chuẩn 2440x1220 mm. Tấm đủ 2440x1220 hiển thị trọn một map chuẩn; tấm nhỏ hơn chỉ crop một phần map, không co/giãn; tấm lớn hơn tiếp tục/lặp cùng scale chuẩn, không phóng vân. Gốc UV chuyển từ căn tâm từng tấm sang góc min theo trục vân/ngang để tránh cảm giác mỗi tấm có tỷ lệ khác nhau. Bảng TAB hiển thị khổ chuẩn khóa 2440x1220. Giữ nguyên material-safe và LayoutStats V0.7.0.",
   "rbz_url": "",
   "locked_features": {
     "box": "1.1.1",
