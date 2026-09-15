@@ -1,19 +1,18 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.34",
+  "version": "1.9.35",
   "box_version": "1.1.1",
   "round_version": "2.2.6",
   "stretch_mode_version": "0.9.2",
-  "grain_version": "3.2.1",
+  "grain_version": "3.3.0",
   "layout_stats_version": "0.5.0",
   "channel": "stable",
-  "notes": "Bản 1.9.34: khóa lại Xoay Vân Ván V3.2.1 sau khi hoàn tất nhận diện map màu/texture. Mở và nâng Xuất Layout + Thống Kê Ván lên V0.5.0 để sửa lỗi preview làm SketchUp đơ/sập: bỏ render 8 ảnh liên tục trong một callback, chuyển sang render từng trang bằng timer, trả quyền điều khiển cho SketchUp giữa các bước, giảm preview còn 480x340 JPEG nén không antialias, đẩy từng trang sang HtmlDialog ngay thay vì giữ toàn bộ Base64 trong Ruby RAM, có token hủy job cũ khi quét lại/đóng bảng. Chỉ bật Xuất LayOut/PDF sau khi toàn bộ preview hoàn tất và dữ liệu không đổi. BOX V1.1.1, Co Giãn V0.9.2, Bo Cong V2.2.6 và Grain V3.2.1 vẫn khóa nguyên.",
+  "notes": "Bản 1.9.35: mở Xoay Vân Ván và nâng lên V3.3.0. Khổ mặc định cũ 2440x1220 được migrate một lần sang 2800x1220 nếu người dùng chưa tự chỉnh; khổ tùy chỉnh được giữ nguyên. Khi lưu khổ luôn chuẩn hóa Dài >= Rộng. Texture giữ đúng scale vật liệu, không kéo theo kích thước chi tiết; một tile được căn tâm vào tâm mặt ván để các tấm cùng vật liệu có mật độ vân đều. Nhãn preview tách rõ TẤM và CT. Giữ nguyên nhận diện map màu/texture V3.2.1 và LayoutStats V0.5.0.",
   "rbz_url": "",
   "locked_features": {
     "box": "1.1.1",
     "co_gian": "0.9.2",
-    "bo_cong": "2.2.6",
-    "grain": "3.2.1"
+    "bo_cong": "2.2.6"
   },
   "files": [
     {"path":"TranTuanNoiThat.rb","url":"https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/files/TranTuanNoiThat.rb","sha256":""},
@@ -23,6 +22,7 @@
     {"path":"tran_tuan_noi_that/grain_tool_part2.inc","url":"https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/files/tran_tuan_noi_that/grain_tool_part2.inc","sha256":""},
     {"path":"tran_tuan_noi_that/grain_tool_part3.inc","url":"https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/files/tran_tuan_noi_that/grain_tool_part3.inc","sha256":""},
     {"path":"tran_tuan_noi_that/grain_material_fix.rb","url":"https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/files/tran_tuan_noi_that/grain_material_fix.rb","sha256":""},
+    {"path":"tran_tuan_noi_that/grain_align_fix.rb","url":"https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/files/tran_tuan_noi_that/grain_align_fix.rb","sha256":""},
     {"path":"tran_tuan_noi_that/icons/grain.svg","url":"https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/files/tran_tuan_noi_that/icons/grain.svg","sha256":""},
     {"path":"tran_tuan_noi_that/layout_stats_tool.rb","url":"https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/files/tran_tuan_noi_that/layout_stats_tool.rb","sha256":""},
     {"path":"tran_tuan_noi_that/layout_stats_v030_patch.rb","url":"https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/files/tran_tuan_noi_that/layout_stats_v030_patch.rb","sha256":""},
