@@ -1,0 +1,13 @@
+{
+  "locked": true,
+  "feature": "Co Giãn Khối MODE",
+  "system_version": "1.9.22",
+  "stretch_mode_version": "0.9.2",
+  "policy": "Tạm thời KHÓA code chức năng Co Giãn Khối MODE. Không sửa các file co giãn nếu chưa có yêu cầu MỞ KHÓA rõ ràng từ TRẦN TUẤN.",
+  "locked_paths": [
+    "tran_tuan_noi_that_release/files/tran_tuan_noi_that/stretch_mode_tool.rb",
+    "tran_tuan_noi_that_release/files/tran_tuan_noi_that/stretch_detail_fix.rb",
+    "tran_tuan_noi_that_release/files/tran_tuan_noi_that/stretch_auto_scan_fix.rb",
+    "tran_tuan_noi_that_release/files/tran_tuan_noi_that/stretch_auto_scope_fix.rb"
+  ]
+}
