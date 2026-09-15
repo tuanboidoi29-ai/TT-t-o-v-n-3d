@@ -13,7 +13,7 @@ module TranTuanNoiThat
   NAME = 'TRẦN TUẤN NỘI THẤT'.freeze unless const_defined?(:NAME, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.34'.freeze
+  VERSION = '1.9.35'.freeze
 
   remove_const(:MANIFEST_URL) if const_defined?(:MANIFEST_URL, false)
   MANIFEST_URL = 'https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/update_latest.json'.freeze
@@ -62,8 +62,8 @@ module TranTuanNoiThat
     end
 
     def reload_runtime
-      # Grain V3.2.1 đã KHÓA: base -> material fix, không sửa tiếp.
-      # Layout đang phát triển V0.5.0: base -> V0.3 -> compat/V0.4 -> settings nạp stable preview.
+      # Grain: base V3.2.0 -> nhận map V3.2.1 -> khổ/căn vân V3.3.0.
+      # Layout giữ V0.5.0 stable preview.
       %w[
         board_tool.rb
         box_tool.rb
@@ -72,6 +72,7 @@ module TranTuanNoiThat
         stretch_mode_tool.rb
         grain_tool.rb
         grain_material_fix.rb
+        grain_align_fix.rb
         layout_stats_tool.rb
         layout_stats_v030_patch.rb
         layout_stats_v040_compat.rb
@@ -167,7 +168,7 @@ module TranTuanNoiThat
     def install_grain_ui
       return false unless defined?(TranTuanNoiThat::Grain)
       @grain_ui_installed = true
-      @grain_cmd ||= command('Xoay Vân Ván', 'grain.svg', 'Tự nhận map màu/texture ở Face, Group/Component và căn/xoay vân.', :grain) { Grain.activate }
+      @grain_cmd ||= command('Xoay Vân Ván', 'grain.svg', 'Khổ ván chuẩn · nhận map màu/texture · căn tâm vân đều, giữ đúng scale.', :grain) { Grain.activate }
       add_feature_command_once(@grain_cmd, :grain_menu_installed)
       true
     rescue StandardError => error
