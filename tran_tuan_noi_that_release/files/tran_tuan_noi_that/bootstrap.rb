@@ -13,7 +13,7 @@ module TranTuanNoiThat
   NAME = 'TRẦN TUẤN NỘI THẤT'.freeze unless const_defined?(:NAME, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.25'.freeze
+  VERSION = '1.9.26'.freeze
 
   remove_const(:MANIFEST_URL) if const_defined?(:MANIFEST_URL, false)
   MANIFEST_URL = 'https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/update_latest.json'.freeze
@@ -43,7 +43,8 @@ module TranTuanNoiThat
         'Tạo Khối BOX' => :box,
         'Vẽ Ngăn Kéo' => :drawer,
         'Bo Cong Khối' => :round,
-        'Co Giãn Khối MODE' => :stretch_mode
+        'Co Giãn Khối MODE' => :stretch_mode,
+        'Xoay Vân Ván' => :grain
       }
       @toolbar.each do |item|
         next unless item.is_a?(UI::Command)
@@ -67,6 +68,7 @@ module TranTuanNoiThat
         drawer_tool.rb
         round_tool.rb
         stretch_mode_tool.rb
+        grain_tool.rb
         settings.rb
         updater.rb
       ].each do |file|
@@ -111,6 +113,7 @@ module TranTuanNoiThat
       install_drawer_ui
       install_round_ui
       install_stretch_mode_ui
+      install_grain_ui
       refresh_feature_commands
       if @toolbar
         @toolbar.restore
@@ -146,26 +149,21 @@ module TranTuanNoiThat
 
     def install_round_ui
       return false unless defined?(TranTuanNoiThat::Round)
-
       was_installed = !!@round_ui_installed
       @round_ui_installed = true
-
       @round_cmd ||= command(
         'Bo Cong Khối',
         'bo_cong.svg',
         'Bo cung lồi/lõm tại góc; TAB đổi chế độ; giữ 2 biên đầu/cuối',
         :round
       ) { Round.activate }
-
       unless was_installed || @round_menu_installed
         (@main_menu || UI.menu('Extensions')).add_item(@round_cmd)
         @round_menu_installed = true
       end
-
       if @toolbar && !toolbar_has_command?(@toolbar, 'Bo Cong Khối')
         @toolbar.add_item(@round_cmd)
       end
-
       if @toolbar
         @toolbar.restore
         @toolbar.show
@@ -179,7 +177,6 @@ module TranTuanNoiThat
     def install_stretch_mode_ui
       return false unless defined?(TranTuanNoiThat::StretchMode)
       return true if @stretch_mode_ui_installed && toolbar_has_command?(@toolbar, 'Co Giãn Khối MODE')
-
       @stretch_mode_ui_installed = true
       @stretch_mode_cmd ||= command(
         'Co Giãn Khối MODE',
@@ -187,12 +184,10 @@ module TranTuanNoiThat
         'AUTO QUÉT: khung nét đứt ôm sát module dưới P1; kéo sang phía cần co/kéo rồi thả; TAB đổi sang 3 ĐIỂM.',
         :stretch_mode
       ) { StretchMode.activate }
-
       unless @stretch_mode_menu_installed
         (@main_menu || UI.menu('Extensions')).add_item(@stretch_mode_cmd)
         @stretch_mode_menu_installed = true
       end
-
       if @toolbar && !toolbar_has_command?(@toolbar, 'Co Giãn Khối MODE')
         @toolbar.add_item(@stretch_mode_cmd)
       end
@@ -203,9 +198,33 @@ module TranTuanNoiThat
       false
     end
 
+    def install_grain_ui
+      return false unless defined?(TranTuanNoiThat::Grain)
+      return true if @grain_ui_installed && toolbar_has_command?(@toolbar, 'Xoay Vân Ván')
+      @grain_ui_installed = true
+      @grain_cmd ||= command(
+        'Xoay Vân Ván',
+        'grain.svg',
+        'Tự nhận tấm ván, căn/xoay vân texture; TAB mở khổ ván, TAB TAB đổi AUTO/TỰ DO.',
+        :grain
+      ) { Grain.activate }
+      unless @grain_menu_installed
+        (@main_menu || UI.menu('Extensions')).add_item(@grain_cmd)
+        @grain_menu_installed = true
+      end
+      if @toolbar && !toolbar_has_command?(@toolbar, 'Xoay Vân Ván')
+        @toolbar.add_item(@grain_cmd)
+      end
+      @toolbar.show if @toolbar
+      true
+    rescue StandardError => error
+      puts "[TT UI Grain] #{error.class}: #{error.message}"
+      false
+    end
+
     def toolbar_has_command?(toolbar, tooltip)
       return false unless toolbar
-      @toolbar.each do |item|
+      toolbar.each do |item|
         next unless item.is_a?(UI::Command)
         return true if item.tooltip.to_s == tooltip.to_s
       end
