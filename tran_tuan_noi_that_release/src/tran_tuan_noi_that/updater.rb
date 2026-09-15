@@ -1,19 +1,17 @@
 # encoding: UTF-8
+require 'base64'
+
 module TranTuanNoiThat
   module Updater
     extend self
+
     def check(interactive = true)
-      separator = TranTuanNoiThat::MANIFEST_URL.include?('?') ? '&' : '?'
-      manifest_url = "#{TranTuanNoiThat::MANIFEST_URL}#{separator}tt_cache=#{Time.now.to_i}"
-      manifest = JSON.parse(get(manifest_url))
+      manifest = fetch_manifest
       latest = manifest.fetch('version').to_s
       local = TranTuanNoiThat.current_version
       unless newer?(latest, local)
         if files_outdated?(manifest)
-          answer = UI.messagebox(
-            "Phiên bản #{latest} đã ghi nhận nhưng file cài đặt đang thiếu hoặc chưa đúng.\nSửa và nạp lại ngay không?",
-            MB_YESNO
-          )
+          answer = UI.messagebox("Phiên bản #{latest} đã ghi nhận nhưng file cài đặt đang thiếu hoặc chưa đúng.\nSửa và nạp lại ngay không?", MB_YESNO)
           return false unless answer == IDYES
           return install(manifest)
         end
@@ -29,22 +27,28 @@ module TranTuanNoiThat
       false
     end
 
+    def fetch_manifest
+      parsed = JSON.parse(get(fresh_url(TranTuanNoiThat::MANIFEST_URL)))
+      if parsed.is_a?(Hash) && parsed['content'] && parsed['encoding'].to_s.downcase == 'base64'
+        JSON.parse(Base64.decode64(parsed['content'].to_s))
+      else
+        parsed
+      end
+    end
+
     def install(manifest)
       files = manifest.fetch('files')
       staging = Dir.mktmpdir('tt_noi_that_')
       downloaded = []
       files.each do |item|
         relative = safe_path(item.fetch('path'))
-        bytes = get(item.fetch('url'))
         expected = item['sha256'].to_s.downcase
-        actual = Digest::SHA256.hexdigest(bytes)
-        raise "Sai mã kiểm tra: #{relative}" if !expected.empty? && expected != actual
+        bytes = download_verified(item.fetch('url'), expected, relative)
         local = File.join(staging, relative)
         FileUtils.mkdir_p(File.dirname(local))
         File.binwrite(local, bytes)
         downloaded << [local, install_path(relative)]
       end
-
       backup_root = File.join(TranTuanNoiThat::ROOT, 'backup', Time.now.strftime('%Y%m%d_%H%M%S'))
       downloaded.each do |source, target|
         if File.file?(target)
@@ -55,6 +59,7 @@ module TranTuanNoiThat
       end
       ok = TranTuanNoiThat.reload_runtime
       raise 'Đã chép file nhưng không thể nạp mã mới.' unless ok
+      load_round_fix
       TranTuanNoiThat.save_setting('installed_version', manifest['version'])
       Settings.notify("Đã cập nhật và nạp phiên bản #{manifest['version']}.", 'ok') if defined?(Settings)
       UI.messagebox("Cập nhật #{manifest['version']} thành công.\nKhông cần khởi động lại SketchUp.")
@@ -63,17 +68,39 @@ module TranTuanNoiThat
       FileUtils.remove_entry(staging) if staging && File.directory?(staging)
     end
 
+    def load_round_fix
+      file = File.join(TranTuanNoiThat::ROOT, 'round_smooth_fix.rb')
+      load(file) if File.file?(file)
+      true
+    rescue StandardError => error
+      puts "[TT Round Smooth Fix] #{error.class}: #{error.message}"
+      false
+    end
+
+    def download_verified(url, expected, relative)
+      last_actual = nil
+      3.times do
+        bytes = get(fresh_url(url))
+        return bytes if expected.empty?
+        actual = Digest::SHA256.hexdigest(bytes).downcase
+        return bytes if actual == expected
+        last_actual = actual
+        sleep(0.15)
+      end
+      raise "Sai mã kiểm tra: #{relative}\nMong đợi: #{expected}\nNhận được: #{last_actual}"
+    end
+
+    def fresh_url(url)
+      separator = url.to_s.include?('?') ? '&' : '?'
+      "#{url}#{separator}tt_cache=#{Time.now.to_i}_#{rand(1_000_000)}"
+    end
+
     def get(url, limit = 5)
       raise 'Quá nhiều lần chuyển hướng.' if limit <= 0
       uri = URI.parse(url)
       raise 'Chỉ cho phép cập nhật HTTPS.' unless uri.is_a?(URI::HTTPS)
-      request = Net::HTTP::Get.new(
-        uri.request_uri,
-        'User-Agent' => 'TranTuanNoiThat-SketchUp/1.0',
-        'Cache-Control' => 'no-cache, no-store',
-        'Pragma' => 'no-cache'
-      )
-      response = Net::HTTP.start(uri.host, uri.port, use_ssl: true, open_timeout: 10, read_timeout: 20) { |http| http.request(request) }
+      request = Net::HTTP::Get.new(uri.request_uri, 'User-Agent'=>'TranTuanNoiThat-SketchUp/1.9.4', 'Cache-Control'=>'no-cache, no-store, max-age=0', 'Pragma'=>'no-cache', 'Accept'=>'application/vnd.github+json', 'X-GitHub-Api-Version'=>'2022-11-28')
+      response = Net::HTTP.start(uri.host, uri.port, use_ssl: true, open_timeout: 10, read_timeout: 25) { |http| http.request(request) }
       return get(URI.join(uri, response['location']).to_s, limit - 1) if response.is_a?(Net::HTTPRedirection)
       raise "Máy chủ trả về HTTP #{response.code}" unless response.is_a?(Net::HTTPSuccess)
       response.body
@@ -115,10 +142,7 @@ module TranTuanNoiThat
   end
 end
 
-# Khi updater mới được nạp bởi phiên bản cũ, nạp lại bootstrap để đăng ký ngay
-# các command/toolbar mới. Cờ bảo vệ ngăn vòng lặp trong reload_runtime.
-if TranTuanNoiThat.instance_variable_get(:@ui_installed) &&
-   !TranTuanNoiThat.instance_variable_get(:@hot_bootstrap_loading)
+if TranTuanNoiThat.instance_variable_get(:@ui_installed) && !TranTuanNoiThat.instance_variable_get(:@hot_bootstrap_loading)
   begin
     TranTuanNoiThat.instance_variable_set(:@hot_bootstrap_loading, true)
     load File.join(TranTuanNoiThat::ROOT, 'bootstrap.rb')
@@ -126,3 +150,5 @@ if TranTuanNoiThat.instance_variable_get(:@ui_installed) &&
     TranTuanNoiThat.instance_variable_set(:@hot_bootstrap_loading, false)
   end
 end
+
+TranTuanNoiThat::Updater.load_round_fix if defined?(TranTuanNoiThat::Updater)
