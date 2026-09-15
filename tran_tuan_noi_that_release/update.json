@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.21",
+  "version": "1.9.22",
   "round_version": "2.2.5",
-  "stretch_mode_version": "0.9.1",
+  "stretch_mode_version": "0.9.2",
   "channel": "stable",
-  "notes": "Bản 1.9.21: Co Giãn Khối MODE V0.9.1 khôi phục KHUNG PREVIEW NÉT ĐỨT cho AUTO QUÉT. Trong lúc giữ chuột tại P1 và rê, khung chữ nhật nét đứt luôn bám theo chuột ngay cả khi chưa nhận trục. Sau khi thả P2, khung 3D nét đứt tiếp tục hiển thị quanh vùng đã chọn cho tới khi xác nhận P3 hoặc nhập kích thước. Giữ nguyên TRUE 3D DETAIL STRETCH, AUTO QUÉT mặc định, đa hướng X± Y± Z± và Bo Cong Khối V2.2.5 vẫn KHÓA.",
+  "notes": "Bản 1.9.22: Co Giãn Khối MODE V0.9.2 sửa AUTO scope để khung preview nét đứt ôm sát module dưới P1, không phóng theo toàn active context hoặc wrapper ngoài quá lớn. Khi P1 nằm trong nhiều Group/Component lồng nhau, hệ thống ưu tiên container sâu nhất gần P1; nếu không có container con vẫn lấy Group/Component gần P1 làm scope. Giữ nguyên TRUE 3D DETAIL STRETCH, AUTO QUÉT, preview nét đứt và Bo Cong Khối V2.2.5 vẫn KHÓA.",
   "rbz_url": "",
   "locked_features": {
     "bo_cong": "2.2.5"
@@ -12,12 +12,12 @@
   "files": [
     {
       "path": "TranTuanNoiThat.rb",
-      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/c2508e69477d5ba1b92dc618c2d96b1a0d6a946f/tran_tuan_noi_that_release/files/TranTuanNoiThat.rb",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/507940f99ae9c407b2c1c7b745c19ac74ad2eda3/tran_tuan_noi_that_release/files/TranTuanNoiThat.rb",
       "sha256": ""
     },
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
-      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/02ae9b8b0084cdf6cb3063fb541bbd065ddce0ef/tran_tuan_noi_that_release/files/tran_tuan_noi_that/bootstrap.rb",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/09e9f3f2a76cdb8137176a1a9fc97c7965aa549e/tran_tuan_noi_that_release/files/tran_tuan_noi_that/bootstrap.rb",
       "sha256": ""
     },
     {
@@ -33,6 +33,11 @@
     {
       "path": "tran_tuan_noi_that/stretch_auto_scan_fix.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/eeb93da812f73013b43734bdb989a57824678b93/tran_tuan_noi_that_release/files/tran_tuan_noi_that/stretch_auto_scan_fix.rb",
+      "sha256": ""
+    },
+    {
+      "path": "tran_tuan_noi_that/stretch_auto_scope_fix.rb",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/647d70dadd326f59794a6563b851f536b8ef83e5/tran_tuan_noi_that_release/files/tran_tuan_noi_that/stretch_auto_scope_fix.rb",
       "sha256": ""
     }
   ]
