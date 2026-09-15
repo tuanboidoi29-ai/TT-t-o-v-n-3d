@@ -13,7 +13,7 @@ module TranTuanNoiThat
   NAME = 'TRẦN TUẤN NỘI THẤT'.freeze unless const_defined?(:NAME, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.18'.freeze
+  VERSION = '1.9.19'.freeze
 
   remove_const(:MANIFEST_URL) if const_defined?(:MANIFEST_URL, false)
   MANIFEST_URL = 'https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/update_latest.json'.freeze
@@ -174,7 +174,7 @@ module TranTuanNoiThat
       @stretch_mode_cmd ||= command(
         'Co Giãn Khối MODE',
         'stretch_mode.svg',
-        'Co giãn CHI TIẾT 3D: P1/P2 chọn nửa không gian; geometry crossing P1 được kéo vertex thật phía P2, không chỉ Move.',
+        'Co giãn CHI TIẾT 3D: preview P1/P2/P3 rõ, vùng tác động phủ mờ, biên mới + số mm hiển thị trực tiếp.',
         :stretch_mode
       ) { StretchMode.activate }
 
