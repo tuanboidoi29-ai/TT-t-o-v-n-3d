@@ -13,7 +13,7 @@ module TranTuanNoiThat
   NAME = 'TRẦN TUẤN NỘI THẤT'.freeze unless const_defined?(:NAME, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.26'.freeze
+  VERSION = '1.9.27'.freeze
 
   remove_const(:MANIFEST_URL) if const_defined?(:MANIFEST_URL, false)
   MANIFEST_URL = 'https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/update_latest.json'.freeze
@@ -44,7 +44,8 @@ module TranTuanNoiThat
         'Vẽ Ngăn Kéo' => :drawer,
         'Bo Cong Khối' => :round,
         'Co Giãn Khối MODE' => :stretch_mode,
-        'Xoay Vân Ván' => :grain
+        'Xoay Vân Ván' => :grain,
+        'Xuất Layout + Thống Kê Ván' => :layout_stats
       }
       @toolbar.each do |item|
         next unless item.is_a?(UI::Command)
@@ -69,6 +70,7 @@ module TranTuanNoiThat
         round_tool.rb
         stretch_mode_tool.rb
         grain_tool.rb
+        layout_stats_tool.rb
         settings.rb
         updater.rb
       ].each do |file|
@@ -114,6 +116,7 @@ module TranTuanNoiThat
       install_round_ui
       install_stretch_mode_ui
       install_grain_ui
+      install_layout_stats_ui
       refresh_feature_commands
       if @toolbar
         @toolbar.restore
@@ -219,6 +222,30 @@ module TranTuanNoiThat
       true
     rescue StandardError => error
       puts "[TT UI Grain] #{error.class}: #{error.message}"
+      false
+    end
+
+    def install_layout_stats_ui
+      return false unless defined?(TranTuanNoiThat::LayoutStats)
+      return true if @layout_stats_ui_installed && toolbar_has_command?(@toolbar, 'Xuất Layout + Thống Kê Ván')
+      @layout_stats_ui_installed = true
+      @layout_stats_cmd ||= command(
+        'Xuất Layout + Thống Kê Ván',
+        'layout_stats.svg',
+        'Xem trước thống kê ván và xuất LayOut A3 ngang: trang phối cảnh + bảng thống kê tự chia trang.',
+        :layout_stats
+      ) { LayoutStats.show }
+      unless @layout_stats_menu_installed
+        (@main_menu || UI.menu('Extensions')).add_item(@layout_stats_cmd)
+        @layout_stats_menu_installed = true
+      end
+      if @toolbar && !toolbar_has_command?(@toolbar, 'Xuất Layout + Thống Kê Ván')
+        @toolbar.add_item(@layout_stats_cmd)
+      end
+      @toolbar.show if @toolbar
+      true
+    rescue StandardError => error
+      puts "[TT UI LayoutStats] #{error.class}: #{error.message}"
       false
     end
 
