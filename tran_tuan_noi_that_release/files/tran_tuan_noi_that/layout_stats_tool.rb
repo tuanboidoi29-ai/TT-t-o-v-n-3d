@@ -1,12 +1,15 @@
 # encoding: UTF-8
 # TRẦN TUẤN NỘI THẤT - XUẤT LAYOUT + THỐNG KÊ VÁN
-# V0.1.0 - A3 ngang, preview thống kê, trang phối cảnh + tự chia trang bảng ván.
+# V0.2.0 - A3 ngang, PDF preview bắt buộc, Tổng thể + Mặt trước + Trái + Phải + thống kê.
+
+require 'tmpdir'
+require 'uri'
 
 module TranTuanNoiThat
   module LayoutStats
     extend self
 
-    VERSION = '0.1.0'.freeze
+    VERSION = '0.2.0'.freeze
     GRAIN_DICT = 'TT_GRAIN'.freeze
     ABF_GRAIN_DICT = 'TT_ABF_GRAIN'.freeze
     MM_PER_INCH = 25.4
@@ -16,9 +19,13 @@ module TranTuanNoiThat
 
     @dialog = nil
     @stats = nil
+    @preview_ready = false
+    @preview_signature = nil
+    @preview_path = nil
 
     def show
       @stats = build_stats
+      invalidate_preview('Dữ liệu vừa được quét. Hãy XEM TRƯỚC PDF trước khi xuất.')
       if @dialog && @dialog.visible?
         sync_dialog
         @dialog.bring_to_front
@@ -30,34 +37,115 @@ module TranTuanNoiThat
         preferences_key: 'TranTuanNoiThat.LayoutStats',
         scrollable: true,
         resizable: true,
-        width: 980,
-        height: 700,
+        width: 1040,
+        height: 760,
         style: UI::HtmlDialog::STYLE_DIALOG
       )
       @dialog.set_html(dialog_html)
-      @dialog.add_action_callback('ready') { |_ctx| sync_dialog }
+      @dialog.add_action_callback('ready') do |_ctx|
+        sync_dialog
+        sync_preview_state
+      end
       @dialog.add_action_callback('refresh') do |_ctx|
         @stats = build_stats
+        invalidate_preview('Đã quét lại mô hình. Cần XEM TRƯỚC PDF lại trước khi xuất.')
         sync_dialog
+        sync_preview_state
+      end
+      @dialog.add_action_callback('preview_pdf') do |_ctx|
+        begin
+          preview_pdf
+        rescue StandardError => error
+          invalidate_preview("Xem trước thất bại: #{error.message}")
+          sync_preview_state
+          UI.messagebox("Xem trước PDF thất bại:\n#{error.message}")
+          puts "[TT LayoutStats preview] #{error.class}: #{error.message}\n#{Array(error.backtrace).first(8).join("\n")}"
+        end
       end
       @dialog.add_action_callback('export_layout') do |_ctx|
         begin
-          @stats = build_stats
-          if @stats[:rows].empty?
-            UI.messagebox('Không tìm thấy tấm ván hợp lệ để thống kê.')
-            next
-          end
-          export_layout(@stats)
-          sync_dialog
+          stats = validated_preview_stats
+          export_layout(stats) if stats
         rescue StandardError => error
           UI.messagebox("Xuất LayOut thất bại:\n#{error.message}")
-          puts "[TT LayoutStats export] #{error.class}: #{error.message}\n#{Array(error.backtrace).first(8).join("\n")}"
+          puts "[TT LayoutStats layout] #{error.class}: #{error.message}\n#{Array(error.backtrace).first(8).join("\n")}"
+        end
+      end
+      @dialog.add_action_callback('export_pdf') do |_ctx|
+        begin
+          stats = validated_preview_stats
+          export_pdf(stats) if stats
+        rescue StandardError => error
+          UI.messagebox("Xuất PDF thất bại:\n#{error.message}")
+          puts "[TT LayoutStats pdf] #{error.class}: #{error.message}\n#{Array(error.backtrace).first(8).join("\n")}"
         end
       end
       @dialog.set_on_closed { @dialog = nil }
       @dialog.show
     rescue StandardError => error
       UI.messagebox("Không mở được Xuất Layout + Thống Kê Ván:\n#{error.message}")
+    end
+
+    def preview_pdf
+      ensure_layout_api!
+      @stats = build_stats
+      if @stats[:rows].empty?
+        UI.messagebox('Không tìm thấy tấm ván hợp lệ để thống kê.')
+        return false
+      end
+
+      model = Sketchup.active_model
+      skp_path = ensure_model_saved(model)
+      return false unless skp_path
+
+      doc = build_layout_document(@stats, model, skp_path)
+      @preview_path = File.join(
+        Dir.tmpdir,
+        "TRAN_TUAN_LAYOUT_PREVIEW_#{Process.pid}_#{Time.now.to_i}.pdf"
+      )
+      export_document_pdf(doc, @preview_path, 0.88)
+      @preview_signature = current_signature(@stats)
+      @preview_ready = true
+      sync_preview_state('ĐÃ XEM TRƯỚC · có thể xuất LayOut hoặc PDF.')
+      open_local_file(@preview_path)
+      true
+    end
+
+    def validated_preview_stats
+      unless @preview_ready && @preview_signature
+        UI.messagebox('Bạn cần bấm XEM TRƯỚC PDF trước khi xuất.')
+        return nil
+      end
+
+      fresh = build_stats
+      signature = current_signature(fresh)
+      unless signature == @preview_signature
+        @stats = fresh
+        invalidate_preview('Mô hình / selection / camera đã thay đổi. Hãy XEM TRƯỚC PDF lại.')
+        sync_dialog
+        sync_preview_state
+        UI.messagebox('Dữ liệu đã thay đổi sau lần xem trước. Hãy bấm XEM TRƯỚC PDF lại trước khi xuất.')
+        return nil
+      end
+
+      @stats = fresh
+      fresh
+    end
+
+    def invalidate_preview(message = nil)
+      @preview_ready = false
+      @preview_signature = nil
+      @preview_message = message.to_s
+    end
+
+    def sync_preview_state(message = nil)
+      return unless @dialog && @dialog.visible?
+      text = message.to_s
+      text = @preview_message.to_s if text.empty?
+      text = @preview_ready ? 'ĐÃ XEM TRƯỚC · sẵn sàng xuất.' : 'CHƯA XEM TRƯỚC · cần xem trước PDF.' if text.empty?
+      @dialog.execute_script(
+        "window.setPreviewState(#{@preview_ready ? 'true' : 'false'}, #{JSON.generate(text)})"
+      )
     end
 
     def build_stats
@@ -249,6 +337,7 @@ module TranTuanNoiThat
     def sync_dialog
       return unless @dialog && @dialog.visible?
       @stats ||= build_stats
+      stats_pages = [(@stats[:rows].length.to_f / ROWS_PER_PAGE).ceil, 1].max
       payload = {
         version: VERSION,
         scope: @stats[:scope],
@@ -256,6 +345,7 @@ module TranTuanNoiThat
         total_types: @stats[:total_types],
         total_area_m2: @stats[:total_area_m2].round(3),
         generated_at: @stats[:generated_at],
+        page_count: 4 + stats_pages,
         rows: @stats[:rows].map do |row|
           {
             stt: row[:stt],
@@ -276,15 +366,19 @@ module TranTuanNoiThat
     def dialog_html
       <<~HTML
         <!doctype html><html lang="vi"><head><meta charset="utf-8"><style>
-        *{box-sizing:border-box}body{margin:0;background:#111827;color:#e5e7eb;font:14px Arial}.head{padding:20px 24px;background:linear-gradient(135deg,#f97316,#c2410c)}h1{margin:0;font-size:22px}.sub{margin-top:5px;opacity:.9}.body{padding:18px}.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}.card{background:#1f2937;border:1px solid #374151;border-radius:10px;padding:12px}.n{font-size:22px;font-weight:bold;color:#fdba74}.k{font-size:11px;color:#9ca3af;margin-top:3px}.scope{margin:10px 0;color:#fbbf24}.tablewrap{max-height:420px;overflow:auto;border:1px solid #374151;border-radius:9px}table{width:100%;border-collapse:collapse;background:#111827}th{position:sticky;top:0;background:#374151;color:#fff;padding:8px;border:1px solid #4b5563;font-size:12px}td{padding:7px;border:1px solid #374151;font-size:12px}td.num{text-align:right;white-space:nowrap}.empty{padding:30px;text-align:center;color:#fca5a5}.buttons{display:flex;gap:10px;margin-top:15px}button{padding:11px 16px;border:0;border-radius:8px;font-weight:bold;cursor:pointer}.primary{background:#f97316;color:#fff}.dark{background:#374151;color:#fff}.note{margin-top:10px;font-size:12px;color:#9ca3af;line-height:1.5}
+        *{box-sizing:border-box}body{margin:0;background:#111827;color:#e5e7eb;font:14px Arial}.head{padding:20px 24px;background:linear-gradient(135deg,#f97316,#c2410c)}h1{margin:0;font-size:22px}.sub{margin-top:5px;opacity:.9}.body{padding:18px}.cards{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:14px}.card{background:#1f2937;border:1px solid #374151;border-radius:10px;padding:12px}.n{font-size:22px;font-weight:bold;color:#fdba74}.k{font-size:11px;color:#9ca3af;margin-top:3px}.scope{margin:10px 0;color:#fbbf24}.pages{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:12px 0}.page{background:#172033;border:1px solid #374151;border-radius:9px;padding:12px}.page b{color:#fdba74}.previewstate{padding:10px 12px;border-radius:8px;background:#7c2d12;color:#fff;margin:12px 0;font-weight:bold}.previewstate.ok{background:#065f46}.tablewrap{max-height:360px;overflow:auto;border:1px solid #374151;border-radius:9px}table{width:100%;border-collapse:collapse;background:#111827}th{position:sticky;top:0;background:#374151;color:#fff;padding:8px;border:1px solid #4b5563;font-size:12px}td{padding:7px;border:1px solid #374151;font-size:12px}td.num{text-align:right;white-space:nowrap}.empty{padding:30px;text-align:center;color:#fca5a5}.buttons{display:flex;gap:10px;flex-wrap:wrap;margin-top:15px}button{padding:11px 16px;border:0;border-radius:8px;font-weight:bold;cursor:pointer}.primary{background:#f97316;color:#fff}.preview{background:#0f766e;color:#fff}.dark{background:#374151;color:#fff}button:disabled{opacity:.42;cursor:not-allowed}.note{margin-top:10px;font-size:12px;color:#9ca3af;line-height:1.5}
         </style></head><body><div class="head"><h1>XUẤT LAYOUT + THỐNG KÊ VÁN</h1><div class="sub">TRẦN TUẤN NỘI THẤT · V<span id="ver">-</span> · A3 NGANG</div></div><div class="body">
-        <div class="cards"><div class="card"><div class="n" id="pieces">0</div><div class="k">TỔNG SỐ TẤM</div></div><div class="card"><div class="n" id="types">0</div><div class="k">LOẠI TẤM</div></div><div class="card"><div class="n" id="area">0</div><div class="k">TỔNG m²</div></div><div class="card"><div class="n" id="rows">0</div><div class="k">DÒNG THỐNG KÊ</div></div></div>
-        <div class="scope" id="scope">-</div><div class="tablewrap"><table><thead><tr><th>STT</th><th>TÊN TẤM</th><th>DÀI</th><th>RỘNG</th><th>DÀY</th><th>SL</th><th>VẬT LIỆU</th><th>VÂN</th><th>m²</th></tr></thead><tbody id="body"></tbody></table><div class="empty" id="empty" style="display:none">Không tìm thấy tấm ván hợp lệ.</div></div>
-        <div class="buttons"><button class="primary" onclick="sketchup.export_layout()">XUẤT LAYOUT</button><button class="dark" onclick="sketchup.refresh()">QUÉT LẠI</button><button class="dark" onclick="window.close()">ĐÓNG</button></div>
-        <div class="note">Có Group/Component đang chọn → chỉ thống kê vùng chọn. Không chọn → quét toàn bộ context hiện tại. File LayOut tạo trang phối cảnh + tự chia nhiều trang bảng thống kê khi cần.</div></div>
+        <div class="cards"><div class="card"><div class="n" id="pieces">0</div><div class="k">TỔNG SỐ TẤM</div></div><div class="card"><div class="n" id="types">0</div><div class="k">LOẠI TẤM</div></div><div class="card"><div class="n" id="area">0</div><div class="k">TỔNG m²</div></div><div class="card"><div class="n" id="rows">0</div><div class="k">DÒNG THỐNG KÊ</div></div><div class="card"><div class="n" id="pages">0</div><div class="k">TỔNG TRANG</div></div></div>
+        <div class="scope" id="scope">-</div>
+        <div class="pages"><div class="page"><b>01 · TỔNG THỂ</b><br>Phối cảnh hiện tại / scene đang chọn</div><div class="page"><b>02 · MẶT TRƯỚC</b><br>Orthographic · Model Axis</div><div class="page"><b>03 · BÊN TRÁI</b><br>Orthographic · Model Axis</div><div class="page"><b>04 · BÊN PHẢI</b><br>Orthographic · Model Axis</div></div>
+        <div id="previewState" class="previewstate">CHƯA XEM TRƯỚC · cần xem trước PDF.</div>
+        <div class="tablewrap"><table><thead><tr><th>STT</th><th>TÊN TẤM</th><th>DÀI</th><th>RỘNG</th><th>DÀY</th><th>SL</th><th>VẬT LIỆU</th><th>VÂN</th><th>m²</th></tr></thead><tbody id="body"></tbody></table><div class="empty" id="empty" style="display:none">Không tìm thấy tấm ván hợp lệ.</div></div>
+        <div class="buttons"><button class="preview" onclick="sketchup.preview_pdf()">XEM TRƯỚC PDF</button><button id="layoutBtn" class="primary" disabled onclick="sketchup.export_layout()">XUẤT LAYOUT</button><button id="pdfBtn" class="primary" disabled onclick="sketchup.export_pdf()">XUẤT PDF</button><button class="dark" onclick="sketchup.refresh()">QUÉT LẠI</button><button class="dark" onclick="window.close()">ĐÓNG</button></div>
+        <div class="note">Quy trình bắt buộc: QUÉT → XEM TRƯỚC PDF → XUẤT. Bản xem trước là PDF tạm được dựng từ đúng tài liệu LayOut sẽ xuất, gồm Tổng thể + Mặt trước + Bên trái + Bên phải + các trang thống kê ván. Nếu mô hình, selection hoặc camera thay đổi sau khi xem trước, hệ thống yêu cầu xem trước lại.</div></div>
         <script>
         const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-        window.renderStats=d=>{ver.textContent=d.version;pieces.textContent=d.total_pieces;types.textContent=d.total_types;area.textContent=Number(d.total_area_m2).toFixed(3);rows.textContent=d.rows.length;scope.textContent='PHẠM VI: '+d.scope+' · '+d.generated_at;const tb=document.getElementById('body');tb.innerHTML='';empty.style.display=d.rows.length?'none':'block';d.rows.forEach(r=>{const tr=document.createElement('tr');tr.innerHTML=`<td class="num">${r.stt}</td><td>${esc(r.name)}</td><td class="num">${Number(r.length_mm).toFixed(1)}</td><td class="num">${Number(r.width_mm).toFixed(1)}</td><td class="num">${Number(r.thickness_mm).toFixed(1)}</td><td class="num">${r.qty}</td><td>${esc(r.material)}</td><td>${esc(r.grain)}</td><td class="num">${Number(r.area_m2).toFixed(3)}</td>`;tb.appendChild(tr)})};
+        window.renderStats=d=>{ver.textContent=d.version;pieces.textContent=d.total_pieces;types.textContent=d.total_types;area.textContent=Number(d.total_area_m2).toFixed(3);rows.textContent=d.rows.length;pages.textContent=d.page_count;scope.textContent='PHẠM VI: '+d.scope+' · '+d.generated_at;const tb=document.getElementById('body');tb.innerHTML='';empty.style.display=d.rows.length?'none':'block';d.rows.forEach(r=>{const tr=document.createElement('tr');tr.innerHTML=`<td class="num">${r.stt}</td><td>${esc(r.name)}</td><td class="num">${Number(r.length_mm).toFixed(1)}</td><td class="num">${Number(r.width_mm).toFixed(1)}</td><td class="num">${Number(r.thickness_mm).toFixed(1)}</td><td class="num">${r.qty}</td><td>${esc(r.material)}</td><td>${esc(r.grain)}</td><td class="num">${Number(r.area_m2).toFixed(3)}</td>`;tb.appendChild(tr)})};
+        window.setPreviewState=(ready,msg)=>{const n=document.getElementById('previewState');n.textContent=msg;n.className='previewstate'+(ready?' ok':'');document.getElementById('layoutBtn').disabled=!ready;document.getElementById('pdfBtn').disabled=!ready};
         document.addEventListener('DOMContentLoaded',()=>sketchup.ready());
         </script></body></html>
       HTML
@@ -301,14 +395,7 @@ module TranTuanNoiThat
       return false unless layout_path
       layout_path += '.layout' unless File.extname(layout_path).downcase == '.layout'
 
-      doc = Layout::Document.new
-      setup_a3(doc)
-      layer = doc.layers.first
-      layer.name = 'TRẦN TUẤN - NỘI THẤT' if layer.respond_to?(:name=)
-
-      add_overview_page(doc, layer, model, skp_path, stats)
-      add_statistics_pages(doc, layer, stats)
-
+      doc = build_layout_document(stats, model, skp_path)
       version = if defined?(Layout::Document::VERSION_2022)
                   Layout::Document::VERSION_2022
                 else
@@ -324,9 +411,54 @@ module TranTuanNoiThat
       true
     end
 
+    def export_pdf(stats)
+      ensure_layout_api!
+      model = Sketchup.active_model
+      skp_path = ensure_model_saved(model)
+      return false unless skp_path
+
+      default_name = File.basename(skp_path, File.extname(skp_path)) + '_TT_LAYOUT.pdf'
+      pdf_path = UI.savepanel('Xuất PDF LayOut + Thống Kê Ván', File.dirname(skp_path), default_name)
+      return false unless pdf_path
+      pdf_path += '.pdf' unless File.extname(pdf_path).downcase == '.pdf'
+
+      doc = build_layout_document(stats, model, skp_path)
+      export_document_pdf(doc, pdf_path, 0.92)
+      answer = UI.messagebox("Đã xuất PDF thành công.\n\n#{pdf_path}\n\nMở PDF ngay?", MB_YESNO)
+      open_local_file(pdf_path) if answer == IDYES
+      true
+    end
+
+    def export_document_pdf(doc, path, quality)
+      options = {
+        compress_images: true,
+        compress_quality: [[quality.to_f, 0.0].max, 1.0].min
+      }
+      doc.export(path, options)
+      raise 'Không tạo được file PDF.' unless File.file?(path)
+      true
+    end
+
+    def build_layout_document(stats, model, skp_path)
+      doc = Layout::Document.new
+      setup_a3(doc)
+      layer = doc.layers.first
+      layer.name = 'TRẦN TUẤN - NỘI THẤT' if layer.respond_to?(:name=)
+
+      add_overview_page(doc, layer, model, skp_path, stats)
+      add_standard_view_page(doc, layer, model, skp_path, stats, '02 - MẶT TRƯỚC', 'MẶT TRƯỚC', Layout::SketchUpModel::FRONT_VIEW)
+      add_standard_view_page(doc, layer, model, skp_path, stats, '03 - BÊN TRÁI', 'BÊN TRÁI', Layout::SketchUpModel::LEFT_VIEW)
+      add_standard_view_page(doc, layer, model, skp_path, stats, '04 - BÊN PHẢI', 'BÊN PHẢI', Layout::SketchUpModel::RIGHT_VIEW)
+      add_statistics_pages(doc, layer, stats, 5)
+      doc
+    end
+
     def ensure_layout_api!
       unless defined?(Layout) && defined?(Layout::Document) && defined?(Layout::SketchUpModel)
         raise 'Máy này không có LayOut Ruby API. Cần SketchUp Pro/LayOut 2018 trở lên.'
+      end
+      unless Layout::Document.instance_methods.map(&:to_sym).include?(:export)
+        raise 'LayOut hiện tại không hỗ trợ xuất PDF bằng Ruby API. Cần LayOut 2020.1 trở lên.'
       end
     end
 
@@ -365,8 +497,7 @@ module TranTuanNoiThat
     def add_overview_page(doc, layer, model, skp_path, stats)
       page = doc.pages.first
       page.name = '01 - TỔNG THỂ'
-      add_text(doc, layer, page, 'TRẦN TUẤN NỘI THẤT · PHỐI CẢNH TỔNG THỂ', 0.45, 0.30, 15.55, 0.55, 20, true, orange)
-      add_text(doc, layer, page, "#{File.basename(skp_path)} · #{stats[:scope]}", 0.45, 0.82, 15.55, 0.35, 9.5, false, gray)
+      add_page_title(doc, layer, page, 'PHỐI CẢNH TỔNG THỂ', skp_path, stats)
 
       bounds = Geom::Bounds2d.new(0.55, 1.25, 15.40, 8.60)
       viewport = Layout::SketchUpModel.new(skp_path, bounds)
@@ -375,19 +506,56 @@ module TranTuanNoiThat
       viewport.preserve_scale_on_resize = false
       scene_index = selected_scene_index(model)
       viewport.current_scene = scene_index + 1 if scene_index
+      render_viewport(viewport)
       doc.add_entity(viewport, layer, page)
 
-      summary = "THỐNG KÊ NHANH: #{stats[:total_pieces]} TẤM · #{stats[:total_types]} LOẠI · #{format('%.3f', stats[:total_area_m2])} m² · #{stats[:generated_at]}"
-      add_text(doc, layer, page, summary, 0.55, 10.25, 15.40, 0.45, 11, true, dark)
-      add_text(doc, layer, page, 'Trang thống kê chi tiết nằm ở các trang tiếp theo.', 0.55, 10.72, 15.40, 0.35, 9, false, gray)
+      add_summary_footer(doc, layer, page, stats)
     end
 
-    def add_statistics_pages(doc, layer, stats)
+    def add_standard_view_page(doc, layer, model, skp_path, stats, page_name, title, view_constant)
+      page = doc.pages.add(page_name)
+      add_page_title(doc, layer, page, title, skp_path, stats)
+
+      bounds = Geom::Bounds2d.new(0.55, 1.25, 15.40, 8.60)
+      viewport = Layout::SketchUpModel.new(skp_path, bounds)
+      viewport.render_mode = Layout::SketchUpModel::HYBRID_RENDER
+      viewport.display_background = false
+      viewport.preserve_scale_on_resize = false
+      scene_index = selected_scene_index(model)
+      viewport.current_scene = scene_index + 1 if scene_index
+      viewport.view = view_constant
+      viewport.perspective = false
+      render_viewport(viewport)
+      doc.add_entity(viewport, layer, page)
+
+      add_summary_footer(doc, layer, page, stats, 'HÌNH CHIẾU VUÔNG GÓC · MODEL AXIS')
+    end
+
+    def render_viewport(viewport)
+      viewport.render if viewport.respond_to?(:render_needed?) && viewport.render_needed?
+    rescue StandardError => error
+      puts "[TT LayoutStats render] #{error.class}: #{error.message}"
+      nil
+    end
+
+    def add_page_title(doc, layer, page, title, skp_path, stats)
+      add_text(doc, layer, page, "TRẦN TUẤN NỘI THẤT · #{title}", 0.45, 0.30, 15.55, 0.55, 20, true, orange)
+      add_text(doc, layer, page, "#{File.basename(skp_path)} · #{stats[:scope]}", 0.45, 0.82, 15.55, 0.35, 9.5, false, gray)
+    end
+
+    def add_summary_footer(doc, layer, page, stats, extra = nil)
+      summary = "THỐNG KÊ NHANH: #{stats[:total_pieces]} TẤM · #{stats[:total_types]} LOẠI · #{format('%.3f', stats[:total_area_m2])} m² · #{stats[:generated_at]}"
+      add_text(doc, layer, page, summary, 0.55, 10.25, 15.40, 0.45, 11, true, dark)
+      note = extra || 'Các trang thống kê chi tiết nằm ở phần sau.'
+      add_text(doc, layer, page, note, 0.55, 10.72, 15.40, 0.35, 9, false, gray)
+    end
+
+    def add_statistics_pages(doc, layer, stats, start_number)
       chunks = stats[:rows].each_slice(ROWS_PER_PAGE).to_a
       chunks = [[]] if chunks.empty?
 
       chunks.each_with_index do |chunk, page_index|
-        page_number = page_index + 2
+        page_number = start_number + page_index
         page = doc.pages.add(format('%02d - THỐNG KÊ VÁN%s', page_number, page_index.zero? ? '' : " #{page_index + 1}"))
         add_text(doc, layer, page, 'BẢNG THỐNG KÊ VÁN', 0.45, 0.28, 15.55, 0.50, 19, true, orange)
         subtitle = "#{stats[:scope]} · #{stats[:total_pieces]} tấm · #{format('%.3f', stats[:total_area_m2])} m² · Trang #{page_index + 1}/#{chunks.length}"
@@ -482,6 +650,44 @@ module TranTuanNoiThat
       index
     rescue StandardError
       nil
+    end
+
+    def current_signature(stats)
+      model = Sketchup.active_model
+      camera = model.active_view.camera
+      selection = model.selection.to_a.map do |e|
+        e.respond_to?(:persistent_id) ? e.persistent_id : e.entityID
+      end.sort
+      scene = model.pages.selected_page
+      payload = {
+        rows: stats[:rows].map { |r| [r[:name], r[:length_mm].round(2), r[:width_mm].round(2), r[:thickness_mm].round(2), r[:qty], r[:material], r[:grain]] },
+        scope: stats[:scope],
+        selection: selection,
+        scene: scene ? scene.name.to_s : '',
+        camera: [point_sig(camera.eye), point_sig(camera.target), vector_sig(camera.up), camera.perspective?]
+      }
+      Digest::SHA256.hexdigest(JSON.generate(payload))
+    rescue StandardError
+      Digest::SHA256.hexdigest(JSON.generate(stats[:rows]))
+    end
+
+    def point_sig(point)
+      [point.x.to_f.round(6), point.y.to_f.round(6), point.z.to_f.round(6)]
+    end
+
+    def vector_sig(vector)
+      [vector.x.to_f.round(6), vector.y.to_f.round(6), vector.z.to_f.round(6)]
+    end
+
+    def open_local_file(path)
+      normalized = path.to_s.tr('\\', '/')
+      url = "file:///#{normalized}"
+      begin
+        url = URI::DEFAULT_PARSER.escape(url)
+      rescue StandardError
+        nil
+      end
+      UI.openURL(url)
     end
 
     def format_mm(value)
