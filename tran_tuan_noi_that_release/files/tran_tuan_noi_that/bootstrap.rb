@@ -13,7 +13,7 @@ module TranTuanNoiThat
   NAME = 'TRẦN TUẤN NỘI THẤT'.freeze unless const_defined?(:NAME, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.27'.freeze
+  VERSION = '1.9.28'.freeze
 
   remove_const(:MANIFEST_URL) if const_defined?(:MANIFEST_URL, false)
   MANIFEST_URL = 'https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/update_latest.json'.freeze
@@ -36,6 +36,10 @@ module TranTuanNoiThat
       value == true || value.to_s.downcase == 'true' || value.to_s == '1'
     end
 
+    def feature_validation_proc(feature)
+      proc { feature_enabled?(feature) ? MF_ENABLED : MF_GRAYED }
+    end
+
     def refresh_feature_commands
       return false unless @toolbar
       features = {
@@ -50,16 +54,11 @@ module TranTuanNoiThat
       @toolbar.each do |item|
         next unless item.is_a?(UI::Command)
         feature = features[item.tooltip.to_s]
-        next unless feature
-        item.set_validation_proc(&feature_validation_proc(feature))
+        item.set_validation_proc(&feature_validation_proc(feature)) if feature
       end
       true
     rescue StandardError
       false
-    end
-
-    def feature_validation_proc(feature)
-      proc { feature_enabled?(feature) ? MF_ENABLED : MF_GRAYED }
     end
 
     def reload_runtime
@@ -78,17 +77,15 @@ module TranTuanNoiThat
         load(path) if File.file?(path)
       end
 
-      smooth_fix = File.join(ROOT, 'round_smooth_fix.rb')
-      load smooth_fix if File.file?(smooth_fix)
-
-      stretch_fix = File.join(ROOT, 'stretch_detail_fix.rb')
-      load stretch_fix if File.file?(stretch_fix)
-
-      stretch_auto = File.join(ROOT, 'stretch_auto_scan_fix.rb')
-      load stretch_auto if File.file?(stretch_auto)
-
-      stretch_scope = File.join(ROOT, 'stretch_auto_scope_fix.rb')
-      load stretch_scope if File.file?(stretch_scope)
+      %w[
+        round_smooth_fix.rb
+        stretch_detail_fix.rb
+        stretch_auto_scan_fix.rb
+        stretch_auto_scope_fix.rb
+      ].each do |file|
+        path = File.join(ROOT, file)
+        load(path) if File.file?(path)
+      end
       true
     rescue StandardError => error
       UI.messagebox("Không thể nạp lại hệ thống:\n#{error.message}")
@@ -100,12 +97,11 @@ module TranTuanNoiThat
         @ui_installed = true
         @main_menu = UI.menu('Extensions').add_submenu(NAME)
         @toolbar = UI::Toolbar.new(NAME)
-        commands = [
+        [
           command('Vẽ Ván', 've_van.svg', 'Vẽ ván 3D theo P1/P2', :board) { Board.activate },
           command('Cài Đặt Chung', 'settings.svg', 'Mở cài đặt toàn hệ thống') { Settings.show },
           command('Kiểm Tra Cập Nhật', 'update.svg', 'Kiểm tra và nạp phiên bản mới') { Updater.check(true) }
-        ]
-        commands.each do |cmd|
+        ].each do |cmd|
           @main_menu.add_item(cmd)
           @toolbar.add_item(cmd)
         end
@@ -118,10 +114,8 @@ module TranTuanNoiThat
       install_grain_ui
       install_layout_stats_ui
       refresh_feature_commands
-      if @toolbar
-        @toolbar.restore
-        @toolbar.show
-      end
+      @toolbar.restore if @toolbar
+      @toolbar.show if @toolbar
       true
     end
 
@@ -129,15 +123,8 @@ module TranTuanNoiThat
       return if @box_ui_installed
       return unless defined?(TranTuanNoiThat::Box)
       @box_ui_installed = true
-      cmd = command(
-        'Tạo Khối BOX',
-        'box.svg',
-        'Tạo BOX khối đặc/khung · SHIFT xoay 90° khi đặt',
-        :box
-      ) { Box.show_dialog }
-      (@main_menu || UI.menu('Extensions')).add_item(cmd)
-      @toolbar.add_item(cmd) if @toolbar
-      @toolbar.show if @toolbar
+      cmd = command('Tạo Khối BOX', 'box.svg', 'Tạo BOX khối đặc/khung · SHIFT xoay 90° khi đặt', :box) { Box.show_dialog }
+      add_feature_command(cmd)
     end
 
     def install_drawer_ui
@@ -145,32 +132,14 @@ module TranTuanNoiThat
       return unless defined?(TranTuanNoiThat::Drawer)
       @drawer_ui_installed = true
       cmd = command('Vẽ Ngăn Kéo', 'drawer.svg', 'Vẽ ngăn kéo 5 tấm theo vùng P1/P2', :drawer) { Drawer.activate }
-      (@main_menu || UI.menu('Extensions')).add_item(cmd)
-      @toolbar.add_item(cmd) if @toolbar
-      @toolbar.show if @toolbar
+      add_feature_command(cmd)
     end
 
     def install_round_ui
       return false unless defined?(TranTuanNoiThat::Round)
-      was_installed = !!@round_ui_installed
       @round_ui_installed = true
-      @round_cmd ||= command(
-        'Bo Cong Khối',
-        'bo_cong.svg',
-        'Bo cung lồi/lõm tại góc; TAB đổi chế độ; giữ 2 biên đầu/cuối',
-        :round
-      ) { Round.activate }
-      unless was_installed || @round_menu_installed
-        (@main_menu || UI.menu('Extensions')).add_item(@round_cmd)
-        @round_menu_installed = true
-      end
-      if @toolbar && !toolbar_has_command?(@toolbar, 'Bo Cong Khối')
-        @toolbar.add_item(@round_cmd)
-      end
-      if @toolbar
-        @toolbar.restore
-        @toolbar.show
-      end
+      @round_cmd ||= command('Bo Cong Khối', 'bo_cong.svg', 'Bo cung lồi/lõm; giữ 2 biên đầu/cuối', :round) { Round.activate }
+      add_feature_command_once(@round_cmd, :round_menu_installed)
       true
     rescue StandardError => error
       puts "[TT UI Round] #{error.class}: #{error.message}"
@@ -179,22 +148,9 @@ module TranTuanNoiThat
 
     def install_stretch_mode_ui
       return false unless defined?(TranTuanNoiThat::StretchMode)
-      return true if @stretch_mode_ui_installed && toolbar_has_command?(@toolbar, 'Co Giãn Khối MODE')
       @stretch_mode_ui_installed = true
-      @stretch_mode_cmd ||= command(
-        'Co Giãn Khối MODE',
-        'stretch_mode.svg',
-        'AUTO QUÉT: khung nét đứt ôm sát module dưới P1; kéo sang phía cần co/kéo rồi thả; TAB đổi sang 3 ĐIỂM.',
-        :stretch_mode
-      ) { StretchMode.activate }
-      unless @stretch_mode_menu_installed
-        (@main_menu || UI.menu('Extensions')).add_item(@stretch_mode_cmd)
-        @stretch_mode_menu_installed = true
-      end
-      if @toolbar && !toolbar_has_command?(@toolbar, 'Co Giãn Khối MODE')
-        @toolbar.add_item(@stretch_mode_cmd)
-      end
-      @toolbar.show if @toolbar
+      @stretch_mode_cmd ||= command('Co Giãn Khối MODE', 'stretch_mode.svg', 'AUTO QUÉT co/kéo khối; TAB đổi sang 3 ĐIỂM.', :stretch_mode) { StretchMode.activate }
+      add_feature_command_once(@stretch_mode_cmd, :stretch_mode_menu_installed)
       true
     rescue StandardError => error
       puts "[TT UI StretchMode] #{error.class}: #{error.message}"
@@ -203,22 +159,9 @@ module TranTuanNoiThat
 
     def install_grain_ui
       return false unless defined?(TranTuanNoiThat::Grain)
-      return true if @grain_ui_installed && toolbar_has_command?(@toolbar, 'Xoay Vân Ván')
       @grain_ui_installed = true
-      @grain_cmd ||= command(
-        'Xoay Vân Ván',
-        'grain.svg',
-        'Tự nhận tấm ván, căn/xoay vân texture; TAB mở khổ ván, TAB TAB đổi AUTO/TỰ DO.',
-        :grain
-      ) { Grain.activate }
-      unless @grain_menu_installed
-        (@main_menu || UI.menu('Extensions')).add_item(@grain_cmd)
-        @grain_menu_installed = true
-      end
-      if @toolbar && !toolbar_has_command?(@toolbar, 'Xoay Vân Ván')
-        @toolbar.add_item(@grain_cmd)
-      end
-      @toolbar.show if @toolbar
+      @grain_cmd ||= command('Xoay Vân Ván', 'grain.svg', 'Tự nhận tấm ván và căn/xoay vân texture.', :grain) { Grain.activate }
+      add_feature_command_once(@grain_cmd, :grain_menu_installed)
       true
     rescue StandardError => error
       puts "[TT UI Grain] #{error.class}: #{error.message}"
@@ -227,26 +170,35 @@ module TranTuanNoiThat
 
     def install_layout_stats_ui
       return false unless defined?(TranTuanNoiThat::LayoutStats)
-      return true if @layout_stats_ui_installed && toolbar_has_command?(@toolbar, 'Xuất Layout + Thống Kê Ván')
       @layout_stats_ui_installed = true
       @layout_stats_cmd ||= command(
         'Xuất Layout + Thống Kê Ván',
         'layout_stats.svg',
-        'Xem trước thống kê ván và xuất LayOut A3 ngang: trang phối cảnh + bảng thống kê tự chia trang.',
+        'A3: Tổng thể + Mặt trước + Trái + Phải + thống kê; xem trước PDF trước khi xuất LayOut/PDF.',
         :layout_stats
       ) { LayoutStats.show }
-      unless @layout_stats_menu_installed
-        (@main_menu || UI.menu('Extensions')).add_item(@layout_stats_cmd)
-        @layout_stats_menu_installed = true
-      end
-      if @toolbar && !toolbar_has_command?(@toolbar, 'Xuất Layout + Thống Kê Ván')
-        @toolbar.add_item(@layout_stats_cmd)
-      end
-      @toolbar.show if @toolbar
+      add_feature_command_once(@layout_stats_cmd, :layout_stats_menu_installed)
       true
     rescue StandardError => error
       puts "[TT UI LayoutStats] #{error.class}: #{error.message}"
       false
+    end
+
+    def add_feature_command(cmd)
+      (@main_menu || UI.menu('Extensions')).add_item(cmd)
+      @toolbar.add_item(cmd) if @toolbar && !toolbar_has_command?(@toolbar, cmd.tooltip)
+      @toolbar.show if @toolbar
+    end
+
+    def add_feature_command_once(cmd, menu_flag)
+      unless instance_variable_get("@#{menu_flag}")
+        (@main_menu || UI.menu('Extensions')).add_item(cmd)
+        instance_variable_set("@#{menu_flag}", true)
+      end
+      if @toolbar && !toolbar_has_command?(@toolbar, cmd.tooltip)
+        @toolbar.add_item(cmd)
+      end
+      @toolbar.show if @toolbar
     end
 
     def toolbar_has_command?(toolbar, tooltip)
