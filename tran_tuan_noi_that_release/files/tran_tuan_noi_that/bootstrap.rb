@@ -13,7 +13,7 @@ module TranTuanNoiThat
   NAME = 'TRẦN TUẤN NỘI THẤT'.freeze unless const_defined?(:NAME, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.17'.freeze
+  VERSION = '1.9.18'.freeze
 
   remove_const(:MANIFEST_URL) if const_defined?(:MANIFEST_URL, false)
   MANIFEST_URL = 'https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/update_latest.json'.freeze
@@ -73,8 +73,12 @@ module TranTuanNoiThat
         path = File.join(ROOT, file)
         load(path) if File.file?(path)
       end
+
       smooth_fix = File.join(ROOT, 'round_smooth_fix.rb')
       load smooth_fix if File.file?(smooth_fix)
+
+      stretch_fix = File.join(ROOT, 'stretch_detail_fix.rb')
+      load stretch_fix if File.file?(stretch_fix)
       true
     rescue StandardError => error
       UI.messagebox("Không thể nạp lại hệ thống:\n#{error.message}")
@@ -170,7 +174,7 @@ module TranTuanNoiThat
       @stretch_mode_cmd ||= command(
         'Co Giãn Khối MODE',
         'stretch_mode.svg',
-        'Co giãn BIÊN 3D đa hướng: P1/P2 nhận X± Y± Z±; TAB hoặc SHIFT để thêm hướng; P3 hoặc nhập kích thước.',
+        'Co giãn CHI TIẾT 3D: P1/P2 chọn nửa không gian; geometry crossing P1 được kéo vertex thật phía P2, không chỉ Move.',
         :stretch_mode
       ) { StretchMode.activate }
 
