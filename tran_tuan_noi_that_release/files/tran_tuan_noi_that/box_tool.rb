@@ -3,7 +3,8 @@ module TranTuanNoiThat
   module Box
     extend self
 
-    VERSION = '1.1.0'.freeze unless const_defined?(:VERSION, false)
+    remove_const(:VERSION) if const_defined?(:VERSION, false)
+    VERSION = '1.1.1'.freeze
 
     def show_dialog
       if @dialog && @dialog.visible?
@@ -63,7 +64,7 @@ module TranTuanNoiThat
         button{width:100%;margin-top:22px;padding:13px;border:0;border-radius:8px;background:#f47b20;color:white;font-size:16px;font-weight:bold;cursor:pointer}
         #msg{height:18px;color:#ff6767;margin-top:10px}
         </style></head><body>
-        <h2>TẠO KHỐI BOX</h2><div class="sub">TRẦN TUẤN NỘI THẤT · SHIFT xoay hướng khi đặt BOX</div>
+        <h2>TẠO KHỐI BOX</h2><div class="sub">TRẦN TUẤN NỘI THẤT · SHIFT xoay quanh TÂM BOX</div>
         <label class="title">Cao (mm)</label><input id="height" type="number" min="0.1" step="0.1" value="#{height}">
         <label class="title">Rộng (mm)</label><input id="width" type="number" min="0.1" step="0.1" value="#{width}">
         <label class="title">Sâu (mm)</label><input id="depth" type="number" min="0.1" step="0.1" value="#{depth}">
@@ -91,6 +92,8 @@ module TranTuanNoiThat
       FACE = Sketchup::Color.new(255, 164, 70, 75)
       EDGE = Sketchup::Color.new(235, 92, 0, 255)
       TEXT = Sketchup::Color.new(255, 130, 20, 255)
+      CENTER = Sketchup::Color.new(0, 190, 255, 255)
+      CENTER_MARK = 25.mm
 
       def initialize(width, depth, height, mode)
         @width = width
@@ -126,8 +129,8 @@ module TranTuanNoiThat
         view.invalidate
       end
 
-      # SHIFT xoay 90 độ quanh chính điểm đặt BOX.
-      # Có khóa @shift_down để tránh việc giữ phím làm nhảy nhiều hướng do key-repeat.
+      # SHIFT xoay 90 độ quanh TRỤC Z đi qua tâm hình học của BOX.
+      # @shift_down chặn key-repeat để mỗi lần nhấn chỉ xoay đúng 90 độ.
       def onKeyDown(key, _repeat, _flags, view)
         return unless shift_key?(key)
         return if @shift_down
@@ -163,6 +166,7 @@ module TranTuanNoiThat
           faces(points).each { |face| view.draw(GL_QUADS, face) }
         end
 
+        draw_rotation_center(view)
         draw_direction_label(view, points)
       end
 
@@ -182,29 +186,34 @@ module TranTuanNoiThat
         @rotation_index * 90
       end
 
-      # Trục RỘNG/SÂU sau khi quay quanh Z.
-      # Giữ nguyên kích thước thật, chỉ đổi hướng; cross(x,y) luôn là +Z.
-      def plan_vectors
-        case @rotation_index
-        when 1
-          [Geom::Vector3d.new(0, @width, 0), Geom::Vector3d.new(-@depth, 0, 0)]
-        when 2
-          [Geom::Vector3d.new(-@width, 0, 0), Geom::Vector3d.new(0, -@depth, 0)]
-        when 3
-          [Geom::Vector3d.new(0, -@width, 0), Geom::Vector3d.new(@depth, 0, 0)]
-        else
-          [Geom::Vector3d.new(@width, 0, 0), Geom::Vector3d.new(0, @depth, 0)]
-        end
+      def rotation_radians
+        rotation_degrees.degrees
+      end
+
+      # Tâm quay được xác định từ BOX ở hướng 0° và luôn giữ nguyên khi SHIFT.
+      # Nhờ vậy BOX quay đúng quanh trung tâm, không quay quanh góc đặt.
+      def rotation_center(origin)
+        Geom::Point3d.new(
+          origin.x + (@width * 0.5),
+          origin.y + (@depth * 0.5),
+          origin.z
+        )
+      end
+
+      def base_corners_unrotated(origin)
+        p0 = Geom::Point3d.new(origin.x, origin.y, origin.z)
+        p1 = Geom::Point3d.new(origin.x + @width, origin.y, origin.z)
+        p2 = Geom::Point3d.new(origin.x + @width, origin.y + @depth, origin.z)
+        p3 = Geom::Point3d.new(origin.x, origin.y + @depth, origin.z)
+        [p0, p1, p2, p3]
       end
 
       def corners(origin)
-        x, y = plan_vectors
+        center = rotation_center(origin)
+        transform = Geom::Transformation.rotation(center, Z_AXIS, rotation_radians)
+        base = base_corners_unrotated(origin).map { |point| point.transform(transform) }
         z = Geom::Vector3d.new(0, 0, @height)
-        p0 = origin
-        p1 = origin.offset(x)
-        p3 = origin.offset(y)
-        p2 = p1.offset(y)
-        [p0, p1, p2, p3, p0.offset(z), p1.offset(z), p2.offset(z), p3.offset(z)]
+        base + base.map { |point| point.offset(z) }
       end
 
       def edge_lines(p)
@@ -217,6 +226,35 @@ module TranTuanNoiThat
          [p[1],p[5],p[6],p[2]],[p[2],p[6],p[7],p[3]],[p[3],p[7],p[4],p[0]]]
       end
 
+      def draw_rotation_center(view)
+        center = rotation_center(@origin)
+        half = CENTER_MARK * 0.5
+        x1 = center.offset(Geom::Vector3d.new(-half, 0, 0))
+        x2 = center.offset(Geom::Vector3d.new(half, 0, 0))
+        y1 = center.offset(Geom::Vector3d.new(0, -half, 0))
+        y2 = center.offset(Geom::Vector3d.new(0, half, 0))
+
+        view.drawing_color = CENTER
+        view.line_width = 4
+        view.draw(GL_LINES, [x1, x2, y1, y2])
+
+        screen = view.screen_coords(center)
+        begin
+          view.draw_text(
+            Geom::Point3d.new(screen.x + 8, screen.y + 8, 0),
+            'TÂM XOAY',
+            size: 12,
+            bold: true,
+            color: CENTER
+          )
+        rescue StandardError
+          view.drawing_color = CENTER
+          view.draw_text(Geom::Point3d.new(screen.x + 8, screen.y + 8, 0), 'TÂM XOAY')
+        end
+      rescue StandardError
+        nil
+      end
+
       def draw_direction_label(view, points)
         center = Geom::Point3d.new(
           points.map(&:x).sum / points.length.to_f,
@@ -224,7 +262,7 @@ module TranTuanNoiThat
           points.map(&:z).sum / points.length.to_f
         )
         screen = view.screen_coords(center)
-        label = "SHIFT XOAY · #{rotation_degrees}°"
+        label = "SHIFT XOAY TÂM · #{rotation_degrees}°"
         begin
           view.draw_text(
             Geom::Point3d.new(screen.x + 12, screen.y - 18, 0),
@@ -242,31 +280,35 @@ module TranTuanNoiThat
       end
 
       def update_status
-        Sketchup.status_text = "TẠO BOX: Di chuột chọn vị trí · SHIFT xoay 90° (hiện #{rotation_degrees}°) · Click tạo · ESC thoát."
+        Sketchup.status_text = "TẠO BOX: Di chuột chọn vị trí · SHIFT xoay 90° QUANH TÂM (#{rotation_degrees}°) · Click tạo · ESC thoát."
       end
 
       def create_box
         model = Sketchup.active_model
         model.start_operation('TRẦN TUẤN - Tạo Khối BOX', true)
         group = model.active_entities.add_group
+        p = corners(@origin)
+
         if @mode == :solid
-          p = corners(@origin)
           face = group.entities.add_face(p[0], p[1], p[2], p[3])
           raise 'Không tạo được mặt BOX.' unless face && face.valid?
           face.reverse! if face.normal.dot(Z_AXIS) < 0
           face.pushpull(@height)
         else
-          p = corners(@origin)
           edge_lines(p).each_slice(2) { |a, b| group.entities.add_line(a, b) }
         end
 
         group.name = @mode == :solid ? 'TT_BOX_DAC' : 'TT_BOX_KHUNG'
         dict = 'TRẦN TUẤN NỘI THẤT'
+        center = rotation_center(@origin)
         group.set_attribute(dict, 'loai', @mode == :solid ? 'BOX_DAC' : 'BOX_KHUNG')
         group.set_attribute(dict, 'rong_mm', @width.to_mm)
         group.set_attribute(dict, 'sau_mm', @depth.to_mm)
         group.set_attribute(dict, 'cao_mm', @height.to_mm)
         group.set_attribute(dict, 'huong_xoay_do', rotation_degrees)
+        group.set_attribute(dict, 'tam_xoay_x', center.x.to_f)
+        group.set_attribute(dict, 'tam_xoay_y', center.y.to_f)
+        group.set_attribute(dict, 'tam_xoay_z', center.z.to_f)
         group.set_attribute(dict, 'box_version', VERSION)
 
         model.commit_operation
