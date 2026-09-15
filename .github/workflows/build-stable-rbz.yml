@@ -26,19 +26,24 @@ jobs:
               > /tmp/grain_tool_combined.rb
           ruby -c /tmp/grain_tool_combined.rb
           test -f tran_tuan_noi_that_release/files/tran_tuan_noi_that/layout_stats_v040_compat.rb
-          grep -q "layout_stats_v040_compat.rb" tran_tuan_noi_that_release/files/tran_tuan_noi_that/settings.rb
-          grep -q "VERSION = '1.9.31'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/settings.rb
+          grep -q "layout_stats_v040_compat.rb" tran_tuan_noi_that_release/files/tran_tuan_noi_that/bootstrap.rb
+          grep -q "layout_stats_v040_patch.rb" tran_tuan_noi_that_release/files/tran_tuan_noi_that/bootstrap.rb
+          grep -q "VERSION = '1.9.32'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/bootstrap.rb
+          grep -q "VERSION = '1.9.32'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/settings.rb
+          grep -q '"version": "1.9.32"' tran_tuan_noi_that_release/update_latest.json
+          grep -q 'tran_tuan_noi_that/bootstrap.rb' tran_tuan_noi_that_release/update_latest.json
+          grep -q 'tran_tuan_noi_that/updater.rb' tran_tuan_noi_that_release/update_latest.json
 
       - name: Build RBZ
         shell: bash
         run: |
           set -euo pipefail
           cd tran_tuan_noi_that_release/files
-          zip -r "$GITHUB_WORKSPACE/TRANTUAN_NOI_THAT_1.9.31_STABLE.rbz" .
+          zip -r "$GITHUB_WORKSPACE/TRANTUAN_NOI_THAT_1.9.32_STABLE.rbz" .
 
       - name: Upload RBZ artifact
         uses: actions/upload-artifact@v4
         with:
-          name: TRANTUAN_NOI_THAT_1.9.31_STABLE
-          path: TRANTUAN_NOI_THAT_1.9.31_STABLE.rbz
+          name: TRANTUAN_NOI_THAT_1.9.32_STABLE
+          path: TRANTUAN_NOI_THAT_1.9.32_STABLE.rbz
           if-no-files-found: error
