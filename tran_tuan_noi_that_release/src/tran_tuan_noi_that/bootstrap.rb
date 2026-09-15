@@ -13,7 +13,7 @@ module TranTuanNoiThat
   NAME = 'TRẦN TUẤN NỘI THẤT'.freeze unless const_defined?(:NAME, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.10'.freeze
+  VERSION = '1.9.14'.freeze
 
   remove_const(:MANIFEST_URL) if const_defined?(:MANIFEST_URL, false)
   MANIFEST_URL = 'https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/update_latest.json'.freeze
@@ -42,7 +42,8 @@ module TranTuanNoiThat
         'Vẽ Ván' => :board,
         'Tạo Khối BOX' => :box,
         'Vẽ Ngăn Kéo' => :drawer,
-        'Bo Cong Khối' => :round
+        'Bo Cong Khối' => :round,
+        'Co Giãn Khối MODE' => :stretch_mode
       }
       @toolbar.each do |item|
         next unless item.is_a?(UI::Command)
@@ -60,8 +61,17 @@ module TranTuanNoiThat
     end
 
     def reload_runtime
-      %w[board_tool.rb box_tool.rb drawer_tool.rb round_tool.rb settings.rb updater.rb].each do |file|
-        load File.join(ROOT, file)
+      %w[
+        board_tool.rb
+        box_tool.rb
+        drawer_tool.rb
+        round_tool.rb
+        stretch_mode_tool.rb
+        settings.rb
+        updater.rb
+      ].each do |file|
+        path = File.join(ROOT, file)
+        load(path) if File.file?(path)
       end
       smooth_fix = File.join(ROOT, 'round_smooth_fix.rb')
       load smooth_fix if File.file?(smooth_fix)
@@ -90,6 +100,7 @@ module TranTuanNoiThat
       install_box_ui
       install_drawer_ui
       install_round_ui
+      install_stretch_mode_ui
       refresh_feature_commands
       if @toolbar
         @toolbar.restore
@@ -118,6 +129,7 @@ module TranTuanNoiThat
       @toolbar.show if @toolbar
     end
 
+    # BO CONG KHỐI V2.2.5 đang khóa - không thay đổi engine.
     def install_round_ui
       return false unless defined?(TranTuanNoiThat::Round)
 
@@ -150,7 +162,35 @@ module TranTuanNoiThat
       false
     end
 
+    def install_stretch_mode_ui
+      return false unless defined?(TranTuanNoiThat::StretchMode)
+      return true if @stretch_mode_ui_installed && toolbar_has_command?(@toolbar, 'Co Giãn Khối MODE')
+
+      @stretch_mode_ui_installed = true
+      @stretch_mode_cmd ||= command(
+        'Co Giãn Khối MODE',
+        'stretch_mode.svg',
+        'QUÉT VÙNG co/kéo như Stretch: phần nằm trong vùng di chuyển, phần bị cắt chỉ kéo các đỉnh trong vùng.',
+        :stretch_mode
+      ) { StretchMode.activate }
+
+      unless @stretch_mode_menu_installed
+        (@main_menu || UI.menu('Extensions')).add_item(@stretch_mode_cmd)
+        @stretch_mode_menu_installed = true
+      end
+
+      if @toolbar && !toolbar_has_command?(@toolbar, 'Co Giãn Khối MODE')
+        @toolbar.add_item(@stretch_mode_cmd)
+      end
+      @toolbar.show if @toolbar
+      true
+    rescue StandardError => error
+      puts "[TT UI StretchMode] #{error.class}: #{error.message}"
+      false
+    end
+
     def toolbar_has_command?(toolbar, tooltip)
+      return false unless toolbar
       toolbar.each do |item|
         next unless item.is_a?(UI::Command)
         return true if item.tooltip.to_s == tooltip.to_s
