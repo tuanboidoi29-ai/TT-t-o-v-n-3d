@@ -9,7 +9,7 @@ module TranTuanNoiThat
   load layout_compat if File.file?(layout_compat)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.32'.freeze
+  VERSION = '1.9.33'.freeze
 
   module Settings
     extend self
