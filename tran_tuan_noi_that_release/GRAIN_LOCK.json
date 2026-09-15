@@ -1,10 +1,11 @@
 {
-  "locked": true,
+  "locked": false,
   "feature": "Xoay Vân Ván",
-  "system_version": "1.9.26",
+  "opened_system_version": "1.9.32",
   "grain_version": "3.2.0",
-  "policy": "Tạm thời KHÓA code chức năng Xoay Vân Ván. Không sửa các file vân nếu chưa có yêu cầu MỞ KHÓA rõ ràng từ TRẦN TUẤN.",
-  "locked_files": {
+  "opened_for": "Sửa nhận diện map màu / material texture ở Face, Group, Component và vật liệu kế thừa từ cấp cha.",
+  "policy": "ĐÃ MỞ KHÓA theo yêu cầu TRẦN TUẤN để sửa Xoay Vân Ván. Các chức năng BOX, Co Giãn, Bo Cong và Layout Stats vẫn giữ khóa riêng.",
+  "previous_locked_files": {
     "tran_tuan_noi_that_release/files/tran_tuan_noi_that/grain_tool.rb": "dacb17d119d7467d4dfe5cd9ad5f7a785bc597bf",
     "tran_tuan_noi_that_release/files/tran_tuan_noi_that/grain_tool_part1.inc": "e2de3c8d40a32ac72a55ce909eb911f315762aee",
     "tran_tuan_noi_that_release/files/tran_tuan_noi_that/grain_tool_part2.inc": "3cfdfaa237d432493fade1db33e57c9a32ed4034",
