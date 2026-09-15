@@ -1,34 +1,46 @@
 # encoding: UTF-8
-# TRẦN TUẤN NỘI THẤT - CO GIÃN KHỐI MODE V0.9.0
-# AUTO QUÉT MẶC ĐỊNH + 3 ĐIỂM DỰ PHÒNG
+# TRẦN TUẤN NỘI THẤT - CO GIÃN KHỐI MODE V0.9.1
+# AUTO QUÉT + KHÔI PHỤC KHUNG PREVIEW NÉT ĐỨT
 #
 # AUTO QUÉT:
-# - Giữ chuột tại P1 (biên cố định) -> quét sang phía cần co/kéo -> thả = tự chốt P2.
+# - Giữ chuột tại P1 -> quét sang phía cần co/kéo -> thả = tự chốt P2.
 # - Tự nhận đủ 6 hướng X+/X-/Y+/Y-/Z+/Z- theo Model Axis.
 # - Quét quá ngắn bị hủy, không rơi sang thao tác click P1/P2 ngoài ý muốn.
 # - Sau khi thả P2: di chuột/bắt P3 hoặc nhập kích thước như engine V0.8.x.
 # - TAB ở bước P1: AUTO QUÉT <-> 3 ĐIỂM.
 # - TAB ở bước P3 vẫn giữ chức năng THÊM HƯỚNG.
 #
+# PREVIEW V0.9.1:
+# - Trong lúc giữ chuột luôn hiện KHUNG CHỮ NHẬT NÉT ĐỨT theo chuột.
+# - Khung này hiển thị ngay cả khi chưa nhận được trục X/Y/Z, nên người dùng luôn biết đang quét vùng nào.
+# - Sau khi thả P2 vẫn hiện KHUNG 3D NÉT ĐỨT quanh vùng đã chọn cho tới khi xác nhận P3/kích thước.
+# - Chỉ là overlay, không sửa geometry.
+#
 # PHẠM VI TỰ ĐỘNG:
 # - Có selection: dùng selection.
 # - Không selection + P1 nằm trong container có Group/Component con: tự khóa container cha dưới chuột.
 # - Nếu không có container cha: dùng Group/Component trong active context.
 #
-# File này chỉ thay lớp INPUT/PREVIEW. Engine TRUE DETAIL STRETCH nằm trong stretch_detail_fix.rb.
+# Engine TRUE DETAIL STRETCH nằm trong stretch_detail_fix.rb.
 
 require 'sketchup.rb'
 
 module TranTuanNoiThat
   module StretchMode
     remove_const(:VERSION) if const_defined?(:VERSION, false)
-    VERSION = '0.9.0'.freeze
+    VERSION = '0.9.1'.freeze
 
-    %i[AUTO_SCAN_MIN_PX AUTO_SCAN_ALPHA].each do |name|
+    %i[
+      AUTO_SCAN_MIN_PX AUTO_SCAN_ALPHA
+      AUTO_SCAN_DASH_PX AUTO_SCAN_GAP_PX
+    ].each do |name|
       remove_const(name) if const_defined?(name, false)
     end
+
     AUTO_SCAN_MIN_PX = 10.0
     AUTO_SCAN_ALPHA = 38
+    AUTO_SCAN_DASH_PX = 9.0
+    AUTO_SCAN_GAP_PX = 5.0
 
     class Tool
       aliases_ready =
@@ -91,7 +103,7 @@ module TranTuanNoiThat
           @auto_scan_start_2d = Geom::Point3d.new(x.to_f, y.to_f, 0)
           @auto_scan_current_2d = @auto_scan_start_2d.clone
           tt_v081_on_lbutton_down(flags, x, y, view)
-          update_status('AUTO QUÉT · giữ chuột và quét sang PHÍA cần co/kéo · thả để chốt P2.')
+          update_status('AUTO QUÉT · giữ chuột và quét sang PHÍA cần co/kéo · KHUNG NÉT ĐỨT là vùng đang quét.')
           view.invalidate
           return
         end
@@ -124,7 +136,7 @@ module TranTuanNoiThat
           # Dùng finalize chuẩn của engine gốc: snap InputPoint + nhận Model Axis.
           tt_v081_on_lbutton_up(flags, x, y, view)
           if @state == :p3
-            update_status("AUTO đã nhận #{side_name} · kéo tới P3 hoặc nhập kích thước trực tiếp.")
+            update_status("AUTO đã nhận #{side_name} · KHUNG 3D NÉT ĐỨT là vùng đã chọn · kéo tới P3 hoặc nhập kích thước.")
           else
             update_status('AUTO chưa nhận được hướng rõ · quét lại theo X/Y/Z.')
           end
@@ -136,11 +148,21 @@ module TranTuanNoiThat
       end
 
       def draw(view)
+        # Giữ toàn bộ preview V0.8.1 và preview AUTO hiện có.
         tt_v081_draw(view)
-
         draw_input_mode_badge(view)
 
         return unless @input_mode == :auto_scan
+
+        # QUAN TRỌNG: khung nét đứt phải hiện ngay khi rê chuột,
+        # kể cả lúc InputPoint chưa nhận ra trục 3D.
+        draw_auto_scan_screen_frame(view) if @auto_dragging && @state == :p2
+
+        # Sau khi đã thả P2, giữ khung 3D nét đứt cho tới lúc xác nhận.
+        if @state == :p3 && @axis && @cut_coord
+          draw_auto_selected_3d_dashed_frame(view, current_region(false))
+        end
+
         return unless @auto_dragging && @state == :p2
         return unless @p1_root && @ip && @ip.valid?
 
@@ -164,7 +186,7 @@ module TranTuanNoiThat
         draw_auto_selected_halfspace(view, region)
         draw_auto_scan_gesture(view, region)
       rescue StandardError => error
-        puts "[TT Stretch AUTO draw] #{error.class}: #{error.message}"
+        puts "[TT Stretch AUTO V0.9.1 draw] #{error.class}: #{error.message}"
       end
 
       def update_status(extra = nil)
@@ -174,13 +196,13 @@ module TranTuanNoiThat
         pending = @pending_regions && !@pending_regions.empty? ? " · #{@pending_regions.length} hướng chờ" : ''
         text = case @state
                when :p1
-                 "AUTO QUÉT · giữ chuột tại P1 -> quét sang phía cần kéo -> thả#{pending} · TAB = 3 ĐIỂM."
+                 "AUTO QUÉT · giữ chuột tại P1 -> kéo KHUNG NÉT ĐỨT sang phía cần co/kéo -> thả#{pending} · TAB = 3 ĐIỂM."
                when :p2
-                 'AUTO QUÉT · đang nhận hướng X± Y± Z± · thả chuột để chốt P2.'
+                 'AUTO QUÉT · KHUNG NÉT ĐỨT = vùng đang quét · thả chuột để chốt P2.'
                when :p3
                  update_vcb
                  mode = @add_mode ? 'THÊM HƯỚNG BẬT' : 'xác nhận để hoàn tất'
-                 "AUTO #{side_name} · P3 hoặc nhập số · TAB/SHIFT thêm hướng · #{mode}#{pending}."
+                 "AUTO #{side_name} · KHUNG 3D NÉT ĐỨT = vùng đã chọn · P3 hoặc nhập số · TAB/SHIFT thêm hướng · #{mode}#{pending}."
                else
                  'CO GIÃN AUTO QUÉT'
                end
@@ -255,6 +277,96 @@ module TranTuanNoiThat
         end
       rescue StandardError
         nil
+      end
+
+      # Khung chữ nhật 2D nét đứt đi theo chuột giống cảm giác Selection của SketchUp.
+      # Vẽ thủ công từng dash để không phụ thuộc line_stipple của từng phiên bản SketchUp.
+      def draw_auto_scan_screen_frame(view)
+        a = @auto_scan_start_2d
+        b = @auto_scan_current_2d
+        return unless a && b
+
+        x1, x2 = [a.x.to_f, b.x.to_f].minmax
+        y1, y2 = [a.y.to_f, b.y.to_f].minmax
+
+        p1 = Geom::Point3d.new(x1, y1, 0)
+        p2 = Geom::Point3d.new(x2, y1, 0)
+        p3 = Geom::Point3d.new(x2, y2, 0)
+        p4 = Geom::Point3d.new(x1, y2, 0)
+
+        # Nền rất nhẹ giúp nhìn vùng quét nhưng không che model.
+        begin
+          view.drawing_color = Sketchup::Color.new(255, 150, 0, 22)
+          view.draw2d(GL_QUADS, [p1, p2, p3, p4])
+        rescue StandardError
+          nil
+        end
+
+        color = Sketchup::Color.new(255, 185, 35)
+        view.drawing_color = color
+        view.line_width = 2
+        segments = []
+        [[p1, p2], [p2, p3], [p3, p4], [p4, p1]].each do |from, to|
+          segments.concat(dashed_2d_edge_points(from, to, AUTO_SCAN_DASH_PX, AUTO_SCAN_GAP_PX))
+        end
+        view.draw2d(GL_LINES, segments) unless segments.empty?
+
+        # Dấu P1 để người dùng không bị mất điểm neo khi khung lớn.
+        cross = 6.0
+        cross_pts = [
+          Geom::Point3d.new(a.x - cross, a.y, 0), Geom::Point3d.new(a.x + cross, a.y, 0),
+          Geom::Point3d.new(a.x, a.y - cross, 0), Geom::Point3d.new(a.x, a.y + cross, 0)
+        ]
+        view.line_width = 3
+        view.draw2d(GL_LINES, cross_pts)
+      rescue StandardError => error
+        puts "[TT Stretch dashed 2D] #{error.class}: #{error.message}"
+      end
+
+      # Sau khi P2 đã được chốt, chiếu khung 3D vùng chọn ra màn hình và vẽ nét đứt.
+      # Nhờ vậy khung vẫn rõ kể cả khi các cạnh nằm sau model.
+      def draw_auto_selected_3d_dashed_frame(view, region)
+        return unless respond_to?(:affected_region_bounds, true)
+        return unless respond_to?(:box_edge_points, true)
+
+        bounds = affected_region_bounds(region, 0.0)
+        return unless bounds
+
+        color = AXIS_COLORS[region[:axis]]
+        view.drawing_color = color
+        view.line_width = 2
+
+        points3d = box_edge_points(bounds)
+        segments = []
+        points3d.each_slice(2) do |pair|
+          next unless pair.length == 2
+          s1 = view.screen_coords(root_to_world(pair[0]))
+          s2 = view.screen_coords(root_to_world(pair[1]))
+          segments.concat(dashed_2d_edge_points(s1, s2, AUTO_SCAN_DASH_PX, AUTO_SCAN_GAP_PX))
+        end
+        view.draw2d(GL_LINES, segments) unless segments.empty?
+      rescue StandardError => error
+        puts "[TT Stretch dashed 3D] #{error.class}: #{error.message}"
+      end
+
+      def dashed_2d_edge_points(a, b, dash, gap)
+        dx = b.x.to_f - a.x.to_f
+        dy = b.y.to_f - a.y.to_f
+        length = Math.sqrt(dx * dx + dy * dy)
+        return [] if length < 0.5
+
+        ux = dx / length
+        uy = dy / length
+        step = [dash.to_f + gap.to_f, 1.0].max
+        out = []
+        d = 0.0
+        while d < length
+          d2 = [d + dash.to_f, length].min
+          out << Geom::Point3d.new(a.x + ux * d,  a.y + uy * d,  0)
+          out << Geom::Point3d.new(a.x + ux * d2, a.y + uy * d2, 0)
+          d += step
+        end
+        out
       end
 
       # Trong lúc giữ chuột quét, phủ ngay nửa không gian sẽ được chọn.
