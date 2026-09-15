@@ -1,13 +1,13 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.27",
+  "version": "1.9.28",
   "box_version": "1.1.1",
   "round_version": "2.2.6",
   "stretch_mode_version": "0.9.2",
   "grain_version": "3.2.0",
-  "layout_stats_version": "0.1.0",
+  "layout_stats_version": "0.2.0",
   "channel": "stable",
-  "notes": "Bản 1.9.27: khóa Xoay Vân Ván V3.2.0 và thêm chức năng Xuất Layout + Thống Kê Ván V0.1.0. Có bảng xem trước thống kê; nếu đang chọn Group/Component thì chỉ quét vùng chọn, không chọn thì quét context hiện tại. Xuất file LayOut A3 ngang thật, trang đầu là phối cảnh mô hình, các trang sau tự chia bảng ván theo số dòng. Thống kê tên tấm, dài, rộng, dày, số lượng, vật liệu, hướng vân và m². BOX V1.1.1, Co Giãn V0.9.2, Bo Cong V2.2.6 và Xoay Vân V3.2.0 đều giữ khóa.",
+  "notes": "Bản 1.9.28: nâng Xuất Layout + Thống Kê Ván lên V0.2.0. LayOut A3 ngang tự tạo 4 trang phối cảnh đầu: Tổng thể, Mặt trước, Bên trái, Bên phải theo Model Axis; các trang sau là bảng thống kê ván tự chia trang. Thêm XEM TRƯỚC PDF bắt buộc trước khi xuất: hệ thống dựng PDF tạm đúng từ tài liệu LayOut, mở để kiểm tra, sau đó mới bật nút XUẤT LAYOUT và XUẤT PDF. Nếu mô hình, selection hoặc camera thay đổi sau preview thì bắt xem trước lại. BOX V1.1.1, Co Giãn V0.9.2, Bo Cong V2.2.6 và Xoay Vân V3.2.0 vẫn khóa nguyên.",
   "rbz_url": "",
   "locked_features": {
     "box": "1.1.1",
