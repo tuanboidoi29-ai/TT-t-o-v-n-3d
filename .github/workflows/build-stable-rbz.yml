@@ -31,29 +31,29 @@ jobs:
           ruby -c tran_tuan_noi_that_release/files/tran_tuan_noi_that/layout_stats_v050_stable_preview.rb
           ruby -c tran_tuan_noi_that_release/files/tran_tuan_noi_that/layout_stats_v060_compact_scope.rb
           ruby -c tran_tuan_noi_that_release/files/tran_tuan_noi_that/layout_stats_v070_export_split.rb
-          grep -q "layout_stats_v070_export_split.rb" tran_tuan_noi_that_release/files/tran_tuan_noi_that/settings.rb
+          grep -q "VERSION = '3.4.1'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/grain_standard_2440_fix.rb
+          grep -q "GRAIN_REFERENCE_LENGTH_MM = 2440.0" tran_tuan_noi_that_release/files/tran_tuan_noi_that/grain_standard_2440_fix.rb
+          grep -q "GRAIN_REFERENCE_WIDTH_MM  = 1220.0" tran_tuan_noi_that_release/files/tran_tuan_noi_that/grain_standard_2440_fix.rb
+          grep -q "fixed_sheet_no_stretch" tran_tuan_noi_that_release/files/tran_tuan_noi_that/grain_standard_2440_fix.rb
           grep -q "VERSION = '0.7.0'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/layout_stats_v070_export_split.rb
-          grep -q "tt_build_views_only_document" tran_tuan_noi_that_release/files/tran_tuan_noi_that/layout_stats_v070_export_split.rb
-          grep -q "tt_build_pdf_document" tran_tuan_noi_that_release/files/tran_tuan_noi_that/layout_stats_v070_export_split.rb
-          grep -q "VERSION = '1.9.38'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/bootstrap.rb
-          grep -q "VERSION = '1.9.38'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/settings.rb
-          grep -q "ext.version = '1.9.38'" tran_tuan_noi_that_release/files/TranTuanNoiThat.rb
-          grep -q '"version": "1.9.38"' tran_tuan_noi_that_release/update_latest.json
-          grep -q '"grain_version": "3.4.0"' tran_tuan_noi_that_release/update_latest.json
+          grep -q "VERSION = '1.9.39'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/bootstrap.rb
+          grep -q "VERSION = '1.9.39'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/settings.rb
+          grep -q "ext.version = '1.9.39'" tran_tuan_noi_that_release/files/TranTuanNoiThat.rb
+          grep -q '"version": "1.9.39"' tran_tuan_noi_that_release/update_latest.json
+          grep -q '"grain_version": "3.4.1"' tran_tuan_noi_that_release/update_latest.json
           grep -q '"layout_stats_version": "0.7.0"' tran_tuan_noi_that_release/update_latest.json
-          grep -q 'layout_stats_v070_export_split.rb' tran_tuan_noi_that_release/update_latest.json
-          grep -q '"locked": false' tran_tuan_noi_that_release/LAYOUT_STATS_LOCK.json
+          grep -q '"locked": false' tran_tuan_noi_that_release/GRAIN_LOCK.json
 
       - name: Build RBZ
         shell: bash
         run: |
           set -euo pipefail
           cd tran_tuan_noi_that_release/files
-          zip -r "$GITHUB_WORKSPACE/TRANTUAN_NOI_THAT_1.9.38_STABLE.rbz" .
+          zip -r "$GITHUB_WORKSPACE/TRANTUAN_NOI_THAT_1.9.39_STABLE.rbz" .
 
       - name: Upload RBZ artifact
         uses: actions/upload-artifact@v4
         with:
-          name: TRANTUAN_NOI_THAT_1.9.38_STABLE
-          path: TRANTUAN_NOI_THAT_1.9.38_STABLE.rbz
+          name: TRANTUAN_NOI_THAT_1.9.39_STABLE
+          path: TRANTUAN_NOI_THAT_1.9.39_STABLE.rbz
           if-no-files-found: error
