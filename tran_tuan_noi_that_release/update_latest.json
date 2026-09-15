@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.17",
+  "version": "1.9.18",
   "round_version": "2.2.5",
-  "stretch_mode_version": "0.7.0",
+  "stretch_mode_version": "0.8.0",
   "channel": "stable",
-  "notes": "Bản 1.9.17: Co Giãn Khối MODE V0.7.0 hỗ trợ đủ 6 hướng X+/X-/Y+/Y-/Z+/Z- theo Model Axis và nhiều hướng trong cùng 1 Undo. P1 là biên cố định, P2 chỉ phía; P3 hoặc nhập 200mm để co/kéo. Nhập =1200mm để đặt khoảng P1 tới biên mới đúng 1200mm. TAB hoặc SHIFT khi xác nhận để lưu hướng hiện tại và tiếp tục thêm hướng khác; hướng cuối xác nhận bình thường sẽ áp dụng toàn bộ. Bo Cong Khối V2.2.5 vẫn KHÓA.",
+  "notes": "Bản 1.9.18: Co Giãn Khối MODE V0.8.0 chuyển sang TRUE 3D DETAIL STRETCH. Nếu P1 cắt qua Group/Component, hệ thống không Move parent nữa mà đi vào geometry thật và chỉ dịch các vertex nằm phía P2 theo Model Axis; vertex phía P1 giữ nguyên. Chi tiết cắt qua P1 được kéo dài/ngắn thật; đối tượng nằm hoàn toàn phía P2 mới tịnh tiến nguyên khối. Giữ đa hướng X± Y± Z±, P3/nhập kích thước và 1 Undo. Bo Cong Khối V2.2.5 vẫn KHÓA.",
   "rbz_url": "",
   "locked_features": {
     "bo_cong": "2.2.5"
@@ -12,17 +12,22 @@
   "files": [
     {
       "path": "TranTuanNoiThat.rb",
-      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/5c60bfd26e53d27a15115f4f5b667231a46b14c6/tran_tuan_noi_that_release/files/TranTuanNoiThat.rb",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/d1eec7118f8c8b14e474ca57eb7b46124dbab13e/tran_tuan_noi_that_release/files/TranTuanNoiThat.rb",
       "sha256": ""
     },
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
-      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/b8a3010695f5148e728cd1a47d5f066aa2b63e21/tran_tuan_noi_that_release/files/tran_tuan_noi_that/bootstrap.rb",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/d8f61f59cb2dee11227d8aed529e77367b54f783/tran_tuan_noi_that_release/files/tran_tuan_noi_that/bootstrap.rb",
       "sha256": ""
     },
     {
       "path": "tran_tuan_noi_that/stretch_mode_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/2ade8328c8c36c7fd1452a5bab331dfea5306d80/tran_tuan_noi_that_release/files/tran_tuan_noi_that/stretch_mode_tool.rb",
+      "sha256": ""
+    },
+    {
+      "path": "tran_tuan_noi_that/stretch_detail_fix.rb",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/2f1a9003e8cc027784889b00a5dc47e52b93c11f/tran_tuan_noi_that_release/files/tran_tuan_noi_that/stretch_detail_fix.rb",
       "sha256": ""
     }
   ]
