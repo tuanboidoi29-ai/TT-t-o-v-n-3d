@@ -1,7 +1,7 @@
 {
   "locked": false,
-  "round_version": "2.2.5",
-  "policy": "Bo Cong Khối đã được MỞ KHÓA theo yêu cầu của TRẦN TUẤN để sửa 2 đường biên đầu/cuối của cung bo.",
-  "unlocked_for": "Giữ hiện 2 đường biên đầu tiên và cuối cùng; chỉ làm mịn các đường chia ở giữa cung.",
-  "system_version_at_unlock": "1.9.24"
+  "round_version": "2.2.6",
+  "policy": "Bo Cong Khối đang MỞ KHÓA theo yêu cầu của TRẦN TUẤN.",
+  "current_change": "Giữ hiện 2 đường biên đầu tiên và cuối cùng của cung; chỉ làm mịn các đường chia ở giữa.",
+  "stable_system_version": "1.9.25"
 }
