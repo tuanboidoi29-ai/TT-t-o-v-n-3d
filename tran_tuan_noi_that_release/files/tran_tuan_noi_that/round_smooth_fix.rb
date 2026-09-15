@@ -1,18 +1,15 @@
 # encoding: UTF-8
-# TRẦN TUẤN - Bo Cong Khối V2.2.3
-# FIX: bo lần 2+ vẫn giữ Soft/Smooth/Hidden của các cung đã bo trước.
+# TRẦN TUẤN - Bo Cong Khối V2.2.4
+# FIX MULTI-ROUND: bo góc 2, 3, 4... vẫn giữ toàn bộ cung cũ mịn.
 
 module TranTuanNoiThat
   module Round
     remove_const(:VERSION) if const_defined?(:VERSION, false)
-    VERSION = '2.2.3'.freeze
+    VERSION = '2.2.4'.freeze
 
     class Tool
       private
 
-      # Mỗi lần bo engine phải dựng lại toàn bộ khối. Vì vậy trước khi xóa hình học
-      # phải ghi nhớ các seam đã được làm mịn ở những cung trước, rồi phục hồi chúng
-      # ngay trong cùng operation. Nhờ đó bo góc 2, 3, 4... không làm hiện lại đường chia.
       def apply_round(data)
         model = Sketchup.active_model
         entities = data[:entities]
@@ -24,7 +21,6 @@ module TranTuanNoiThat
             raise 'Hình học đã đổi sau preview. Hãy rê chuột bắt lại góc.'
           end
 
-          preserved = capture_smooth_edges(entities)
           profile = data[:profile]
           back = profile.map { |p| p.offset(data[:depth]) }
           range = data[:arc_range]
@@ -44,29 +40,28 @@ module TranTuanNoiThat
           rear.back_material = data[:rear_back_mat] if data[:rear_back_mat]
 
           curved_faces = []
-
           profile.length.times do |i|
             j = (i + 1) % profile.length
             side = entities.add_face(profile[i], profile[j], back[j], back[i])
             raise "Không tạo được mặt hông #{i + 1}." unless side && side.valid?
-
             side.material = data[:side_mat] if data[:side_mat]
             side.back_material = data[:side_back_mat] if data[:side_back_mat]
-
             curved_faces << side if range && i >= range.begin && i < range.end
           end
 
-          # 1) Ẩn seam của cung vừa bo bằng cạnh chung giữa các Face cong.
+          # Cung vừa bo: ẩn seam bằng cạnh chung thật giữa các Face cong.
           hide_curve_internal_seams(curved_faces)
 
-          # 2) Khôi phục seam đã ẩn của tất cả cung bo trước đó.
-          restore_smooth_edges(entities, preserved)
+          # QUAN TRỌNG: mỗi lần bo engine dựng lại TOÀN BỘ khối nên các seam
+          # của cung cũ cũng bị tái tạo. Quét lại toàn bộ các cạnh chạy theo
+          # chiều dày và làm mịn nếu hai mặt bên kề nhau đổi hướng nhỏ.
+          smooth_all_curved_seams(entities, data[:depth])
 
           open_count = entities.grep(Sketchup::Edge).count { |e| e.valid? && e.faces.length != 2 }
           raise "Khối sau bo chưa kín (#{open_count} cạnh hở)." if open_count > 0
 
           model.commit_operation
-          status('đã bo xong · giữ mịn tất cả cung trước · Ctrl+Z hoàn tác 1 lần')
+          status('đã bo xong · tất cả cung cũ + mới đều được làm mịn')
         rescue StandardError => error
           model.abort_operation
           UI.messagebox("Không thể bo cong V#{Round::VERSION}:\n#{error.message}")
@@ -75,62 +70,56 @@ module TranTuanNoiThat
 
       def hide_curve_internal_seams(curved_faces)
         return if curved_faces.nil? || curved_faces.length < 2
-
         curved_faces.each_cons(2) do |face_a, face_b|
           next unless face_a && face_b && face_a.valid? && face_b.valid?
-
           edge = (face_a.edges & face_b.edges).find do |candidate|
             candidate.valid? && candidate.faces.include?(face_a) && candidate.faces.include?(face_b)
           end
-          next unless edge
-
-          edge.soft = true
-          edge.smooth = true
-          edge.hidden = true
+          soften_edge(edge)
         end
       end
 
-      # Lưu chính hai đầu cạnh + trạng thái. Point3d độc lập với Entity nên vẫn dùng được
-      # sau khi toàn bộ hình học cũ bị erase.
-      def capture_smooth_edges(entities)
-        entities.grep(Sketchup::Edge).each_with_object([]) do |edge, list|
-          next unless edge.valid?
-          next unless edge.hidden? || edge.soft? || edge.smooth?
+      def smooth_all_curved_seams(entities, depth_vector)
+        return unless depth_vector && depth_vector.length > 0.001
+        depth_dir = depth_vector.clone
+        depth_dir.normalize!
 
-          list << {
-            a: Geom::Point3d.new(edge.start.position.x, edge.start.position.y, edge.start.position.z),
-            b: Geom::Point3d.new(edge.end.position.x, edge.end.position.y, edge.end.position.z),
-            hidden: edge.hidden?,
-            soft: edge.soft?,
-            smooth: edge.smooth?
-          }
+        # Segments tối thiểu 4 có thể tạo góc giữa 2 mặt khoảng 45°.
+        # Chọn 50° để bắt được mọi seam của cung nhưng giữ góc tủ 90°.
+        max_angle = 50.0 * Math::PI / 180.0
+
+        entities.grep(Sketchup::Edge).each do |edge|
+          next unless edge.valid? && edge.faces.length == 2
+
+          ev = edge.end.position - edge.start.position
+          next if ev.length < 0.001
+          edir = ev.clone
+          edir.normalize!
+
+          # Chỉ làm mịn cạnh chạy xuyên theo chiều dày của khối.
+          # Không đụng đường biên trên/dưới của tấm.
+          next if edir.dot(depth_dir).abs < 0.998
+
+          f1, f2 = edge.faces
+          n1 = f1.normal.clone
+          n2 = f2.normal.clone
+          next if n1.length < 0.001 || n2.length < 0.001
+          n1.normalize!
+          n2.normalize!
+
+          angle = n1.angle_between(n2)
+          angle = [angle, Math::PI - angle].min
+          next if angle > max_angle
+
+          soften_edge(edge)
         end
       end
 
-      def restore_smooth_edges(entities, records)
-        return if records.nil? || records.empty?
-
-        edges = entities.grep(Sketchup::Edge).select(&:valid?)
-        tolerance = 0.05.mm
-
-        records.each do |record|
-          edge = edges.find do |candidate|
-            edge_matches_points?(candidate, record[:a], record[:b], tolerance)
-          end
-          next unless edge
-
-          edge.soft = true if record[:soft]
-          edge.smooth = true if record[:smooth]
-          edge.hidden = true if record[:hidden]
-        end
-      end
-
-      def edge_matches_points?(edge, a, b, tolerance)
-        p1 = edge.start.position
-        p2 = edge.end.position
-        direct = p1.distance(a) <= tolerance && p2.distance(b) <= tolerance
-        reverse = p1.distance(b) <= tolerance && p2.distance(a) <= tolerance
-        direct || reverse
+      def soften_edge(edge)
+        return unless edge && edge.valid?
+        edge.soft = true
+        edge.smooth = true
+        edge.hidden = true
       end
     end
   end
