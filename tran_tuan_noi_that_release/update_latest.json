@@ -1,17 +1,17 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.56",
+  "version": "1.9.57",
   "box_version": "1.1.1",
   "round_version": "2.2.7",
   "stretch_mode_version": "0.9.2",
   "grain_version": "3.5.1",
   "layout_stats_version": "0.9.0",
-  "license_version": "1.4.0",
+  "license_version": "1.5.0",
   "updater_bridge_version": "1.0.0",
   "channel": "stable",
   "transition_update": true,
   "protected_release": true,
-  "notes": "Bản 1.9.56 bổ sung LayoutStats V0.9.0 với trang 06 DIM KỸ THUẬT TRẦN TUẤN và chuyển hệ thống sang RELEASE bảo vệ. Hotfix manifest: sửa SHA-256 của migration board_tool sau bước normalize và ghim toàn bộ URL migration vào commit phát hành bất biến để updater không còn báo sai SHA khi main thay đổi. Không thay đổi BOX 1.1.1, Bo Cong 2.2.7, Co Gian 0.9.2, Grain 3.5.1 hay License Commercial 1.4.0.",
+  "notes": "Bản 1.9.57 chuyển lõi bản quyền sang RSA-3072 / RS256 khóa theo MÃ MÁY. Private key chỉ nằm trên máy chủ Supabase; plugin chỉ chứa public key và chỉ tin quyền sau khi xác minh chữ ký, machine_code và thời hạn. Cache mới license_rsa_v1.json chỉ lưu license đã ký, cache quyền V1/V3 cũ không còn được tin cậy. License offline hiện có hiệu lực theo offline_grace_hours (72 giờ). Vẽ Ván + BOX vẫn FREE khi mất mạng; QR, SePay và OWNER Admin giữ nguyên. commercial_enforcement vẫn FALSE cho tới khi OWNER tự bật. Không thay đổi BOX 1.1.1, Bo Cong 2.2.7, Co Gian 0.9.2, Grain 3.5.1 hay LayoutStats 0.9.0.",
   "rbz_url": "",
   "locked_features": {
     "box": "1.1.1",
@@ -21,34 +21,14 @@
   },
   "files": [
     {
-      "path": "tran_tuan_noi_that/board_tool.rb",
-      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/fbbc1db0064a8aeed9deb8c41edbc5f9ee780588/tran_tuan_noi_that_release/migrations/1.9.56/board_tool.rb",
-      "sha256": "00300c0051da0b0a1e239c702fdf8209a66556a8c18f578d207d4c9718f51d01"
+      "path": "tran_tuan_noi_that/license_rsa_v150.rb",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/a879780ae6d113223209b5a9c02f4849401df1a2/tran_tuan_noi_that_release/files/tran_tuan_noi_that/license_rsa_v150.rb",
+      "sha256": "164697f318ed80bf4f946b1e3d6a1ae432d700bedd7c389e06dff9938b788f37"
     },
     {
-      "path": "tran_tuan_noi_that/.tt_migration_1956/patch_01.ttx",
-      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/fbbc1db0064a8aeed9deb8c41edbc5f9ee780588/tran_tuan_noi_that_release/migrations/1.9.56/.tt_migration_1956/patch_01.ttx",
-      "sha256": "1ae94415adca0e003d9c9ddcb33d9d385e0bdcbf15268d020461affaa78afa7c"
-    },
-    {
-      "path": "tran_tuan_noi_that/.tt_migration_1956/patch_02.ttx",
-      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/fbbc1db0064a8aeed9deb8c41edbc5f9ee780588/tran_tuan_noi_that_release/migrations/1.9.56/.tt_migration_1956/patch_02.ttx",
-      "sha256": "787fe09554904a5c5d231e8ac7a775bceb861929f3b1b265119ca5f10042a5eb"
-    },
-    {
-      "path": "tran_tuan_noi_that/.tt_migration_1956/patch_03.ttx",
-      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/fbbc1db0064a8aeed9deb8c41edbc5f9ee780588/tran_tuan_noi_that_release/migrations/1.9.56/.tt_migration_1956/patch_03.ttx",
-      "sha256": "a35a2301231b233d54e28695d1b52820951135eca87463433cc4b07e040cce13"
-    },
-    {
-      "path": "tran_tuan_noi_that/.tt_migration_1956/patch_04.ttx",
-      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/fbbc1db0064a8aeed9deb8c41edbc5f9ee780588/tran_tuan_noi_that_release/migrations/1.9.56/.tt_migration_1956/patch_04.ttx",
-      "sha256": "c43704595f1f75b2b3b7ccdfca15ec2f1d0276d7c7e9bf789995231c627a629d"
-    },
-    {
-      "path": "tran_tuan_noi_that/.tt_migration_1956/patch_05.ttx",
-      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/fbbc1db0064a8aeed9deb8c41edbc5f9ee780588/tran_tuan_noi_that_release/migrations/1.9.56/.tt_migration_1956/patch_05.ttx",
-      "sha256": "14b4f08bca595912ac65e6aa9230dadafe74abffab423685e33814160f28acb9"
+      "path": "tran_tuan_noi_that/settings.rb",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/a879780ae6d113223209b5a9c02f4849401df1a2/tran_tuan_noi_that_release/files/tran_tuan_noi_that/settings.rb",
+      "sha256": "c257859e0803c7955dfc11e5fd1d8ca30a305294e488cba69883b2dc6d8575b5"
     }
   ]
 }
