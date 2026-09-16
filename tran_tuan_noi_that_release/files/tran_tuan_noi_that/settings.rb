@@ -9,13 +9,14 @@ module TranTuanNoiThat
   load grain_patch_v350_hotfix if File.file?(grain_patch_v350_hotfix)
 
   # Layout load order bắt buộc:
-  # base -> V0.3.0 -> compat -> V0.4.0 -> compat -> V0.5.0 -> V0.6.0 -> V0.7.0 -> V0.8.0.
+  # base -> V0.3.0 -> compat -> V0.4.0 -> compat -> V0.5.0 -> V0.6.0 -> V0.7.0 -> V0.8.0 -> V0.8.1.
   layout_compat = File.join(ROOT, 'layout_stats_v040_compat.rb')
   layout_patch_v040 = File.join(ROOT, 'layout_stats_v040_patch.rb')
   layout_patch_v050 = File.join(ROOT, 'layout_stats_v050_stable_preview.rb')
   layout_patch_v060 = File.join(ROOT, 'layout_stats_v060_compact_scope.rb')
   layout_patch_v070 = File.join(ROOT, 'layout_stats_v070_export_split.rb')
   layout_patch_v080 = File.join(ROOT, 'layout_stats_v080_five_pages.rb')
+  layout_patch_v081 = File.join(ROOT, 'layout_stats_v081_cut_offset_fix.rb')
   load layout_compat if File.file?(layout_compat)
   load layout_patch_v040 if File.file?(layout_patch_v040)
   load layout_compat if File.file?(layout_compat)
@@ -23,9 +24,10 @@ module TranTuanNoiThat
   load layout_patch_v060 if File.file?(layout_patch_v060)
   load layout_patch_v070 if File.file?(layout_patch_v070)
   load layout_patch_v080 if File.file?(layout_patch_v080)
+  load layout_patch_v081 if File.file?(layout_patch_v081)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.41'.freeze
+  VERSION = '1.9.42'.freeze
 
   module Settings
     extend self
