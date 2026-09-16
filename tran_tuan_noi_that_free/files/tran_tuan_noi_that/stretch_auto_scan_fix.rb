@@ -75,9 +75,10 @@ module TranTuanNoiThat
           @model.select_tool(WindowTool.new)
           return true
         end
-        if @state == :p2 && [88, 89, 90].include?(key)
-          axis = [88, 89, 90].index(key)
-          @forced_axis = @forced_axis == axis ? nil : axis
+        if @state == :p2 && [37,38,39,40,88,89,90].include?(key)
+          return true if repeat.to_i > 1
+          axis = {39=>0,37=>1,38=>2,88=>0,89=>1,90=>2}[key]
+          @forced_axis = key == 40 || @forced_axis == axis ? nil : axis
           update_status(@forced_axis.nil? ? 'Tự nhận trục X/Y/Z.' : "Khóa trục #{axis_name(@forced_axis)} · bấm lại để bỏ khóa.")
           view.invalidate
           return true
@@ -139,7 +140,7 @@ module TranTuanNoiThat
             @first_press_active = false
             @auto_scan_start_2d = nil
             @auto_scan_current_2d = nil
-            update_status('Đã chọn P1 · bấm P2 về phía cần co/kéo. X/Y/Z khóa trục.')
+            update_status('Đã chọn P1 · bấm P2 về phía cần co/kéo. → X / ← Y / ↑ Z / ↓ bỏ khóa.')
             view.invalidate
             return
           end

@@ -4,7 +4,7 @@ require 'sketchup.rb'
 module TranTuanNoiThat
   module StretchMode
     remove_const(:VERSION) if const_defined?(:VERSION, false)
-    VERSION = '1.0.0'.freeze
+    VERSION = '1.0.1'.freeze
 
     class WindowTool < Tool
       def initialize
@@ -91,9 +91,10 @@ module TranTuanNoiThat
           @model.select_tool(Tool.new)
           return true
         end
-        if [88,89,90].include?(key) && @state == :move
-          next_axis = [88,89,90].index(key)
-          @forced_axis = @forced_axis == next_axis ? nil : next_axis
+        if [37,38,39,40,88,89,90].include?(key) && @state == :move
+          return true if repeat.to_i > 1
+          next_axis = {39=>0,37=>1,38=>2,88=>0,89=>1,90=>2}[key]
+          @forced_axis = key == 40 || @forced_axis == next_axis ? nil : next_axis
           @axis = @forced_axis
           @delta = 0.0
           @direction_sign = 1
@@ -188,7 +189,7 @@ module TranTuanNoiThat
           "Đã chọn #{@selected_points.length} điểm màu cam · bấm điểm gốc để bắt đầu kéo · ESC khoanh lại."
         when :move
           axis=@axis ? axis_name(@axis) : 'tự nhận'
-          "Kéo theo #{axis} · X/Y/Z khóa trục · click để chốt hoặc nhập mm · ngoài vùng giữ nguyên · ESC hủy."
+          "Kéo theo #{axis} · → X / ← Y / ↑ Z / ↓ bỏ khóa · click để chốt hoặc nhập mm · ngoài vùng giữ nguyên · ESC hủy."
         end
         Sketchup.set_status_text(text,SB_PROMPT)
         if @state==:move
