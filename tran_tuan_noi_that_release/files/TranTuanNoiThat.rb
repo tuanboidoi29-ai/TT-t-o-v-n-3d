@@ -15,8 +15,8 @@ module TranTuanNoiThat
                      end
 
     ext = SketchupExtension.new('TRẦN TUẤN NỘI THẤT', "#{runtime_folder}/bootstrap")
-    ext.description = 'Hệ thống công cụ nội thất TRẦN TUẤN: License Commercial V1.4.0 tự nhận thanh toán SePay, tự kiểm tra giao dịch và mở quyền; Bo Cong V2.2.7 đã khóa; Xoay Vân V3.5.0; LayoutStats V0.8.1.'
-    ext.version = '1.9.53'
+    ext.description = 'Hệ thống công cụ nội thất TRẦN TUẤN: Update Bridge V1.0.0 sửa cập nhật cho bản thương mại ký .rbe/.susig; License Commercial V1.4.0; Bo Cong V2.2.7 đã khóa; Xoay Vân V3.5.0; LayoutStats V0.8.1.'
+    ext.version = '1.9.54'
     ext.creator = 'TRẦN TUẤN'
     ext.copyright = '2026 TRẦN TUẤN'
     Sketchup.register_extension(ext, true)
