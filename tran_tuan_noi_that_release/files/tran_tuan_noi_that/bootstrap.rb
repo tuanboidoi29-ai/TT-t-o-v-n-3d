@@ -13,7 +13,7 @@ module TranTuanNoiThat
   NAME = 'TRẦN TUẤN NỘI THẤT'.freeze unless const_defined?(:NAME, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.47'.freeze
+  VERSION = '1.9.48'.freeze
 
   remove_const(:MANIFEST_URL) if const_defined?(:MANIFEST_URL, false)
   MANIFEST_URL = 'https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/update_latest.json'.freeze
@@ -62,7 +62,7 @@ module TranTuanNoiThat
     end
 
     def reload_runtime
-      # License V1.0.2 cache AppData + Payment V1.1.0 mua quyền theo từng chức năng.
+      # License V1.0.2 cache AppData -> Payment V1.1.0 -> Owner Admin V1.2.0.
       # Grain V3.5.0, LayoutStats V0.8.1 và Bo Cong V2.2.7 giữ nguyên.
       %w[
         board_tool.rb
@@ -76,6 +76,7 @@ module TranTuanNoiThat
         grain_standard_2440_fix.rb
         license_manager.rb
         license_payment_v110.rb
+        license_owner_admin_v120.rb
         layout_stats_tool.rb
         layout_stats_v030_patch.rb
         layout_stats_v040_compat.rb
@@ -136,7 +137,7 @@ module TranTuanNoiThat
       @license_cmd ||= command(
         'Bản Quyền',
         'license.svg',
-        'Xem mã máy, quyền chức năng và tạo yêu cầu thanh toán.'
+        'Mã máy · mua từng chức năng · máy OWNER có quyền quản lý khách, giá, thanh toán và quyền.'
       ) { License.show_dialog }
       add_feature_command_once(@license_cmd, :license_menu_installed)
       true
