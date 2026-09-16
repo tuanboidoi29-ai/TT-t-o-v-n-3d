@@ -46,6 +46,8 @@ jobs:
           grep -Fq "VERSION = '1.9.53'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/bootstrap.rb
           grep -Fq "VERSION = '1.9.53'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/settings.rb
           grep -Fq "ext.version = '1.9.53'" tran_tuan_noi_that_release/files/TranTuanNoiThat.rb
+          grep -Fq "runtime_folder" tran_tuan_noi_that_release/files/TranTuanNoiThat.rb
+          grep -Fq "runtime_relative_path" tran_tuan_noi_that_release/files/tran_tuan_noi_that/updater.rb
           grep -Fq '"version": "1.9.53"' tran_tuan_noi_that_release/update_latest.json
           grep -Fq '"license_version": "1.4.0"' tran_tuan_noi_that_release/update_latest.json
           grep -Fq 'license_commercial_v140_auto.rb' tran_tuan_noi_that_release/update_latest.json
@@ -134,12 +136,32 @@ jobs:
           node --check /tmp/tt_license_dialog.js
           node --check /tmp/tt_owner_admin.js
 
-      - name: Build RBZ
+      - name: Build Warehouse-compliant RBZ
         shell: bash
         run: |
           set -euo pipefail
-          cd tran_tuan_noi_that_release/files
+          STAGE="$RUNNER_TEMP/tt_rbz_warehouse"
+          rm -rf "$STAGE"
+          mkdir -p "$STAGE"
+          cp tran_tuan_noi_that_release/files/TranTuanNoiThat.rb "$STAGE/TranTuanNoiThat.rb"
+          cp -a tran_tuan_noi_that_release/files/tran_tuan_noi_that "$STAGE/TranTuanNoiThat"
+          cd "$STAGE"
           zip -r "$GITHUB_WORKSPACE/TRANTUAN_NOI_THAT_1.9.53_STABLE.rbz" .
+
+      - name: Validate RBZ package structure
+        shell: bash
+        run: |
+          set -euo pipefail
+          RBZ="$GITHUB_WORKSPACE/TRANTUAN_NOI_THAT_1.9.53_STABLE.rbz"
+          unzip -t "$RBZ"
+          unzip -Z1 "$RBZ" | grep -Fx 'TranTuanNoiThat.rb'
+          unzip -Z1 "$RBZ" | grep -Fx 'TranTuanNoiThat/'
+          unzip -Z1 "$RBZ" | grep -Fx 'TranTuanNoiThat/bootstrap.rb'
+          if unzip -Z1 "$RBZ" | grep -q '^tran_tuan_noi_that/'; then
+            echo 'ERROR: lowercase support folder leaked into RBZ'
+            exit 1
+          fi
+          echo 'WAREHOUSE PACKAGE STRUCTURE OK'
 
       - name: Upload RBZ artifact
         uses: actions/upload-artifact@v4
