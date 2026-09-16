@@ -26,18 +26,18 @@ jobs:
               > /tmp/grain_tool_combined.rb
           ruby -c /tmp/grain_tool_combined.rb
 
-          grep -Fq "VERSION = '1.9.54'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/bootstrap.rb
-          grep -Fq "VERSION = '1.9.54'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/settings.rb
-          grep -Fq "ext.version = '1.9.54'" tran_tuan_noi_that_release/files/TranTuanNoiThat.rb
+          grep -Fq "VERSION = '1.9.55'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/bootstrap.rb
+          grep -Fq "VERSION = '1.9.55'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/settings.rb
+          grep -Fq "ext.version = '1.9.55'" tran_tuan_noi_that_release/files/TranTuanNoiThat.rb
+          grep -Fq "VERSION = '3.5.1'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/grain_reload_v351_fix.rb
+          grep -Fq "tt_v350_key_base" tran_tuan_noi_that_release/files/tran_tuan_noi_that/grain_reload_v351_fix.rb
+          grep -Fq "grain_reload_v351_fix.rb" tran_tuan_noi_that_release/files/tran_tuan_noi_that/bootstrap.rb
+          grep -Fq "grain_reload_v351_fix.rb" tran_tuan_noi_that_release/files/tran_tuan_noi_that/settings.rb
           grep -Fq "BRIDGE_LOADER = 'TT_TranTuan_UpdateLoader.rb'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/updater.rb
-          grep -Fq "def signed_runtime?" tran_tuan_noi_that_release/files/tran_tuan_noi_that/updater.rb
-          grep -Fq "def schedule_transition_cleanup" tran_tuan_noi_that_release/files/tran_tuan_noi_that/updater.rb
           grep -Fq "VERSION = '1.0.0'" tran_tuan_noi_that_release/files/TT_TranTuan_UpdateLoader.rb
-          grep -Fq "TT_TranTuan_Updates" tran_tuan_noi_that_release/files/TT_TranTuan_UpdateLoader.rb
-          grep -Fq "def install_manifest" tran_tuan_noi_that_release/files/TT_TranTuan_UpdateLoader.rb
-          grep -Fq "def patch_updater" tran_tuan_noi_that_release/files/TT_TranTuan_UpdateLoader.rb
-          grep -Fq '"version": "1.9.54"' tran_tuan_noi_that_release/update_latest.json
-          grep -Fq '"updater_bridge_version": "1.0.0"' tran_tuan_noi_that_release/update_latest.json
+          grep -Fq '"version": "1.9.55"' tran_tuan_noi_that_release/update_latest.json
+          grep -Fq '"grain_version": "3.5.1"' tran_tuan_noi_that_release/update_latest.json
+          grep -Fq '"license_version": "1.4.0"' tran_tuan_noi_that_release/update_latest.json
           grep -Fq '"locked": true' tran_tuan_noi_that_release/BO_CONG_LOCK.json
 
           ruby <<'RUBY'
@@ -45,14 +45,54 @@ jobs:
           %w[update_latest.json update.json].each do |name|
             path = File.join('tran_tuan_noi_that_release', name)
             data = JSON.parse(File.read(path))
-            raise "#{name}: wrong version" unless data['version'] == '1.9.54'
-            raise "#{name}: not transition" unless data['transition_update'] == true
+            raise "#{name}: wrong version" unless data['version'] == '1.9.55'
+            raise "#{name}: wrong grain" unless data['grain_version'] == '3.5.1'
+            raise "#{name}: transition flag must be false" unless data['transition_update'] == false
             paths = Array(data['files']).map { |x| x['path'] }
-            expected = ['tran_tuan_noi_that/updater.rb', 'TT_TranTuan_UpdateLoader.rb']
-            raise "#{name}: transition must contain only updater + bridge: #{paths.inspect}" unless paths == expected
+            expected = [
+              'TranTuanNoiThat.rb',
+              'tran_tuan_noi_that/bootstrap.rb',
+              'tran_tuan_noi_that/settings.rb',
+              'tran_tuan_noi_that/grain_reload_v351_fix.rb',
+              'TT_TranTuan_UpdateLoader.rb'
+            ]
+            raise "#{name}: wrong update file list: #{paths.inspect}" unless paths == expected
             raise "#{name}: Bo Cong lock changed" unless data.dig('locked_features', 'bo_cong') == '2.2.7'
           end
-          puts 'TRANSITION MANIFEST OK'
+          puts '1.9.55 MANIFEST OK'
+          RUBY
+
+      - name: Test Grain hot reload guard
+        shell: bash
+        run: |
+          set -euo pipefail
+          ruby <<'RUBY'
+          module TranTuanNoiThat
+            module Grain
+              class Tool
+                private
+                def pick(*_args); true; end
+              end
+            end
+          end
+
+          guard = 'tran_tuan_noi_that_release/files/tran_tuan_noi_that/grain_reload_v351_fix.rb'
+          production = 'tran_tuan_noi_that_release/files/tran_tuan_noi_that/grain_production_v350.rb'
+          hotfix = 'tran_tuan_noi_that_release/files/tran_tuan_noi_that/grain_production_v350_hotfix.rb'
+
+          # Mô phỏng đúng trạng thái lỗi: Tool có pick nhưng mất onKeyDown.
+          load guard
+          tool = TranTuanNoiThat::Grain::Tool
+          raise 'reload guard did not create key base' unless tool.method_defined?(:tt_v350_key_base)
+          raise 'reload guard marker missing' unless tool.method_defined?(:tt_grain_reload_safe_v351?)
+
+          # Production V3.5.0 trước đây crash tại alias_method :onKeyDown.
+          load production
+          load hotfix
+          load guard
+          raise 'grain version not restored to 3.5.1' unless TranTuanNoiThat::Grain::VERSION == '3.5.1'
+          raise 'onKeyDown missing after production load' unless tool.method_defined?(:onKeyDown)
+          puts 'GRAIN HOT RELOAD TEST OK'
           RUBY
 
       - name: Validate License and Owner Admin JavaScript
@@ -65,7 +105,7 @@ jobs:
             class << self
               def setting(key, default = nil); @settings.fetch(key.to_s, default); end
               def save_setting(key, value); @settings[key.to_s] = value; end
-              def current_version; '1.9.54'; end
+              def current_version; '1.9.55'; end
             end
           end
           load 'tran_tuan_noi_that_release/files/tran_tuan_noi_that/license_manager.rb'
@@ -104,7 +144,7 @@ jobs:
           zip "$GITHUB_WORKSPACE/TT_UPDATE_BRIDGE_1.0.0.rbz" TT_TranTuan_UpdateLoader.rb
           unzip -t "$GITHUB_WORKSPACE/TT_UPDATE_BRIDGE_1.0.0.rbz"
 
-      - name: Build 1.9.54 source fallback RBZ
+      - name: Build 1.9.55 source fallback RBZ
         shell: bash
         run: |
           set -euo pipefail
@@ -115,8 +155,8 @@ jobs:
           cp -a tran_tuan_noi_that_release/files/tran_tuan_noi_that "$STAGE/TranTuanNoiThat"
           cp tran_tuan_noi_that_release/files/TT_TranTuan_UpdateLoader.rb "$STAGE/TT_TranTuan_UpdateLoader.rb"
           cd "$STAGE"
-          zip -r "$GITHUB_WORKSPACE/TRANTUAN_NOI_THAT_1.9.54_SOURCE_FALLBACK.rbz" .
-          unzip -t "$GITHUB_WORKSPACE/TRANTUAN_NOI_THAT_1.9.54_SOURCE_FALLBACK.rbz"
+          zip -r "$GITHUB_WORKSPACE/TRANTUAN_NOI_THAT_1.9.55_SOURCE_FALLBACK.rbz" .
+          unzip -t "$GITHUB_WORKSPACE/TRANTUAN_NOI_THAT_1.9.55_SOURCE_FALLBACK.rbz"
 
       - name: Upload updater bridge artifact
         uses: actions/upload-artifact@v4
@@ -128,6 +168,6 @@ jobs:
       - name: Upload source fallback artifact
         uses: actions/upload-artifact@v4
         with:
-          name: TRANTUAN_NOI_THAT_1.9.54_SOURCE_FALLBACK
-          path: TRANTUAN_NOI_THAT_1.9.54_SOURCE_FALLBACK.rbz
+          name: TRANTUAN_NOI_THAT_1.9.55_SOURCE_FALLBACK
+          path: TRANTUAN_NOI_THAT_1.9.55_SOURCE_FALLBACK.rbz
           if-no-files-found: error
