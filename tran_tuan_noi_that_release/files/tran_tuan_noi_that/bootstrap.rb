@@ -1,8 +1,6 @@
 # encoding: UTF-8
 require 'sketchup.rb'
 require 'json'
-require 'net/http'
-require 'uri'
 require 'fileutils'
 require 'tmpdir'
 require 'digest'
@@ -13,7 +11,7 @@ module TranTuanNoiThat
   NAME = 'TRẦN TUẤN NỘI THẤT'.freeze unless const_defined?(:NAME, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.55'.freeze
+  VERSION = '1.9.58'.freeze
 
   remove_const(:MANIFEST_URL) if const_defined?(:MANIFEST_URL, false)
   MANIFEST_URL = 'https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/update_latest.json'.freeze
@@ -62,8 +60,7 @@ module TranTuanNoiThat
     end
 
     def reload_runtime
-      # License V1.0.2 -> Payment V1.1.0 -> Owner Admin V1.2.x -> QR V1.3.0 -> AUTO SePay V1.4.0.
-      # Grain V3.5.1 thêm guard nạp nóng; LayoutStats V0.8.1 và Bo Cong V2.2.7 giữ nguyên.
+      # License V2.0.0 chỉ RSA OFFLINE theo Mã máy; toàn bộ thương mại/server đã bỏ.
       %w[
         board_tool.rb
         box_tool.rb
@@ -75,14 +72,6 @@ module TranTuanNoiThat
         grain_align_fix.rb
         grain_standard_2440_fix.rb
         grain_reload_v351_fix.rb
-        license_manager.rb
-        license_payment_v110.rb
-        license_owner_admin_v120.rb
-        license_owner_admin_v121_fix.rb
-        license_ui_v122_fix.rb
-        license_owner_admin_v123_fix.rb
-        license_commercial_v130_qr.rb
-        license_commercial_v140_auto.rb
         layout_stats_tool.rb
         layout_stats_v030_patch.rb
         layout_stats_v040_compat.rb
@@ -143,7 +132,7 @@ module TranTuanNoiThat
       @license_cmd ||= command(
         'Bản Quyền',
         'license.svg',
-        'Mã máy · mua từng chức năng · QR + SePay tự nhận thanh toán · OWNER quản lý giá, khách và quyền.'
+        'Mã máy · nhập Mã kích hoạt RSA · 90/180/360 ngày hoặc Vĩnh viễn · xác minh offline.'
       ) { License.show_dialog }
       add_feature_command_once(@license_cmd, :license_menu_installed)
       true
@@ -212,7 +201,7 @@ module TranTuanNoiThat
       @layout_stats_cmd ||= command(
         'Xuất Layout + Thống Kê Ván',
         'layout_stats.svg',
-        'LayOut 5 trang · mặt cắt dùng đúng khoảng mm từ mặt ngoài · PDF nối thêm thống kê ván.',
+        'Xuất LayOut/PDF kỹ thuật + thống kê ván.',
         :layout_stats
       ) { LayoutStats.show }
       add_feature_command_once(@layout_stats_cmd, :layout_stats_menu_installed)
@@ -275,7 +264,7 @@ module TranTuanNoiThat
       install_ui
       return if @startup_check_scheduled
       @startup_check_scheduled = true
-      UI.start_timer(1.0, false) { License.background_sync if defined?(TranTuanNoiThat::License) }
+      # RSA Offline không gọi server. Chỉ giữ kiểm tra cập nhật hệ thống.
       UI.start_timer(3.0, false) { Updater.check(false) if setting('auto_update', true) }
     end
   end
