@@ -13,7 +13,7 @@ module TranTuanNoiThat
   NAME = 'TRẦN TUẤN NỘI THẤT'.freeze unless const_defined?(:NAME, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.39'.freeze
+  VERSION = '1.9.41'.freeze
 
   remove_const(:MANIFEST_URL) if const_defined?(:MANIFEST_URL, false)
   MANIFEST_URL = 'https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/update_latest.json'.freeze
@@ -62,8 +62,8 @@ module TranTuanNoiThat
     end
 
     def reload_runtime
-      # Grain: base V3.2.0 -> nhận map V3.2.1 -> căn vân V3.3.0 -> chuẩn cố định 2440x1220/material-safe V3.4.1.
-      # Layout: V0.6.0 compact scope -> V0.7.0 tách LayOut/PDF.
+      # Grain base/material/alignment/fixed UV được Settings nạp tiếp thành V3.5.0.
+      # Layout base/patch được Settings nạp tiếp thành V0.8.0.
       %w[
         board_tool.rb
         box_tool.rb
@@ -172,7 +172,7 @@ module TranTuanNoiThat
       @grain_cmd ||= command(
         'Xoay Vân Ván',
         'grain.svg',
-        '1 map = 2440x1220 cố định · tấm nhỏ crop · tấm lớn lặp · không co giãn texture.',
+        'Preview quét trước khi áp dụng · rule chi tiết · khổ theo vật liệu · UV đúng tỷ lệ.',
         :grain
       ) { Grain.activate }
       add_feature_command_once(@grain_cmd, :grain_menu_installed)
@@ -188,7 +188,7 @@ module TranTuanNoiThat
       @layout_stats_cmd ||= command(
         'Xuất Layout + Thống Kê Ván',
         'layout_stats.svg',
-        'LayOut: chỉ phối cảnh/kỹ thuật · PDF: xuất trực tiếp phối cảnh + thống kê ván.',
+        'LayOut 5 trang: Tổng thể · Line+X-Ray · Khung LINE · Mặt đứng · Mặt cắt. PDF nối thêm thống kê ván.',
         :layout_stats
       ) { LayoutStats.show }
       add_feature_command_once(@layout_stats_cmd, :layout_stats_menu_installed)
@@ -217,7 +217,7 @@ module TranTuanNoiThat
 
     def toolbar_has_command?(toolbar, tooltip)
       return false unless toolbar
-      toolbar.each do |item|
+      @toolbar.each do |item|
         next unless item.is_a?(UI::Command)
         return true if item.tooltip.to_s == tooltip.to_s
       end
