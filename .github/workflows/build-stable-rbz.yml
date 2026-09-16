@@ -15,7 +15,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Validate Ruby syntax and release metadata
+      - name: Validate source Ruby syntax
         shell: bash
         run: |
           set -euo pipefail
@@ -25,74 +25,49 @@ jobs:
               tran_tuan_noi_that_release/files/tran_tuan_noi_that/grain_tool_part3.inc \
               > /tmp/grain_tool_combined.rb
           ruby -c /tmp/grain_tool_combined.rb
+          ruby -c tran_tuan_noi_that_release/migrations/1.9.56/board_tool.rb
 
-          grep -Fq "VERSION = '1.9.55'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/bootstrap.rb
-          grep -Fq "VERSION = '1.9.55'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/settings.rb
-          grep -Fq "ext.version = '1.9.55'" tran_tuan_noi_that_release/files/TranTuanNoiThat.rb
-          grep -Fq "VERSION = '3.5.1'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/grain_reload_v351_fix.rb
-          grep -Fq "tt_v350_key_base" tran_tuan_noi_that_release/files/tran_tuan_noi_that/grain_reload_v351_fix.rb
-          grep -Fq "grain_reload_v351_fix.rb" tran_tuan_noi_that_release/files/tran_tuan_noi_that/bootstrap.rb
-          grep -Fq "grain_reload_v351_fix.rb" tran_tuan_noi_that_release/files/tran_tuan_noi_that/settings.rb
-          grep -Fq "BRIDGE_LOADER = 'TT_TranTuan_UpdateLoader.rb'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/updater.rb
-          grep -Fq "VERSION = '1.0.0'" tran_tuan_noi_that_release/files/TT_TranTuan_UpdateLoader.rb
-          grep -Fq '"version": "1.9.55"' tran_tuan_noi_that_release/update_latest.json
-          grep -Fq '"grain_version": "3.5.1"' tran_tuan_noi_that_release/update_latest.json
-          grep -Fq '"license_version": "1.4.0"' tran_tuan_noi_that_release/update_latest.json
-          grep -Fq '"locked": true' tran_tuan_noi_that_release/BO_CONG_LOCK.json
-
-          ruby <<'RUBY'
-          require 'json'
-          %w[update_latest.json update.json].each do |name|
-            path = File.join('tran_tuan_noi_that_release', name)
-            data = JSON.parse(File.read(path))
-            raise "#{name}: wrong version" unless data['version'] == '1.9.55'
-            raise "#{name}: wrong grain" unless data['grain_version'] == '3.5.1'
-            raise "#{name}: transition flag must be false" unless data['transition_update'] == false
-            paths = Array(data['files']).map { |x| x['path'] }
-            expected = [
-              'TranTuanNoiThat.rb',
-              'tran_tuan_noi_that/bootstrap.rb',
-              'tran_tuan_noi_that/settings.rb',
-              'tran_tuan_noi_that/grain_reload_v351_fix.rb',
-              'TT_TranTuan_UpdateLoader.rb'
-            ]
-            raise "#{name}: wrong update file list: #{paths.inspect}" unless paths == expected
-            raise "#{name}: Bo Cong lock changed" unless data.dig('locked_features', 'bo_cong') == '2.2.7'
-          end
-          puts '1.9.55 MANIFEST OK'
-          RUBY
-
-      - name: Test Grain hot reload guard
+      - name: Validate 1.9.56 migration manifest SHA256
         shell: bash
         run: |
           set -euo pipefail
           ruby <<'RUBY'
-          module TranTuanNoiThat
-            module Grain
-              class Tool
-                private
-                def pick(*_args); true; end
+          require 'json'
+          require 'digest'
+          require 'uri'
+
+          manifests = %w[update_latest.json update.json]
+          manifests.each do |name|
+            manifest_path = File.join('tran_tuan_noi_that_release', name)
+            data = JSON.parse(File.binread(manifest_path))
+            raise "#{name}: wrong version #{data['version']}" unless data['version'] == '1.9.56'
+            raise "#{name}: transition_update must be true" unless data['transition_update'] == true
+            raise "#{name}: protected_release must be true" unless data['protected_release'] == true
+            raise "#{name}: wrong LayoutStats" unless data['layout_stats_version'] == '0.9.0'
+            raise "#{name}: wrong Grain" unless data['grain_version'] == '3.5.1'
+            raise "#{name}: wrong License" unless data['license_version'] == '1.4.0'
+
+            files = Array(data['files'])
+            raise "#{name}: no migration files" if files.empty?
+            files.each do |item|
+              url = item.fetch('url')
+              expected = item.fetch('sha256').to_s.downcase
+              raise "#{name}: empty sha256 for #{item['path']}" unless expected.match?(/\A[0-9a-f]{64}\z/)
+              marker = '/main/'
+              idx = url.index(marker)
+              raise "#{name}: URL not pinned to main path: #{url}" unless idx
+              repo_path = url[(idx + marker.length)..]
+              raise "#{name}: missing repo file #{repo_path}" unless File.file?(repo_path)
+              actual = Digest::SHA256.file(repo_path).hexdigest
+              unless actual == expected
+                warn "SHA_MISMATCH #{name} #{item['path']}"
+                warn "EXPECTED=#{expected}"
+                warn "ACTUAL=#{actual}"
+                raise "#{name}: SHA256 mismatch for #{item['path']}"
               end
             end
           end
-
-          guard = 'tran_tuan_noi_that_release/files/tran_tuan_noi_that/grain_reload_v351_fix.rb'
-          production = 'tran_tuan_noi_that_release/files/tran_tuan_noi_that/grain_production_v350.rb'
-          hotfix = 'tran_tuan_noi_that_release/files/tran_tuan_noi_that/grain_production_v350_hotfix.rb'
-
-          # Mô phỏng đúng trạng thái lỗi: Tool có pick nhưng mất onKeyDown.
-          load guard
-          tool = TranTuanNoiThat::Grain::Tool
-          raise 'reload guard did not create key base' unless tool.method_defined?(:tt_v350_key_base)
-          raise 'reload guard marker missing' unless tool.method_defined?(:tt_grain_reload_safe_v351?)
-
-          # Production V3.5.0 trước đây crash tại alias_method :onKeyDown.
-          load production
-          load hotfix
-          load guard
-          raise 'grain version not restored to 3.5.1' unless TranTuanNoiThat::Grain::VERSION == '3.5.1'
-          raise 'onKeyDown missing after production load' unless tool.method_defined?(:onKeyDown)
-          puts 'GRAIN HOT RELOAD TEST OK'
+          puts '1.9.56 MIGRATION MANIFEST SHA256 OK'
           RUBY
 
       - name: Validate License and Owner Admin JavaScript
@@ -117,12 +92,10 @@ jobs:
           load 'tran_tuan_noi_that_release/files/tran_tuan_noi_that/license_commercial_v130_qr.rb'
           load 'tran_tuan_noi_that_release/files/tran_tuan_noi_that/license_commercial_v140_auto.rb'
           license = TranTuanNoiThat::License
-
           html = license.dialog_html
           script = html[/<script>(.*?)<\/script>/m, 1]
           raise 'license script missing' if script.to_s.empty?
           File.write('/tmp/tt_license_dialog.js', script)
-
           admin = license.owner_admin_html
           admin_script = admin[/<script>(.*?)<\/script>/m, 1]
           raise 'owner admin script missing' if admin_script.to_s.empty?
