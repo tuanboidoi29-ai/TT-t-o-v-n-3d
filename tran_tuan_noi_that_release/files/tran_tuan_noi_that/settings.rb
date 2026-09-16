@@ -19,9 +19,10 @@ module TranTuanNoiThat
   tt_runtime_load.call('grain_production_v350_hotfix')
   tt_runtime_load.call('grain_reload_v351_fix')
 
-  # License 2.0.1: một mã RSA theo MÃ MÁY mở toàn bộ hệ thống.
+  # License 2.0.2: RSA theo MÃ MÁY + cảnh báo không modal, đóng được bằng X/ESC.
   tt_runtime_load.call('license_rsa_offline_v200')
   tt_runtime_load.call('license_rsa_offline_v201_patch')
+  tt_runtime_load.call('license_rsa_offline_v202_patch')
 
   # Layout load order giữ nguyên.
   tt_runtime_load.call('layout_stats_v040_compat')
@@ -34,7 +35,7 @@ module TranTuanNoiThat
   tt_runtime_load.call('layout_stats_v081_cut_offset_fix')
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.59'.freeze
+  VERSION = '1.9.60'.freeze
 
   module Settings
     extend self
