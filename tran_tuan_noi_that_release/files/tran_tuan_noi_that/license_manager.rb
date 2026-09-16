@@ -9,10 +9,10 @@ module TranTuanNoiThat
   module License
     extend self
 
-    VERSION = '1.0.0'.freeze
+    VERSION = '1.0.1'.freeze
     ENDPOINT = 'https://vnvkmxqgbnmirsgdgfzm.supabase.co/functions/v1/tt-license-check'.freeze
-    CACHE_KEY = 'license_cache_v1'.freeze
-    CACHE_TIME_KEY = 'license_cache_time_v1'.freeze
+    CACHE_KEY = 'license_cache_v2'.freeze
+    CACHE_TIME_KEY = 'license_cache_time_v2'.freeze
     MACHINE_KEY = 'license_machine_code_v1'.freeze
     DEFAULT_GRACE_HOURS = 72
 
@@ -52,9 +52,30 @@ module TranTuanNoiThat
       ''
     end
 
+    def normalize_payload(payload)
+      data = payload.is_a?(Hash) ? payload.dup : {}
+      features = data['features'].is_a?(Hash) ? data['features'].dup : {}
+
+      if features.empty? && data['feature_list'].is_a?(Array)
+        data['feature_list'].each do |item|
+          next unless item.is_a?(Hash)
+          slug = item['slug'].to_s
+          next if slug.empty?
+          features[slug] = item
+        end
+      end
+
+      data['features'] = features
+      data['feature_count'] = features.length if data['feature_count'].to_i <= 0 && !features.empty?
+      data
+    rescue StandardError
+      payload.is_a?(Hash) ? payload : {}
+    end
+
     def cache
       raw = TranTuanNoiThat.setting(CACHE_KEY, '').to_s
-      raw.empty? ? {} : JSON.parse(raw)
+      return {} if raw.empty?
+      normalize_payload(JSON.parse(raw))
     rescue StandardError
       {}
     end
@@ -66,6 +87,7 @@ module TranTuanNoiThat
     end
 
     def save_cache(payload)
+      payload = normalize_payload(payload)
       TranTuanNoiThat.save_setting(CACHE_KEY, JSON.generate(payload))
       TranTuanNoiThat.save_setting(CACHE_TIME_KEY, Time.now.to_i)
       payload
@@ -87,6 +109,7 @@ module TranTuanNoiThat
 
     def feature_info(feature, payload = cache)
       key = feature.to_s
+      payload = normalize_payload(payload)
       features = payload['features'].is_a?(Hash) ? payload['features'] : {}
       features[key].is_a?(Hash) ? features[key] : {}
     end
@@ -95,8 +118,7 @@ module TranTuanNoiThat
       payload = cache
       return true unless enforcement?(payload)
       return false if stale?(payload)
-      info = feature_info(feature, payload)
-      info['allowed'] == true
+      feature_info(feature, payload)['allowed'] == true
     rescue StandardError
       false
     end
@@ -105,16 +127,13 @@ module TranTuanNoiThat
       feature = feature.to_sym
       payload = cache
 
-      # Giai đoạn dựng hệ thống: server chưa bật commercial_enforcement nên không khóa máy phát triển.
       unless enforcement?(payload)
         background_sync if stale?(payload) || payload.empty?
         return true
       end
 
       info = feature_info(feature, payload)
-      if !stale?(payload) && info['allowed'] == true
-        return true
-      end
+      return true if !stale?(payload) && info['allowed'] == true
 
       fresh = sync_now(feature)
       return true if fresh && feature_info(feature, fresh)['allowed'] == true
@@ -130,7 +149,7 @@ module TranTuanNoiThat
     def sync_now(feature = nil)
       payload = request_status(feature)
       return nil unless payload.is_a?(Hash) && payload['ok'] == true
-      save_cache(payload)
+      payload = save_cache(payload)
       refresh_dialog
       payload
     rescue StandardError => error
@@ -138,7 +157,6 @@ module TranTuanNoiThat
       nil
     end
 
-    # Chỉ Net::HTTP chạy ở Thread. Mọi SketchUp/UI API đều xử lý ở timer trên main thread.
     def background_sync
       return true if @syncing
       @syncing = true
@@ -183,10 +201,13 @@ module TranTuanNoiThat
       uri = URI.parse(ENDPOINT)
       http = Net::HTTP.new(uri.host, uri.port)
       http.use_ssl = true
-      http.open_timeout = 3
-      http.read_timeout = 4
+      http.open_timeout = 4
+      http.read_timeout = 6
       req = Net::HTTP::Post.new(uri.request_uri)
       req['Content-Type'] = 'application/json'
+      req['Cache-Control'] = 'no-cache, no-store'
+      req['Pragma'] = 'no-cache'
+      req['X-TT-Request'] = "#{Time.now.to_i}-#{rand(1_000_000)}"
       req.body = JSON.generate({
         machine_code: code,
         plugin_version: version,
@@ -194,28 +215,32 @@ module TranTuanNoiThat
       })
       response = http.request(req)
       return nil unless response.is_a?(Net::HTTPSuccess)
-      JSON.parse(response.body.to_s)
+      normalize_payload(JSON.parse(response.body.to_s))
     end
 
     def show_dialog(feature = nil)
       @requested_feature = feature && feature.to_sym
       if @dialog && @dialog.visible?
         refresh_dialog
+        background_sync if cache.empty? || stale?
         @dialog.bring_to_front
         return
       end
 
       @dialog = UI::HtmlDialog.new(
         dialog_title: 'TRẦN TUẤN - BẢN QUYỀN',
-        preferences_key: 'TranTuanNoiThat.License',
+        preferences_key: 'TranTuanNoiThat.LicenseV2',
         scrollable: true,
         resizable: true,
-        width: 560,
-        height: 650,
+        width: 580,
+        height: 700,
         style: UI::HtmlDialog::STYLE_DIALOG
       )
       @dialog.set_html(dialog_html)
-      @dialog.add_action_callback('ready') { |_ctx| refresh_dialog }
+      @dialog.add_action_callback('ready') do |_ctx|
+        refresh_dialog
+        background_sync if cache.empty? || stale?
+      end
       @dialog.add_action_callback('check') do |_ctx|
         payload = sync_now(@requested_feature)
         UI.beep unless payload
@@ -225,22 +250,28 @@ module TranTuanNoiThat
 
     def refresh_dialog
       return unless @dialog && @dialog.visible?
-      payload = cache
+      payload = normalize_payload(cache)
       feature = @requested_feature
       info = feature ? feature_info(feature, payload) : {}
+      features = payload['features'].is_a?(Hash) ? payload['features'] : {}
       data = {
         machine_code: machine_code,
         version: VERSION,
         plugin_version: TranTuanNoiThat.current_version,
+        api_version: payload['api_version'],
         enforcement: enforcement?(payload),
         machine_status: payload['machine_status'] || 'chưa đồng bộ',
+        machine_role: payload['machine_role'] || 'customer',
+        owner: payload['owner'] == true,
+        feature_count: payload['feature_count'].to_i > 0 ? payload['feature_count'].to_i : features.length,
         requested_feature: feature && feature.to_s,
         requested_name: feature ? (FEATURE_NAMES[feature] || feature.to_s) : '',
         requested_allowed: info['allowed'] == true,
         requested_purchased: info['purchased'] == true,
         requested_price: info['price_vnd'],
-        features: payload['features'] || {},
-        synced_at: cache_time > 0 ? Time.at(cache_time).strftime('%d/%m/%Y %H:%M') : 'chưa có'
+        features: features,
+        feature_list: payload['feature_list'].is_a?(Array) ? payload['feature_list'] : [],
+        synced_at: cache_time > 0 ? Time.at(cache_time).strftime('%d/%m/%Y %H:%M:%S') : 'chưa có'
       }
       @dialog.execute_script("window.renderLicense(#{JSON.generate(data)})")
     rescue StandardError => error
@@ -250,24 +281,40 @@ module TranTuanNoiThat
     def dialog_html
       <<~HTML
         <!doctype html><html lang="vi"><head><meta charset="utf-8"><style>
-        *{box-sizing:border-box}body{margin:0;background:#111827;color:#e5e7eb;font:14px Arial}.head{padding:18px 22px;background:linear-gradient(135deg,#f97316,#c2410c)}h1{margin:0;font-size:21px}.sub{margin-top:5px;font-size:12px;opacity:.9}.body{padding:18px}.box{background:#1f2937;border:1px solid #374151;border-radius:12px;padding:14px;margin-bottom:12px}.label{font-size:11px;color:#9ca3af;margin-bottom:5px}.code{font:700 21px Consolas,monospace;letter-spacing:1px;color:#fb923c}.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}button{border:0;border-radius:8px;padding:10px 13px;font-weight:700;cursor:pointer}.orange{background:#f97316;color:#fff}.dark{background:#374151;color:#fff}.ok{color:#34d399;font-weight:700}.bad{color:#f87171;font-weight:700}.muted{color:#9ca3af}.feature{display:flex;justify-content:space-between;gap:8px;padding:9px 0;border-bottom:1px solid #374151}.feature:last-child{border-bottom:0}.price{color:#fbbf24}.note{font-size:12px;color:#9ca3af;line-height:1.5}</style></head><body>
+        *{box-sizing:border-box}body{margin:0;background:#111827;color:#e5e7eb;font:14px Arial}.head{padding:18px 22px;background:linear-gradient(135deg,#f97316,#c2410c)}h1{margin:0;font-size:21px}.sub{margin-top:5px;font-size:12px;opacity:.9}.body{padding:18px}.box{background:#1f2937;border:1px solid #374151;border-radius:12px;padding:14px;margin-bottom:12px}.label{font-size:11px;color:#9ca3af;margin-bottom:5px}.code{font:700 21px Consolas,monospace;letter-spacing:1px;color:#fb923c}.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}button{border:0;border-radius:8px;padding:10px 13px;font-weight:700;cursor:pointer}.orange{background:#f97316;color:#fff}.dark{background:#374151;color:#fff}.ok{color:#34d399;font-weight:700}.bad{color:#f87171;font-weight:700}.muted{color:#9ca3af}.owner{display:inline-block;background:#065f46;color:#d1fae5;border:1px solid #10b981;border-radius:999px;padding:4px 9px;font-weight:700;margin-left:7px}.feature{display:flex;justify-content:space-between;gap:8px;padding:9px 0;border-bottom:1px solid #374151}.feature:last-child{border-bottom:0}.price{color:#fbbf24}.note{font-size:12px;color:#9ca3af;line-height:1.5}.empty{padding:12px 0;color:#fbbf24}</style></head><body>
         <div class="head"><h1>TRẦN TUẤN · KÍCH HOẠT BẢN QUYỀN</h1><div class="sub">Chỉ sử dụng MÃ MÁY · không cần tài khoản/mật khẩu</div></div>
         <div class="body">
-          <div class="box"><div class="label">MÃ MÁY</div><div id="machine" class="code">-</div><div class="row"><button class="dark" onclick="copyCode(this)">SAO CHÉP MÃ</button><button class="orange" onclick="sketchup.check()">KIỂM TRA KÍCH HOẠT</button></div></div>
-          <div id="requested" class="box" style="display:none"></div>
-          <div class="box"><div><b>Trạng thái máy:</b> <span id="status">-</span></div><div style="margin-top:6px"><b>Đồng bộ:</b> <span id="sync">-</span></div><div style="margin-top:6px"><b>Chế độ thương mại:</b> <span id="enforce">-</span></div></div>
-          <div class="box"><b>QUYỀN CHỨC NĂNG</b><div id="features" style="margin-top:8px"></div></div>
+          <div class="box"><div class="label">MÃ MÁY</div><div id="machineCode" class="code">-</div><div class="row"><button class="dark" onclick="copyCode(this)">SAO CHÉP MÃ</button><button class="orange" onclick="sketchup.check()">KIỂM TRA KÍCH HOẠT</button></div></div>
+          <div id="requestedBox" class="box" style="display:none"></div>
+          <div class="box"><div><b>Trạng thái máy:</b> <span id="machineStatus">-</span><span id="ownerBadge"></span></div><div style="margin-top:6px"><b>Đồng bộ:</b> <span id="syncTime">-</span></div><div style="margin-top:6px"><b>Quyền:</b> <span id="rightsCount">0/0</span></div><div style="margin-top:6px"><b>Chế độ thương mại:</b> <span id="commercialMode">-</span></div></div>
+          <div class="box"><b>QUYỀN CHỨC NĂNG</b><div id="featureList" style="margin-top:8px"></div></div>
           <div class="note">Khi chức năng chưa được mua, hãy gửi Mã máy cho TRẦN TUẤN để thanh toán/kích hoạt. Sau khi được cấp quyền, bấm KIỂM TRA KÍCH HOẠT và dùng ngay, không cần cài lại RBZ.</div>
         </div>
         <script>
+        const el=id=>document.getElementById(id);
         const money=v=>v==null?'Liên hệ':Number(v).toLocaleString('vi-VN')+' đ';
-        function copyCode(btn){const t=document.createElement('textarea');t.value=document.getElementById('machine').textContent;t.style.position='fixed';t.style.opacity='0';document.body.appendChild(t);t.select();try{document.execCommand('copy');btn.textContent='ĐÃ SAO CHÉP';setTimeout(()=>btn.textContent='SAO CHÉP MÃ',1200);}catch(e){}document.body.removeChild(t);}
+        function copyCode(btn){const t=document.createElement('textarea');t.value=el('machineCode').textContent;t.style.position='fixed';t.style.opacity='0';document.body.appendChild(t);t.select();try{document.execCommand('copy');btn.textContent='ĐÃ SAO CHÉP';setTimeout(()=>btn.textContent='SAO CHÉP MÃ',1200);}catch(e){}document.body.removeChild(t);}
+        function statusText(v){if(v==='active')return 'ACTIVE · ĐÃ KÍCH HOẠT';if(v==='pending')return 'CHỜ KÍCH HOẠT';if(v==='blocked')return 'ĐÃ KHÓA';return String(v||'CHƯA ĐỒNG BỘ').toUpperCase();}
         window.renderLicense=d=>{
-          machine.textContent=d.machine_code||'-'; status.textContent=d.machine_status||'-'; sync.textContent=d.synced_at||'-';
-          enforce.textContent=d.enforcement?'ĐANG BẬT':'CHƯA BẬT'; enforce.className=d.enforcement?'ok':'muted';
-          const r=document.getElementById('requested');
+          el('machineCode').textContent=d.machine_code||'-';
+          el('machineStatus').textContent=statusText(d.machine_status);
+          el('machineStatus').className=d.machine_status==='active'?'ok':(d.machine_status==='blocked'?'bad':'muted');
+          el('syncTime').textContent=d.synced_at||'-';
+          el('commercialMode').textContent=d.enforcement?'ĐANG BẬT':'CHƯA BẬT';
+          el('commercialMode').className=d.enforcement?'ok':'muted';
+          el('ownerBadge').innerHTML=d.owner?'<span class="owner">OWNER</span>':'';
+
+          const r=el('requestedBox');
           if(d.requested_feature){r.style.display='block';r.innerHTML='<b>'+d.requested_name+'</b><div style="margin-top:7px" class="'+(d.requested_allowed?'ok':'bad')+'">'+(d.requested_allowed?'ĐÃ KÍCH HOẠT':'CHƯA ĐƯỢC KÍCH HOẠT')+'</div><div class="price" style="margin-top:5px">Giá: '+money(d.requested_price)+'</div>';}else{r.style.display='none';}
-          const f=document.getElementById('features');f.innerHTML='';Object.keys(d.features||{}).forEach(k=>{const x=d.features[k]||{};const e=document.createElement('div');e.className='feature';e.innerHTML='<span>'+String(x.name||k)+'</span><span class="'+(x.allowed?'ok':'bad')+'">'+(x.allowed?'ĐÃ MỞ':'KHÓA')+' · '+money(x.price_vnd)+'</span>';f.appendChild(e);});
+
+          let items=[];
+          if(d.features&&typeof d.features==='object'&&!Array.isArray(d.features)){items=Object.keys(d.features).map(k=>Object.assign({slug:k},d.features[k]||{}));}
+          if(items.length===0&&Array.isArray(d.feature_list)){items=d.feature_list;}
+          const f=el('featureList');f.innerHTML='';
+          if(items.length===0){f.innerHTML='<div class="empty">Chưa tải được danh sách quyền. Hãy bấm KIỂM TRA KÍCH HOẠT.</div>';}
+          let opened=0;
+          items.forEach(x=>{if(x.allowed)opened++;const e=document.createElement('div');e.className='feature';e.innerHTML='<span>'+String(x.name||x.slug||'Chức năng')+'</span><span class="'+(x.allowed?'ok':'bad')+'">'+(x.allowed?'ĐÃ MỞ':'KHÓA')+(d.owner?'':' · '+money(x.price_vnd))+'</span>';f.appendChild(e);});
+          el('rightsCount').textContent=opened+'/'+items.length;
         };
         document.addEventListener('DOMContentLoaded',()=>sketchup.ready());
         </script></body></html>
