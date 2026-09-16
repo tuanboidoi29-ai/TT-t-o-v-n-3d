@@ -4,15 +4,14 @@ require 'net/http'
 require 'uri'
 require 'digest'
 require 'open3'
+require 'fileutils'
 
 module TranTuanNoiThat
   module License
     extend self
 
-    VERSION = '1.0.1'.freeze
+    VERSION = '1.0.2'.freeze
     ENDPOINT = 'https://vnvkmxqgbnmirsgdgfzm.supabase.co/functions/v1/tt-license-check'.freeze
-    CACHE_KEY = 'license_cache_v2'.freeze
-    CACHE_TIME_KEY = 'license_cache_time_v2'.freeze
     MACHINE_KEY = 'license_machine_code_v1'.freeze
     DEFAULT_GRACE_HOURS = 72
 
@@ -34,7 +33,7 @@ module TranTuanNoiThat
       raw = windows_machine_guid
       raw = [ENV['COMPUTERNAME'], ENV['USERNAME'], RUBY_PLATFORM].compact.join('|') if raw.to_s.empty?
       digest = Digest::SHA256.hexdigest("TRANTUAN|#{raw}").upcase
-      code = "TT-#{digest[0,4]}-#{digest[4,4]}-#{digest[8,4]}"
+      code = "TT-#{digest[0, 4]}-#{digest[4, 4]}-#{digest[8, 4]}"
       TranTuanNoiThat.save_setting(MACHINE_KEY, code)
       code
     rescue StandardError
@@ -46,10 +45,22 @@ module TranTuanNoiThat
       stdout, = Open3.capture3('reg query "HKLM\\SOFTWARE\\Microsoft\\Cryptography" /v MachineGuid')
       line = stdout.to_s.lines.find { |item| item =~ /MachineGuid/i }
       return '' unless line
-      parts = line.strip.split(/\s+/)
-      parts.last.to_s.strip
+      line.strip.split(/\s+/).last.to_s.strip
     rescue StandardError
       ''
+    end
+
+    # Không lưu payload quyền dài trong SketchUp Preferences/Registry.
+    # Dùng file JSON riêng trong AppData để tránh cache_time có nhưng JSON bị rỗng/truncated.
+    def cache_dir
+      base = ENV['APPDATA'].to_s
+      base = ENV['LOCALAPPDATA'].to_s if base.empty?
+      base = Dir.home.to_s if base.empty?
+      File.join(base, 'TranTuanNoiThat', 'license')
+    end
+
+    def cache_file
+      File.join(cache_dir, 'license_cache_v3.json')
     end
 
     def normalize_payload(payload)
@@ -73,32 +84,58 @@ module TranTuanNoiThat
     end
 
     def cache
-      raw = TranTuanNoiThat.setting(CACHE_KEY, '').to_s
-      return {} if raw.empty?
-      normalize_payload(JSON.parse(raw))
-    rescue StandardError
+      return @memory_cache if @memory_cache.is_a?(Hash) && !@memory_cache.empty?
+      return {} unless File.file?(cache_file)
+
+      wrapper = JSON.parse(File.read(cache_file, mode: 'r:BOM|UTF-8'))
+      payload = if wrapper.is_a?(Hash) && wrapper['payload'].is_a?(Hash)
+                  wrapper['payload']
+                else
+                  wrapper
+                end
+      @memory_cache = normalize_payload(payload)
+      @memory_cache_time = wrapper['saved_at'].to_i if wrapper.is_a?(Hash) && wrapper['saved_at']
+      @memory_cache
+    rescue StandardError => error
+      puts "[TT License cache read] #{error.class}: #{error.message}"
       {}
     end
 
     def cache_time
-      TranTuanNoiThat.setting(CACHE_TIME_KEY, 0).to_i
+      return @memory_cache_time.to_i if @memory_cache_time.to_i > 0
+      return 0 unless File.file?(cache_file)
+      wrapper = JSON.parse(File.read(cache_file, mode: 'r:BOM|UTF-8'))
+      @memory_cache_time = wrapper.is_a?(Hash) ? wrapper['saved_at'].to_i : File.mtime(cache_file).to_i
+      @memory_cache_time.to_i
     rescue StandardError
       0
     end
 
     def save_cache(payload)
       payload = normalize_payload(payload)
-      TranTuanNoiThat.save_setting(CACHE_KEY, JSON.generate(payload))
-      TranTuanNoiThat.save_setting(CACHE_TIME_KEY, Time.now.to_i)
+      now = Time.now.to_i
+
+      # RAM là nguồn dữ liệu tức thời cho UI sau khi server trả về.
+      @memory_cache = payload
+      @memory_cache_time = now
+
+      FileUtils.mkdir_p(cache_dir)
+      wrapper = { 'saved_at' => now, 'payload' => payload }
+      tmp = "#{cache_file}.tmp"
+      File.open(tmp, 'wb') { |file| file.write(JSON.generate(wrapper)) }
+      FileUtils.mv(tmp, cache_file, force: true)
       payload
-    rescue StandardError
+    rescue StandardError => error
+      puts "[TT License cache write] #{error.class}: #{error.message}"
+      # Dù ghi file lỗi, vẫn giữ payload RAM để phiên hiện tại hoạt động đúng.
+      @memory_cache = payload if payload.is_a?(Hash)
       payload
     end
 
     def stale?(payload = cache)
       grace = payload['offline_grace_hours'].to_i
       grace = DEFAULT_GRACE_HOURS if grace <= 0
-      Time.now.to_i - cache_time > grace * 3600
+      cache_time <= 0 || Time.now.to_i - cache_time > grace * 3600
     rescue StandardError
       true
     end
@@ -108,10 +145,10 @@ module TranTuanNoiThat
     end
 
     def feature_info(feature, payload = cache)
-      key = feature.to_s
       payload = normalize_payload(payload)
       features = payload['features'].is_a?(Hash) ? payload['features'] : {}
-      features[key].is_a?(Hash) ? features[key] : {}
+      info = features[feature.to_s]
+      info.is_a?(Hash) ? info : {}
     end
 
     def cached_allowed?(feature)
@@ -127,13 +164,13 @@ module TranTuanNoiThat
       feature = feature.to_sym
       payload = cache
 
+      # Chưa bật thương mại: không khóa tool, nhưng vẫn đồng bộ nền.
       unless enforcement?(payload)
         background_sync if stale?(payload) || payload.empty?
         return true
       end
 
-      info = feature_info(feature, payload)
-      return true if !stale?(payload) && info['allowed'] == true
+      return true if !stale?(payload) && feature_info(feature, payload)['allowed'] == true
 
       fresh = sync_now(feature)
       return true if fresh && feature_info(feature, fresh)['allowed'] == true
@@ -141,19 +178,29 @@ module TranTuanNoiThat
       show_dialog(feature) if interactive
       false
     rescue StandardError => error
-      puts "[TT License] #{error.class}: #{error.message}"
+      @last_error = "#{error.class}: #{error.message}"
+      puts "[TT License] #{@last_error}"
       show_dialog(feature) if interactive
       false
     end
 
     def sync_now(feature = nil)
+      @last_error = nil
       payload = request_status(feature)
-      return nil unless payload.is_a?(Hash) && payload['ok'] == true
+      unless payload.is_a?(Hash) && payload['ok'] == true
+        @last_error = 'Server không trả dữ liệu bản quyền hợp lệ.'
+        refresh_dialog(payload)
+        return nil
+      end
+
       payload = save_cache(payload)
-      refresh_dialog
+      # Quan trọng: render trực tiếp payload vừa nhận, không đọc vòng lại Preferences/cache.
+      refresh_dialog(payload)
       payload
     rescue StandardError => error
-      puts "[TT License sync] #{error.class}: #{error.message}"
+      @last_error = "#{error.class}: #{error.message}"
+      puts "[TT License sync] #{@last_error}"
+      refresh_dialog
       nil
     end
 
@@ -182,14 +229,22 @@ module TranTuanNoiThat
         @pending_sync_payload = nil
         @pending_sync_error = nil
         @syncing = false
-        save_cache(payload) if payload.is_a?(Hash) && payload['ok'] == true
-        puts "[TT License background] #{error.class}: #{error.message}" if error
-        refresh_dialog
+
+        if payload.is_a?(Hash) && payload['ok'] == true
+          @last_error = nil
+          payload = save_cache(payload)
+          refresh_dialog(payload)
+        else
+          @last_error = error ? "#{error.class}: #{error.message}" : 'Không nhận được dữ liệu từ máy chủ bản quyền.'
+          puts "[TT License background] #{@last_error}"
+          refresh_dialog
+        end
       end
       true
     rescue StandardError => error
       @syncing = false
-      puts "[TT License background start] #{error.class}: #{error.message}"
+      @last_error = "#{error.class}: #{error.message}"
+      puts "[TT License background start] #{@last_error}"
       false
     end
 
@@ -201,10 +256,12 @@ module TranTuanNoiThat
       uri = URI.parse(ENDPOINT)
       http = Net::HTTP.new(uri.host, uri.port)
       http.use_ssl = true
-      http.open_timeout = 4
-      http.read_timeout = 6
+      http.open_timeout = 5
+      http.read_timeout = 8
+
       req = Net::HTTP::Post.new(uri.request_uri)
       req['Content-Type'] = 'application/json'
+      req['Accept'] = 'application/json'
       req['Cache-Control'] = 'no-cache, no-store'
       req['Pragma'] = 'no-cache'
       req['X-TT-Request'] = "#{Time.now.to_i}-#{rand(1_000_000)}"
@@ -213,9 +270,17 @@ module TranTuanNoiThat
         plugin_version: version,
         feature: feature && feature.to_s
       })
+
       response = http.request(req)
-      return nil unless response.is_a?(Net::HTTPSuccess)
-      normalize_payload(JSON.parse(response.body.to_s))
+      body = response.body.to_s
+      unless response.is_a?(Net::HTTPSuccess)
+        raise "HTTP #{response.code}: #{body[0, 180]}"
+      end
+
+      parsed = JSON.parse(body)
+      normalized = normalize_payload(parsed)
+      raise 'JSON server thiếu trường ok=true.' unless normalized['ok'] == true
+      normalized
     end
 
     def show_dialog(feature = nil)
@@ -229,11 +294,11 @@ module TranTuanNoiThat
 
       @dialog = UI::HtmlDialog.new(
         dialog_title: 'TRẦN TUẤN - BẢN QUYỀN',
-        preferences_key: 'TranTuanNoiThat.LicenseV2',
+        preferences_key: 'TranTuanNoiThat.LicenseV3',
         scrollable: true,
         resizable: true,
-        width: 580,
-        height: 700,
+        width: 600,
+        height: 740,
         style: UI::HtmlDialog::STYLE_DIALOG
       )
       @dialog.set_html(dialog_html)
@@ -248,12 +313,17 @@ module TranTuanNoiThat
       @dialog.show
     end
 
-    def refresh_dialog
+    def refresh_dialog(payload_override = nil)
       return unless @dialog && @dialog.visible?
-      payload = normalize_payload(cache)
+
+      payload = normalize_payload(payload_override || cache)
       feature = @requested_feature
       info = feature ? feature_info(feature, payload) : {}
       features = payload['features'].is_a?(Hash) ? payload['features'] : {}
+      allowed_count = features.values.count { |item| item.is_a?(Hash) && item['allowed'] == true }
+      total_count = payload['feature_count'].to_i
+      total_count = features.length if total_count <= 0
+
       data = {
         machine_code: machine_code,
         version: VERSION,
@@ -263,7 +333,8 @@ module TranTuanNoiThat
         machine_status: payload['machine_status'] || 'chưa đồng bộ',
         machine_role: payload['machine_role'] || 'customer',
         owner: payload['owner'] == true,
-        feature_count: payload['feature_count'].to_i > 0 ? payload['feature_count'].to_i : features.length,
+        feature_count: total_count,
+        allowed_count: allowed_count,
         requested_feature: feature && feature.to_s,
         requested_name: feature ? (FEATURE_NAMES[feature] || feature.to_s) : '',
         requested_allowed: info['allowed'] == true,
@@ -271,8 +342,10 @@ module TranTuanNoiThat
         requested_price: info['price_vnd'],
         features: features,
         feature_list: payload['feature_list'].is_a?(Array) ? payload['feature_list'] : [],
-        synced_at: cache_time > 0 ? Time.at(cache_time).strftime('%d/%m/%Y %H:%M:%S') : 'chưa có'
+        synced_at: cache_time > 0 ? Time.at(cache_time).strftime('%d/%m/%Y %H:%M:%S') : 'chưa có',
+        error: @last_error.to_s
       }
+
       @dialog.execute_script("window.renderLicense(#{JSON.generate(data)})")
     rescue StandardError => error
       puts "[TT License UI] #{error.class}: #{error.message}"
@@ -280,10 +353,12 @@ module TranTuanNoiThat
 
     def dialog_html
       <<~HTML
-        <!doctype html><html lang="vi"><head><meta charset="utf-8"><style>
-        *{box-sizing:border-box}body{margin:0;background:#111827;color:#e5e7eb;font:14px Arial}.head{padding:18px 22px;background:linear-gradient(135deg,#f97316,#c2410c)}h1{margin:0;font-size:21px}.sub{margin-top:5px;font-size:12px;opacity:.9}.body{padding:18px}.box{background:#1f2937;border:1px solid #374151;border-radius:12px;padding:14px;margin-bottom:12px}.label{font-size:11px;color:#9ca3af;margin-bottom:5px}.code{font:700 21px Consolas,monospace;letter-spacing:1px;color:#fb923c}.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}button{border:0;border-radius:8px;padding:10px 13px;font-weight:700;cursor:pointer}.orange{background:#f97316;color:#fff}.dark{background:#374151;color:#fff}.ok{color:#34d399;font-weight:700}.bad{color:#f87171;font-weight:700}.muted{color:#9ca3af}.owner{display:inline-block;background:#065f46;color:#d1fae5;border:1px solid #10b981;border-radius:999px;padding:4px 9px;font-weight:700;margin-left:7px}.feature{display:flex;justify-content:space-between;gap:8px;padding:9px 0;border-bottom:1px solid #374151}.feature:last-child{border-bottom:0}.price{color:#fbbf24}.note{font-size:12px;color:#9ca3af;line-height:1.5}.empty{padding:12px 0;color:#fbbf24}</style></head><body>
+        <!doctype html>
+        <html lang="vi"><head><meta charset="utf-8"><style>
+        *{box-sizing:border-box}body{margin:0;background:#111827;color:#e5e7eb;font:14px Arial}.head{padding:18px 22px;background:linear-gradient(135deg,#f97316,#c2410c)}h1{margin:0;font-size:21px}.sub{margin-top:5px;font-size:12px;opacity:.9}.body{padding:18px}.box{background:#1f2937;border:1px solid #374151;border-radius:12px;padding:14px;margin-bottom:12px}.label{font-size:11px;color:#9ca3af;margin-bottom:5px}.code{font:700 21px Consolas,monospace;letter-spacing:1px;color:#fb923c}.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}button{border:0;border-radius:8px;padding:10px 13px;font-weight:700;cursor:pointer}.orange{background:#f97316;color:#fff}.dark{background:#374151;color:#fff}.ok{color:#34d399;font-weight:700}.bad{color:#f87171;font-weight:700}.muted{color:#9ca3af}.owner{display:inline-block;background:#065f46;color:#d1fae5;border:1px solid #10b981;border-radius:999px;padding:4px 9px;font-weight:700;margin-left:7px}.feature{display:flex;justify-content:space-between;gap:8px;padding:9px 0;border-bottom:1px solid #374151}.feature:last-child{border-bottom:0}.price{color:#fbbf24}.note{font-size:12px;color:#9ca3af;line-height:1.5}.empty{padding:12px 0;color:#fbbf24}.error{display:none;background:#450a0a;border:1px solid #ef4444;color:#fecaca;border-radius:9px;padding:10px;margin-bottom:12px;white-space:pre-wrap}</style></head><body>
         <div class="head"><h1>TRẦN TUẤN · KÍCH HOẠT BẢN QUYỀN</h1><div class="sub">Chỉ sử dụng MÃ MÁY · không cần tài khoản/mật khẩu</div></div>
         <div class="body">
+          <div id="errorBox" class="error"></div>
           <div class="box"><div class="label">MÃ MÁY</div><div id="machineCode" class="code">-</div><div class="row"><button class="dark" onclick="copyCode(this)">SAO CHÉP MÃ</button><button class="orange" onclick="sketchup.check()">KIỂM TRA KÍCH HOẠT</button></div></div>
           <div id="requestedBox" class="box" style="display:none"></div>
           <div class="box"><div><b>Trạng thái máy:</b> <span id="machineStatus">-</span><span id="ownerBadge"></span></div><div style="margin-top:6px"><b>Đồng bộ:</b> <span id="syncTime">-</span></div><div style="margin-top:6px"><b>Quyền:</b> <span id="rightsCount">0/0</span></div><div style="margin-top:6px"><b>Chế độ thương mại:</b> <span id="commercialMode">-</span></div></div>
@@ -303,6 +378,10 @@ module TranTuanNoiThat
           el('commercialMode').textContent=d.enforcement?'ĐANG BẬT':'CHƯA BẬT';
           el('commercialMode').className=d.enforcement?'ok':'muted';
           el('ownerBadge').innerHTML=d.owner?'<span class="owner">OWNER</span>':'';
+          el('rightsCount').textContent=String(d.allowed_count||0)+'/'+String(d.feature_count||0);
+
+          const eb=el('errorBox');
+          if(d.error){eb.style.display='block';eb.textContent='Lỗi đồng bộ: '+d.error;}else{eb.style.display='none';eb.textContent='';}
 
           const r=el('requestedBox');
           if(d.requested_feature){r.style.display='block';r.innerHTML='<b>'+d.requested_name+'</b><div style="margin-top:7px" class="'+(d.requested_allowed?'ok':'bad')+'">'+(d.requested_allowed?'ĐÃ KÍCH HOẠT':'CHƯA ĐƯỢC KÍCH HOẠT')+'</div><div class="price" style="margin-top:5px">Giá: '+money(d.requested_price)+'</div>';}else{r.style.display='none';}
@@ -310,11 +389,9 @@ module TranTuanNoiThat
           let items=[];
           if(d.features&&typeof d.features==='object'&&!Array.isArray(d.features)){items=Object.keys(d.features).map(k=>Object.assign({slug:k},d.features[k]||{}));}
           if(items.length===0&&Array.isArray(d.feature_list)){items=d.feature_list;}
-          const f=el('featureList');f.innerHTML='';
-          if(items.length===0){f.innerHTML='<div class="empty">Chưa tải được danh sách quyền. Hãy bấm KIỂM TRA KÍCH HOẠT.</div>';}
-          let opened=0;
-          items.forEach(x=>{if(x.allowed)opened++;const e=document.createElement('div');e.className='feature';e.innerHTML='<span>'+String(x.name||x.slug||'Chức năng')+'</span><span class="'+(x.allowed?'ok':'bad')+'">'+(x.allowed?'ĐÃ MỞ':'KHÓA')+(d.owner?'':' · '+money(x.price_vnd))+'</span>';f.appendChild(e);});
-          el('rightsCount').textContent=opened+'/'+items.length;
+          const list=el('featureList');list.innerHTML='';
+          if(items.length===0){const x=document.createElement('div');x.className='empty';x.textContent=d.error?'Không tải được danh sách quyền. Xem lỗi phía trên.':'Chưa tải được danh sách quyền. Hãy bấm KIỂM TRA KÍCH HOẠT.';list.appendChild(x);return;}
+          items.forEach(x=>{const row=document.createElement('div');row.className='feature';row.innerHTML='<span>'+String(x.name||x.slug||'Chức năng')+'</span><span class="'+(x.allowed?'ok':'bad')+'">'+(x.allowed?'ĐÃ MỞ':'KHÓA')+(x.price_vnd==null?'':' · '+money(x.price_vnd))+'</span>';list.appendChild(row);});
         };
         document.addEventListener('DOMContentLoaded',()=>sketchup.ready());
         </script></body></html>
