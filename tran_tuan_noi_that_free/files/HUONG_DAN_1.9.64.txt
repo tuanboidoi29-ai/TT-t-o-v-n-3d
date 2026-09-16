@@ -1,0 +1,33 @@
+TRẦN TUẤN NỘI THẤT 1.9.64 — KHOANH VÙNG CO KÉO MỘT PHẦN
+Không bản quyền; cập nhật từ GitHub.
+
+CÁCH DÙNG
+1. Chọn tủ/Group/Component muốn sửa trước. Chưa chọn: công cụ xét các Group/Component hiện trong context đang mở.
+2. Bấm Co Giãn Khối MODE. Giữ chuột kéo khung chữ nhật quanh phần đầu/cạnh muốn sửa rồi thả.
+3. Điểm màu cam là điểm được chọn. VÙNG CHỌN XUYÊN CHIỀU SÂU, bao gồm cả điểm phía sau bị che trong khối hiện. Nên dùng góc nhìn mặt trước/bên phù hợp để khoanh rõ phần đầu tấm.
+4. Bấm một điểm gốc rồi di chuột chọn hướng kéo; X/Y/Z khóa trục, bấm lại để bỏ khóa.
+5. Click để xác nhận, hoặc nhập 100 để dịch 100 mm theo hướng chuột; -50 để dịch ngược hướng đó 50 mm. Nếu vừa khóa X/Y/Z và chưa kéo, chiều dương của trục được dùng.
+6. ESC hủy vùng trước khi chốt. Ctrl+Z hoàn tác toàn lượt đã chốt.
+Phần ngoài khung không được dịch; cấu trúc Group/Component được giữ. Các đường/mặt nối hai phần sẽ thay đổi theo vị trí đỉnh.
+Không phải scale toàn bộ vật thể. Không dùng cú pháp =kích-thước trong chế độ khoanh vùng.
+
+CHẾ ĐỘ CŨ
+TAB khi chưa khoanh vùng: về chế độ P1/P2/P3.
+Trong chế độ cũ, tại P1 bấm W để quay lại khoanh vùng.
+
+CẬP NHẬT
+Bản 1.9.62/1.9.63: Kiểm Tra Cập Nhật > Có, rồi gọi lại công cụ Co Giãn Khối MODE.
+Bản 1.9.61: cài RBZ qua Extension Manager và mở lại SketchUp một lần.
+
+GIỚI HẠN
+Chỉ Group/Component; không xử lý hình học rời ngoài group. Group khóa/ẩn được bỏ qua.
+Vùng được chốt khi thả chuột; xoay camera sau đó không chọn lại các điểm.
+Nếu đang mở Component cha dùng chung, thoát ra chọn từ ngoài để giữ các bản sao khác.
+Cạnh bị ép phẳng/đảo theo hướng dịch sẽ được chặn; đây không phải kiểm tra va chạm/toàn vẹn solid tổng quát.
+Vùng trên 100.000 đỉnh yêu cầu chọn phạm vi nhỏ hơn. Preview có giới hạn số điểm/cạnh để giảm tải.
+
+KIỂM THỬ
+116 kiểm tra logic Ruby với đối tượng mô phỏng API; 31 tệp Ruby đã kiểm tra cú pháp.
+Chưa chạy kernel hình học và viewport thật trên SketchUp 2022 Windows.
+API tham chiếu: https://ruby.sketchup.com/Sketchup/View.html#screen_coords-instance_method
+https://ruby.sketchup.com/Sketchup/Entities.html#transform_by_vectors-instance_method

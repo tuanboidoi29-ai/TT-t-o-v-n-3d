@@ -29,6 +29,7 @@ module Geom
     def initialize(m=nil);@m=m || Array.new(4){|i|Array.new(4){|j|i==j ? 1.0 : 0.0}};end
     def self.translation(v);t=new;3.times{|i|t.m[i][3]=v.to_a[i]};t;end
     def self.scale(x,y,z);t=new;[x,y,z].each_with_index{|v,i|t.m[i][i]=v};t;end
+    def to_a;m.transpose.flatten;end
     def apply(a,w);v=a+[w];3.times.map{|i|4.times.sum{|j|m[i][j]*v[j]}};end
     def *(o);self.class.new(Array.new(4){|i|Array.new(4){|j|4.times.sum{|k|m[i][k]*o.m[k][j]}}});end
     def inverse
@@ -143,6 +144,8 @@ class TestView
   attr_accessor :point,:dof,:tooltip
   def initialize;@dof=0;@picker=TestPicker.new;end
   def invalidate;end
+  def camera;Struct.new(:eye,:direction).new(Geom::Point3d.new(0,0,-1000),Geom::Vector3d.new(0,0,1));end
+  def screen_coords(p);Geom::Point3d.new(p.x*25.4,p.y*25.4,0);end
   def pick_helper;@picker;end
 end
 class TestModel

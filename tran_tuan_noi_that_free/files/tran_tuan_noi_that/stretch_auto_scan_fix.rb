@@ -71,6 +71,10 @@ module TranTuanNoiThat
       # TAB ở P1 đổi AUTO QUÉT / 3 ĐIỂM.
       # TAB ở P3 để engine cũ xử lý THÊM HƯỚNG.
       def onKeyDown(key, repeat, flags, view)
+        if key == 87 && @state == :p1 && defined?(WindowTool)
+          @model.select_tool(WindowTool.new)
+          return true
+        end
         if @state == :p2 && [88, 89, 90].include?(key)
           axis = [88, 89, 90].index(key)
           @forced_axis = @forced_axis == axis ? nil : axis

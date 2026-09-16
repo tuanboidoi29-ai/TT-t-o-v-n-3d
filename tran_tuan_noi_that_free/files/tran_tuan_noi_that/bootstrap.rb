@@ -11,7 +11,7 @@ module TranTuanNoiThat
   NAME = 'TRẦN TUẤN NỘI THẤT'.freeze unless const_defined?(:NAME, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.63'.freeze
+  VERSION = '1.9.64'.freeze
 
   class << self
     def setting(key, default = nil)
@@ -93,6 +93,7 @@ module TranTuanNoiThat
         stretch_detail_fix
         stretch_auto_scan_fix
         stretch_auto_scope_fix
+        stretch_window_tool
       ].each { |stem| raise "Không nạp được #{stem}" unless runtime_load(stem) }
       true
     rescue StandardError => error
