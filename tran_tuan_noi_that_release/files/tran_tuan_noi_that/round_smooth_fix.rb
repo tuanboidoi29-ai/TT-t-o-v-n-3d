@@ -1,21 +1,22 @@
 # encoding: UTF-8
-# TRẦN TUẤN - Bo Cong Khối V2.2.6
+# TRẦN TUẤN - Bo Cong Khối V2.2.7
 # FIX:
 # - Giữ HIỆN đúng 2 đường biên đầu tiên và cuối cùng của mỗi cung bo.
+# - Hai biên của cung MỚI được nhận bằng topology mặt thật, không phụ thuộc tọa độ.
 # - Chỉ làm mịn/ẩn các đường chia nằm GIỮA cung.
 # - Khi bo tiếp góc 2/3/4, các đường biên cung cũ đã đánh dấu vẫn được giữ hiện.
-# - Preview chỉ nhấn mạnh 2 đường biên đầu/cuối, không vẽ đường giữa gây nhầm.
+# - Nếu không xác định đủ 2 biên mới thì Abort để tránh tạo cung lỗi.
 
 module TranTuanNoiThat
   module Round
     remove_const(:VERSION) if const_defined?(:VERSION, false)
-    VERSION = '2.2.6'.freeze
+    VERSION = '2.2.7'.freeze
 
     BOUNDARY_DICT = 'TRẦN TUẤN BO CONG'.freeze unless const_defined?(:BOUNDARY_DICT, false)
     BOUNDARY_KEY  = 'duong_bien_cung'.freeze unless const_defined?(:BOUNDARY_KEY, false)
 
     class Tool
-      # Preview V2.2.6: hiện đúng 2 đường biên đầu/cuối của cung.
+      # Preview: hiện đúng 2 đường biên đầu/cuối của cung.
       def draw(view)
         return unless @candidate
 
@@ -97,12 +98,13 @@ module TranTuanNoiThat
             raise 'Hình học đã đổi sau preview. Hãy rê chuột bắt lại góc.'
           end
 
-          # Lưu vị trí các đường biên cung đã có từ lần bo trước.
+          # Cung cũ: giữ lại metadata/điểm biên trước khi dựng lại topology.
           old_boundary_specs = capture_boundary_specs(entities)
 
           profile = data[:profile]
           back = profile.map { |p| p.offset(data[:depth]) }
           range = data[:arc_range]
+          raise 'Không xác định được vùng cung bo.' unless range
 
           entities.erase_entities(entities.grep(Sketchup::Face) + entities.grep(Sketchup::Edge))
 
@@ -118,6 +120,7 @@ module TranTuanNoiThat
           rear.material = data[:rear_mat] if data[:rear_mat]
           rear.back_material = data[:rear_back_mat] if data[:rear_back_mat]
 
+          side_faces = Array.new(profile.length)
           curved_faces = []
           profile.length.times do |i|
             j = (i + 1) % profile.length
@@ -125,28 +128,40 @@ module TranTuanNoiThat
             raise "Không tạo được mặt hông #{i + 1}." unless side && side.valid?
             side.material = data[:side_mat] if data[:side_mat]
             side.back_material = data[:side_back_mat] if data[:side_back_mat]
-            curved_faces << side if range && i >= range.begin && i < range.end
+            side_faces[i] = side
+            curved_faces << side if i >= range.begin && i < range.end
           end
 
-          # Hai đường biên mới chính là cạnh xuyên chiều dày tại điểm đầu và cuối cung.
-          current_boundary_specs = []
-          if range
-            current_boundary_specs << [clone_point(profile[range.begin]), clone_point(back[range.begin])]
-            current_boundary_specs << [clone_point(profile[range.end]), clone_point(back[range.end])]
+          # Hai đường biên MỚI lấy trực tiếp theo topology:
+          # mặt phẳng trước cung <-> segment cong đầu,
+          # segment cong cuối <-> mặt phẳng sau cung.
+          current_boundaries = topology_boundary_edges(side_faces, range)
+          unless current_boundaries.length == 2
+            raise 'Không xác định đủ 2 đường biên đầu/cuối của cung. Đã hủy thao tác để tránh mất biên.'
           end
 
-          boundary_specs = old_boundary_specs + current_boundary_specs
-          protected_edges = resolve_boundary_edges(entities, boundary_specs)
+          # Cung cũ vẫn khôi phục từ metadata V2.2.6.
+          old_boundaries = resolve_boundary_edges(entities, old_boundary_specs)
+          protected_edges = (old_boundaries + current_boundaries).compact.select(&:valid?).uniq
+
+          # Đánh dấu/cứng hóa TRƯỚC bước smooth để không bị lọt vào bộ lọc làm mịn.
+          protected_edges.each { |edge| harden_boundary_edge(edge) }
 
           # Chỉ ẩn seam nội bộ giữa các mặt segment cong.
           hide_curve_internal_seams(curved_faces)
 
           # Giữ mịn các cung cũ sau khi topology được dựng lại,
-          # nhưng TUYỆT ĐỐI không làm mịn 2 đường biên đã bảo vệ.
+          # nhưng TUYỆT ĐỐI không làm mịn các đường biên đã bảo vệ.
           smooth_all_curved_seams(entities, protected_edges)
 
-          # Ép 2 biên đầu/cuối thành cạnh thật nhìn thấy và đánh dấu cho lần bo sau.
+          # Ép lần cuối 2 biên đầu/cuối thành cạnh thật nhìn thấy.
           protected_edges.each { |edge| harden_boundary_edge(edge) }
+
+          current_boundaries.each do |edge|
+            unless edge.valid? && !edge.hidden? && !edge.soft? && !edge.smooth?
+              raise 'Đường biên cung bị làm mềm ngoài dự kiến. Đã hủy thao tác.'
+            end
+          end
 
           open_count = entities.grep(Sketchup::Edge).count { |e| e.valid? && e.faces.length != 2 }
           raise "Khối sau bo chưa kín (#{open_count} cạnh hở)." if open_count > 0
@@ -157,6 +172,34 @@ module TranTuanNoiThat
           model.abort_operation
           UI.messagebox("Không thể bo cong V#{Round::VERSION}:\n#{error.message}")
         end
+      end
+
+      # Tìm đúng 2 cạnh phân ranh dựa vào quan hệ kề nhau của mặt.
+      def topology_boundary_edges(side_faces, range)
+        return [] unless range && side_faces && !side_faces.empty?
+        first_index = range.begin
+        last_index = range.end - 1
+        return [] if first_index < 0 || last_index < first_index
+        return [] unless side_faces[first_index] && side_faces[last_index]
+
+        previous_index = (first_index - 1) % side_faces.length
+        next_index = range.end % side_faces.length
+
+        first_edge = common_valid_edge(side_faces[previous_index], side_faces[first_index])
+        last_edge = common_valid_edge(side_faces[last_index], side_faces[next_index])
+        [first_edge, last_edge].compact.uniq
+      rescue StandardError => error
+        puts "[TT Round topology V#{Round::VERSION}] #{error.class}: #{error.message}"
+        []
+      end
+
+      def common_valid_edge(face_a, face_b)
+        return nil unless face_a && face_b && face_a.valid? && face_b.valid?
+        (face_a.edges & face_b.edges).find do |edge|
+          edge.valid? && edge.faces.include?(face_a) && edge.faces.include?(face_b)
+        end
+      rescue StandardError
+        nil
       end
 
       # Lưu lại vị trí các biên cung đã được đánh dấu trước khi dựng lại topology.
@@ -190,27 +233,25 @@ module TranTuanNoiThat
       end
 
       # Chỉ seam nằm giữa hai segment cong liền nhau mới được ẩn.
-      # Hai seam ngoài cùng không nằm trong each_cons nên luôn được giữ cho bước bảo vệ.
       def hide_curve_internal_seams(curved_faces)
         return if curved_faces.nil? || curved_faces.length < 2
 
         curved_faces.each_cons(2) do |face_a, face_b|
           next unless face_a && face_b && face_a.valid? && face_b.valid?
-          edge = (face_a.edges & face_b.edges).find do |candidate|
-            candidate.valid? && candidate.faces.include?(face_a) && candidate.faces.include?(face_b)
-          end
+          edge = common_valid_edge(face_a, face_b)
           soften_edge(edge)
         end
       end
 
       # Làm mịn toàn khối để các cung cũ không hiện seam trở lại sau lần bo mới.
-      # protected_edges là danh sách 2 đường biên đầu/cuối của mọi cung đã đánh dấu.
+      # Cạnh có metadata boundary hoặc nằm trong protected_edges luôn bị bỏ qua.
       def smooth_all_curved_seams(entities, protected_edges = [])
         max_angle = 50.0 * Math::PI / 180.0
 
         entities.grep(Sketchup::Edge).each do |edge|
           next unless edge.valid? && edge.faces.length == 2
           next if protected_edges.include?(edge)
+          next if edge.get_attribute(Round::BOUNDARY_DICT, Round::BOUNDARY_KEY, false)
 
           f1, f2 = edge.faces
           next unless f1.valid? && f2.valid?
