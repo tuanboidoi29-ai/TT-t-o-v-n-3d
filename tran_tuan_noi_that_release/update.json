@@ -1,12 +1,12 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.59",
+  "version": "1.9.60",
   "box_version": "1.1.1",
   "round_version": "2.2.7",
   "stretch_mode_version": "0.9.2",
   "grain_version": "3.5.1",
   "layout_stats_version": "0.9.0",
-  "license_version": "2.0.1",
+  "license_version": "2.0.2",
   "updater_bridge_version": "1.0.0",
   "channel": "stable",
   "transition_update": true,
@@ -15,7 +15,7 @@
   "official_rbe_encrypted": false,
   "customer_package": "TRANTUAN-NOIITHAT-KHACH.rbz",
   "admin_package": "TRANTUAN-NOIITHAT-ADM.rbz",
-  "notes": "Bản 1.9.59 thương mại dùng 1 mã bản quyền RSA khóa theo MÃ MÁY để mở toàn bộ hệ thống. Khách gửi Mã máy qua Zalo 0338162946. Gói bán: 90 ngày 50.000đ; 180 ngày 100.000đ; Vĩnh viễn 200.000đ. Chuyển khoản KienlongBank, STK 0338162946, chủ tài khoản TRẦN ĐÌNH TUẤN, nội dung chuyển khoản là Mã máy. Private key tuyệt đối không nằm trong RBZ/GitHub; plugin khách chỉ chứa public key. ADM khóa theo máy OWNER TT-5ACF-3BBC-FCC6 và vẫn cần private key riêng để ký mã. Runtime đã đổi sang đường dẫn không hard-code .rb để sẵn sàng cho cơ chế .rbe chính thức của SketchUp. Việc tạo .rbe chính thức vẫn phải thực hiện qua công cụ ký/mã hóa của SketchUp/Trimble.",
+  "notes": "Bản 1.9.60 sửa cảnh báo bản quyền bị treo/không đóng được. License RSA V2.0.2 loại bỏ confirm và UI.messagebox khỏi luồng kích hoạt; thông báo chuyển sang banner inline có nút X và tự ẩn. Cửa sổ có nút ĐÓNG và ESC để thoát. Xóa mã dùng cơ chế bấm 2 lần trong 4 giây, không mở hộp thoại modal. Giữ nguyên RSA theo Mã máy, gói 90 ngày 50.000đ, 180 ngày 100.000đ, Vĩnh viễn 200.000đ; Zalo 0338162946; KienlongBank STK 0338162946; private key không nằm trong RBZ/GitHub.",
   "rbz_url": "",
   "locked_features": {
     "box": "1.1.1",
@@ -24,30 +24,11 @@
     "layout_stats": "0.9.0"
   },
   "files": [
-    {
-      "path": "TranTuanNoiThat.rb",
-      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/83b3a36a75c1581d1aff65728ca010280c5d4758/tran_tuan_noi_that_release/files/TranTuanNoiThat.rb",
-      "sha256": ""
-    },
-    {
-      "path": "tran_tuan_noi_that/bootstrap.rb",
-      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/83b3a36a75c1581d1aff65728ca010280c5d4758/tran_tuan_noi_that_release/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": ""
-    },
-    {
-      "path": "tran_tuan_noi_that/license_rsa_offline_v200.rb",
-      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/83b3a36a75c1581d1aff65728ca010280c5d4758/tran_tuan_noi_that_release/files/tran_tuan_noi_that/license_rsa_offline_v200.rb",
-      "sha256": ""
-    },
-    {
-      "path": "tran_tuan_noi_that/license_rsa_offline_v201_patch.rb",
-      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/83b3a36a75c1581d1aff65728ca010280c5d4758/tran_tuan_noi_that_release/files/tran_tuan_noi_that/license_rsa_offline_v201_patch.rb",
-      "sha256": ""
-    },
-    {
-      "path": "tran_tuan_noi_that/settings.rb",
-      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/83b3a36a75c1581d1aff65728ca010280c5d4758/tran_tuan_noi_that_release/files/tran_tuan_noi_that/settings.rb",
-      "sha256": ""
-    }
+    {"path":"TranTuanNoiThat.rb","url":"https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/files/TranTuanNoiThat.rb","sha256":""},
+    {"path":"tran_tuan_noi_that/bootstrap.rb","url":"https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/files/tran_tuan_noi_that/bootstrap.rb","sha256":""},
+    {"path":"tran_tuan_noi_that/license_rsa_offline_v200.rb","url":"https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/files/tran_tuan_noi_that/license_rsa_offline_v200.rb","sha256":""},
+    {"path":"tran_tuan_noi_that/license_rsa_offline_v201_patch.rb","url":"https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/files/tran_tuan_noi_that/license_rsa_offline_v201_patch.rb","sha256":""},
+    {"path":"tran_tuan_noi_that/license_rsa_offline_v202_patch.rb","url":"https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/files/tran_tuan_noi_that/license_rsa_offline_v202_patch.rb","sha256":""},
+    {"path":"tran_tuan_noi_that/settings.rb","url":"https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/files/tran_tuan_noi_that/settings.rb","sha256":""}
   ]
 }
