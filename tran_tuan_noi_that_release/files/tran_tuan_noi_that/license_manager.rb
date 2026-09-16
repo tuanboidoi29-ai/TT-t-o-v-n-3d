@@ -105,7 +105,7 @@ module TranTuanNoiThat
       feature = feature.to_sym
       payload = cache
 
-      # Trong giai đoạn thương mại chưa bật trên server, không chặn tool.
+      # Giai đoạn dựng hệ thống: server chưa bật commercial_enforcement nên không khóa máy phát triển.
       unless enforcement?(payload)
         background_sync if stale?(payload) || payload.empty?
         return true
@@ -138,27 +138,40 @@ module TranTuanNoiThat
       nil
     end
 
+    # Chỉ Net::HTTP chạy ở Thread. Mọi SketchUp/UI API đều xử lý ở timer trên main thread.
     def background_sync
-      return if @syncing
+      return true if @syncing
       @syncing = true
+      @pending_sync_payload = :waiting
+      @pending_sync_error = nil
       code = machine_code
       version = TranTuanNoiThat.current_version.to_s
+
       Thread.new do
         begin
-          payload = request_status_raw(code, version, nil)
-          UI.start_timer(0, false) do
-            save_cache(payload) if payload.is_a?(Hash) && payload['ok'] == true
-            @syncing = false
-            refresh_dialog
-          end
+          @pending_sync_payload = request_status_raw(code, version, nil)
         rescue StandardError => error
-          puts "[TT License background] #{error.class}: #{error.message}"
-          UI.start_timer(0, false) { @syncing = false }
+          @pending_sync_error = error
+          @pending_sync_payload = nil
         end
       end
+
+      @sync_poll_timer = UI.start_timer(0.20, true) do
+        next if @pending_sync_payload == :waiting
+        UI.stop_timer(@sync_poll_timer) if @sync_poll_timer
+        payload = @pending_sync_payload
+        error = @pending_sync_error
+        @pending_sync_payload = nil
+        @pending_sync_error = nil
+        @syncing = false
+        save_cache(payload) if payload.is_a?(Hash) && payload['ok'] == true
+        puts "[TT License background] #{error.class}: #{error.message}" if error
+        refresh_dialog
+      end
       true
-    rescue StandardError
+    rescue StandardError => error
       @syncing = false
+      puts "[TT License background start] #{error.class}: #{error.message}"
       false
     end
 
@@ -170,8 +183,8 @@ module TranTuanNoiThat
       uri = URI.parse(ENDPOINT)
       http = Net::HTTP.new(uri.host, uri.port)
       http.use_ssl = true
-      http.open_timeout = 4
-      http.read_timeout = 6
+      http.open_timeout = 3
+      http.read_timeout = 4
       req = Net::HTTP::Post.new(uri.request_uri)
       req['Content-Type'] = 'application/json'
       req.body = JSON.generate({
@@ -207,11 +220,6 @@ module TranTuanNoiThat
         payload = sync_now(@requested_feature)
         UI.beep unless payload
       end
-      @dialog.add_action_callback('copy_machine') do |_ctx|
-        UI.set_clipboard_data(machine_code) if UI.respond_to?(:set_clipboard_data)
-      rescue StandardError
-        nil
-      end
       @dialog.show
     end
 
@@ -245,7 +253,7 @@ module TranTuanNoiThat
         *{box-sizing:border-box}body{margin:0;background:#111827;color:#e5e7eb;font:14px Arial}.head{padding:18px 22px;background:linear-gradient(135deg,#f97316,#c2410c)}h1{margin:0;font-size:21px}.sub{margin-top:5px;font-size:12px;opacity:.9}.body{padding:18px}.box{background:#1f2937;border:1px solid #374151;border-radius:12px;padding:14px;margin-bottom:12px}.label{font-size:11px;color:#9ca3af;margin-bottom:5px}.code{font:700 21px Consolas,monospace;letter-spacing:1px;color:#fb923c}.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}button{border:0;border-radius:8px;padding:10px 13px;font-weight:700;cursor:pointer}.orange{background:#f97316;color:#fff}.dark{background:#374151;color:#fff}.ok{color:#34d399;font-weight:700}.bad{color:#f87171;font-weight:700}.muted{color:#9ca3af}.feature{display:flex;justify-content:space-between;gap:8px;padding:9px 0;border-bottom:1px solid #374151}.feature:last-child{border-bottom:0}.price{color:#fbbf24}.note{font-size:12px;color:#9ca3af;line-height:1.5}</style></head><body>
         <div class="head"><h1>TRẦN TUẤN · KÍCH HOẠT BẢN QUYỀN</h1><div class="sub">Chỉ sử dụng MÃ MÁY · không cần tài khoản/mật khẩu</div></div>
         <div class="body">
-          <div class="box"><div class="label">MÃ MÁY</div><div id="machine" class="code">-</div><div class="row"><button class="dark" onclick="sketchup.copy_machine()">SAO CHÉP MÃ</button><button class="orange" onclick="sketchup.check()">KIỂM TRA KÍCH HOẠT</button></div></div>
+          <div class="box"><div class="label">MÃ MÁY</div><div id="machine" class="code">-</div><div class="row"><button class="dark" onclick="copyCode(this)">SAO CHÉP MÃ</button><button class="orange" onclick="sketchup.check()">KIỂM TRA KÍCH HOẠT</button></div></div>
           <div id="requested" class="box" style="display:none"></div>
           <div class="box"><div><b>Trạng thái máy:</b> <span id="status">-</span></div><div style="margin-top:6px"><b>Đồng bộ:</b> <span id="sync">-</span></div><div style="margin-top:6px"><b>Chế độ thương mại:</b> <span id="enforce">-</span></div></div>
           <div class="box"><b>QUYỀN CHỨC NĂNG</b><div id="features" style="margin-top:8px"></div></div>
@@ -253,6 +261,7 @@ module TranTuanNoiThat
         </div>
         <script>
         const money=v=>v==null?'Liên hệ':Number(v).toLocaleString('vi-VN')+' đ';
+        function copyCode(btn){const t=document.createElement('textarea');t.value=document.getElementById('machine').textContent;t.style.position='fixed';t.style.opacity='0';document.body.appendChild(t);t.select();try{document.execCommand('copy');btn.textContent='ĐÃ SAO CHÉP';setTimeout(()=>btn.textContent='SAO CHÉP MÃ',1200);}catch(e){}document.body.removeChild(t);}
         window.renderLicense=d=>{
           machine.textContent=d.machine_code||'-'; status.textContent=d.machine_status||'-'; sync.textContent=d.synced_at||'-';
           enforce.textContent=d.enforcement?'ĐANG BẬT':'CHƯA BẬT'; enforce.className=d.enforcement?'ok':'muted';
