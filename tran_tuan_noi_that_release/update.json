@@ -1,14 +1,14 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.45",
+  "version": "1.9.46",
   "box_version": "1.1.1",
   "round_version": "2.2.7",
   "stretch_mode_version": "0.9.2",
   "grain_version": "3.5.0",
   "layout_stats_version": "0.8.1",
-  "license_version": "1.0.1",
+  "license_version": "1.0.2",
   "channel": "stable",
-  "notes": "Bản 1.9.45: License V1.0.1 sửa lỗi bảng Bản Quyền đồng bộ được nhưng không hiện trạng thái/quyền. API License nâng V2 trả machine_status, OWNER, feature_count, features và feature_list; plugin đổi cache sang V2 để bỏ dữ liệu cũ, tránh id status xung đột Chromium và hiển thị rõ ACTIVE/OWNER/8 quyền. commercial_enforcement vẫn FALSE để chưa khóa khách trong giai đoạn test. Bo Cong V2.2.7 vẫn khóa; Grain V3.5.0 và LayoutStats V0.8.1 giữ nguyên.",
+  "notes": "Bản 1.9.46: License V1.0.2 sửa triệt để trường hợp bấm KIỂM TRA KÍCH HOẠT có thời gian đồng bộ nhưng vẫn CHƯA ĐỒNG BỘ / 0/0. Payload quyền không còn lưu trong SketchUp Preferences/Registry; chuyển sang file JSON riêng trong AppData và giữ payload mới nhất trong RAM. Sau khi server trả về, giao diện render trực tiếp payload vừa nhận; nếu server/HTTP/JSON lỗi sẽ hiện lỗi cụ thể thay vì để trống. Máy OWNER TT-5ACF-3BBC-FCC6 đã có 8/8 quyền vĩnh viễn. commercial_enforcement vẫn FALSE trong giai đoạn test. Bo Cong V2.2.7 vẫn khóa; Grain V3.5.0 và LayoutStats V0.8.1 giữ nguyên.",
   "rbz_url": "",
   "locked_features": {
     "box": "1.1.1",
