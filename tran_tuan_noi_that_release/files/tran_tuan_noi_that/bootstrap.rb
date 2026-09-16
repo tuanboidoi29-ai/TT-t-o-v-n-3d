@@ -11,7 +11,7 @@ module TranTuanNoiThat
   NAME = 'TRẦN TUẤN NỘI THẤT'.freeze unless const_defined?(:NAME, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.59'.freeze
+  VERSION = '1.9.60'.freeze
 
   remove_const(:MANIFEST_URL) if const_defined?(:MANIFEST_URL, false)
   MANIFEST_URL = 'https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/update_latest.json'.freeze
@@ -39,8 +39,6 @@ module TranTuanNoiThat
     end
 
     # Không hard-code .rb: Sketchup.load sẽ tìm .rb/.rbe/.rbs theo runtime.
-    # Đây là điều kiện cần để bản phát hành qua công cụ mã hóa/chữ ký chính thức
-    # của SketchUp có thể chạy sau khi .rb được chuyển thành .rbe.
     def runtime_load(stem)
       clean = stem.to_s.sub(/\.(?:rb|rbe|rbs)\z/i, '')
       base = File.join(ROOT, clean)
@@ -75,6 +73,7 @@ module TranTuanNoiThat
 
     def reload_runtime
       # Một giấy phép RSA Offline theo Mã máy mở toàn bộ hệ thống.
+      # License V2.0.2 dùng cảnh báo inline, không modal gây kẹt focus.
       %w[
         board_tool
         box_tool
@@ -140,7 +139,7 @@ module TranTuanNoiThat
       @license_cmd ||= command(
         'Bản Quyền',
         'license.svg',
-        '1 mã RSA theo Mã máy mở toàn bộ hệ thống · 90 ngày / 180 ngày / Vĩnh viễn.'
+        '1 mã RSA theo Mã máy mở toàn bộ hệ thống · cảnh báo không modal · ESC/ĐÓNG để thoát.'
       ) { License.show_dialog }
       add_feature_command_once(@license_cmd, :license_menu_installed)
       true
