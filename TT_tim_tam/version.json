@@ -1,6 +1,6 @@
 {
-  "version": "1.1.0",
+  "version": "1.1.1",
   "rbz_url": "",
-  "sha256": "",
-  "notes": "TT - tim tấm v1.1.0: tìm theo độ dày, tô cam kết quả, RSA theo máy, file license .ttlic, cấu trúc sẵn sàng mã hóa .rbe chính thức."
+  "sha256": "7f83a36e79d20f80e886fa741d1b5e7b23b0e6c34c789800d76820a11505bd59",
+  "notes": "TT - tim tấm v1.1.1: sửa kích hoạt HtmlDialog, tự bỏ khoảng trắng/xuống dòng trong mã gửi qua Zalo, tự kiểm tra chữ ký RSA sau khi ADM tạo mã."
 }
