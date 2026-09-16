@@ -1,17 +1,17 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.57",
+  "version": "1.9.58",
   "box_version": "1.1.1",
   "round_version": "2.2.7",
   "stretch_mode_version": "0.9.2",
   "grain_version": "3.5.1",
   "layout_stats_version": "0.9.0",
-  "license_version": "1.5.0",
+  "license_version": "2.0.0",
   "updater_bridge_version": "1.0.0",
   "channel": "stable",
   "transition_update": true,
   "protected_release": true,
-  "notes": "Bản 1.9.57 chuyển lõi bản quyền sang RSA-3072 / RS256 khóa theo MÃ MÁY. Private key chỉ nằm trên máy chủ Supabase; plugin chỉ chứa public key và chỉ tin quyền sau khi xác minh chữ ký, machine_code và thời hạn. Cache mới license_rsa_v1.json chỉ lưu license đã ký, cache quyền V1/V3 cũ không còn được tin cậy. License offline hiện có hiệu lực theo offline_grace_hours (72 giờ). Vẽ Ván + BOX vẫn FREE khi mất mạng; QR, SePay và OWNER Admin giữ nguyên. commercial_enforcement vẫn FALSE cho tới khi OWNER tự bật. Không thay đổi BOX 1.1.1, Bo Cong 2.2.7, Co Gian 0.9.2, Grain 3.5.1 hay LayoutStats 0.9.0.",
+  "notes": "Bản 1.9.58 bỏ hoàn toàn cơ chế thương mại theo từng chức năng: không còn Payment, QR, SePay, OWNER Admin, Supabase kiểm tra quyền hay commercial_enforcement. Chỉ còn một giấy phép RSA-3072/SHA-256 khóa theo MÃ MÁY và xác minh OFFLINE. Toàn bộ công cụ dùng chung một mã kích hoạt. Gói: 90 ngày 50.000đ; 180 ngày 100.000đ; 360 ngày 120.000đ; Vĩnh viễn 200.000đ. UI hiển thị Zalo 033816946; KienlongBank; STK 0338162946; chủ tài khoản TRẦN ĐÌNH TUẤN. Private key không nằm trong RBZ/GitHub; plugin chỉ chứa public key. Khi nạp V2.0.0, các file/cache thương mại cũ được dọn khỏi máy khách.",
   "rbz_url": "",
   "locked_features": {
     "box": "1.1.1",
@@ -21,14 +21,24 @@
   },
   "files": [
     {
-      "path": "tran_tuan_noi_that/license_rsa_v150.rb",
-      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/a879780ae6d113223209b5a9c02f4849401df1a2/tran_tuan_noi_that_release/files/tran_tuan_noi_that/license_rsa_v150.rb",
-      "sha256": "164697f318ed80bf4f946b1e3d6a1ae432d700bedd7c389e06dff9938b788f37"
+      "path": "TranTuanNoiThat.rb",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/6baaca2af197e06943661f8aa5d8c376bef65ec5/tran_tuan_noi_that_release/files/TranTuanNoiThat.rb",
+      "sha256": "841ab22b552fe4a6ecee564d333c3198cf31891ca2835af6defa075b8df94b6b"
+    },
+    {
+      "path": "tran_tuan_noi_that/bootstrap.rb",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/6baaca2af197e06943661f8aa5d8c376bef65ec5/tran_tuan_noi_that_release/files/tran_tuan_noi_that/bootstrap.rb",
+      "sha256": "ab5f2cc78ab2470df9eb18952cb37704d093bb3211cf29a75ed66507a1bbcbed"
+    },
+    {
+      "path": "tran_tuan_noi_that/license_rsa_offline_v200.rb",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/6baaca2af197e06943661f8aa5d8c376bef65ec5/tran_tuan_noi_that_release/files/tran_tuan_noi_that/license_rsa_offline_v200.rb",
+      "sha256": "27cc4b0b319af98a6637334f1bb2a9466f50e9eec13edf66e4d82c95dbacc540"
     },
     {
       "path": "tran_tuan_noi_that/settings.rb",
-      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/a879780ae6d113223209b5a9c02f4849401df1a2/tran_tuan_noi_that_release/files/tran_tuan_noi_that/settings.rb",
-      "sha256": "c257859e0803c7955dfc11e5fd1d8ca30a305294e488cba69883b2dc6d8575b5"
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/6baaca2af197e06943661f8aa5d8c376bef65ec5/tran_tuan_noi_that_release/files/tran_tuan_noi_that/settings.rb",
+      "sha256": "7dd1023ae2b7573a880ba934d7ebe5361580cad9265aa1315306594ddbf4db0f"
     }
   ]
 }
