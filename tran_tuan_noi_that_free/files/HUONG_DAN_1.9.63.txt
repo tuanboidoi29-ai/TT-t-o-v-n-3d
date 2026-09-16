@@ -1,0 +1,42 @@
+TRẦN TUẤN NỘI THẤT 1.9.63 — CO GIÃN KHỐI MODE 0.9.3
+Không bản quyền. Giữ cập nhật GitHub.
+
+CẬP NHẬT
+Đang dùng 1.9.62: Kiểm Tra Cập Nhật > Có. Bấm lại công cụ Co Giãn Khối MODE sau khi cập nhật.
+Đang dùng 1.9.61: cài RBZ qua Extension Manager, mở lại SketchUp một lần.
+Cài Đặt Chung có mục bật/tắt Co Giãn Khối MODE.
+
+THAO TÁC
+1. Chọn tủ/Group/Component cần sửa trước khi gọi công cụ. Có thể chọn nhiều khối.
+   Không chọn trước: đặt P1 trên khối cần sửa. Bấm khoảng trống không tự chọn toàn model.
+   Muốn chỉ sửa khối con: mở Group cha rồi chọn khối con.
+2. P1 là mặt phẳng biên cố định theo trục kéo. Đặt trên biên hoặc bên trong khối.
+3. Giữ chuột kéo về phía cần sửa rồi thả để chọn P2; hoặc bấm P1 rồi bấm P2.
+   Khi chọn P2: X/Y/Z khóa trục; bấm lại phím đó để bỏ khóa.
+4. Rê chuột tới P3, bắt điểm rồi click; hoặc nhập số và Enter:
+   200 / +200 = tăng thêm 200 mm về phía đã chọn.
+   -50 = co vào 50 mm.
+   =1200 = đặt khoảng từ P1 đến BIÊN NGOÀI phía kéo thành 1200 mm.
+   Số không có đơn vị mặc định mm; có thể nhập 20cm, 1m.
+5. TAB tại bước P1 đổi AUTO/3 ĐIỂM. TAB tại P3 hoặc giữ SHIFT khi xác nhận để thêm hướng.
+   Các hướng chờ giữ cùng phạm vi khối ban đầu. Enter ở P1 áp dụng các hướng chờ.
+6. ESC hủy lượt/vùng đang chọn; Ctrl+Z hoàn tác một lượt gồm nhiều hướng.
+
+SỬA LỖI
+- Bật ô nhập kích thước; P3 bắt điểm thật và đọc lại tại cú click cuối.
+- P1 trùng mép không còn bị hiểu nhầm là di chuyển toàn bộ tấm.
+- Giữ phạm vi khối; không lấy leaf lồng nhau với sai hệ tọa độ.
+- Không thay đổi đối tượng khóa/ẩn; tách riêng Component khi sửa geometry dùng chung.
+- Nếu đang mở Component cha dùng chung, yêu cầu thoát ra chọn từ ngoài để không đổi các bản sao khác.
+- Chặn co vượt P1 hoặc làm lật cạnh. Có thể phải chọn lại P1 nếu đường cắt xuyên chi tiết nhỏ.
+- Giữ một Undo và rollback nếu thao tác lỗi. Nạp lại cập nhật không dùng alias cũ.
+
+GIỚI HẠN KIỂM THỬ
+79 kiểm tra logic chạy bằng Ruby với đối tượng giả lập API, gồm transform, scope, input và rollback.
+Đây không phải kiểm thử kernel hình học/viewport thật. Chưa chạy trực tiếp SketchUp 2022 Windows.
+Không coi kiểm tra co lật là kiểm tra va chạm đầy đủ giữa mọi phụ kiện.
+
+TÀI LIỆU API ĐỐI CHIẾU
+https://ruby.sketchup.com/Sketchup/Tool.html#enableVCB%3F-instance_method
+https://ruby.sketchup.com/Sketchup/PickHelper.html#path_at-instance_method
+https://ruby.sketchup.com/Sketchup/Entities.html#transform_by_vectors-instance_method

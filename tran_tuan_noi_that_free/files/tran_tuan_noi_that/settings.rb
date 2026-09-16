@@ -20,7 +20,7 @@ module TranTuanNoiThat
   tt_runtime_load.call('layout_stats_v081_cut_offset_fix')
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.62'.freeze
+  VERSION = '1.9.63'.freeze
 
   module Settings
     extend self
@@ -39,8 +39,8 @@ module TranTuanNoiThat
         TranTuanNoiThat.save_setting('thickness', thickness)
         TranTuanNoiThat.save_setting('auto_update', !!data['auto_update'])
         TranTuanNoiThat.save_setting('update_channel', data['channel'].to_s)
-        %w[board box drawer round grain layout_stats].each do |feature|
-          TranTuanNoiThat.save_setting("feature_#{feature}", !!data["feature_#{feature}"])
+        %w[board box drawer round stretch_mode grain layout_stats].each do |feature|
+          TranTuanNoiThat.save_setting("feature_#{feature}", !!data["feature_#{feature}"]) if data.key?("feature_#{feature}")
         end
         TranTuanNoiThat.refresh_feature_commands
         notify('Đã lưu và áp dụng bật/tắt tính năng.', 'ok')
@@ -65,6 +65,7 @@ module TranTuanNoiThat
         feature_box: TranTuanNoiThat.feature_enabled?(:box),
         feature_drawer: TranTuanNoiThat.feature_enabled?(:drawer),
         feature_round: TranTuanNoiThat.feature_enabled?(:round),
+        feature_stretch_mode: TranTuanNoiThat.feature_enabled?(:stretch_mode),
         feature_grain: TranTuanNoiThat.feature_enabled?(:grain),
         feature_layout_stats: TranTuanNoiThat.feature_enabled?(:layout_stats)
       }

@@ -113,6 +113,25 @@ module TranTuanNoiThat
 
         return if selected_vertices.empty?
 
+        # Reject fold-over before moving a single vertex.
+        if relation == :crossing && region[:delta].to_f * region[:side_sign] < 0
+          selected_vertices.each do |vertex|
+            value = coord(vertex.position.transform(entity_to_root), region[:axis]) + region[:delta]
+            unless selected_coord?(value, region)
+              raise 'Khoảng co quá lớn: điểm kéo sẽ vượt biên P1. Giảm khoảng co hoặc chọn lại biên cố định.'
+            end
+          end
+          chosen = selected_vertices.each_with_object({}) { |v, h| h[v] = true }
+          edges.each do |edge|
+            a, b = edge.vertices
+            next if !!chosen[a] == !!chosen[b]
+            av = coord(a.position.transform(entity_to_root), region[:axis])
+            bv = coord(b.position.transform(entity_to_root), region[:axis])
+            after = (bv + (chosen[b] ? region[:delta] : 0)) - (av + (chosen[a] ? region[:delta] : 0))
+            raise 'Khoảng co làm đảo hoặc ép phẳng chi tiết.' if (bv - av) * after <= 0
+          end
+        end
+
         local_vector = root_vector.transform(entity_to_root.inverse)
         actions << {
           kind: :move_vertices,
@@ -129,7 +148,7 @@ module TranTuanNoiThat
 
       def draw(view)
         # Điểm bắt chuẩn của SketchUp.
-        @ip.draw(view) if @ip && @ip.valid? && (@state == :p1 || @state == :p2)
+        @ip.draw(view) if @ip && @ip.valid? && (@state == :p1 || @state == :p2 || @state == :p3)
         @ip1.draw(view) if @ip1 && @ip1.valid?
         @ip2.draw(view) if @ip2 && @ip2.valid?
 

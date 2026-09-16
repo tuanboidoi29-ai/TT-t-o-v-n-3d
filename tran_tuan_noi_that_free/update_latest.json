@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.62",
+  "version": "1.9.63",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Khôi phục cập nhật GitHub; không khóa bản quyền; giữ nguyên công cụ 1.9.60.",
+  "notes": "Sửa Co Giãn MODE: giữ P1, scope ổn định, nhập mm, bắt P3, chặn co lật, một Undo.",
   "files": [
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -14,7 +14,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "d0a8d6666b88a51a6e1432f590a991f827bf6de4b00f26e7d34c5b7282f32100"
+      "sha256": "4ddb670ce110cd5f754b647f66a43e3f09c1bf970be91f272684bf9fe9568583"
     },
     {
       "path": "tran_tuan_noi_that/board_tool.rb",
@@ -24,7 +24,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "8777585c7b608fe4ce00b3ef36beb4154a286bb87e4cf40b8c1e4bd388585091"
+      "sha256": "cad6878933d1c8773da0acb8d918e5b4f056407d29a6890d940d45570e4767b4"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -179,37 +179,38 @@
     {
       "path": "tran_tuan_noi_that/settings.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/settings.rb",
-      "sha256": "c149a0787bfb36908140bccb26d820ef1e61f27a4e21b370332f58f6b2a3bbf4"
+      "sha256": "36b22c1cb655b7168945b77dd2cf7e153f0a3cb8547004104c66bea75afa0be8"
     },
     {
       "path": "tran_tuan_noi_that/stretch_auto_scan_fix.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/stretch_auto_scan_fix.rb",
-      "sha256": "db4828d6bcfa4c23274d2bc6a958a3a901a96dbda668ec5e9fc1aec867c20b0a"
+      "sha256": "2d3e5c87f01781c8a6c869f668bc8f1b39a49aa1a5d6c98a1c4bd12e8440f854"
     },
     {
       "path": "tran_tuan_noi_that/stretch_auto_scope_fix.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/stretch_auto_scope_fix.rb",
-      "sha256": "fd506c193fa4f041a9981f9beee11d9476507e1bcf07e476ec9fe2b7dd9d3cc5"
+      "sha256": "07583a62b793a1ff3a3b59d7cd16fab305046776736e121b560ad2e743b159bb"
     },
     {
       "path": "tran_tuan_noi_that/stretch_detail_fix.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/stretch_detail_fix.rb",
-      "sha256": "054571c6b14a6ddefe58f38a03ab419c5a30c7b8b61c2826392c7e64e2018aea"
+      "sha256": "c49b9358fafb7ea67ce0b399ddf48527135490530846a063eb562cd957e4da59"
     },
     {
       "path": "tran_tuan_noi_that/stretch_mode_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/stretch_mode_tool.rb",
-      "sha256": "fe39aa4f685271aea9f1a45b9a9c7fd1311191c263440ec216b65c0bd703dec3"
+      "sha256": "0ad9a68c4784d387aae069317994f9e5f03289c7e64f7ad7672e029579617564"
     },
     {
       "path": "tran_tuan_noi_that/ui/settings.html",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/ui/settings.html",
-      "sha256": "1f4b8eb1097473c8c2f45ef7fb428d2784df5797214125d7e3e7d8001b3a4ff5"
+      "sha256": "c32c169b72fad497b8c06bd2584fbd4c964d3ab8254b7f3eaf3b26fdc1bd2c0c"
     },
     {
       "path": "tran_tuan_noi_that/updater.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/updater.rb",
-      "sha256": "2f61c1842415ce564624acb15d5392811ce7d3e419350884457b1c5683bbf1f5"
+      "sha256": "8687a66ae59894104a30c64a2abcaf6e013f3d234e760603e7d0bf60728d7d57"
     }
-  ]
+  ],
+  "stretch_mode_version": "0.9.3"
 }

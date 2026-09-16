@@ -90,6 +90,10 @@ module TranTuanNoiThat
         @model.active_view.invalidate
       end
 
+      def enableVCB?
+        @state == :p3
+      end
+
       def deactivate(view)
         clear_vcb
         view.invalidate if view
@@ -174,6 +178,7 @@ module TranTuanNoiThat
           finalize_p2(view, x, y)
 
         when :p3
+          update_p3_delta(view, x, y)
           return UI.beep if @delta.abs < 0.001.mm
           finish_current_direction(add_direction?(flags))
         end
@@ -202,13 +207,13 @@ module TranTuanNoiThat
         return UI.beep if raw.empty?
 
         if raw.start_with?('=')
-          desired = raw[1..-1].to_s.strip.to_l
+          desired = parse_input_length(raw[1..-1])
           raise 'Kích thước đích phải lớn hơn 0.' unless desired && desired > 0
-          current_span = (@ref_coord - @cut_coord).abs
+          current_span = (preview_current_extreme(current_region(false)) - @cut_coord).abs
           delta_mag = desired.to_f - current_span
           @delta = delta_mag * @side_sign
         else
-          amount = raw.to_l
+          amount = parse_input_length(raw)
           @delta = amount.to_f * @side_sign
         end
 
@@ -251,7 +256,12 @@ module TranTuanNoiThat
 
       def getExtents
         bb = Geom::BoundingBox.new
-        @scope.each { |entity| bb.add(entity.bounds) if entity.valid? }
+        if @scope_bounds && !@scope_bounds.empty?
+          8.times { |i| bb.add(root_to_world(@scope_bounds.corner(i))) }
+        end
+        if @state == :p3 && @axis && @cut_coord
+          box_corners(affected_region_bounds(current_region(false), @delta)).each { |p| bb.add(root_to_world(p)) }
+        end
         bb
       rescue StandardError
         Geom::BoundingBox.new
@@ -259,14 +269,17 @@ module TranTuanNoiThat
 
       private
 
-      # ------------------------------------------------------------
-      # STATE / INPUT
-      # ------------------------------------------------------------
+      # State is reset without changing the scope of queued directions.
 
       def reset_current_points
         @context_to_world = @model.edit_transform
-        @scope = initial_scope
+        @scope = initial_scope if @pending_regions.empty?
         @scope_bounds = scope_bounds_root
+        @auto_dragging = false
+        @auto_scan_start_2d = nil
+        @auto_scan_current_2d = nil
+        @forced_axis = nil
+        @shift_down = false
         @state = :p1
         @ip = Sketchup::InputPoint.new
         @ip1 = Sketchup::InputPoint.new
@@ -316,6 +329,13 @@ module TranTuanNoiThat
           return false
         end
 
+        cut = coord(@p1_root, axis)
+        if @scope_bounds.empty? || cut < coord(@scope_bounds.min, axis) - CUT_TOL || cut > coord(@scope_bounds.max, axis) + CUT_TOL
+          UI.beep
+          update_status('P1 nằm ngoài khối theo trục đã chọn. Nhấn ESC rồi chọn P1 trên biên hoặc trong khối.')
+          return false
+        end
+
         @p2_root = p2
         @axis = axis
         @side_sign = diff >= 0 ? 1 : -1
@@ -333,17 +353,31 @@ module TranTuanNoiThat
 
       def update_p3_delta(view, x, y)
         return unless @axis && @p2_root
-        world_axis = AXES[@axis].transform(@context_to_world)
-        return if world_axis.length < 0.001
-        world_axis.normalize!
-
-        base_world = root_to_world(@p2_root)
-        points = Geom.closest_points(view.pickray(x, y), [base_world, world_axis])
-        return unless points && points[1]
-
-        root_point = world_to_root(points[1])
+        @ip.pick(view, x, y, @ip2)
+        snapped = @ip.valid? && @ip.degrees_of_freedom < 3
+        if snapped
+          root_point = world_to_root(@ip.position)
+          view.tooltip = @ip.tooltip
+        else
+          world_axis = AXES[@axis].transform(@context_to_world)
+          return if world_axis.length < 0.001
+          world_axis.normalize!
+          points = Geom.closest_points(view.pickray(x, y), [root_to_world(@p2_root), world_axis])
+          return unless points && points[1]
+          root_point = world_to_root(points[1])
+          view.tooltip = ''
+        end
         @delta = coord(root_point, @axis) - @ref_coord
         update_vcb
+      end
+
+      def parse_input_length(text)
+        value = text.to_s.strip
+        if value.match?(/\A[+-]?(?:\d+(?:[.,]\d+)?|[.,]\d+)\z/)
+          value.tr(',', '.').to_f.mm
+        else
+          value.to_l
+        end
       end
 
       def dominant_axis(a, b)
@@ -354,6 +388,7 @@ module TranTuanNoiThat
         ]
         max = diffs.max
         return nil if max.nil? || max < MIN_AXIS_DELTA
+        return @forced_axis unless @forced_axis.nil?
         diffs.index(max)
       end
 
@@ -398,6 +433,7 @@ module TranTuanNoiThat
           ref_coord: @ref_coord,
           p1_root: @p1_root ? clone_point(@p1_root) : nil,
           p2_root: @p2_root ? clone_point(@p2_root) : nil,
+          scope: @scope.dup,
           delta: include_delta ? @delta : 0.0
         }
       end
@@ -414,8 +450,12 @@ module TranTuanNoiThat
         valid = Array(regions).select { |r| r && r[:axis] && r[:delta].abs >= 0.001.mm }
         return true if valid.empty?
 
+        if Array(@model.active_path).any? { |e| e.definition.instances.length > 1 }
+          raise 'Đang mở một Component dùng chung. Hãy thoát chế độ sửa và chọn cụm ở bên ngoài để không đổi các bản sao khác.'
+        end
         @model.start_operation("TRẦN TUẤN - Co Giãn Đa Hướng V#{VERSION}", true)
         begin
+          action_count = 0
           valid.each do |region|
             root_vector = AXES[region[:axis]].clone
             root_vector.length = region[:delta].abs
@@ -423,7 +463,7 @@ module TranTuanNoiThat
 
             actions = []
             keys = {}
-            @scope.each do |entity|
+            Array(region[:scope] || @scope).each do |entity|
               next unless entity.valid?
               collect_entity_actions(
                 entity,
@@ -435,7 +475,9 @@ module TranTuanNoiThat
               )
             end
             actions.each { |action| apply_action(action) }
+            action_count += actions.length
           end
+          raise 'Không có chi tiết nào thuộc phía đã chọn. Chọn lại P1/P2.' if action_count == 0
           @model.commit_operation
           true
         rescue StandardError
@@ -584,10 +626,10 @@ module TranTuanNoiThat
 
         if region[:side_sign] > 0
           return :fixed if max_v <= cut + CUT_TOL
-          return :selected if min_v >= cut - CUT_TOL
+          return :selected if min_v > cut + CUT_TOL
         else
           return :fixed if min_v >= cut - CUT_TOL
-          return :selected if max_v <= cut + CUT_TOL
+          return :selected if max_v < cut - CUT_TOL
         end
         :crossing
       end
@@ -613,8 +655,6 @@ module TranTuanNoiThat
         elsif entity.is_a?(Sketchup::Group)
           entity.make_unique if entity.definition.instances.length > 1
         end
-      rescue StandardError
-        nil
       end
 
       def entity_to_root_without_self(entity_to_root, entity)
@@ -628,7 +668,8 @@ module TranTuanNoiThat
       # ------------------------------------------------------------
 
       def selectable?(entity)
-        entity.is_a?(Sketchup::Group) || entity.is_a?(Sketchup::ComponentInstance)
+        (entity.is_a?(Sketchup::Group) || entity.is_a?(Sketchup::ComponentInstance)) &&
+          entity.valid? && !entity.locked? && entity.visible? && entity.layer.visible?
       end
 
       def child_entities(entity)
@@ -835,7 +876,7 @@ module TranTuanNoiThat
 
       def update_vcb
         Sketchup.set_status_text('Co/kéo', SB_VCB_LABEL)
-        Sketchup.set_status_text(Sketchup.format_length(@delta.abs), SB_VCB_VALUE)
+        Sketchup.set_status_text(((@delta * @side_sign) >= 0 ? '+' : '-') + Sketchup.format_length(@delta.abs), SB_VCB_VALUE)
       end
 
       def clear_vcb

@@ -43,20 +43,15 @@ module TranTuanNoiThat
     AUTO_SCAN_GAP_PX = 5.0
 
     class Tool
-      aliases_ready =
-        (method_defined?(:tt_v081_on_key_down) || private_method_defined?(:tt_v081_on_key_down)) &&
-        (method_defined?(:tt_v081_initialize) || private_method_defined?(:tt_v081_initialize))
-
-      unless aliases_ready
-        alias_method :tt_v081_initialize, :initialize
-        alias_method :tt_v081_activate, :activate
-        alias_method :tt_v081_on_key_down, :onKeyDown
-        alias_method :tt_v081_on_mouse_move, :onMouseMove
-        alias_method :tt_v081_on_lbutton_down, :onLButtonDown
-        alias_method :tt_v081_on_lbutton_up, :onLButtonUp
-        alias_method :tt_v081_draw, :draw
-        alias_method :tt_v081_update_status, :update_status
-      end
+      # Base and detail files are loaded first on each reload; refresh aliases.
+      alias_method :tt_v081_initialize, :initialize
+      alias_method :tt_v081_activate, :activate
+      alias_method :tt_v081_on_key_down, :onKeyDown
+      alias_method :tt_v081_on_mouse_move, :onMouseMove
+      alias_method :tt_v081_on_lbutton_down, :onLButtonDown
+      alias_method :tt_v081_on_lbutton_up, :onLButtonUp
+      alias_method :tt_v081_draw, :draw
+      alias_method :tt_v081_update_status, :update_status
 
       def initialize
         tt_v081_initialize
@@ -76,6 +71,13 @@ module TranTuanNoiThat
       # TAB ở P1 đổi AUTO QUÉT / 3 ĐIỂM.
       # TAB ở P3 để engine cũ xử lý THÊM HƯỚNG.
       def onKeyDown(key, repeat, flags, view)
+        if @state == :p2 && [88, 89, 90].include?(key)
+          axis = [88, 89, 90].index(key)
+          @forced_axis = @forced_axis == axis ? nil : axis
+          update_status(@forced_axis.nil? ? 'Tự nhận trục X/Y/Z.' : "Khóa trục #{axis_name(@forced_axis)} · bấm lại để bỏ khóa.")
+          view.invalidate
+          return true
+        end
         if tab_key?(key) && @state == :p1
           @input_mode = (@input_mode == :auto_scan ? :three_point : :auto_scan)
           @auto_dragging = false
@@ -97,8 +99,15 @@ module TranTuanNoiThat
       end
 
       def onLButtonDown(flags, x, y, view)
-        if @input_mode == :auto_scan && @state == :p1
+        if @state == :p1
           prepare_auto_scope(view, x, y)
+          if @scope.empty?
+            UI.beep
+            update_status('Chọn Group/Component trước, hoặc bấm P1 trên khối cần co/kéo.')
+            return
+          end
+        end
+        if @input_mode == :auto_scan && @state == :p1
           @auto_dragging = true
           @auto_scan_start_2d = Geom::Point3d.new(x.to_f, y.to_f, 0)
           @auto_scan_current_2d = @auto_scan_start_2d.clone
@@ -124,11 +133,9 @@ module TranTuanNoiThat
 
           if distance < AUTO_SCAN_MIN_PX
             @first_press_active = false
-            reset_current_points
             @auto_scan_start_2d = nil
             @auto_scan_current_2d = nil
-            UI.beep
-            update_status('AUTO QUÉT quá ngắn · giữ chuột tại biên P1 rồi QUÉT rõ sang phía cần kéo.')
+            update_status('Đã chọn P1 · bấm P2 về phía cần co/kéo. X/Y/Z khóa trục.')
             view.invalidate
             return
           end
@@ -202,7 +209,7 @@ module TranTuanNoiThat
                when :p3
                  update_vcb
                  mode = @add_mode ? 'THÊM HƯỚNG BẬT' : 'xác nhận để hoàn tất'
-                 "AUTO #{side_name} · KHUNG 3D NÉT ĐỨT = vùng đã chọn · P3 hoặc nhập số · TAB/SHIFT thêm hướng · #{mode}#{pending}."
+                 "AUTO #{side_name} · KHUNG 3D NÉT ĐỨT = vùng đã chọn · P3 hoặc nhập +/− mm; =kích thước từ P1 · TAB/SHIFT thêm hướng · #{mode}#{pending}."
                else
                  'CO GIÃN AUTO QUÉT'
                end
