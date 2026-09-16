@@ -11,8 +11,8 @@ module TranTuanNoiThat
                      end
 
     ext = SketchupExtension.new('TRẦN TUẤN NỘI THẤT', "#{runtime_folder}/bootstrap")
-    ext.description = 'Bản thương mại TRẦN TUẤN: 1 mã RSA khóa theo MÃ MÁY mở toàn bộ hệ thống; 90 ngày / 180 ngày / Vĩnh viễn.'
-    ext.version = '1.9.59'
+    ext.description = 'Bản thương mại TRẦN TUẤN: RSA theo MÃ MÁY; cảnh báo bản quyền không modal, có nút đóng và ESC.'
+    ext.version = '1.9.60'
     ext.creator = 'TRẦN TUẤN'
     ext.copyright = '2026 TRẦN TUẤN'
     Sketchup.register_extension(ext, true)
