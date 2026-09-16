@@ -102,6 +102,7 @@ module TranTuanNoiThat
       html = html.gsub(old_clear, new_clear)
 
       hook = %q{function ttCloseNotice(){const n=el('ttNotice');if(n){n.className='ttnotice';n.style.display='none';}if(window.ttNoticeTimer){clearTimeout(window.ttNoticeTimer);window.ttNoticeTimer=null;}}window.ttNotice=(msg,kind,timeout)=>{const n=el('ttNotice'),t=el('ttNoticeText');if(!n||!t)return;t.textContent=String(msg||'');n.className='ttnotice '+String(kind||'info');n.style.display='block';if(window.ttNoticeTimer)clearTimeout(window.ttNoticeTimer);const ms=Number(timeout||4500);if(ms>0)window.ttNoticeTimer=setTimeout(ttCloseNotice,ms);};document.addEventListener('keydown',e=>{if(e.key==='Escape'){sketchup.close_dialog();}});}
+      hook = hook.sub(/;\}\z/, ';')
       html = html.sub('const el=id=>document.getElementById(id);', 'const el=id=>document.getElementById(id);' + hook)
 
       html = html.sub(
