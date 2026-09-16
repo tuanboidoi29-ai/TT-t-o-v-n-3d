@@ -7,7 +7,7 @@ require 'fileutils'
 # Giữ nguyên thư mục extension thương mại đã ký (.rbe/.susig).
 # Các bản vá online được lưu ngoài thư mục đã ký rồi nạp đè ở runtime.
 module TTTranTuanUpdateLoader
-  VERSION = '1.0.0'.freeze
+  VERSION = '1.0.1'.freeze
   PLUGINS_ROOT = File.expand_path(Sketchup.find_support_file('Plugins')).freeze
   UPDATE_ROOT = File.join(PLUGINS_ROOT, 'TT_TranTuan_Updates').freeze
   STATE_FILE = File.join(UPDATE_ROOT, 'state.json').freeze
@@ -21,6 +21,24 @@ module TTTranTuanUpdateLoader
       File.file?(File.join(root, 'TranTuanNoiThat.susig')) || !Dir.glob(File.join(root, '*.rbe')).empty?
     rescue StandardError
       false
+    end
+
+    def silent_update?
+      defined?(TranTuanNoiThat::Updater) && TranTuanNoiThat::Updater.respond_to?(:silent_update?) && TranTuanNoiThat::Updater.silent_update?
+    rescue StandardError
+      false
+    end
+
+    def notify(message, error: false)
+      if silent_update?
+        puts "[TT Update Bridge] #{message}"
+        Sketchup.status_text = message.to_s.gsub("\n", ' ') if defined?(Sketchup)
+      else
+        UI.messagebox(message)
+      end
+      !error
+    rescue StandardError
+      !error
     end
 
     def read_state
@@ -103,11 +121,11 @@ module TTTranTuanUpdateLoader
         rescue StandardError
         end
       end
-      UI.messagebox("Cập nhật #{version} thành công.\nBản thương mại đã ký được giữ nguyên, không cần khởi động lại SketchUp.")
+      notify("Cập nhật #{version} thành công.\nBản thương mại đã ký được giữ nguyên, không cần khởi động lại SketchUp.")
       true
     rescue StandardError => error
       FileUtils.rm_rf(staging) if defined?(staging) && staging && File.directory?(staging)
-      UI.messagebox("Không thể cập nhật bản thương mại:\n#{error.message}")
+      notify("Không thể cập nhật bản thương mại:\n#{error.message}", error: true)
       false
     end
 
