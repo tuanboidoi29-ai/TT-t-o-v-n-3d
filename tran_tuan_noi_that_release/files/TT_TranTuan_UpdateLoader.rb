@@ -24,7 +24,10 @@ module TTTranTuanUpdateLoader
     end
 
     def silent_update?
-      defined?(TranTuanNoiThat::Updater) && TranTuanNoiThat::Updater.respond_to?(:silent_update?) && TranTuanNoiThat::Updater.silent_update?
+      return false unless defined?(TranTuanNoiThat::Updater)
+      updater = TranTuanNoiThat::Updater
+      return updater.silent_update? if updater.respond_to?(:silent_update?)
+      updater.instance_variable_get(:@silent_update) == true
     rescue StandardError
       false
     end
@@ -173,6 +176,9 @@ module TTTranTuanUpdateLoader
       unless sc.method_defined?(:tt_update_bridge_original_files_outdated)
         sc.alias_method :tt_update_bridge_original_files_outdated, :files_outdated?
       end
+      unless sc.method_defined?(:tt_update_bridge_original_check)
+        sc.alias_method :tt_update_bridge_original_check, :check
+      end
 
       updater.define_singleton_method(:install) do |manifest|
         if TTTranTuanUpdateLoader.signed_runtime?
@@ -194,6 +200,34 @@ module TTTranTuanUpdateLoader
         else
           tt_update_bridge_original_files_outdated(manifest)
         end
+      end
+
+      # Quan trọng: check(false) ở lúc khởi động tuyệt đối không được bật hộp thoại modal.
+      # Bridge vá được cả updater cũ, nên các bản thương mại cũ sau khi nhận bridge mới
+      # cũng chuyển sang cơ chế tự cập nhật im lặng.
+      updater.define_singleton_method(:check) do |interactive = true|
+        return tt_update_bridge_original_check(true) if interactive
+
+        manifest = fetch_manifest
+        latest = manifest.fetch('version').to_s
+        local = TranTuanNoiThat.current_version.to_s
+        need_update = newer?(latest, local) || files_outdated?(manifest)
+        return false unless need_update
+
+        if respond_to?(:with_update_mode)
+          with_update_mode(true) { install(manifest) }
+        else
+          previous = instance_variable_get(:@silent_update)
+          instance_variable_set(:@silent_update, true)
+          begin
+            install(manifest)
+          ensure
+            instance_variable_set(:@silent_update, previous)
+          end
+        end
+      rescue StandardError => error
+        puts "[TT Auto Update Bridge] #{error.class}: #{error.message}"
+        false
       end
 
       true
