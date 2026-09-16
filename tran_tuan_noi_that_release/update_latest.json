@@ -1,14 +1,14 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.44",
+  "version": "1.9.45",
   "box_version": "1.1.1",
   "round_version": "2.2.7",
   "stretch_mode_version": "0.9.2",
   "grain_version": "3.5.0",
   "layout_stats_version": "0.8.1",
-  "license_version": "1.0.0",
+  "license_version": "1.0.1",
   "channel": "stable",
-  "notes": "Bản 1.9.44: thêm nền thương mại License V1 chỉ dùng Mã máy, không cần tài khoản/mật khẩu. Plugin tự tạo mã TT-XXXX-XXXX-XXXX, đồng bộ quyền từng chức năng với máy chủ Supabase Noi-That-tt, có bảng Bản Quyền để sao chép mã máy và kiểm tra kích hoạt. Quyền được tách theo board/box/drawer/round/stretch_mode/grain/layout_stats/render_ai. commercial_enforcement hiện vẫn FALSE để không khóa máy phát triển trước khi cấp OWNER; khi bật sẽ chặn chức năng chưa thanh toán và mở lại ngay sau khi server cấp quyền. Bo Cong V2.2.7 đã khóa lại theo yêu cầu; Grain V3.5.0 và LayoutStats V0.8.1 giữ nguyên.",
+  "notes": "Bản 1.9.45: License V1.0.1 sửa lỗi bảng Bản Quyền đồng bộ được nhưng không hiện trạng thái/quyền. API License nâng V2 trả machine_status, OWNER, feature_count, features và feature_list; plugin đổi cache sang V2 để bỏ dữ liệu cũ, tránh id status xung đột Chromium và hiển thị rõ ACTIVE/OWNER/8 quyền. commercial_enforcement vẫn FALSE để chưa khóa khách trong giai đoạn test. Bo Cong V2.2.7 vẫn khóa; Grain V3.5.0 và LayoutStats V0.8.1 giữ nguyên.",
   "rbz_url": "",
   "locked_features": {
     "box": "1.1.1",
