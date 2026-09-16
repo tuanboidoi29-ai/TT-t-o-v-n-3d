@@ -28,21 +28,20 @@ jobs:
           ruby -c tran_tuan_noi_that_release/files/tran_tuan_noi_that/grain_production_v350.rb
           ruby -c tran_tuan_noi_that_release/files/tran_tuan_noi_that/grain_production_v350_hotfix.rb
           ruby -c tran_tuan_noi_that_release/files/tran_tuan_noi_that/layout_stats_v080_five_pages.rb
-          grep -Fq "VERSION = '0.8.0'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/layout_stats_v080_five_pages.rb
-          grep -Fq "RenderMode' => 0" tran_tuan_noi_that_release/files/tran_tuan_noi_that/layout_stats_v080_five_pages.rb
-          grep -Fq "01 - TỔNG THỂ" tran_tuan_noi_that_release/files/tran_tuan_noi_that/layout_stats_v080_five_pages.rb
-          grep -Fq "02 - LINE + X-RAY" tran_tuan_noi_that_release/files/tran_tuan_noi_that/layout_stats_v080_five_pages.rb
-          grep -Fq "03 - KHUNG LINE" tran_tuan_noi_that_release/files/tran_tuan_noi_that/layout_stats_v080_five_pages.rb
-          grep -Fq "04 - MẶT ĐỨNG" tran_tuan_noi_that_release/files/tran_tuan_noi_that/layout_stats_v080_five_pages.rb
-          grep -Fq "05 - MẶT CẮT" tran_tuan_noi_that_release/files/tran_tuan_noi_that/layout_stats_v080_five_pages.rb
-          grep -Fq "layout_stats_v080_five_pages.rb" tran_tuan_noi_that_release/files/tran_tuan_noi_that/settings.rb
-          grep -Fq "VERSION = '1.9.41'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/bootstrap.rb
-          grep -Fq "VERSION = '1.9.41'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/settings.rb
-          grep -Fq "ext.version = '1.9.41'" tran_tuan_noi_that_release/files/TranTuanNoiThat.rb
-          grep -Fq '"version": "1.9.41"' tran_tuan_noi_that_release/update_latest.json
+          ruby -c tran_tuan_noi_that_release/files/tran_tuan_noi_that/layout_stats_v081_cut_offset_fix.rb
+          grep -Fq "VERSION = '0.8.1'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/layout_stats_v081_cut_offset_fix.rb
+          grep -Fq "bb.min.y + offsets[:front]" tran_tuan_noi_that_release/files/tran_tuan_noi_that/layout_stats_v081_cut_offset_fix.rb
+          grep -Fq "bb.min.x + offsets[:left]" tran_tuan_noi_that_release/files/tran_tuan_noi_that/layout_stats_v081_cut_offset_fix.rb
+          grep -Fq "bb.max.x - offsets[:right]" tran_tuan_noi_that_release/files/tran_tuan_noi_that/layout_stats_v081_cut_offset_fix.rb
+          grep -Fq "model.edit_transform" tran_tuan_noi_that_release/files/tran_tuan_noi_that/layout_stats_v081_cut_offset_fix.rb
+          grep -Fq "layout_stats_v081_cut_offset_fix.rb" tran_tuan_noi_that_release/files/tran_tuan_noi_that/settings.rb
+          grep -Fq "VERSION = '1.9.42'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/bootstrap.rb
+          grep -Fq "VERSION = '1.9.42'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/settings.rb
+          grep -Fq "ext.version = '1.9.42'" tran_tuan_noi_that_release/files/TranTuanNoiThat.rb
+          grep -Fq '"version": "1.9.42"' tran_tuan_noi_that_release/update_latest.json
           grep -Fq '"grain_version": "3.5.0"' tran_tuan_noi_that_release/update_latest.json
-          grep -Fq '"layout_stats_version": "0.8.0"' tran_tuan_noi_that_release/update_latest.json
-          grep -Fq 'layout_stats_v080_five_pages.rb' tran_tuan_noi_that_release/update_latest.json
+          grep -Fq '"layout_stats_version": "0.8.1"' tran_tuan_noi_that_release/update_latest.json
+          grep -Fq 'layout_stats_v081_cut_offset_fix.rb' tran_tuan_noi_that_release/update_latest.json
           grep -Fq '"locked": false' tran_tuan_noi_that_release/LAYOUT_STATS_LOCK.json
 
       - name: Build RBZ
@@ -50,11 +49,11 @@ jobs:
         run: |
           set -euo pipefail
           cd tran_tuan_noi_that_release/files
-          zip -r "$GITHUB_WORKSPACE/TRANTUAN_NOI_THAT_1.9.41_STABLE.rbz" .
+          zip -r "$GITHUB_WORKSPACE/TRANTUAN_NOI_THAT_1.9.42_STABLE.rbz" .
 
       - name: Upload RBZ artifact
         uses: actions/upload-artifact@v4
         with:
-          name: TRANTUAN_NOI_THAT_1.9.41_STABLE
-          path: TRANTUAN_NOI_THAT_1.9.41_STABLE.rbz
+          name: TRANTUAN_NOI_THAT_1.9.42_STABLE
+          path: TRANTUAN_NOI_THAT_1.9.42_STABLE.rbz
           if-no-files-found: error
