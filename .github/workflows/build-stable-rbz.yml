@@ -36,6 +36,7 @@ jobs:
           require 'digest'
           require 'uri'
 
+          release_ref = 'fbbc1db0064a8aeed9deb8c41edbc5f9ee780588'
           manifests = %w[update_latest.json update.json]
           manifests.each do |name|
             manifest_path = File.join('tran_tuan_noi_that_release', name)
@@ -52,11 +53,14 @@ jobs:
             files.each do |item|
               url = item.fetch('url')
               expected = item.fetch('sha256').to_s.downcase
-              raise "#{name}: empty sha256 for #{item['path']}" unless expected.match?(/\A[0-9a-f]{64}\z/)
-              marker = '/main/'
-              idx = url.index(marker)
-              raise "#{name}: URL not pinned to main path: #{url}" unless idx
-              repo_path = url[(idx + marker.length)..]
+              raise "#{name}: invalid sha256 for #{item['path']}" unless expected.match?(/\A[0-9a-f]{64}\z/)
+              uri = URI.parse(url)
+              raise "#{name}: non-raw GitHub URL" unless uri.host == 'raw.githubusercontent.com'
+              parts = uri.path.sub(%r{\A/}, '').split('/')
+              owner, repo, ref = parts.shift(3)
+              raise "#{name}: wrong repository" unless owner == 'tuanboidoi29-ai' && repo == 'TT-t-o-v-n-3d'
+              raise "#{name}: release URL not pinned: #{ref}" unless ref == release_ref
+              repo_path = parts.join('/')
               raise "#{name}: missing repo file #{repo_path}" unless File.file?(repo_path)
               actual = Digest::SHA256.file(repo_path).hexdigest
               unless actual == expected
