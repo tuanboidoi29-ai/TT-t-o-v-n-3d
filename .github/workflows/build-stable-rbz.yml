@@ -38,7 +38,7 @@ jobs:
           expected = {
             'TranTuanNoiThat.rb' => '841ab22b552fe4a6ecee564d333c3198cf31891ca2835af6defa075b8df94b6b',
             'tran_tuan_noi_that/bootstrap.rb' => 'ab5f2cc78ab2470df9eb18952cb37704d093bb3211cf29a75ed66507a1bbcbed',
-            'tran_tuan_noi_that/license_rsa_offline_v200.rb' => '27cc4b0b319af98a6637334f1bb2a9466f50e9eec13edf66e4d82c95dbacc540',
+            'tran_tuan_noi_that/license_rsa_offline_v200.rb' => '21dc998ad1aafc74273d05b2efadd82cafb67ca9d518f9ab9446ced9c48eddb9',
             'tran_tuan_noi_that/settings.rb' => '7dd1023ae2b7573a880ba934d7ebe5361580cad9265aa1315306594ddbf4db0f'
           }
           %w[update_latest.json update.json].each do |name|
