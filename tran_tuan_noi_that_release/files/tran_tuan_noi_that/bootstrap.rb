@@ -13,7 +13,7 @@ module TranTuanNoiThat
   NAME = 'TRẦN TUẤN NỘI THẤT'.freeze unless const_defined?(:NAME, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.54'.freeze
+  VERSION = '1.9.55'.freeze
 
   remove_const(:MANIFEST_URL) if const_defined?(:MANIFEST_URL, false)
   MANIFEST_URL = 'https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/update_latest.json'.freeze
@@ -63,7 +63,7 @@ module TranTuanNoiThat
 
     def reload_runtime
       # License V1.0.2 -> Payment V1.1.0 -> Owner Admin V1.2.x -> QR V1.3.0 -> AUTO SePay V1.4.0.
-      # Grain V3.5.0, LayoutStats V0.8.1 và Bo Cong V2.2.7 giữ nguyên.
+      # Grain V3.5.1 thêm guard nạp nóng; LayoutStats V0.8.1 và Bo Cong V2.2.7 giữ nguyên.
       %w[
         board_tool.rb
         box_tool.rb
@@ -74,6 +74,7 @@ module TranTuanNoiThat
         grain_material_fix.rb
         grain_align_fix.rb
         grain_standard_2440_fix.rb
+        grain_reload_v351_fix.rb
         license_manager.rb
         license_payment_v110.rb
         license_owner_admin_v120.rb
@@ -195,7 +196,7 @@ module TranTuanNoiThat
       @grain_cmd ||= command(
         'Xoay Vân Ván',
         'grain.svg',
-        'Preview quét trước khi áp dụng · rule chi tiết · khổ theo vật liệu · UV đúng tỷ lệ.',
+        'Preview quét trước khi áp dụng · rule chi tiết · khổ theo vật liệu · UV đúng tỷ lệ · nạp nóng an toàn.',
         :grain
       ) { Grain.activate }
       add_feature_command_once(@grain_cmd, :grain_menu_installed)
