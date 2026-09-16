@@ -13,7 +13,7 @@ module TranTuanNoiThat
   NAME = 'TRẦN TUẤN NỘI THẤT'.freeze unless const_defined?(:NAME, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.45'.freeze
+  VERSION = '1.9.46'.freeze
 
   remove_const(:MANIFEST_URL) if const_defined?(:MANIFEST_URL, false)
   MANIFEST_URL = 'https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/update_latest.json'.freeze
@@ -62,7 +62,7 @@ module TranTuanNoiThat
     end
 
     def reload_runtime
-      # License V1.0.1 được nạp trước UI để command kiểm tra quyền theo mã máy.
+      # License V1.0.2 dùng cache JSON AppData + render trực tiếp payload server.
       # Grain V3.5.0, LayoutStats V0.8.1 và Bo Cong V2.2.7 giữ nguyên.
       %w[
         board_tool.rb
