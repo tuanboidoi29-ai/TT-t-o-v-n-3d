@@ -25,35 +25,35 @@ jobs:
               tran_tuan_noi_that_release/files/tran_tuan_noi_that/grain_tool_part3.inc \
               > /tmp/grain_tool_combined.rb
           ruby -c /tmp/grain_tool_combined.rb
+          ruby -c tran_tuan_noi_that_release/files/tran_tuan_noi_that/round_smooth_fix.rb
           ruby -c tran_tuan_noi_that_release/files/tran_tuan_noi_that/grain_production_v350.rb
           ruby -c tran_tuan_noi_that_release/files/tran_tuan_noi_that/grain_production_v350_hotfix.rb
           ruby -c tran_tuan_noi_that_release/files/tran_tuan_noi_that/layout_stats_v080_five_pages.rb
           ruby -c tran_tuan_noi_that_release/files/tran_tuan_noi_that/layout_stats_v081_cut_offset_fix.rb
+          grep -Fq "VERSION = '2.2.7'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/round_smooth_fix.rb
+          grep -Fq "topology_boundary_edges" tran_tuan_noi_that_release/files/tran_tuan_noi_that/round_smooth_fix.rb
+          grep -Fq "current_boundaries.length == 2" tran_tuan_noi_that_release/files/tran_tuan_noi_that/round_smooth_fix.rb
+          grep -Fq "edge.hidden = false" tran_tuan_noi_that_release/files/tran_tuan_noi_that/round_smooth_fix.rb
           grep -Fq "VERSION = '0.8.1'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/layout_stats_v081_cut_offset_fix.rb
-          grep -Fq "bb.min.y + offsets[:front]" tran_tuan_noi_that_release/files/tran_tuan_noi_that/layout_stats_v081_cut_offset_fix.rb
-          grep -Fq "bb.min.x + offsets[:left]" tran_tuan_noi_that_release/files/tran_tuan_noi_that/layout_stats_v081_cut_offset_fix.rb
-          grep -Fq "bb.max.x - offsets[:right]" tran_tuan_noi_that_release/files/tran_tuan_noi_that/layout_stats_v081_cut_offset_fix.rb
-          grep -Fq "model.edit_transform" tran_tuan_noi_that_release/files/tran_tuan_noi_that/layout_stats_v081_cut_offset_fix.rb
-          grep -Fq "layout_stats_v081_cut_offset_fix.rb" tran_tuan_noi_that_release/files/tran_tuan_noi_that/settings.rb
-          grep -Fq "VERSION = '1.9.42'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/bootstrap.rb
-          grep -Fq "VERSION = '1.9.42'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/settings.rb
-          grep -Fq "ext.version = '1.9.42'" tran_tuan_noi_that_release/files/TranTuanNoiThat.rb
-          grep -Fq '"version": "1.9.42"' tran_tuan_noi_that_release/update_latest.json
-          grep -Fq '"grain_version": "3.5.0"' tran_tuan_noi_that_release/update_latest.json
+          grep -Fq "VERSION = '1.9.43'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/bootstrap.rb
+          grep -Fq "VERSION = '1.9.43'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/settings.rb
+          grep -Fq "ext.version = '1.9.43'" tran_tuan_noi_that_release/files/TranTuanNoiThat.rb
+          grep -Fq '"version": "1.9.43"' tran_tuan_noi_that_release/update_latest.json
+          grep -Fq '"round_version": "2.2.7"' tran_tuan_noi_that_release/update_latest.json
+          grep -Fq 'round_smooth_fix.rb' tran_tuan_noi_that_release/update_latest.json
           grep -Fq '"layout_stats_version": "0.8.1"' tran_tuan_noi_that_release/update_latest.json
-          grep -Fq 'layout_stats_v081_cut_offset_fix.rb' tran_tuan_noi_that_release/update_latest.json
-          grep -Fq '"locked": false' tran_tuan_noi_that_release/LAYOUT_STATS_LOCK.json
+          grep -Fq '"locked": false' tran_tuan_noi_that_release/BO_CONG_LOCK.json
 
       - name: Build RBZ
         shell: bash
         run: |
           set -euo pipefail
           cd tran_tuan_noi_that_release/files
-          zip -r "$GITHUB_WORKSPACE/TRANTUAN_NOI_THAT_1.9.42_STABLE.rbz" .
+          zip -r "$GITHUB_WORKSPACE/TRANTUAN_NOI_THAT_1.9.43_STABLE.rbz" .
 
       - name: Upload RBZ artifact
         uses: actions/upload-artifact@v4
         with:
-          name: TRANTUAN_NOI_THAT_1.9.42_STABLE
-          path: TRANTUAN_NOI_THAT_1.9.42_STABLE.rbz
+          name: TRANTUAN_NOI_THAT_1.9.43_STABLE
+          path: TRANTUAN_NOI_THAT_1.9.43_STABLE.rbz
           if-no-files-found: error
