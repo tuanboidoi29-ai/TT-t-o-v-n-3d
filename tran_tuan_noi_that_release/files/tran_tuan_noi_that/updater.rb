@@ -8,13 +8,14 @@ module TranTuanNoiThat
 
     RAW_MANIFEST_URL = 'https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/update_latest.json'.freeze
     API_MANIFEST_URL = 'https://api.github.com/repos/tuanboidoi29-ai/TT-t-o-v-n-3d/contents/tran_tuan_noi_that_release/update_latest.json?ref=main'.freeze
+    BRIDGE_LOADER = 'TT_TranTuan_UpdateLoader.rb'.freeze
     OPEN_TIMEOUT = 3
-    READ_TIMEOUT = 6
+    READ_TIMEOUT = 8
 
     def check(interactive = true)
       manifest = fetch_manifest
       latest = manifest.fetch('version').to_s
-      local = TranTuanNoiThat.current_version
+      local = TranTuanNoiThat.current_version.to_s
 
       unless newer?(latest, local)
         if files_outdated?(manifest)
@@ -53,7 +54,40 @@ module TranTuanNoiThat
       raise "Không lấy được dữ liệu cập nhật từ cả 2 máy chủ.\n#{errors.join("\n")}"
     end
 
+    def signed_runtime?
+      root = TranTuanNoiThat::ROOT.to_s
+      File.file?(File.join(root, 'TranTuanNoiThat.susig')) || !Dir.glob(File.join(root, '*.rbe')).empty?
+    rescue StandardError
+      false
+    end
+
+    def bridge_path
+      File.join(Sketchup.find_support_file('Plugins'), BRIDGE_LOADER)
+    end
+
+    def load_bridge
+      path = bridge_path
+      return false unless File.file?(path)
+      load(path) unless defined?(TTTranTuanUpdateLoader)
+      TTTranTuanUpdateLoader.patch_updater if defined?(TTTranTuanUpdateLoader)
+      defined?(TTTranTuanUpdateLoader) ? true : false
+    rescue StandardError => error
+      puts "[TT Update Bridge load] #{error.class}: #{error.message}"
+      false
+    end
+
     def install(manifest)
+      if signed_runtime?
+        load_bridge
+        if defined?(TTTranTuanUpdateLoader)
+          return TTTranTuanUpdateLoader.install_manifest(manifest)
+        end
+        raise "Bản thương mại đang dùng .rbe/.susig nhưng thiếu Update Bridge.\nHãy cài bản chuyển tiếp 1.9.54 một lần."
+      end
+      install_direct(manifest)
+    end
+
+    def install_direct(manifest)
       files = manifest.fetch('files')
       staging = Dir.mktmpdir('tt_noi_that_')
       downloaded = []
@@ -88,11 +122,13 @@ module TranTuanNoiThat
       UI.messagebox("Cập nhật #{manifest['version']} thành công.\nKhông cần khởi động lại SketchUp.")
       true
     ensure
-      FileUtils.remove_entry(staging) if staging && File.directory?(staging)
+      FileUtils.remove_entry(staging) if defined?(staging) && staging && File.directory?(staging)
     end
 
     def load_round_fix
-      file = File.join(TranTuanNoiThat::ROOT, 'round_smooth_fix.rb')
+      rb = File.join(TranTuanNoiThat::ROOT, 'round_smooth_fix.rb')
+      rbe = File.join(TranTuanNoiThat::ROOT, 'round_smooth_fix.rbe')
+      file = File.file?(rb) ? rb : rbe
       load(file) if File.file?(file)
       true
     rescue StandardError => error
@@ -169,7 +205,7 @@ module TranTuanNoiThat
       raise 'Chỉ cho phép cập nhật HTTPS.' unless uri.is_a?(URI::HTTPS)
 
       headers = {
-        'User-Agent' => 'TranTuanNoiThat-SketchUp/1.9.7',
+        'User-Agent' => 'TranTuanNoiThat-SketchUp/1.9.54',
         'Cache-Control' => 'no-cache, no-store, max-age=0',
         'Pragma' => 'no-cache'
       }
@@ -200,7 +236,7 @@ module TranTuanNoiThat
     def friendly_error(error)
       case error
       when Net::OpenTimeout, Net::ReadTimeout
-        'Kết nối GitHub quá thời gian; đã tự chuyển máy chủ dự phòng.'
+        'Kết nối GitHub quá thời gian.'
       when SocketError
         'Không phân giải được địa chỉ GitHub.'
       else
@@ -209,6 +245,10 @@ module TranTuanNoiThat
     end
 
     def files_outdated?(manifest)
+      # Bản ký .rbe không được so với đường dẫn source .rb trong manifest.
+      # Update Bridge quản lý trạng thái riêng và không chạm vào chữ ký.
+      return false if signed_runtime?
+
       manifest.fetch('files').any? do |item|
         relative = safe_path(item.fetch('path'))
         expected = item['sha256'].to_s.downcase
@@ -225,16 +265,11 @@ module TranTuanNoiThat
       clean
     end
 
-    # Source/manifest keeps the historical lowercase path. Commercial RBZs are
-    # packaged using SketchUp Warehouse best-practice naming:
-    #   TranTuanNoiThat.rb + TranTuanNoiThat/
-    # Route updates into whichever runtime folder actually loaded this plugin.
     def runtime_relative_path(relative)
       clean = safe_path(relative)
       legacy_prefix = 'tran_tuan_noi_that/'
       return clean unless clean.start_with?(legacy_prefix)
       return clean unless File.basename(TranTuanNoiThat::ROOT.to_s) == 'TranTuanNoiThat'
-
       "TranTuanNoiThat/#{clean.delete_prefix(legacy_prefix)}"
     end
 
@@ -255,17 +290,32 @@ module TranTuanNoiThat
       parts << 0 while parts.length < 4
       parts
     end
+
+    def schedule_transition_cleanup
+      return false unless signed_runtime?
+      source = File.expand_path(__FILE__)
+      return false unless File.extname(source).downcase == '.rb'
+      return false unless File.basename(File.dirname(source)) == 'TranTuanNoiThat'
+      UI.start_timer(2.0, false) do
+        begin
+          File.delete(source) if File.file?(source)
+          puts '[TT Updater] Đã xóa updater.rb chuyển tiếp; chữ ký thương mại được giữ sạch.'
+        rescue StandardError => error
+          puts "[TT Updater cleanup] #{error.class}: #{error.message}"
+        end
+      end
+      true
+    rescue StandardError
+      false
+    end
   end
 end
 
-if TranTuanNoiThat.instance_variable_get(:@ui_installed) &&
-   !TranTuanNoiThat.instance_variable_get(:@hot_bootstrap_loading)
-  begin
-    TranTuanNoiThat.instance_variable_set(:@hot_bootstrap_loading, true)
-    load File.join(TranTuanNoiThat::ROOT, 'bootstrap.rb')
-  ensure
-    TranTuanNoiThat.instance_variable_set(:@hot_bootstrap_loading, false)
-  end
+# Khi 1.9.53 chuyển tiếp lên 1.9.54, updater.rb tạm thời được nạp từ
+# thư mục đã ký. Nó chỉ dùng để kích hoạt bridge rồi tự xóa sau đó.
+if defined?(TranTuanNoiThat::Updater)
+  TranTuanNoiThat::Updater.load_bridge
+  TranTuanNoiThat::Updater.schedule_transition_cleanup
 end
 
 TranTuanNoiThat::Updater.load_round_fix if defined?(TranTuanNoiThat::Updater)
