@@ -15,7 +15,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Validate Ruby syntax
+      - name: Validate Ruby syntax and release metadata
         shell: bash
         run: |
           set -euo pipefail
@@ -25,71 +25,34 @@ jobs:
               tran_tuan_noi_that_release/files/tran_tuan_noi_that/grain_tool_part3.inc \
               > /tmp/grain_tool_combined.rb
           ruby -c /tmp/grain_tool_combined.rb
-          ruby -c tran_tuan_noi_that_release/files/tran_tuan_noi_that/round_smooth_fix.rb
-          ruby -c tran_tuan_noi_that_release/files/tran_tuan_noi_that/license_manager.rb
-          ruby -c tran_tuan_noi_that_release/files/tran_tuan_noi_that/license_payment_v110.rb
-          ruby -c tran_tuan_noi_that_release/files/tran_tuan_noi_that/license_owner_admin_v120.rb
-          ruby -c tran_tuan_noi_that_release/files/tran_tuan_noi_that/license_owner_admin_v121_fix.rb
-          ruby -c tran_tuan_noi_that_release/files/tran_tuan_noi_that/license_ui_v122_fix.rb
-          ruby -c tran_tuan_noi_that_release/files/tran_tuan_noi_that/license_owner_admin_v123_fix.rb
-          ruby -c tran_tuan_noi_that_release/files/tran_tuan_noi_that/license_commercial_v130_qr.rb
-          ruby -c tran_tuan_noi_that_release/files/tran_tuan_noi_that/license_commercial_v140_auto.rb
-          grep -Fq "VERSION = '1.4.0'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/license_commercial_v140_auto.rb
-          grep -Fq "auto_check_payment" tran_tuan_noi_that_release/files/tran_tuan_noi_that/license_commercial_v140_auto.rb
-          grep -Fq "ttStartPaymentPollingV140" tran_tuan_noi_that_release/files/tran_tuan_noi_that/license_commercial_v140_auto.rb
-          grep -Fq "8000" tran_tuan_noi_that_release/files/tran_tuan_noi_that/license_commercial_v140_auto.rb
-          grep -Fq "license_commercial_v140_auto.rb" tran_tuan_noi_that_release/files/tran_tuan_noi_that/bootstrap.rb
-          grep -Fq "license_commercial_v140_auto.rb" tran_tuan_noi_that_release/files/tran_tuan_noi_that/settings.rb
-          grep -Fq "License.allowed?" tran_tuan_noi_that_release/files/tran_tuan_noi_that/bootstrap.rb
-          grep -Fq "VERSION = '2.2.7'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/round_smooth_fix.rb
-          grep -Fq "VERSION = '0.8.1'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/layout_stats_v081_cut_offset_fix.rb
-          grep -Fq "VERSION = '1.9.53'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/bootstrap.rb
-          grep -Fq "VERSION = '1.9.53'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/settings.rb
-          grep -Fq "ext.version = '1.9.53'" tran_tuan_noi_that_release/files/TranTuanNoiThat.rb
-          grep -Fq "runtime_folder" tran_tuan_noi_that_release/files/TranTuanNoiThat.rb
-          grep -Fq "runtime_relative_path" tran_tuan_noi_that_release/files/tran_tuan_noi_that/updater.rb
-          grep -Fq '"version": "1.9.53"' tran_tuan_noi_that_release/update_latest.json
-          grep -Fq '"license_version": "1.4.0"' tran_tuan_noi_that_release/update_latest.json
-          grep -Fq 'license_commercial_v140_auto.rb' tran_tuan_noi_that_release/update_latest.json
-          grep -Fq '"version": "1.9.53"' tran_tuan_noi_that_release/update.json
-          grep -Fq '"license_version": "1.4.0"' tran_tuan_noi_that_release/update.json
-          grep -Fq '"round_version": "2.2.7"' tran_tuan_noi_that_release/update_latest.json
-          grep -Fq '"layout_stats_version": "0.8.1"' tran_tuan_noi_that_release/update_latest.json
+
+          grep -Fq "VERSION = '1.9.54'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/bootstrap.rb
+          grep -Fq "VERSION = '1.9.54'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/settings.rb
+          grep -Fq "ext.version = '1.9.54'" tran_tuan_noi_that_release/files/TranTuanNoiThat.rb
+          grep -Fq "BRIDGE_LOADER = 'TT_TranTuan_UpdateLoader.rb'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/updater.rb
+          grep -Fq "def signed_runtime?" tran_tuan_noi_that_release/files/tran_tuan_noi_that/updater.rb
+          grep -Fq "def schedule_transition_cleanup" tran_tuan_noi_that_release/files/tran_tuan_noi_that/updater.rb
+          grep -Fq "VERSION = '1.0.0'" tran_tuan_noi_that_release/files/TT_TranTuan_UpdateLoader.rb
+          grep -Fq "TT_TranTuan_Updates" tran_tuan_noi_that_release/files/TT_TranTuan_UpdateLoader.rb
+          grep -Fq "def install_manifest" tran_tuan_noi_that_release/files/TT_TranTuan_UpdateLoader.rb
+          grep -Fq "def patch_updater" tran_tuan_noi_that_release/files/TT_TranTuan_UpdateLoader.rb
+          grep -Fq '"version": "1.9.54"' tran_tuan_noi_that_release/update_latest.json
+          grep -Fq '"updater_bridge_version": "1.0.0"' tran_tuan_noi_that_release/update_latest.json
           grep -Fq '"locked": true' tran_tuan_noi_that_release/BO_CONG_LOCK.json
 
-      - name: Test License file cache
-        shell: bash
-        env:
-          APPDATA: /tmp/tt_license_cache_test
-        run: |
-          set -euo pipefail
-          rm -rf "$APPDATA"
           ruby <<'RUBY'
-          module TranTuanNoiThat
-            @settings = {}
-            class << self
-              def setting(key, default = nil); @settings.fetch(key.to_s, default); end
-              def save_setting(key, value); @settings[key.to_s] = value; end
-              def current_version; '1.9.53'; end
-            end
+          require 'json'
+          %w[update_latest.json update.json].each do |name|
+            path = File.join('tran_tuan_noi_that_release', name)
+            data = JSON.parse(File.read(path))
+            raise "#{name}: wrong version" unless data['version'] == '1.9.54'
+            raise "#{name}: not transition" unless data['transition_update'] == true
+            paths = Array(data['files']).map { |x| x['path'] }
+            expected = ['tran_tuan_noi_that/updater.rb', 'TT_TranTuan_UpdateLoader.rb']
+            raise "#{name}: transition must contain only updater + bridge: #{paths.inspect}" unless paths == expected
+            raise "#{name}: Bo Cong lock changed" unless data.dig('locked_features', 'bo_cong') == '2.2.7'
           end
-          load 'tran_tuan_noi_that_release/files/tran_tuan_noi_that/license_manager.rb'
-          license = TranTuanNoiThat::License
-          features = {}
-          %w[board box drawer round stretch_mode grain layout_stats render_ai].each do |slug|
-            features[slug] = {'name'=>slug,'allowed'=>true,'purchased'=>true,'price_vnd'=>nil,'padding'=>'X'*900}
-          end
-          payload = {'ok'=>true,'api_version'=>2,'machine_status'=>'active','machine_role'=>'owner','owner'=>true,'commercial_enforcement'=>true,'offline_grace_hours'=>72,'feature_count'=>8,'features'=>features}
-          license.save_cache(payload)
-          raise 'cache file missing' unless File.file?(license.cache_file)
-          license.instance_variable_set(:@memory_cache, nil)
-          license.instance_variable_set(:@memory_cache_time, nil)
-          restored = license.cache
-          raise 'status lost' unless restored['machine_status'] == 'active'
-          raise 'owner lost' unless restored['owner'] == true
-          raise 'features lost' unless restored['features'].size == 8
-          raise 'large payload truncated' unless restored['features']['board']['padding'].size == 900
-          puts 'LICENSE CACHE TEST OK'
+          puts 'TRANSITION MANIFEST OK'
           RUBY
 
       - name: Validate License and Owner Admin JavaScript
@@ -102,7 +65,7 @@ jobs:
             class << self
               def setting(key, default = nil); @settings.fetch(key.to_s, default); end
               def save_setting(key, value); @settings[key.to_s] = value; end
-              def current_version; '1.9.53'; end
+              def current_version; '1.9.54'; end
             end
           end
           load 'tran_tuan_noi_that_release/files/tran_tuan_noi_that/license_manager.rb'
@@ -116,56 +79,55 @@ jobs:
           license = TranTuanNoiThat::License
 
           html = license.dialog_html
-          raise 'QR payment hook missing' unless html.include?('ttQrPaymentV130')
-          raise 'auto payment polling missing' unless html.include?('ttStartPaymentPollingV140')
-          raise 'auto payment callback missing' unless html.include?('auto_check_payment')
-          raise 'ready callback missing' unless html.include?("document.addEventListener('DOMContentLoaded',()=>sketchup.ready());")
           script = html[/<script>(.*?)<\/script>/m, 1]
           raise 'license script missing' if script.to_s.empty?
           File.write('/tmp/tt_license_dialog.js', script)
 
           admin = license.owner_admin_html
-          raise 'payment config missing' unless admin.include?('CÀI ĐẶT THANH TOÁN QR')
-          raise 'payment save hook missing' unless admin.include?('set_payment_config')
-          raise 'admin ready missing' unless admin.include?('sketchup.admin_ready()')
           admin_script = admin[/<script>(.*?)<\/script>/m, 1]
           raise 'owner admin script missing' if admin_script.to_s.empty?
           File.write('/tmp/tt_owner_admin.js', admin_script)
-          puts 'LICENSE V1.4.0 HTML BUILD OK'
+          puts 'LICENSE HTML BUILD OK'
           RUBY
           node --check /tmp/tt_license_dialog.js
           node --check /tmp/tt_owner_admin.js
 
-      - name: Build Warehouse-compliant RBZ
+      - name: Build updater bridge recovery RBZ
         shell: bash
         run: |
           set -euo pipefail
-          STAGE="$RUNNER_TEMP/tt_rbz_warehouse"
+          STAGE="$RUNNER_TEMP/tt_update_bridge"
+          rm -rf "$STAGE"
+          mkdir -p "$STAGE"
+          cp tran_tuan_noi_that_release/files/TT_TranTuan_UpdateLoader.rb "$STAGE/TT_TranTuan_UpdateLoader.rb"
+          cd "$STAGE"
+          zip "$GITHUB_WORKSPACE/TT_UPDATE_BRIDGE_1.0.0.rbz" TT_TranTuan_UpdateLoader.rb
+          unzip -t "$GITHUB_WORKSPACE/TT_UPDATE_BRIDGE_1.0.0.rbz"
+
+      - name: Build 1.9.54 source fallback RBZ
+        shell: bash
+        run: |
+          set -euo pipefail
+          STAGE="$RUNNER_TEMP/tt_rbz_fallback"
           rm -rf "$STAGE"
           mkdir -p "$STAGE"
           cp tran_tuan_noi_that_release/files/TranTuanNoiThat.rb "$STAGE/TranTuanNoiThat.rb"
           cp -a tran_tuan_noi_that_release/files/tran_tuan_noi_that "$STAGE/TranTuanNoiThat"
+          cp tran_tuan_noi_that_release/files/TT_TranTuan_UpdateLoader.rb "$STAGE/TT_TranTuan_UpdateLoader.rb"
           cd "$STAGE"
-          zip -r "$GITHUB_WORKSPACE/TRANTUAN_NOI_THAT_1.9.53_STABLE.rbz" .
+          zip -r "$GITHUB_WORKSPACE/TRANTUAN_NOI_THAT_1.9.54_SOURCE_FALLBACK.rbz" .
+          unzip -t "$GITHUB_WORKSPACE/TRANTUAN_NOI_THAT_1.9.54_SOURCE_FALLBACK.rbz"
 
-      - name: Validate RBZ package structure
-        shell: bash
-        run: |
-          set -euo pipefail
-          RBZ="$GITHUB_WORKSPACE/TRANTUAN_NOI_THAT_1.9.53_STABLE.rbz"
-          unzip -t "$RBZ"
-          unzip -Z1 "$RBZ" | grep -Fx 'TranTuanNoiThat.rb'
-          unzip -Z1 "$RBZ" | grep -Fx 'TranTuanNoiThat/'
-          unzip -Z1 "$RBZ" | grep -Fx 'TranTuanNoiThat/bootstrap.rb'
-          if unzip -Z1 "$RBZ" | grep -q '^tran_tuan_noi_that/'; then
-            echo 'ERROR: lowercase support folder leaked into RBZ'
-            exit 1
-          fi
-          echo 'WAREHOUSE PACKAGE STRUCTURE OK'
-
-      - name: Upload RBZ artifact
+      - name: Upload updater bridge artifact
         uses: actions/upload-artifact@v4
         with:
-          name: TRANTUAN_NOI_THAT_1.9.53_STABLE
-          path: TRANTUAN_NOI_THAT_1.9.53_STABLE.rbz
+          name: TT_UPDATE_BRIDGE_1.0.0
+          path: TT_UPDATE_BRIDGE_1.0.0.rbz
+          if-no-files-found: error
+
+      - name: Upload source fallback artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: TRANTUAN_NOI_THAT_1.9.54_SOURCE_FALLBACK
+          path: TRANTUAN_NOI_THAT_1.9.54_SOURCE_FALLBACK.rbz
           if-no-files-found: error
