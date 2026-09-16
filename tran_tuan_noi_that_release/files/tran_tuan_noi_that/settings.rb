@@ -8,6 +8,10 @@ module TranTuanNoiThat
   load grain_patch_v350 if File.file?(grain_patch_v350)
   load grain_patch_v350_hotfix if File.file?(grain_patch_v350_hotfix)
 
+  # License Payment V1.1.0: mua quyền theo từng chức năng.
+  license_payment_v110 = File.join(ROOT, 'license_payment_v110.rb')
+  load license_payment_v110 if File.file?(license_payment_v110)
+
   # Layout load order bắt buộc:
   # base -> V0.3.0 -> compat -> V0.4.0 -> compat -> V0.5.0 -> V0.6.0 -> V0.7.0 -> V0.8.0 -> V0.8.1.
   layout_compat = File.join(ROOT, 'layout_stats_v040_compat.rb')
@@ -27,7 +31,7 @@ module TranTuanNoiThat
   load layout_patch_v081 if File.file?(layout_patch_v081)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.46'.freeze
+  VERSION = '1.9.47'.freeze
 
   module Settings
     extend self
