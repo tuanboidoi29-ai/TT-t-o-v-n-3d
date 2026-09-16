@@ -1,13 +1,43 @@
 # encoding: UTF-8
 require 'sketchup.rb'
 require 'json'
-require_relative 'signer'
+require 'digest'
+require 'open3'
+Sketchup.require 'tt_license_issuer/signer'
 
 module TTLicenseIssuer
   extend self
 
-  VERSION = '1.0.0'.freeze
+  VERSION = '1.1.0'.freeze
   PREF_KEY = 'TT_LICENSE_ISSUER_OWNER'.freeze
+  OWNER_MACHINE_CODE = 'TT-5ACF-3BBC-FCC6'.freeze
+
+  def windows_machine_guid
+    return '' unless RUBY_PLATFORM =~ /mswin|mingw/i
+    stdout, = Open3.capture3('reg query "HKLM\\SOFTWARE\\Microsoft\\Cryptography" /v MachineGuid')
+    line = stdout.to_s.lines.find { |item| item =~ /MachineGuid/i }
+    line ? line.strip.split(/\s+/).last.to_s.strip : ''
+  rescue StandardError
+    ''
+  end
+
+  def owner_machine_code
+    raw = windows_machine_guid.to_s.strip
+    raw = [ENV['COMPUTERNAME'], ENV['USERNAME'], RUBY_PLATFORM].compact.join('|') if raw.empty?
+    digest = Digest::SHA256.hexdigest("TRANTUAN|#{raw}").upcase
+    "TT-#{digest[0, 4]}-#{digest[4, 4]}-#{digest[8, 4]}"
+  rescue StandardError
+    'TT-0000-0000-0000'
+  end
+
+  def owner_authorized?
+    owner_machine_code == OWNER_MACHINE_CODE
+  end
+
+  def guard_owner!
+    return true if owner_authorized?
+    raise "TRANTUAN-NOIITHAT-ADM chỉ được phép chạy trên máy OWNER #{OWNER_MACHINE_CODE}. Máy hiện tại: #{owner_machine_code}."
+  end
 
   def key_path
     Sketchup.read_default(PREF_KEY, 'private_key_path', '').to_s
@@ -18,6 +48,7 @@ module TTLicenseIssuer
   end
 
   def current_key_state
+    guard_owner!
     path = key_path
     return { ok: false, path: '', message: 'Chưa chọn khóa riêng RSA.' } if path.empty?
     key = Signer.load_private_key(path)
@@ -28,10 +59,11 @@ module TTLicenseIssuer
       message: 'Khóa RSA OWNER hợp lệ.'
     }
   rescue StandardError => error
-    { ok: false, path: path, message: error.message }
+    { ok: false, path: key_path, message: error.message }
   end
 
   def choose_key
+    guard_owner!
     start_dir = key_path
     start_dir = File.dirname(start_dir) unless start_dir.empty?
     start_dir = Dir.home if start_dir.empty? || !Dir.exist?(start_dir)
@@ -46,10 +78,11 @@ module TTLicenseIssuer
       message: 'Đã nạp khóa RSA OWNER.'
     }
   rescue StandardError => error
-    { ok: false, path: path.to_s, message: error.message }
+    { ok: false, path: (defined?(path) ? path.to_s : ''), message: error.message }
   end
 
   def generate(machine_code, plan)
+    guard_owner!
     key = Signer.load_private_key(key_path)
     Signer.generate(machine_code, plan, key)
   rescue StandardError => error
@@ -57,6 +90,11 @@ module TTLicenseIssuer
   end
 
   def show
+    unless owner_authorized?
+      UI.messagebox("TRANTUAN-NOIITHAT-ADM đã khóa theo máy OWNER.\n\nMáy được phép: #{OWNER_MACHINE_CODE}\nMáy hiện tại: #{owner_machine_code}")
+      return false
+    end
+
     if @dialog && @dialog.visible?
       @dialog.bring_to_front
       render_state
@@ -64,12 +102,12 @@ module TTLicenseIssuer
     end
 
     @dialog = UI::HtmlDialog.new(
-      dialog_title: 'TRẦN TUẤN - CẤP MÃ BẢN QUYỀN OWNER',
-      preferences_key: 'TTLicenseIssuerOwnerV100',
+      dialog_title: 'TRANTUAN-NOIITHAT-ADM - CẤP MÃ BẢN QUYỀN',
+      preferences_key: 'TTLicenseIssuerOwnerV110',
       scrollable: true,
       resizable: true,
       width: 720,
-      height: 720,
+      height: 760,
       style: UI::HtmlDialog::STYLE_DIALOG
     )
     @dialog.set_html(html)
@@ -84,7 +122,7 @@ module TTLicenseIssuer
     @dialog.show
     true
   rescue StandardError => error
-    UI.messagebox("Không mở được TT License Issuer:\n#{error.message}")
+    UI.messagebox("Không mở được TRANTUAN-NOIITHAT-ADM:\n#{error.message}")
     false
   end
 
@@ -92,12 +130,14 @@ module TTLicenseIssuer
     return false unless @dialog && @dialog.visible?
     render_key_state(current_key_state)
     plans = Signer::PLANS.map do |slug, info|
-      {
-        slug: slug,
-        label: info['label'],
-        price_vnd: info['price_vnd']
-      }
+      { slug: slug, label: info['label'], price_vnd: info['price_vnd'] }
     end
+    payload = {
+      owner_machine: owner_machine_code,
+      expected_owner_machine: OWNER_MACHINE_CODE,
+      authorized: owner_authorized?
+    }
+    @dialog.execute_script("window.setOwner(#{JSON.generate(payload)})")
     @dialog.execute_script("window.setPlans(#{JSON.generate(plans)})")
     true
   rescue StandardError => error
@@ -121,17 +161,17 @@ module TTLicenseIssuer
     return true if @ui_installed
     @ui_installed = true
 
-    command = UI::Command.new('TT - CẤP MÃ BẢN QUYỀN') { show }
+    command = UI::Command.new('TRANTUAN-NOIITHAT-ADM') { show }
     icon = File.join(__dir__, 'issuer.svg')
     if File.file?(icon)
       command.small_icon = icon
       command.large_icon = icon
     end
-    command.tooltip = 'TT - CẤP MÃ BẢN QUYỀN'
-    command.status_bar_text = 'Nhập mã máy, chọn thời hạn, tạo và sao chép mã kích hoạt RSA.'
+    command.tooltip = 'TRANTUAN-NOIITHAT-ADM'
+    command.status_bar_text = 'OWNER: nhập Mã máy khách, chọn 90/180 ngày hoặc Vĩnh viễn và cấp mã RSA.'
 
     UI.menu('Extensions').add_item(command)
-    @toolbar = UI::Toolbar.new('TT LICENSE OWNER')
+    @toolbar = UI::Toolbar.new('TRANTUAN-NOIITHAT-ADM')
     @toolbar.add_item(command)
     @toolbar.restore
     @toolbar.show
@@ -161,8 +201,14 @@ module TTLicenseIssuer
         </style>
       </head>
       <body>
-        <div class="head"><h1>TRẦN TUẤN · CẤP MÃ BẢN QUYỀN OWNER</h1><div class="sub">Nhập Mã máy → chọn thời hạn → tạo mã RSA → sao chép gửi khách</div></div>
+        <div class="head"><h1>TRANTUAN-NOIITHAT-ADM</h1><div class="sub">Máy OWNER · cấp 1 mã RSA mở toàn bộ hệ thống cho khách</div></div>
         <div class="body">
+          <div class="box">
+            <div class="title">KHÓA MÁY OWNER</div>
+            <div id="ownerState" class="warn">Đang kiểm tra...</div>
+            <div id="ownerMachine" class="code" style="margin-top:6px">-</div>
+          </div>
+
           <div class="box">
             <div class="title">KHÓA KÝ RSA OWNER</div>
             <div id="keyStatus" class="warn">Đang kiểm tra...</div>
@@ -171,7 +217,7 @@ module TTLicenseIssuer
           </div>
 
           <div class="box">
-            <div class="title">CẤP MÃ KÍCH HOẠT</div>
+            <div class="title">CẤP MÃ KÍCH HOẠT TOÀN HỆ THỐNG</div>
             <div class="label">MÃ MÁY KHÁCH</div>
             <input id="machine" placeholder="TT-XXXX-XXXX-XXXX" autocomplete="off">
             <div class="label" style="margin-top:10px">THỜI HẠN</div>
@@ -191,12 +237,16 @@ module TTLicenseIssuer
             <div class="row"><button class="green" onclick="copyActivation(this)">SAO CHÉP MÃ KÍCH HOẠT</button></div>
           </div>
 
-          <div class="note">RBZ này không chứa private key. Bạn chỉ chọn file <b>tt_dynamic_open_private.pem</b> trên máy OWNER một lần; đường dẫn được nhớ cục bộ. Nếu RBZ bị sao chép sang máy khác mà không có private key thì không thể cấp mã.</div>
+          <div class="note">Bảo vệ 2 lớp: RBZ ADM chỉ chạy trên Mã máy OWNER <b>TT-5ACF-3BBC-FCC6</b>, đồng thời private key RSA không nằm trong RBZ/GitHub. Hãy giữ file private key riêng trên máy OWNER và sao lưu ngoại tuyến.</div>
         </div>
 
         <script>
           const el=id=>document.getElementById(id);
           const money=v=>Number(v||0).toLocaleString('vi-VN')+'đ';
+
+          window.setOwner=s=>{
+            const ok=!!(s&&s.authorized);el('ownerState').textContent=ok?'MÁY OWNER HỢP LỆ':'MÁY KHÔNG ĐƯỢC PHÉP';el('ownerState').className=ok?'ok':'bad';el('ownerMachine').textContent=String((s&&s.owner_machine)||'-');
+          };
 
           window.setPlans=items=>{
             const p=el('plan');p.innerHTML='';
@@ -207,11 +257,7 @@ module TTLicenseIssuer
             const ok=!!(s&&s.ok);el('keyStatus').textContent=ok?'KHÓA RSA HỢP LỆ':String((s&&s.message)||'Chưa chọn khóa RSA');el('keyStatus').className=ok?'ok':'bad';el('keyPath').textContent=String((s&&s.path)||'');
           };
 
-          function generateCode(){
-            const machine=el('machine').value.trim();
-            const plan=el('plan').value;
-            sketchup.generate_code(machine,plan);
-          }
+          function generateCode(){sketchup.generate_code(el('machine').value.trim(),el('plan').value);}
 
           window.renderResult=r=>{
             const box=el('resultBox');box.style.display='block';
@@ -220,11 +266,7 @@ module TTLicenseIssuer
             el('outMachine').textContent=r.machine_code||'-';el('outPlan').textContent=(r.plan_label||r.plan||'-')+' · '+money(r.price_vnd);el('outExpiry').textContent=r.lifetime?'VĨNH VIỄN':String(r.expires_at||'-');el('activation').value=r.activation_code||'';
           };
 
-          function copyActivation(btn){
-            const t=el('activation');t.focus();t.select();
-            try{document.execCommand('copy');const old=btn.textContent;btn.textContent='ĐÃ SAO CHÉP';setTimeout(()=>btn.textContent=old,1200);}catch(e){}
-          }
-
+          function copyActivation(btn){const t=el('activation');t.focus();t.select();try{document.execCommand('copy');const old=btn.textContent;btn.textContent='ĐÃ SAO CHÉP';setTimeout(()=>btn.textContent=old,1200);}catch(e){}}
           document.addEventListener('DOMContentLoaded',()=>sketchup.ready());
         </script>
       </body></html>
