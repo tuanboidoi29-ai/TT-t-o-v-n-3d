@@ -1,12 +1,15 @@
 # encoding: UTF-8
 module TranTuanNoiThat
-  # Grain load order: V3.4.1 fixed sheet -> V3.5.0 production scan -> hotfix.
+  # Grain load order: V3.4.1 fixed sheet -> V3.5.1 reload preflight -> V3.5.0 production -> hotfix -> V3.5.1 final marker.
   grain_patch_v341 = File.join(ROOT, 'grain_standard_2440_fix.rb')
+  grain_reload_v351 = File.join(ROOT, 'grain_reload_v351_fix.rb')
   grain_patch_v350 = File.join(ROOT, 'grain_production_v350.rb')
   grain_patch_v350_hotfix = File.join(ROOT, 'grain_production_v350_hotfix.rb')
   load grain_patch_v341 if File.file?(grain_patch_v341)
+  load grain_reload_v351 if File.file?(grain_reload_v351)
   load grain_patch_v350 if File.file?(grain_patch_v350)
   load grain_patch_v350_hotfix if File.file?(grain_patch_v350_hotfix)
+  load grain_reload_v351 if File.file?(grain_reload_v351)
 
   # License: cache -> Payment -> Owner Admin -> UI fixes -> QR V1.3.0 -> AUTO SePay V1.4.0.
   license_payment_v110 = File.join(ROOT, 'license_payment_v110.rb')
@@ -43,7 +46,7 @@ module TranTuanNoiThat
   load layout_patch_v081 if File.file?(layout_patch_v081)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.54'.freeze
+  VERSION = '1.9.55'.freeze
 
   module Settings
     extend self
