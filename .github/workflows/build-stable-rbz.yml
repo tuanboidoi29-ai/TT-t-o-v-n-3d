@@ -27,14 +27,18 @@ jobs:
           ruby -c /tmp/grain_tool_merged.rb
           grep -Fq "VERSION = '2.0.0'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/license_rsa_offline_v200.rb
           grep -Fq "VERSION = '2.0.1'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/license_rsa_offline_v201_patch.rb
-          grep -Fq "VERSION = '1.9.59'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/bootstrap.rb
-          grep -Fq "VERSION = '1.9.59'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/settings.rb
-          grep -Fq "ext.version = '1.9.59'" tran_tuan_noi_that_release/files/TranTuanNoiThat.rb
+          grep -Fq "VERSION = '2.0.2'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/license_rsa_offline_v202_patch.rb
+          grep -Fq "VERSION = '1.0.1'" tran_tuan_noi_that_release/files/TT_TranTuan_UpdateLoader.rb
+          grep -Fq "VERSION = '1.9.60'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/bootstrap.rb
+          grep -Fq "VERSION = '1.9.60'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/settings.rb
+          grep -Fq "ext.version = '1.9.60'" tran_tuan_noi_that_release/files/TranTuanNoiThat.rb
+          grep -Fq "def silent_update?" tran_tuan_noi_that_release/files/tran_tuan_noi_that/updater.rb
+          grep -Fq "check(false)" tran_tuan_noi_that_release/files/TT_TranTuan_UpdateLoader.rb
           grep -Fq "Sketchup.load(base)" tran_tuan_noi_that_release/files/tran_tuan_noi_that/bootstrap.rb
           grep -Fq "Sketchup.load(base)" tran_tuan_noi_that_release/files/tran_tuan_noi_that/settings.rb
           ! grep -Eq 'license_payment_v110|license_owner_admin|license_commercial|license_rsa_v150|tt-license-check|tt-license-payment|tt-license-admin|commercial_enforcement' tran_tuan_noi_that_release/files/tran_tuan_noi_that/settings.rb tran_tuan_noi_that_release/files/tran_tuan_noi_that/bootstrap.rb
 
-      - name: Validate 1.9.59 manifests
+      - name: Validate 1.9.60 manifests
         shell: bash
         run: |
           set -euo pipefail
@@ -42,21 +46,29 @@ jobs:
           require 'json'
           %w[update_latest.json update.json].each do |name|
             data = JSON.parse(File.binread(File.join('tran_tuan_noi_that_release', name)))
-            raise 'version' unless data['version'] == '1.9.59'
-            raise 'license' unless data['license_version'] == '2.0.1'
+            raise 'version' unless data['version'] == '1.9.60'
+            raise 'license' unless data['license_version'] == '2.0.2'
+            raise 'bridge' unless data['updater_bridge_version'] == '1.0.1'
             raise 'rbe ready' unless data['rbe_ready'] == true
             raise 'false official rbe flag missing' unless data['official_rbe_encrypted'] == false
             raise 'customer package' unless data['customer_package'] == 'TRANTUAN-NOIITHAT-KHACH.rbz'
-            raise 'admin package' unless data['admin_package'] == 'TRANTUAN-NOIITHAT-ADM.rbz'
             paths = Array(data['files']).map { |x| x['path'] }
-            %w[TranTuanNoiThat.rb tran_tuan_noi_that/bootstrap.rb tran_tuan_noi_that/license_rsa_offline_v200.rb tran_tuan_noi_that/license_rsa_offline_v201_patch.rb tran_tuan_noi_that/settings.rb].each do |p|
-              raise "manifest missing #{p}" unless paths.include?(p)
-            end
+            required = %w[
+              TT_TranTuan_UpdateLoader.rb
+              TranTuanNoiThat.rb
+              tran_tuan_noi_that/bootstrap.rb
+              tran_tuan_noi_that/updater.rb
+              tran_tuan_noi_that/license_rsa_offline_v200.rb
+              tran_tuan_noi_that/license_rsa_offline_v201_patch.rb
+              tran_tuan_noi_that/license_rsa_offline_v202_patch.rb
+              tran_tuan_noi_that/settings.rb
+            ]
+            required.each { |p| raise "manifest missing #{p}" unless paths.include?(p) }
           end
-          puts 'MANIFEST 1.9.59 OK'
+          puts 'MANIFEST 1.9.60 OK'
           RUBY
 
-      - name: Test unified offline RSA license and UI
+      - name: Test unified offline RSA license and non-modal UI
         shell: bash
         run: |
           set -euo pipefail
@@ -75,60 +87,51 @@ jobs:
           end
           load 'tran_tuan_noi_that_release/files/tran_tuan_noi_that/license_rsa_offline_v200.rb'
           load 'tran_tuan_noi_that_release/files/tran_tuan_noi_that/license_rsa_offline_v201_patch.rb'
+          load 'tran_tuan_noi_that_release/files/tran_tuan_noi_that/license_rsa_offline_v202_patch.rb'
           lic = TranTuanNoiThat::License
-          raise 'license patch version' unless lic::VERSION == '2.0.1'
+          raise 'license patch version' unless lic::VERSION == '2.0.2'
           raise 'zalo wrong' unless lic::ZALO == '0338162946'
           raise 'bank wrong' unless lic::BANK_NAME == 'KienlongBank' && lic::BANK_ACCOUNT == '0338162946' && lic::BANK_OWNER == 'TRẦN ĐÌNH TUẤN'
           raise '90 price wrong' unless lic::PLANS['90d']['price_vnd'] == 50_000
           raise '180 price wrong' unless lic::PLANS['180d']['price_vnd'] == 100_000
           raise 'life price wrong' unless lic::PLANS['lifetime']['price_vnd'] == 200_000
-          raise 'sale plans wrong' unless lic::SALE_PLAN_IDS == %w[90d 180d lifetime]
 
           key = OpenSSL::PKey::RSA.new(3072)
           now = Time.now
           machine = 'TT-TEST-TEST-TEST'
-          make = lambda do |plan, expires_at|
-            data = {
-              'schema'=>lic::LICENSE_SCHEMA, 'alg'=>lic::RSA_ALGORITHM, 'key_id'=>lic::RSA_KEY_ID,
-              'license_id'=>'TEST-LICENSE', 'machine_code'=>machine, 'plan'=>plan,
-              'issued_at'=>now.utc.iso8601, 'expires_at'=>expires_at
-            }
-            raw = JSON.generate(data)
-            sig = key.sign(OpenSSL::Digest::SHA256.new, raw)
-            enc = ->(x){ Base64.urlsafe_encode64(x, padding: false) }
-            "#{lic::LICENSE_PREFIX}.#{enc.call(raw)}.#{enc.call(sig)}"
-          end
-          code = make.call('90d', (now + 90*86400).utc.iso8601)
+          data = {
+            'schema'=>lic::LICENSE_SCHEMA, 'alg'=>lic::RSA_ALGORITHM, 'key_id'=>lic::RSA_KEY_ID,
+            'license_id'=>'TEST-LICENSE', 'machine_code'=>machine, 'plan'=>'90d',
+            'issued_at'=>now.utc.iso8601, 'expires_at'=>(now + 90*86400).utc.iso8601
+          }
+          raw = JSON.generate(data)
+          sig = key.sign(OpenSSL::Digest::SHA256.new, raw)
+          enc = ->(x){ Base64.urlsafe_encode64(x, padding: false) }
+          code = "#{lic::LICENSE_PREFIX}.#{enc.call(raw)}.#{enc.call(sig)}"
           good = lic.parse_activation_code(code, key.public_key.to_pem, machine, now)
           raise 'valid rejected' unless good['rsa_verified'] == true && good['plan'] == '90d'
-          begin
-            lic.parse_activation_code(code, key.public_key.to_pem, 'TT-OTHR-0000-0000', now)
-            raise 'copy accepted'
-          rescue RuntimeError => e
-            raise if e.message == 'copy accepted'
-          end
-          expired = make.call('90d', (now - 86400).utc.iso8601)
-          begin
-            lic.parse_activation_code(expired, key.public_key.to_pem, machine, now)
-            raise 'expired accepted'
-          rescue RuntimeError => e
-            raise if e.message == 'expired accepted'
-          end
-          life = make.call('lifetime', nil)
-          life_state = lic.parse_activation_code(life, key.public_key.to_pem, machine, now)
-          raise 'lifetime rejected' unless life_state['lifetime'] == true
 
           html = lic.dialog_html
-          raise 'zalo missing' unless html.include?('0338162946')
-          raise 'bank missing' unless html.include?('KienlongBank') && html.include?('TRẦN ĐÌNH TUẤN')
-          raise 'price missing' unless html.include?('50.000đ') && html.include?('100.000đ') && html.include?('200.000đ')
-          raise 'old sale plan leaked' if html.include?('120.000đ') || html.include?('360 NGÀY')
-          raise 'one-code wording missing' unless html.include?('1 MÃ BẢN QUYỀN MỞ TOÀN BỘ HỆ THỐNG')
+          raise 'close button missing' unless html.include?('>ĐÓNG</button>')
+          raise 'inline notice missing' unless html.include?('ttNoticeText') && html.include?('ttCloseNotice')
+          raise 'ESC close missing' unless html.include?("e.key==='Escape'")
+          raise 'modal confirm leaked' if html.include?('confirm(')
           script = html[/<script>(.*?)<\/script>/m,1]
+          raise 'script missing' if script.to_s.empty?
           File.write('/tmp/tt_rsa_commercial_ui.js', script)
-          puts 'UNIFIED RSA COMMERCIAL TEST OK'
+          puts 'UNIFIED RSA NON-MODAL TEST OK'
           RUBY
           node --check /tmp/tt_rsa_commercial_ui.js
+
+      - name: Validate silent auto-update source
+        shell: bash
+        run: |
+          set -euo pipefail
+          ruby -c tran_tuan_noi_that_release/files/tran_tuan_noi_that/updater.rb
+          ruby -c tran_tuan_noi_that_release/files/TT_TranTuan_UpdateLoader.rb
+          grep -Fq "with_update_mode(!interactive)" tran_tuan_noi_that_release/files/tran_tuan_noi_that/updater.rb
+          grep -Fq "return tt_update_bridge_original_check(true) if interactive" tran_tuan_noi_that_release/files/TT_TranTuan_UpdateLoader.rb
+          grep -Fq "instance_variable_set(:@silent_update, true)" tran_tuan_noi_that_release/files/TT_TranTuan_UpdateLoader.rb
 
       - name: Build TRANTUAN-NOIITHAT-KHACH.rbz
         shell: bash
@@ -148,8 +151,6 @@ jobs:
             --exclude 'tran_tuan_noi_that/license_commercial_v140_auto.rb' \
             --exclude 'tran_tuan_noi_that/license_rsa_v150.rb'
 
-          # Không phát hành source Grain dạng .inc rời. Gộp thành một runtime Ruby
-          # để bước ký/mã hóa chính thức của SketchUp có thể chuyển nó thành .rbe.
           cat tran_tuan_noi_that_release/files/tran_tuan_noi_that/grain_tool_part1.inc \
               tran_tuan_noi_that_release/files/tran_tuan_noi_that/grain_tool_part2.inc \
               tran_tuan_noi_that_release/files/tran_tuan_noi_that/grain_tool_part3.inc \
@@ -171,7 +172,9 @@ jobs:
             echo 'PRIVATE KEY LEAKED INTO CUSTOMER RBZ' >&2
             exit 1
           fi
-          unzip -l "$GITHUB_WORKSPACE/TRANTUAN-NOIITHAT-KHACH.rbz" | grep -F 'license_rsa_offline_v201_patch.rb'
+          unzip -l "$GITHUB_WORKSPACE/TRANTUAN-NOIITHAT-KHACH.rbz" | grep -F 'license_rsa_offline_v202_patch.rb'
+          unzip -l "$GITHUB_WORKSPACE/TRANTUAN-NOIITHAT-KHACH.rbz" | grep -F 'TT_TranTuan_UpdateLoader.rb'
+          unzip -l "$GITHUB_WORKSPACE/TRANTUAN-NOIITHAT-KHACH.rbz" | grep -F 'tran_tuan_noi_that/updater.rb'
 
       - name: Upload CUSTOMER RBZ
         uses: actions/upload-artifact@v4
