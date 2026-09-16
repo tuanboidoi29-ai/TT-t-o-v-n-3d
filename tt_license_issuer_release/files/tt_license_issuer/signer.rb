@@ -10,7 +10,7 @@ module TTLicenseIssuer
   module Signer
     extend self
 
-    VERSION = '1.0.0'.freeze
+    VERSION = '1.1.0'.freeze
     LICENSE_SCHEMA = 'TT_OFFLINE_RSA_V2'.freeze
     LICENSE_PREFIX = 'TTRSA2'.freeze
     RSA_ALGORITHM = 'RS256'.freeze
@@ -20,7 +20,6 @@ module TTLicenseIssuer
     PLANS = {
       '90d' => { 'label' => '90 ngày', 'days' => 90, 'price_vnd' => 50_000 },
       '180d' => { 'label' => '180 ngày', 'days' => 180, 'price_vnd' => 100_000 },
-      '360d' => { 'label' => '360 ngày', 'days' => 360, 'price_vnd' => 120_000 },
       'lifetime' => { 'label' => 'Vĩnh viễn', 'days' => nil, 'price_vnd' => 200_000 }
     }.freeze
 
