@@ -1,6 +1,6 @@
 # encoding: UTF-8
 module TranTuanNoiThat
-  # Grain load order: V3.4.1 fixed sheet -> V3.5.1 reload preflight -> V3.5.0 production -> hotfix -> V3.5.1 final marker.
+  # Grain load order giữ nguyên.
   grain_patch_v341 = File.join(ROOT, 'grain_standard_2440_fix.rb')
   grain_reload_v351 = File.join(ROOT, 'grain_reload_v351_fix.rb')
   grain_patch_v350 = File.join(ROOT, 'grain_production_v350.rb')
@@ -11,26 +11,11 @@ module TranTuanNoiThat
   load grain_patch_v350_hotfix if File.file?(grain_patch_v350_hotfix)
   load grain_reload_v351 if File.file?(grain_reload_v351)
 
-  # License: cache -> Payment -> Owner Admin -> UI fixes -> QR V1.3.0 -> AUTO SePay V1.4.0 -> RSA machine lock V1.5.0.
-  license_payment_v110 = File.join(ROOT, 'license_payment_v110.rb')
-  license_owner_admin_v120 = File.join(ROOT, 'license_owner_admin_v120.rb')
-  license_owner_admin_v121_fix = File.join(ROOT, 'license_owner_admin_v121_fix.rb')
-  license_ui_v122_fix = File.join(ROOT, 'license_ui_v122_fix.rb')
-  license_owner_admin_v123_fix = File.join(ROOT, 'license_owner_admin_v123_fix.rb')
-  license_commercial_v130_qr = File.join(ROOT, 'license_commercial_v130_qr.rb')
-  license_commercial_v140_auto = File.join(ROOT, 'license_commercial_v140_auto.rb')
-  license_rsa_v150 = File.join(ROOT, 'license_rsa_v150.rb')
-  load license_payment_v110 if File.file?(license_payment_v110)
-  load license_owner_admin_v120 if File.file?(license_owner_admin_v120)
-  load license_owner_admin_v121_fix if File.file?(license_owner_admin_v121_fix)
-  load license_ui_v122_fix if File.file?(license_ui_v122_fix)
-  load license_owner_admin_v123_fix if File.file?(license_owner_admin_v123_fix)
-  load license_commercial_v130_qr if File.file?(license_commercial_v130_qr)
-  load license_commercial_v140_auto if File.file?(license_commercial_v140_auto)
-  load license_rsa_v150 if File.file?(license_rsa_v150)
+  # License V2.0.0: CHỈ RSA OFFLINE theo Mã máy. Không Payment / Owner Admin / SePay / Supabase.
+  license_rsa_offline_v200 = File.join(ROOT, 'license_rsa_offline_v200.rb')
+  load license_rsa_offline_v200 if File.file?(license_rsa_offline_v200)
 
-  # Layout load order bắt buộc:
-  # base -> V0.3.0 -> compat -> V0.4.0 -> compat -> V0.5.0 -> V0.6.0 -> V0.7.0 -> V0.8.0 -> V0.8.1.
+  # Layout load order giữ nguyên.
   layout_compat = File.join(ROOT, 'layout_stats_v040_compat.rb')
   layout_patch_v040 = File.join(ROOT, 'layout_stats_v040_patch.rb')
   layout_patch_v050 = File.join(ROOT, 'layout_stats_v050_stable_preview.rb')
@@ -48,7 +33,7 @@ module TranTuanNoiThat
   load layout_patch_v081 if File.file?(layout_patch_v081)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.55'.freeze
+  VERSION = '1.9.58'.freeze
 
   module Settings
     extend self
