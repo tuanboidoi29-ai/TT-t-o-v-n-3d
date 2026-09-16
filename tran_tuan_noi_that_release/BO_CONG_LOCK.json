@@ -1,9 +1,10 @@
 {
   "locked": false,
-  "round_version": "2.2.6",
-  "opened_for": "Sửa lỗi hồi quy mất 2 đường biên đầu/cuối của cung bo bằng nhận diện topology thật, không phụ thuộc so khớp tọa độ cho cung mới.",
-  "policy": "ĐANG MỞ KHÓA theo yêu cầu TRẦN TUẤN. Chỉ sửa Bo Cong Khối; không thay đổi BOX, Co Giãn, Grain hoặc LayoutStats.",
+  "round_version": "2.2.7",
+  "opened_for": "Sửa lỗi hồi quy mất 2 đường biên đầu/cuối của cung bo bằng topology thật.",
+  "policy": "ĐANG MỞ KHÓA theo yêu cầu TRẦN TUẤN để test Bo Cong V2.2.7. Không tự sửa BOX, Co Giãn, Grain hoặc LayoutStats.",
   "round_tool_path": "tran_tuan_noi_that_release/files/tran_tuan_noi_that/round_tool.rb",
   "round_smooth_fix_path": "tran_tuan_noi_that_release/files/tran_tuan_noi_that/round_smooth_fix.rb",
-  "target_version": "2.2.7"
+  "round_smooth_fix_blob_sha": "14ea3a8001840859dfbb0667ce81e592af59ce8f",
+  "stable_behavior": "Giữ hiện đúng 2 đường biên đầu/cuối bằng topology mặt; chỉ làm mịn các đường chia ở giữa cung."
 }
