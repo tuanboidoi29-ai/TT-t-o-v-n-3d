@@ -1,10 +1,12 @@
 {
-  "locked": false,
+  "locked": true,
   "round_version": "2.2.7",
-  "opened_for": "Sửa lỗi hồi quy mất 2 đường biên đầu/cuối của cung bo bằng topology thật.",
-  "policy": "ĐANG MỞ KHÓA theo yêu cầu TRẦN TUẤN để test Bo Cong V2.2.7. Không tự sửa BOX, Co Giãn, Grain hoặc LayoutStats.",
+  "system_version": "1.9.43",
   "round_tool_path": "tran_tuan_noi_that_release/files/tran_tuan_noi_that/round_tool.rb",
+  "round_tool_blob_sha": "85ac8374f383d307c5b5f69aa8f40b66cd98014b",
   "round_smooth_fix_path": "tran_tuan_noi_that_release/files/tran_tuan_noi_that/round_smooth_fix.rb",
   "round_smooth_fix_blob_sha": "14ea3a8001840859dfbb0667ce81e592af59ce8f",
-  "stable_behavior": "Giữ hiện đúng 2 đường biên đầu/cuối bằng topology mặt; chỉ làm mịn các đường chia ở giữa cung."
+  "policy": "ĐÃ KHÓA theo yêu cầu TRẦN TUẤN. Không sửa code Bo Cong Khối nếu chưa có yêu cầu mở khóa rõ ràng.",
+  "stable_behavior": "Giữ hiện đúng 2 đường biên đầu/cuối của mỗi cung bằng topology mặt thật; chỉ làm mịn/ẩn các đường chia ở giữa cung. Nếu không xác định đủ 2 biên thì Abort để tránh tạo hình lỗi.",
+  "protected_from_future_updates": true
 }
