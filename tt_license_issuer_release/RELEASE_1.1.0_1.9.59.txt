@@ -1,0 +1,7 @@
+TRẦN TUẤN NỘI THẤT - COMMERCIAL DUAL PACKAGE RELEASE
+Customer: TRANTUAN-NOIITHAT-KHACH.rbz / System 1.9.59 / License 2.0.1
+Owner: TRANTUAN-NOIITHAT-ADM.rbz / Issuer 1.1.0
+License model: one machine-bound RSA activation opens the whole system.
+Sale plans: 90d=50,000 VND; 180d=100,000 VND; lifetime=200,000 VND.
+Owner machine: TT-5ACF-3BBC-FCC6
+Private RSA key is never included in RBZ or GitHub.
