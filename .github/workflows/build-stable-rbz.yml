@@ -15,19 +15,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Validate source Ruby syntax
+      - name: Validate Ruby syntax
         shell: bash
         run: |
           set -euo pipefail
           find tran_tuan_noi_that_release/files -name '*.rb' -print0 | xargs -0 -n1 ruby -c
+          ruby -c tran_tuan_noi_that_release/files/tran_tuan_noi_that/license_rsa_v150.rb
           cat tran_tuan_noi_that_release/files/tran_tuan_noi_that/grain_tool_part1.inc \
               tran_tuan_noi_that_release/files/tran_tuan_noi_that/grain_tool_part2.inc \
               tran_tuan_noi_that_release/files/tran_tuan_noi_that/grain_tool_part3.inc \
               > /tmp/grain_tool_combined.rb
           ruby -c /tmp/grain_tool_combined.rb
-          ruby -c tran_tuan_noi_that_release/migrations/1.9.56/board_tool.rb
 
-      - name: Validate 1.9.56 migration manifest SHA256
+      - name: Validate 1.9.57 RSA manifest
         shell: bash
         run: |
           set -euo pipefail
@@ -36,78 +36,176 @@ jobs:
           require 'digest'
           require 'uri'
 
-          release_ref = 'fbbc1db0064a8aeed9deb8c41edbc5f9ee780588'
-          manifests = %w[update_latest.json update.json]
-          manifests.each do |name|
-            manifest_path = File.join('tran_tuan_noi_that_release', name)
-            data = JSON.parse(File.binread(manifest_path))
-            raise "#{name}: wrong version #{data['version']}" unless data['version'] == '1.9.56'
-            raise "#{name}: transition_update must be true" unless data['transition_update'] == true
-            raise "#{name}: protected_release must be true" unless data['protected_release'] == true
+          release_ref = 'a879780ae6d113223209b5a9c02f4849401df1a2'
+          expected = {
+            'tran_tuan_noi_that/license_rsa_v150.rb' => '164697f318ed80bf4f946b1e3d6a1ae432d700bedd7c389e06dff9938b788f37',
+            'tran_tuan_noi_that/settings.rb' => 'c257859e0803c7955dfc11e5fd1d8ca30a305294e488cba69883b2dc6d8575b5'
+          }
+
+          %w[update_latest.json update.json].each do |name|
+            path = File.join('tran_tuan_noi_that_release', name)
+            data = JSON.parse(File.binread(path))
+            raise "#{name}: wrong version" unless data['version'] == '1.9.57'
+            raise "#{name}: wrong License" unless data['license_version'] == '1.5.0'
             raise "#{name}: wrong LayoutStats" unless data['layout_stats_version'] == '0.9.0'
             raise "#{name}: wrong Grain" unless data['grain_version'] == '3.5.1'
-            raise "#{name}: wrong License" unless data['license_version'] == '1.4.0'
+            raise "#{name}: transition_update must be true" unless data['transition_update'] == true
+            raise "#{name}: protected_release must be true" unless data['protected_release'] == true
 
             files = Array(data['files'])
-            raise "#{name}: no migration files" if files.empty?
+            raise "#{name}: wrong file count" unless files.length == 2
             files.each do |item|
-              url = item.fetch('url')
-              expected = item.fetch('sha256').to_s.downcase
-              raise "#{name}: invalid sha256 for #{item['path']}" unless expected.match?(/\A[0-9a-f]{64}\z/)
-              uri = URI.parse(url)
-              raise "#{name}: non-raw GitHub URL" unless uri.host == 'raw.githubusercontent.com'
+              rel = item.fetch('path')
+              raise "#{name}: unexpected file #{rel}" unless expected.key?(rel)
+              sha = item.fetch('sha256').to_s.downcase
+              raise "#{name}: wrong SHA #{rel}" unless sha == expected.fetch(rel)
+              uri = URI.parse(item.fetch('url'))
+              raise "#{name}: URL must be raw.githubusercontent.com" unless uri.host == 'raw.githubusercontent.com'
               parts = uri.path.sub(%r{\A/}, '').split('/')
               owner, repo, ref = parts.shift(3)
-              raise "#{name}: wrong repository" unless owner == 'tuanboidoi29-ai' && repo == 'TT-t-o-v-n-3d'
-              raise "#{name}: release URL not pinned: #{ref}" unless ref == release_ref
+              raise "#{name}: wrong repo" unless owner == 'tuanboidoi29-ai' && repo == 'TT-t-o-v-n-3d'
+              raise "#{name}: URL not pinned" unless ref == release_ref
               repo_path = parts.join('/')
-              raise "#{name}: missing repo file #{repo_path}" unless File.file?(repo_path)
+              raise "#{name}: repo path missing" unless File.file?(repo_path)
               actual = Digest::SHA256.file(repo_path).hexdigest
-              unless actual == expected
-                warn "SHA_MISMATCH #{name} #{item['path']}"
-                warn "EXPECTED=#{expected}"
-                warn "ACTUAL=#{actual}"
-                raise "#{name}: SHA256 mismatch for #{item['path']}"
-              end
+              raise "#{name}: local SHA mismatch #{rel}" unless actual == sha
             end
           end
-          puts '1.9.56 MIGRATION MANIFEST SHA256 OK'
+          puts 'RSA 1.9.57 MANIFEST OK'
           RUBY
 
-      - name: Validate License and Owner Admin JavaScript
+      - name: Test RSA client verification
         shell: bash
         run: |
           set -euo pipefail
           ruby <<'RUBY'
+          require 'json'
+          require 'openssl'
+          require 'base64'
+          require 'time'
+
           module TranTuanNoiThat
             @settings = {}
             class << self
               def setting(key, default = nil); @settings.fetch(key.to_s, default); end
               def save_setting(key, value); @settings[key.to_s] = value; end
-              def current_version; '1.9.55'; end
+              def current_version; '1.9.57'; end
             end
           end
-          load 'tran_tuan_noi_that_release/files/tran_tuan_noi_that/license_manager.rb'
-          load 'tran_tuan_noi_that_release/files/tran_tuan_noi_that/license_payment_v110.rb'
-          load 'tran_tuan_noi_that_release/files/tran_tuan_noi_that/license_owner_admin_v120.rb'
-          load 'tran_tuan_noi_that_release/files/tran_tuan_noi_that/license_owner_admin_v121_fix.rb'
-          load 'tran_tuan_noi_that_release/files/tran_tuan_noi_that/license_ui_v122_fix.rb'
-          load 'tran_tuan_noi_that_release/files/tran_tuan_noi_that/license_owner_admin_v123_fix.rb'
-          load 'tran_tuan_noi_that_release/files/tran_tuan_noi_that/license_commercial_v130_qr.rb'
-          load 'tran_tuan_noi_that_release/files/tran_tuan_noi_that/license_commercial_v140_auto.rb'
-          license = TranTuanNoiThat::License
-          html = license.dialog_html
+
+          root = 'tran_tuan_noi_that_release/files/tran_tuan_noi_that'
+          %w[
+            license_manager.rb
+            license_payment_v110.rb
+            license_owner_admin_v120.rb
+            license_owner_admin_v121_fix.rb
+            license_ui_v122_fix.rb
+            license_owner_admin_v123_fix.rb
+            license_commercial_v130_qr.rb
+            license_commercial_v140_auto.rb
+            license_rsa_v150.rb
+          ].each { |f| load File.join(root, f) }
+
+          lic = TranTuanNoiThat::License
+          machine = 'TT-TEST-TEST-TEST'
+          key = OpenSSL::PKey::RSA.new(2048)
+          data = {
+            'schema' => lic::RSA_SCHEMA,
+            'license_id' => 'test-license',
+            'machine_code' => machine,
+            'machine_status' => 'active',
+            'machine_role' => 'customer',
+            'owner' => false,
+            'commercial_enforcement' => true,
+            'offline_grace_hours' => 72,
+            'feature_count' => 1,
+            'features' => { 'grain' => { 'slug' => 'grain', 'name' => 'Xoay Vân', 'allowed' => true, 'purchased' => true, 'price_vnd' => 50000 } },
+            'feature_list' => [],
+            'issued_at' => Time.now.utc.iso8601,
+            'valid_until' => (Time.now.utc + 3600).iso8601
+          }
+          raw = JSON.generate(data)
+          sig = key.sign(OpenSSL::Digest::SHA256.new, raw)
+          env = {
+            'schema' => lic::RSA_SCHEMA,
+            'alg' => lic::RSA_ALGORITHM,
+            'key_id' => lic::RSA_KEY_ID,
+            'data_b64' => Base64.strict_encode64(raw),
+            'signature_b64' => Base64.strict_encode64(sig)
+          }
+
+          good = lic.verify_signed_license_response({ 'signed_license' => env }, machine, key.public_key.to_pem)
+          raise 'valid signature rejected' unless good['rsa_verified'] == true
+          raise 'feature lost' unless good.dig('features', 'grain', 'allowed') == true
+
+          tampered = Marshal.load(Marshal.dump(env))
+          changed = JSON.parse(Base64.strict_decode64(tampered['data_b64']))
+          changed['owner'] = true
+          tampered['data_b64'] = Base64.strict_encode64(JSON.generate(changed))
+          begin
+            lic.verify_signed_license_response({ 'signed_license' => tampered }, machine, key.public_key.to_pem)
+            raise 'tamper accepted'
+          rescue RuntimeError => e
+            raise if e.message == 'tamper accepted'
+          end
+
+          begin
+            lic.verify_signed_license_response({ 'signed_license' => env }, 'TT-OTHR-0000-0000', key.public_key.to_pem)
+            raise 'machine copy accepted'
+          rescue RuntimeError => e
+            raise if e.message == 'machine copy accepted'
+          end
+
+          expired = data.merge('valid_until' => (Time.now.utc - 3600).iso8601)
+          expired_raw = JSON.generate(expired)
+          expired_sig = key.sign(OpenSSL::Digest::SHA256.new, expired_raw)
+          expired_env = env.merge('data_b64' => Base64.strict_encode64(expired_raw), 'signature_b64' => Base64.strict_encode64(expired_sig))
+          begin
+            lic.verify_signed_license_response({ 'signed_license' => expired_env }, machine, key.public_key.to_pem)
+            raise 'expired license accepted'
+          rescue RuntimeError => e
+            raise if e.message == 'expired license accepted'
+          end
+
+          html = lic.dialog_html
           script = html[/<script>(.*?)<\/script>/m, 1]
           raise 'license script missing' if script.to_s.empty?
-          File.write('/tmp/tt_license_dialog.js', script)
-          admin = license.owner_admin_html
-          admin_script = admin[/<script>(.*?)<\/script>/m, 1]
+          File.write('/tmp/tt_license_rsa.js', script)
+          admin_script = lic.owner_admin_html[/<script>(.*?)<\/script>/m, 1]
           raise 'owner admin script missing' if admin_script.to_s.empty?
-          File.write('/tmp/tt_owner_admin.js', admin_script)
-          puts 'LICENSE HTML BUILD OK'
+          File.write('/tmp/tt_owner_rsa.js', admin_script)
+          puts 'RSA CLIENT VERIFY TEST OK'
           RUBY
-          node --check /tmp/tt_license_dialog.js
-          node --check /tmp/tt_owner_admin.js
+          node --check /tmp/tt_license_rsa.js
+          node --check /tmp/tt_owner_rsa.js
+
+      - name: Verify RSA server signature
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL https://vnvkmxqgbnmirsgdgfzm.supabase.co/functions/v1/tt-license-public-key > /tmp/rsa-public.json
+          curl -fsSL -X POST https://vnvkmxqgbnmirsgdgfzm.supabase.co/functions/v1/tt-license-check \
+            -H 'Content-Type: application/json' \
+            --data '{"machine_code":"TT-5ACF-3BBC-FCC6","plugin_version":"1.9.57"}' \
+            > /tmp/license.json
+          node <<'NODE'
+          const fs = require('fs');
+          const crypto = require('crypto');
+          const pub = JSON.parse(fs.readFileSync('/tmp/rsa-public.json','utf8'));
+          const res = JSON.parse(fs.readFileSync('/tmp/license.json','utf8'));
+          if (pub.ok !== true || res.ok !== true || !res.signed_license) throw new Error('RSA server response invalid');
+          if (pub.key_id !== 'tt-rsa-20260916-28302d4e') throw new Error('unexpected key id');
+          if (pub.fingerprint_sha256 !== 'd38044559f2e3b624df8492fb1ac2a61375f3f85615a0b539b67a5245e663bfc') throw new Error('public key fingerprint changed');
+          if (res.signed_license.key_id !== pub.key_id) throw new Error('signed key mismatch');
+          const raw = Buffer.from(res.signed_license.data_b64, 'base64');
+          const sig = Buffer.from(res.signed_license.signature_b64, 'base64');
+          if (!crypto.verify('RSA-SHA256', raw, pub.public_key_pem, sig)) throw new Error('server signature invalid');
+          const lic = JSON.parse(raw.toString('utf8'));
+          if (lic.schema !== 'TT_LICENSE_RSA_V1') throw new Error('schema mismatch');
+          if (lic.machine_code !== 'TT-5ACF-3BBC-FCC6') throw new Error('owner machine mismatch');
+          if (lic.owner !== true || Number(lic.feature_count) !== 8) throw new Error('owner rights mismatch');
+          console.log('RSA SERVER VERIFY TEST OK');
+          NODE
 
       - name: Build updater bridge recovery RBZ
         shell: bash
@@ -121,19 +219,19 @@ jobs:
           zip "$GITHUB_WORKSPACE/TT_UPDATE_BRIDGE_1.0.0.rbz" TT_TranTuan_UpdateLoader.rb
           unzip -t "$GITHUB_WORKSPACE/TT_UPDATE_BRIDGE_1.0.0.rbz"
 
-      - name: Build 1.9.55 source fallback RBZ
+      - name: Build RSA runtime update archive
         shell: bash
         run: |
           set -euo pipefail
-          STAGE="$RUNNER_TEMP/tt_rbz_fallback"
+          STAGE="$RUNNER_TEMP/tt_rsa_update"
           rm -rf "$STAGE"
-          mkdir -p "$STAGE"
-          cp tran_tuan_noi_that_release/files/TranTuanNoiThat.rb "$STAGE/TranTuanNoiThat.rb"
-          cp -a tran_tuan_noi_that_release/files/tran_tuan_noi_that "$STAGE/TranTuanNoiThat"
-          cp tran_tuan_noi_that_release/files/TT_TranTuan_UpdateLoader.rb "$STAGE/TT_TranTuan_UpdateLoader.rb"
+          mkdir -p "$STAGE/tran_tuan_noi_that"
+          cp tran_tuan_noi_that_release/files/tran_tuan_noi_that/license_rsa_v150.rb "$STAGE/tran_tuan_noi_that/"
+          cp tran_tuan_noi_that_release/files/tran_tuan_noi_that/settings.rb "$STAGE/tran_tuan_noi_that/"
+          cp tran_tuan_noi_that_release/update_latest.json "$STAGE/update_latest.json"
           cd "$STAGE"
-          zip -r "$GITHUB_WORKSPACE/TRANTUAN_NOI_THAT_1.9.55_SOURCE_FALLBACK.rbz" .
-          unzip -t "$GITHUB_WORKSPACE/TRANTUAN_NOI_THAT_1.9.55_SOURCE_FALLBACK.rbz"
+          zip -r "$GITHUB_WORKSPACE/TRANTUAN_RSA_LICENSE_1.5.0_UPDATE.zip" .
+          unzip -t "$GITHUB_WORKSPACE/TRANTUAN_RSA_LICENSE_1.5.0_UPDATE.zip"
 
       - name: Upload updater bridge artifact
         uses: actions/upload-artifact@v4
@@ -142,9 +240,9 @@ jobs:
           path: TT_UPDATE_BRIDGE_1.0.0.rbz
           if-no-files-found: error
 
-      - name: Upload source fallback artifact
+      - name: Upload RSA update artifact
         uses: actions/upload-artifact@v4
         with:
-          name: TRANTUAN_NOI_THAT_1.9.55_SOURCE_FALLBACK
-          path: TRANTUAN_NOI_THAT_1.9.55_SOURCE_FALLBACK.rbz
+          name: TRANTUAN_RSA_LICENSE_1.5.0_UPDATE
+          path: TRANTUAN_RSA_LICENSE_1.5.0_UPDATE.zip
           if-no-files-found: error
