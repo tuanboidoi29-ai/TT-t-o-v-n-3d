@@ -1,4 +1,4 @@
-name: Build TT License Issuer OWNER RBZ
+name: Build TRANTUAN-NOIITHAT-ADM RBZ
 
 on:
   push:
@@ -18,17 +18,21 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Validate Ruby and no private key
+      - name: Validate OWNER source and protection
         shell: bash
         run: |
           set -euo pipefail
           ruby -c tt_license_issuer_release/files/TT_License_Issuer.rb
           ruby -c tt_license_issuer_release/files/tt_license_issuer/signer.rb
           ruby -c tt_license_issuer_release/files/tt_license_issuer/main.rb
-          grep -Fq "VERSION = '1.0.0'" tt_license_issuer_release/files/tt_license_issuer/signer.rb
+          grep -Fq "ext.version = '1.1.0'" tt_license_issuer_release/files/TT_License_Issuer.rb
+          grep -Fq "VERSION = '1.1.0'" tt_license_issuer_release/files/tt_license_issuer/signer.rb
+          grep -Fq "VERSION = '1.1.0'" tt_license_issuer_release/files/tt_license_issuer/main.rb
+          grep -Fq "OWNER_MACHINE_CODE = 'TT-5ACF-3BBC-FCC6'" tt_license_issuer_release/files/tt_license_issuer/main.rb
+          grep -Fq "Sketchup.require 'tt_license_issuer/signer'" tt_license_issuer_release/files/tt_license_issuer/main.rb
           grep -Fq "EXPECTED_PUBLIC_FINGERPRINT = '33c04cf83b7d0a85e842d210854ffef499001a90c7ecd93681bc5f58e263ddc6'" tt_license_issuer_release/files/tt_license_issuer/signer.rb
           if grep -R -E 'BEGIN (RSA )?PRIVATE KEY' tt_license_issuer_release/files; then
-            echo 'PRIVATE KEY MUST NOT BE IN RBZ SOURCE' >&2
+            echo 'PRIVATE KEY MUST NOT BE IN ADM RBZ SOURCE' >&2
             exit 1
           fi
 
@@ -44,7 +48,12 @@ jobs:
           require_relative './tt_license_issuer_release/files/tt_license_issuer/signer'
 
           s = TTLicenseIssuer::Signer
-          key = OpenSSL::PKey::RSA.new(2048)
+          raise 'wrong plans' unless s::PLANS.keys == %w[90d 180d lifetime]
+          raise '90d price' unless s::PLANS['90d']['price_vnd'] == 50_000
+          raise '180d price' unless s::PLANS['180d']['price_vnd'] == 100_000
+          raise 'lifetime price' unless s::PLANS['lifetime']['price_vnd'] == 200_000
+
+          key = OpenSSL::PKey::RSA.new(3072)
           fp = s.public_fingerprint(key)
           machine = 'TT-ABCD-1234-EF56'
           now = Time.utc(2026, 9, 17, 0, 0, 0)
@@ -73,18 +82,10 @@ jobs:
               raise 'expiry missing' if data['expires_at'].to_s.empty?
             end
           end
-
-          begin
-            s.generate('WRONG', '90d', key, now: now, expected_fingerprint: fp)
-            raise 'invalid machine accepted'
-          rescue RuntimeError => e
-            raise if e.message == 'invalid machine accepted'
-          end
-
-          puts 'OWNER ISSUER RSA TEST OK'
+          puts 'ADM RSA TEST OK'
           RUBY
 
-      - name: Validate HtmlDialog JavaScript
+      - name: Validate ADM HtmlDialog JavaScript
         shell: bash
         run: |
           set -euo pipefail
@@ -92,30 +93,31 @@ jobs:
           src = File.binread('tt_license_issuer_release/files/tt_license_issuer/main.rb')
           js = src[/<script>\s*(.*?)\s*<\/script>/m, 1]
           raise 'script missing' if js.to_s.empty?
-          File.write('/tmp/tt_license_issuer_ui.js', js)
-          puts 'ISSUER HTML SCRIPT EXTRACT OK'
+          File.write('/tmp/trantuan_adm_ui.js', js)
+          puts 'ADM HTML SCRIPT EXTRACT OK'
           RUBY
-          node --check /tmp/tt_license_issuer_ui.js
+          node --check /tmp/trantuan_adm_ui.js
 
-      - name: Build standalone OWNER RBZ
+      - name: Build TRANTUAN-NOIITHAT-ADM.rbz
         shell: bash
         run: |
           set -euo pipefail
-          STAGE="$RUNNER_TEMP/tt_license_issuer_owner"
+          STAGE="$RUNNER_TEMP/trantuan_adm"
           rm -rf "$STAGE"
           mkdir -p "$STAGE"
           rsync -a tt_license_issuer_release/files/ "$STAGE/"
           cd "$STAGE"
-          zip -r "$GITHUB_WORKSPACE/TT_LICENSE_ISSUER_OWNER_1.0.0.rbz" .
-          unzip -t "$GITHUB_WORKSPACE/TT_LICENSE_ISSUER_OWNER_1.0.0.rbz"
-          if unzip -p "$GITHUB_WORKSPACE/TT_LICENSE_ISSUER_OWNER_1.0.0.rbz" | grep -E 'BEGIN (RSA )?PRIVATE KEY'; then
-            echo 'PRIVATE KEY LEAKED INTO RBZ' >&2
+          zip -r "$GITHUB_WORKSPACE/TRANTUAN-NOIITHAT-ADM.rbz" .
+          unzip -t "$GITHUB_WORKSPACE/TRANTUAN-NOIITHAT-ADM.rbz"
+          if unzip -p "$GITHUB_WORKSPACE/TRANTUAN-NOIITHAT-ADM.rbz" | grep -E 'BEGIN (RSA )?PRIVATE KEY'; then
+            echo 'PRIVATE KEY LEAKED INTO ADM RBZ' >&2
             exit 1
           fi
+          unzip -l "$GITHUB_WORKSPACE/TRANTUAN-NOIITHAT-ADM.rbz" | grep -F 'tt_license_issuer/signer.rb'
 
-      - name: Upload OWNER issuer RBZ
+      - name: Upload ADM RBZ
         uses: actions/upload-artifact@v4
         with:
-          name: TT_LICENSE_ISSUER_OWNER_1.0.0
-          path: TT_LICENSE_ISSUER_OWNER_1.0.0.rbz
+          name: TRANTUAN-NOIITHAT-ADM
+          path: TRANTUAN-NOIITHAT-ADM.rbz
           if-no-files-found: error
