@@ -11,7 +11,7 @@ module TranTuanNoiThat
   NAME = 'TRẦN TUẤN NỘI THẤT'.freeze unless const_defined?(:NAME, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.58'.freeze
+  VERSION = '1.9.59'.freeze
 
   remove_const(:MANIFEST_URL) if const_defined?(:MANIFEST_URL, false)
   MANIFEST_URL = 'https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/update_latest.json'.freeze
@@ -38,6 +38,20 @@ module TranTuanNoiThat
       proc { feature_enabled?(feature) ? MF_ENABLED : MF_GRAYED }
     end
 
+    # Không hard-code .rb: Sketchup.load sẽ tìm .rb/.rbe/.rbs theo runtime.
+    # Đây là điều kiện cần để bản phát hành qua công cụ mã hóa/chữ ký chính thức
+    # của SketchUp có thể chạy sau khi .rb được chuyển thành .rbe.
+    def runtime_load(stem)
+      clean = stem.to_s.sub(/\.(?:rb|rbe|rbs)\z/i, '')
+      base = File.join(ROOT, clean)
+      return false unless %w[.rbe .rbs .rb].any? { |ext| File.file?(base + ext) }
+      Sketchup.load(base)
+      true
+    rescue StandardError => error
+      puts "[TT runtime_load #{clean}] #{error.class}: #{error.message}"
+      false
+    end
+
     def refresh_feature_commands
       return false unless @toolbar
       features = {
@@ -60,39 +74,33 @@ module TranTuanNoiThat
     end
 
     def reload_runtime
-      # License V2.0.0 chỉ RSA OFFLINE theo Mã máy; toàn bộ thương mại/server đã bỏ.
+      # Một giấy phép RSA Offline theo Mã máy mở toàn bộ hệ thống.
       %w[
-        board_tool.rb
-        box_tool.rb
-        drawer_tool.rb
-        round_tool.rb
-        stretch_mode_tool.rb
-        grain_tool.rb
-        grain_material_fix.rb
-        grain_align_fix.rb
-        grain_standard_2440_fix.rb
-        grain_reload_v351_fix.rb
-        layout_stats_tool.rb
-        layout_stats_v030_patch.rb
-        layout_stats_v040_compat.rb
-        layout_stats_v040_patch.rb
-        layout_stats_v040_compat.rb
-        settings.rb
-        updater.rb
-      ].each do |file|
-        path = File.join(ROOT, file)
-        load(path) if File.file?(path)
-      end
+        board_tool
+        box_tool
+        drawer_tool
+        round_tool
+        stretch_mode_tool
+        grain_tool
+        grain_material_fix
+        grain_align_fix
+        grain_standard_2440_fix
+        grain_reload_v351_fix
+        layout_stats_tool
+        layout_stats_v030_patch
+        layout_stats_v040_compat
+        layout_stats_v040_patch
+        layout_stats_v040_compat
+        settings
+        updater
+      ].each { |stem| runtime_load(stem) }
 
       %w[
-        round_smooth_fix.rb
-        stretch_detail_fix.rb
-        stretch_auto_scan_fix.rb
-        stretch_auto_scope_fix.rb
-      ].each do |file|
-        path = File.join(ROOT, file)
-        load(path) if File.file?(path)
-      end
+        round_smooth_fix
+        stretch_detail_fix
+        stretch_auto_scan_fix
+        stretch_auto_scope_fix
+      ].each { |stem| runtime_load(stem) }
       true
     rescue StandardError => error
       UI.messagebox("Không thể nạp lại hệ thống:\n#{error.message}")
@@ -132,7 +140,7 @@ module TranTuanNoiThat
       @license_cmd ||= command(
         'Bản Quyền',
         'license.svg',
-        'Mã máy · nhập Mã kích hoạt RSA · 90/180/360 ngày hoặc Vĩnh viễn · xác minh offline.'
+        '1 mã RSA theo Mã máy mở toàn bộ hệ thống · 90 ngày / 180 ngày / Vĩnh viễn.'
       ) { License.show_dialog }
       add_feature_command_once(@license_cmd, :license_menu_installed)
       true
