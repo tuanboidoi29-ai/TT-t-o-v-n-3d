@@ -30,6 +30,7 @@ jobs:
           ruby -c tran_tuan_noi_that_release/files/tran_tuan_noi_that/license_payment_v110.rb
           ruby -c tran_tuan_noi_that_release/files/tran_tuan_noi_that/license_owner_admin_v120.rb
           ruby -c tran_tuan_noi_that_release/files/tran_tuan_noi_that/license_owner_admin_v121_fix.rb
+          ruby -c tran_tuan_noi_that_release/files/tran_tuan_noi_that/license_ui_v122_fix.rb
           ruby -c tran_tuan_noi_that_release/files/tran_tuan_noi_that/grain_production_v350.rb
           ruby -c tran_tuan_noi_that_release/files/tran_tuan_noi_that/grain_production_v350_hotfix.rb
           ruby -c tran_tuan_noi_that_release/files/tran_tuan_noi_that/layout_stats_v080_five_pages.rb
@@ -46,17 +47,18 @@ jobs:
           grep -Fq "tt-license-admin" tran_tuan_noi_that_release/files/tran_tuan_noi_that/license_owner_admin_v120.rb
           grep -Fq "owner_admin_open" tran_tuan_noi_that_release/files/tran_tuan_noi_that/license_owner_admin_v120.rb
           grep -Fq "VERSION = '1.2.1'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/license_owner_admin_v121_fix.rb
-          grep -Fq "tt_refresh_dialog_before_owner_v121" tran_tuan_noi_that_release/files/tran_tuan_noi_that/license_owner_admin_v121_fix.rb
-          grep -Fq "license_owner_admin_v121_fix.rb" tran_tuan_noi_that_release/files/tran_tuan_noi_that/bootstrap.rb
-          grep -Fq "license_owner_admin_v121_fix.rb" tran_tuan_noi_that_release/files/tran_tuan_noi_that/settings.rb
+          grep -Fq "VERSION = '1.2.2'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/license_ui_v122_fix.rb
+          grep -Fq "data-slug" tran_tuan_noi_that_release/files/tran_tuan_noi_that/license_ui_v122_fix.rb
+          grep -Fq "license_ui_v122_fix.rb" tran_tuan_noi_that_release/files/tran_tuan_noi_that/bootstrap.rb
+          grep -Fq "license_ui_v122_fix.rb" tran_tuan_noi_that_release/files/tran_tuan_noi_that/settings.rb
           grep -Fq "License.allowed?" tran_tuan_noi_that_release/files/tran_tuan_noi_that/bootstrap.rb
           grep -Fq "VERSION = '0.8.1'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/layout_stats_v081_cut_offset_fix.rb
-          grep -Fq "VERSION = '1.9.49'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/bootstrap.rb
-          grep -Fq "VERSION = '1.9.49'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/settings.rb
-          grep -Fq "ext.version = '1.9.49'" tran_tuan_noi_that_release/files/TranTuanNoiThat.rb
-          grep -Fq '"version": "1.9.49"' tran_tuan_noi_that_release/update_latest.json
-          grep -Fq '"license_version": "1.2.1"' tran_tuan_noi_that_release/update_latest.json
-          grep -Fq 'license_owner_admin_v121_fix.rb' tran_tuan_noi_that_release/update_latest.json
+          grep -Fq "VERSION = '1.9.50'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/bootstrap.rb
+          grep -Fq "VERSION = '1.9.50'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/settings.rb
+          grep -Fq "ext.version = '1.9.50'" tran_tuan_noi_that_release/files/TranTuanNoiThat.rb
+          grep -Fq '"version": "1.9.50"' tran_tuan_noi_that_release/update_latest.json
+          grep -Fq '"license_version": "1.2.2"' tran_tuan_noi_that_release/update_latest.json
+          grep -Fq 'license_ui_v122_fix.rb' tran_tuan_noi_that_release/update_latest.json
           grep -Fq '"round_version": "2.2.7"' tran_tuan_noi_that_release/update_latest.json
           grep -Fq '"layout_stats_version": "0.8.1"' tran_tuan_noi_that_release/update_latest.json
           grep -Fq '"locked": true' tran_tuan_noi_that_release/BO_CONG_LOCK.json
@@ -80,7 +82,7 @@ jobs:
                 @settings[key.to_s] = value
               end
               def current_version
-                '1.9.49'
+                '1.9.50'
               end
             end
           end
@@ -131,17 +133,20 @@ jobs:
             class << self
               def setting(key, default = nil); @settings.fetch(key.to_s, default); end
               def save_setting(key, value); @settings[key.to_s] = value; end
-              def current_version; '1.9.49'; end
+              def current_version; '1.9.50'; end
             end
           end
           load 'tran_tuan_noi_that_release/files/tran_tuan_noi_that/license_manager.rb'
           load 'tran_tuan_noi_that_release/files/tran_tuan_noi_that/license_payment_v110.rb'
           load 'tran_tuan_noi_that_release/files/tran_tuan_noi_that/license_owner_admin_v120.rb'
           load 'tran_tuan_noi_that_release/files/tran_tuan_noi_that/license_owner_admin_v121_fix.rb'
+          load 'tran_tuan_noi_that_release/files/tran_tuan_noi_that/license_ui_v122_fix.rb'
           html = TranTuanNoiThat::License.dialog_html
           raise 'owner launcher missing' unless html.include?('ownerAdminLauncher')
           raise 'ready callback missing' unless html.include?("document.addEventListener('DOMContentLoaded',()=>sketchup.ready());")
           raise 'old render wrapper still present' if html.include?('ttRenderLicenseV120')
+          raise 'broken buy quote still present' if html.include?(%q{onclick="buy(''})
+          raise 'broken paymentCode quote still present' if html.include?(%q{el('paymentCode')})
           script = html[/<script>(.*?)<\/script>/m, 1]
           raise 'license script missing' if script.to_s.empty?
           File.write('/tmp/tt_license_dialog.js', script)
@@ -154,11 +159,11 @@ jobs:
         run: |
           set -euo pipefail
           cd tran_tuan_noi_that_release/files
-          zip -r "$GITHUB_WORKSPACE/TRANTUAN_NOI_THAT_1.9.49_STABLE.rbz" .
+          zip -r "$GITHUB_WORKSPACE/TRANTUAN_NOI_THAT_1.9.50_STABLE.rbz" .
 
       - name: Upload RBZ artifact
         uses: actions/upload-artifact@v4
         with:
-          name: TRANTUAN_NOI_THAT_1.9.49_STABLE
-          path: TRANTUAN_NOI_THAT_1.9.49_STABLE.rbz
+          name: TRANTUAN_NOI_THAT_1.9.50_STABLE
+          path: TRANTUAN_NOI_THAT_1.9.50_STABLE.rbz
           if-no-files-found: error
