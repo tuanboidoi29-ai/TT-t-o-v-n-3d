@@ -1,4 +1,4 @@
-name: Verify RSA License Server
+name: Verify RSA License Client
 
 on:
   push:
@@ -8,37 +8,110 @@ permissions:
   contents: read
 
 jobs:
-  verify-rsa-license:
+  verify-rsa-client:
     runs-on: ubuntu-latest
     steps:
-      - name: Fetch public key and signed OWNER license
+      - uses: actions/checkout@v4
+
+      - name: Test RSA client verification
         shell: bash
         run: |
           set -euo pipefail
-          curl -fsSL https://vnvkmxqgbnmirsgdgfzm.supabase.co/functions/v1/tt-license-public-key > /tmp/rsa-public.json
-          curl -fsSL -X POST https://vnvkmxqgbnmirsgdgfzm.supabase.co/functions/v1/tt-license-check \
-            -H 'Content-Type: application/json' \
-            --data '{"machine_code":"TT-5ACF-3BBC-FCC6","plugin_version":"1.9.51"}' \
-            > /tmp/license.json
-          node <<'NODE'
-          const fs = require('fs');
-          const crypto = require('crypto');
-          const pub = JSON.parse(fs.readFileSync('/tmp/rsa-public.json','utf8'));
-          const res = JSON.parse(fs.readFileSync('/tmp/license.json','utf8'));
-          if (pub.ok !== true || res.ok !== true) throw new Error('server response not ok');
-          if (!res.signed_license) throw new Error('signed_license missing');
-          if (res.signed_license.key_id !== pub.key_id) throw new Error('key id mismatch');
-          const raw = Buffer.from(res.signed_license.data_b64, 'base64');
-          const sig = Buffer.from(res.signed_license.signature_b64, 'base64');
-          const ok = crypto.verify('RSA-SHA256', raw, pub.public_key_pem, sig);
-          if (!ok) throw new Error('RSA signature invalid');
-          const lic = JSON.parse(raw.toString('utf8'));
-          if (lic.schema !== 'TT_LICENSE_RSA_V1') throw new Error('schema mismatch');
-          if (lic.machine_code !== 'TT-5ACF-3BBC-FCC6') throw new Error('machine mismatch');
-          if (lic.owner !== true) throw new Error('owner missing');
-          if (Number(lic.feature_count) !== 8) throw new Error('feature_count mismatch');
-          console.log('RSA LICENSE SERVER TEST OK');
-          console.log('KEY_ID=' + pub.key_id);
-          console.log('FINGERPRINT_SHA256=' + pub.fingerprint_sha256);
-          console.log('OWNER=' + lic.owner + ' FEATURES=' + lic.feature_count + ' VALID_UNTIL=' + lic.valid_until);
-          NODE
+          ruby <<'RUBY'
+          require 'json'
+          require 'openssl'
+          require 'base64'
+          require 'time'
+
+          module TranTuanNoiThat
+            @settings = {}
+            class << self
+              def setting(key, default = nil); @settings.fetch(key.to_s, default); end
+              def save_setting(key, value); @settings[key.to_s] = value; end
+              def current_version; '1.9.57'; end
+            end
+          end
+
+          root = 'tran_tuan_noi_that_release/files/tran_tuan_noi_that'
+          %w[
+            license_manager.rb
+            license_payment_v110.rb
+            license_owner_admin_v120.rb
+            license_owner_admin_v121_fix.rb
+            license_ui_v122_fix.rb
+            license_owner_admin_v123_fix.rb
+            license_commercial_v130_qr.rb
+            license_commercial_v140_auto.rb
+            license_rsa_v150.rb
+          ].each { |f| load File.join(root, f) }
+
+          lic = TranTuanNoiThat::License
+          machine = 'TT-TEST-TEST-TEST'
+          key = OpenSSL::PKey::RSA.new(2048)
+          data = {
+            'schema' => lic::RSA_SCHEMA,
+            'license_id' => 'test-license',
+            'machine_code' => machine,
+            'machine_status' => 'active',
+            'machine_role' => 'customer',
+            'owner' => false,
+            'commercial_enforcement' => true,
+            'offline_grace_hours' => 72,
+            'feature_count' => 1,
+            'features' => { 'grain' => { 'slug' => 'grain', 'name' => 'Xoay Vân', 'allowed' => true, 'purchased' => true, 'price_vnd' => 50000 } },
+            'feature_list' => [],
+            'issued_at' => Time.now.utc.iso8601,
+            'valid_until' => (Time.now.utc + 3600).iso8601
+          }
+          raw = JSON.generate(data)
+          sig = key.sign(OpenSSL::Digest::SHA256.new, raw)
+          env = {
+            'schema' => lic::RSA_SCHEMA,
+            'alg' => lic::RSA_ALGORITHM,
+            'key_id' => lic::RSA_KEY_ID,
+            'data_b64' => Base64.strict_encode64(raw),
+            'signature_b64' => Base64.strict_encode64(sig)
+          }
+          verified = lic.verify_signed_license_response({ 'signed_license' => env }, machine, key.public_key.to_pem)
+          raise 'verified flag missing' unless verified['rsa_verified'] == true
+          raise 'feature lost' unless verified.dig('features', 'grain', 'allowed') == true
+
+          tampered = Marshal.load(Marshal.dump(env))
+          altered = JSON.parse(Base64.strict_decode64(tampered['data_b64']))
+          altered['owner'] = true
+          tampered['data_b64'] = Base64.strict_encode64(JSON.generate(altered))
+          begin
+            lic.verify_signed_license_response({ 'signed_license' => tampered }, machine, key.public_key.to_pem)
+            raise 'tamper was accepted'
+          rescue RuntimeError => e
+            raise if e.message == 'tamper was accepted'
+          end
+
+          begin
+            lic.verify_signed_license_response({ 'signed_license' => env }, 'TT-OTHR-0000-0000', key.public_key.to_pem)
+            raise 'machine mismatch was accepted'
+          rescue RuntimeError => e
+            raise if e.message == 'machine mismatch was accepted'
+          end
+
+          puts 'RSA CLIENT VERIFY TEST OK'
+
+          html = lic.dialog_html
+          script = html[/<script>(.*?)<\/script>/m, 1]
+          raise 'license script missing' if script.to_s.empty?
+          File.write('/tmp/tt_license_rsa.js', script)
+          admin = lic.owner_admin_html
+          admin_script = admin[/<script>(.*?)<\/script>/m, 1]
+          raise 'admin script missing' if admin_script.to_s.empty?
+          File.write('/tmp/tt_owner_rsa.js', admin_script)
+          RUBY
+          node --check /tmp/tt_license_rsa.js
+          node --check /tmp/tt_owner_rsa.js
+
+      - name: Print release SHA256
+        shell: bash
+        run: |
+          set -euo pipefail
+          sha256sum \
+            tran_tuan_noi_that_release/files/tran_tuan_noi_that/license_rsa_v150.rb \
+            tran_tuan_noi_that_release/files/tran_tuan_noi_that/settings.rb
