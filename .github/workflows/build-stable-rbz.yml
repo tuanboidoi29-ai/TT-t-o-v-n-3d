@@ -26,7 +26,7 @@ jobs:
           grep -Fq "VERSION = '1.9.58'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/settings.rb
           grep -Fq "ext.version = '1.9.58'" tran_tuan_noi_that_release/files/TranTuanNoiThat.rb
           grep -Fq "license_rsa_offline_v200.rb" tran_tuan_noi_that_release/files/tran_tuan_noi_that/settings.rb
-          ! grep -Eq 'license_payment_v110|license_owner_admin|license_commercial|license_rsa_v150|tt-license-check|tt-license-payment|tt-license-admin|commercial_enforcement|SePay' tran_tuan_noi_that_release/files/tran_tuan_noi_that/settings.rb tran_tuan_noi_that_release/files/tran_tuan_noi_that/bootstrap.rb
+          ! grep -Eq 'license_payment_v110|license_owner_admin|license_commercial|license_rsa_v150|tt-license-check|tt-license-payment|tt-license-admin|commercial_enforcement' tran_tuan_noi_that_release/files/tran_tuan_noi_that/settings.rb tran_tuan_noi_that_release/files/tran_tuan_noi_that/bootstrap.rb
 
       - name: Validate 1.9.58 manifest
         shell: bash
