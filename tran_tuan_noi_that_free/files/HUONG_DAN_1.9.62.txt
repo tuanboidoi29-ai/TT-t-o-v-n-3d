@@ -1,0 +1,16 @@
+TRẦN TUẤN NỘI THẤT 1.9.62 — CẬP NHẬT GITHUB, KHÔNG BẢN QUYỀN
+
+CÀI LẦN ĐẦU TỪ 1.9.60 / 1.9.61
+Lưu model. Extension Manager > Install Extension > chọn RBZ 1.9.62.
+Đóng và mở lại SketchUp một lần. Bản 1.9.61 đã tắt updater nên cần cài bước này.
+
+CẬP NHẬT SAU NÀY
+Bấm Kiểm Tra Cập Nhật. Plugin kiểm tra nguồn GitHub riêng dành cho bản không bản quyền.
+Nếu có bản mới, chọn Có để tải, sao lưu tệp cũ, kiểm tra SHA256 và nạp cập nhật.
+Nếu đã mới nhất, hiển thị phiên bản đang dùng.
+Cài Đặt Chung > Tự kiểm tra cập nhật GitHub khi mở SketchUp: kiểm tra và báo trên thanh trạng thái; bấm nút cập nhật để cài.
+Không yêu cầu mã máy, mã kích hoạt hay thanh toán.
+
+Nguồn: tuanboidoi29-ai/TT-t-o-v-n-3d, nhánh main, thư mục tran_tuan_noi_that_free.
+Chỉ những bản được chủ sở hữu đưa lên nguồn này mới có thể tải. Không tự tạo tính năng mới.
+Giữ nguyên mã nguồn các công cụ của bản 1.9.60. Chưa kiểm thử trực tiếp trên SketchUp Windows.
