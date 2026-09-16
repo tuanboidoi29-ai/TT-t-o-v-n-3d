@@ -48,7 +48,7 @@ module TTProtectedMigration1956
     p=File.join(PLUGIN_ROOT,rel)
     raise "Thiếu source cần chuyển đổi: #{rel}" unless File.file?(p)
     s=File.binread(p).force_encoding('UTF-8')
-    raise "Source UTF-8 lỗi: #{rel}" unless s.valid_encoding?
+    raise "Source UTF-8 lổi: #{rel}" unless s.valid_encoding?
     s
   end
 
@@ -134,6 +134,7 @@ module TTProtectedMigration1956
     magic='TTLOCK20'.b; tag=OpenSSL::HMAC.digest('SHA256',auth_key,magic+iv+ct); payload=magic+iv+tag+ct
     runtime=runtime_code(masked,mask.bytes)
 
+    # Write payload/runtime first, then wrappers. Source fragments .inc are removed.
     File.binwrite(File.join(SUPPORT_ROOT,'tt_runtime.dat'),payload)
     File.binwrite(File.join(SUPPORT_ROOT,'protected_runtime.rb'),runtime.encode('UTF-8'))
     SOURCE_PATHS.each do |rel|
@@ -155,6 +156,7 @@ module TTProtectedMigration1956
     mj=JSON.generate({'format'=>2,'product'=>'TRẦN TUẤN NỘI THẤT','version'=>VERSION,'mode'=>'PROTECTED_RELEASE','files'=>files})
     sig=OpenSSL::HMAC.hexdigest('SHA256',man_key,mj)
     File.binwrite(File.join(SUPPORT_ROOT,'tt_release.manifest'),sig+"\n"+mj)
+    # Remove updater backups because they can contain plaintext source.
     FileUtils.rm_rf(File.join(SUPPORT_ROOT,'backup'))
     FileUtils.rm_rf(File.join(SUPPORT_ROOT,'.tt_migration_1956'))
 
