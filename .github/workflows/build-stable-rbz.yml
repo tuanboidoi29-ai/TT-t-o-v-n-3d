@@ -33,34 +33,94 @@ jobs:
           ruby -c tran_tuan_noi_that_release/files/tran_tuan_noi_that/layout_stats_v081_cut_offset_fix.rb
           grep -Fq "VERSION = '2.2.7'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/round_smooth_fix.rb
           grep -Fq "topology_boundary_edges" tran_tuan_noi_that_release/files/tran_tuan_noi_that/round_smooth_fix.rb
-          grep -Fq "VERSION = '1.0.1'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/license_manager.rb
-          grep -Fq "license_cache_v2" tran_tuan_noi_that_release/files/tran_tuan_noi_that/license_manager.rb
-          grep -Fq "machineStatus" tran_tuan_noi_that_release/files/tran_tuan_noi_that/license_manager.rb
-          grep -Fq "feature_list" tran_tuan_noi_that_release/files/tran_tuan_noi_that/license_manager.rb
+          grep -Fq "VERSION = '1.0.2'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/license_manager.rb
+          grep -Fq "license_cache_v3.json" tran_tuan_noi_that_release/files/tran_tuan_noi_that/license_manager.rb
+          grep -Fq "@memory_cache" tran_tuan_noi_that_release/files/tran_tuan_noi_that/license_manager.rb
+          grep -Fq "refresh_dialog(payload)" tran_tuan_noi_that_release/files/tran_tuan_noi_that/license_manager.rb
+          grep -Fq "Lỗi đồng bộ" tran_tuan_noi_that_release/files/tran_tuan_noi_that/license_manager.rb
           grep -Fq "license_manager.rb" tran_tuan_noi_that_release/files/tran_tuan_noi_that/bootstrap.rb
           grep -Fq "License.allowed?" tran_tuan_noi_that_release/files/tran_tuan_noi_that/bootstrap.rb
           grep -Fq "VERSION = '0.8.1'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/layout_stats_v081_cut_offset_fix.rb
-          grep -Fq "VERSION = '1.9.45'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/bootstrap.rb
-          grep -Fq "VERSION = '1.9.45'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/settings.rb
-          grep -Fq "ext.version = '1.9.45'" tran_tuan_noi_that_release/files/TranTuanNoiThat.rb
-          grep -Fq '"version": "1.9.45"' tran_tuan_noi_that_release/update_latest.json
-          grep -Fq '"license_version": "1.0.1"' tran_tuan_noi_that_release/update_latest.json
+          grep -Fq "VERSION = '1.9.46'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/bootstrap.rb
+          grep -Fq "VERSION = '1.9.46'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/settings.rb
+          grep -Fq "ext.version = '1.9.46'" tran_tuan_noi_that_release/files/TranTuanNoiThat.rb
+          grep -Fq '"version": "1.9.46"' tran_tuan_noi_that_release/update_latest.json
+          grep -Fq '"license_version": "1.0.2"' tran_tuan_noi_that_release/update_latest.json
           grep -Fq 'license_manager.rb' tran_tuan_noi_that_release/update_latest.json
           grep -Fq '"round_version": "2.2.7"' tran_tuan_noi_that_release/update_latest.json
           grep -Fq '"layout_stats_version": "0.8.1"' tran_tuan_noi_that_release/update_latest.json
           grep -Fq '"locked": true' tran_tuan_noi_that_release/BO_CONG_LOCK.json
           grep -Fq '"round_version": "2.2.7"' tran_tuan_noi_that_release/BO_CONG_LOCK.json
 
+      - name: Test License file cache
+        shell: bash
+        env:
+          APPDATA: /tmp/tt_license_cache_test
+        run: |
+          set -euo pipefail
+          rm -rf "$APPDATA"
+          ruby <<'RUBY'
+          module TranTuanNoiThat
+            @settings = {}
+            class << self
+              def setting(key, default = nil)
+                @settings.fetch(key.to_s, default)
+              end
+              def save_setting(key, value)
+                @settings[key.to_s] = value
+              end
+              def current_version
+                '1.9.46'
+              end
+            end
+          end
+
+          load 'tran_tuan_noi_that_release/files/tran_tuan_noi_that/license_manager.rb'
+          license = TranTuanNoiThat::License
+          features = {}
+          %w[board box drawer round stretch_mode grain layout_stats render_ai].each do |slug|
+            features[slug] = {
+              'name' => slug,
+              'allowed' => true,
+              'purchased' => true,
+              'price_vnd' => nil,
+              'padding' => 'X' * 900
+            }
+          end
+          payload = {
+            'ok' => true,
+            'api_version' => 2,
+            'machine_status' => 'active',
+            'machine_role' => 'owner',
+            'owner' => true,
+            'commercial_enforcement' => false,
+            'offline_grace_hours' => 72,
+            'feature_count' => 8,
+            'features' => features
+          }
+          license.save_cache(payload)
+          raise 'cache file missing' unless File.file?(license.cache_file)
+          license.instance_variable_set(:@memory_cache, nil)
+          license.instance_variable_set(:@memory_cache_time, nil)
+          restored = license.cache
+          raise 'status lost' unless restored['machine_status'] == 'active'
+          raise 'owner lost' unless restored['owner'] == true
+          raise 'features lost' unless restored['features'].size == 8
+          raise 'large payload truncated' unless restored['features']['board']['padding'].size == 900
+          raise 'cache time missing' unless license.cache_time > 0
+          puts 'LICENSE CACHE TEST OK'
+          RUBY
+
       - name: Build RBZ
         shell: bash
         run: |
           set -euo pipefail
           cd tran_tuan_noi_that_release/files
-          zip -r "$GITHUB_WORKSPACE/TRANTUAN_NOI_THAT_1.9.45_STABLE.rbz" .
+          zip -r "$GITHUB_WORKSPACE/TRANTUAN_NOI_THAT_1.9.46_STABLE.rbz" .
 
       - name: Upload RBZ artifact
         uses: actions/upload-artifact@v4
         with:
-          name: TRANTUAN_NOI_THAT_1.9.45_STABLE
-          path: TRANTUAN_NOI_THAT_1.9.45_STABLE.rbz
+          name: TRANTUAN_NOI_THAT_1.9.46_STABLE
+          path: TRANTUAN_NOI_THAT_1.9.46_STABLE.rbz
           if-no-files-found: error
