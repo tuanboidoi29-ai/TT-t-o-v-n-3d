@@ -13,7 +13,7 @@ module TranTuanNoiThat
   NAME = 'TRẦN TUẤN NỘI THẤT'.freeze unless const_defined?(:NAME, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.43'.freeze
+  VERSION = '1.9.44'.freeze
 
   remove_const(:MANIFEST_URL) if const_defined?(:MANIFEST_URL, false)
   MANIFEST_URL = 'https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/update_latest.json'.freeze
@@ -62,6 +62,7 @@ module TranTuanNoiThat
     end
 
     def reload_runtime
+      # License V1 được nạp trước UI để tất cả command có thể kiểm tra quyền theo mã máy.
       # Grain base/material/alignment/fixed UV được Settings nạp tiếp thành V3.5.0.
       # Layout base/patch được Settings nạp tiếp thành V0.8.1.
       # Bo Cong V2.2.7 được nạp ở round_smooth_fix.rb để hot reload từ bản cũ vẫn hoạt động.
@@ -75,6 +76,7 @@ module TranTuanNoiThat
         grain_material_fix.rb
         grain_align_fix.rb
         grain_standard_2440_fix.rb
+        license_manager.rb
         layout_stats_tool.rb
         layout_stats_v030_patch.rb
         layout_stats_v040_compat.rb
@@ -117,6 +119,7 @@ module TranTuanNoiThat
         end
       end
 
+      install_license_ui
       install_box_ui
       install_drawer_ui
       install_round_ui
@@ -127,6 +130,20 @@ module TranTuanNoiThat
       @toolbar.restore if @toolbar
       @toolbar.show if @toolbar
       true
+    end
+
+    def install_license_ui
+      return false unless defined?(TranTuanNoiThat::License)
+      @license_cmd ||= command(
+        'Bản Quyền',
+        'license.svg',
+        'Xem mã máy, trạng thái kích hoạt và quyền từng chức năng.'
+      ) { License.show_dialog }
+      add_feature_command_once(@license_cmd, :license_menu_installed)
+      true
+    rescue StandardError => error
+      puts "[TT UI License] #{error.class}: #{error.message}"
+      false
     end
 
     def install_box_ui
@@ -230,6 +247,9 @@ module TranTuanNoiThat
     def command(title, icon_name, description, feature = nil, &block)
       cmd = UI::Command.new(title) do
         if feature.nil? || feature_enabled?(feature)
+          if feature && defined?(TranTuanNoiThat::License) && !License.allowed?(feature, true)
+            next
+          end
           block.call
         else
           UI.messagebox("Tính năng #{title} đang tắt trong Cài Đặt Chung.")
@@ -249,6 +269,7 @@ module TranTuanNoiThat
       install_ui
       return if @startup_check_scheduled
       @startup_check_scheduled = true
+      UI.start_timer(1.0, false) { License.background_sync if defined?(TranTuanNoiThat::License) }
       UI.start_timer(3.0, false) { Updater.check(false) if setting('auto_update', true) }
     end
   end
