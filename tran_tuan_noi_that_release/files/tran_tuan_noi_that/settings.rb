@@ -1,39 +1,40 @@
 # encoding: UTF-8
 module TranTuanNoiThat
-  # Grain load order giữ nguyên.
-  grain_patch_v341 = File.join(ROOT, 'grain_standard_2440_fix.rb')
-  grain_reload_v351 = File.join(ROOT, 'grain_reload_v351_fix.rb')
-  grain_patch_v350 = File.join(ROOT, 'grain_production_v350.rb')
-  grain_patch_v350_hotfix = File.join(ROOT, 'grain_production_v350_hotfix.rb')
-  load grain_patch_v341 if File.file?(grain_patch_v341)
-  load grain_reload_v351 if File.file?(grain_reload_v351)
-  load grain_patch_v350 if File.file?(grain_patch_v350)
-  load grain_patch_v350_hotfix if File.file?(grain_patch_v350_hotfix)
-  load grain_reload_v351 if File.file?(grain_reload_v351)
+  # Nạp file không hard-code đuôi .rb để bản phát hành chính thức có thể
+  # được SketchUp mã hóa thành .rbe mà vẫn nạp được.
+  tt_runtime_load = lambda do |stem|
+    base = File.join(ROOT, stem.to_s)
+    next false unless %w[.rbe .rbs .rb].any? { |ext| File.file?(base + ext) }
+    Sketchup.load(base)
+    true
+  rescue StandardError => error
+    puts "[TT runtime load #{stem}] #{error.class}: #{error.message}"
+    false
+  end
 
-  # License V2.0.0: CHỈ RSA OFFLINE theo Mã máy. Không Payment / Owner Admin / SePay / Supabase.
-  license_rsa_offline_v200 = File.join(ROOT, 'license_rsa_offline_v200.rb')
-  load license_rsa_offline_v200 if File.file?(license_rsa_offline_v200)
+  # Grain load order giữ nguyên.
+  tt_runtime_load.call('grain_standard_2440_fix')
+  tt_runtime_load.call('grain_reload_v351_fix')
+  tt_runtime_load.call('grain_production_v350')
+  tt_runtime_load.call('grain_production_v350_hotfix')
+  tt_runtime_load.call('grain_reload_v351_fix')
+
+  # License 2.0.1: một mã RSA theo MÃ MÁY mở toàn bộ hệ thống.
+  tt_runtime_load.call('license_rsa_offline_v200')
+  tt_runtime_load.call('license_rsa_offline_v201_patch')
 
   # Layout load order giữ nguyên.
-  layout_compat = File.join(ROOT, 'layout_stats_v040_compat.rb')
-  layout_patch_v040 = File.join(ROOT, 'layout_stats_v040_patch.rb')
-  layout_patch_v050 = File.join(ROOT, 'layout_stats_v050_stable_preview.rb')
-  layout_patch_v060 = File.join(ROOT, 'layout_stats_v060_compact_scope.rb')
-  layout_patch_v070 = File.join(ROOT, 'layout_stats_v070_export_split.rb')
-  layout_patch_v080 = File.join(ROOT, 'layout_stats_v080_five_pages.rb')
-  layout_patch_v081 = File.join(ROOT, 'layout_stats_v081_cut_offset_fix.rb')
-  load layout_compat if File.file?(layout_compat)
-  load layout_patch_v040 if File.file?(layout_patch_v040)
-  load layout_compat if File.file?(layout_compat)
-  load layout_patch_v050 if File.file?(layout_patch_v050)
-  load layout_patch_v060 if File.file?(layout_patch_v060)
-  load layout_patch_v070 if File.file?(layout_patch_v070)
-  load layout_patch_v080 if File.file?(layout_patch_v080)
-  load layout_patch_v081 if File.file?(layout_patch_v081)
+  tt_runtime_load.call('layout_stats_v040_compat')
+  tt_runtime_load.call('layout_stats_v040_patch')
+  tt_runtime_load.call('layout_stats_v040_compat')
+  tt_runtime_load.call('layout_stats_v050_stable_preview')
+  tt_runtime_load.call('layout_stats_v060_compact_scope')
+  tt_runtime_load.call('layout_stats_v070_export_split')
+  tt_runtime_load.call('layout_stats_v080_five_pages')
+  tt_runtime_load.call('layout_stats_v081_cut_offset_fix')
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.58'.freeze
+  VERSION = '1.9.59'.freeze
 
   module Settings
     extend self
