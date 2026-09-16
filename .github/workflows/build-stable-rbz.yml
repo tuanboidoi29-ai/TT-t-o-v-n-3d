@@ -1,4 +1,4 @@
-name: Build Stable RBZ
+name: Build TRANTUAN-NOIITHAT Customer RBZ
 
 on:
   push:
@@ -15,50 +15,48 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Validate Ruby syntax and version
+      - name: Validate Ruby syntax and commercial version
         shell: bash
         run: |
           set -euo pipefail
           find tran_tuan_noi_that_release/files -name '*.rb' -print0 | xargs -0 -n1 ruby -c
-          ruby -c tran_tuan_noi_that_release/files/tran_tuan_noi_that/license_rsa_offline_v200.rb
+          cat tran_tuan_noi_that_release/files/tran_tuan_noi_that/grain_tool_part1.inc \
+              tran_tuan_noi_that_release/files/tran_tuan_noi_that/grain_tool_part2.inc \
+              tran_tuan_noi_that_release/files/tran_tuan_noi_that/grain_tool_part3.inc \
+              > /tmp/grain_tool_merged.rb
+          ruby -c /tmp/grain_tool_merged.rb
           grep -Fq "VERSION = '2.0.0'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/license_rsa_offline_v200.rb
-          grep -Fq "VERSION = '1.9.58'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/bootstrap.rb
-          grep -Fq "VERSION = '1.9.58'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/settings.rb
-          grep -Fq "ext.version = '1.9.58'" tran_tuan_noi_that_release/files/TranTuanNoiThat.rb
-          grep -Fq "license_rsa_offline_v200.rb" tran_tuan_noi_that_release/files/tran_tuan_noi_that/settings.rb
+          grep -Fq "VERSION = '2.0.1'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/license_rsa_offline_v201_patch.rb
+          grep -Fq "VERSION = '1.9.59'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/bootstrap.rb
+          grep -Fq "VERSION = '1.9.59'" tran_tuan_noi_that_release/files/tran_tuan_noi_that/settings.rb
+          grep -Fq "ext.version = '1.9.59'" tran_tuan_noi_that_release/files/TranTuanNoiThat.rb
+          grep -Fq "Sketchup.load(base)" tran_tuan_noi_that_release/files/tran_tuan_noi_that/bootstrap.rb
+          grep -Fq "Sketchup.load(base)" tran_tuan_noi_that_release/files/tran_tuan_noi_that/settings.rb
           ! grep -Eq 'license_payment_v110|license_owner_admin|license_commercial|license_rsa_v150|tt-license-check|tt-license-payment|tt-license-admin|commercial_enforcement' tran_tuan_noi_that_release/files/tran_tuan_noi_that/settings.rb tran_tuan_noi_that_release/files/tran_tuan_noi_that/bootstrap.rb
 
-      - name: Validate 1.9.58 manifest
+      - name: Validate 1.9.59 manifests
         shell: bash
         run: |
           set -euo pipefail
           ruby <<'RUBY'
           require 'json'
-          require 'digest'
-          expected = {
-            'TranTuanNoiThat.rb' => '841ab22b552fe4a6ecee564d333c3198cf31891ca2835af6defa075b8df94b6b',
-            'tran_tuan_noi_that/bootstrap.rb' => 'ab5f2cc78ab2470df9eb18952cb37704d093bb3211cf29a75ed66507a1bbcbed',
-            'tran_tuan_noi_that/license_rsa_offline_v200.rb' => '21dc998ad1aafc74273d05b2efadd82cafb67ca9d518f9ab9446ced9c48eddb9',
-            'tran_tuan_noi_that/settings.rb' => '7dd1023ae2b7573a880ba934d7ebe5361580cad9265aa1315306594ddbf4db0f'
-          }
           %w[update_latest.json update.json].each do |name|
             data = JSON.parse(File.binread(File.join('tran_tuan_noi_that_release', name)))
-            raise 'version' unless data['version'] == '1.9.58'
-            raise 'license' unless data['license_version'] == '2.0.0'
-            raise 'file count' unless Array(data['files']).length == 4
-            Array(data['files']).each do |item|
-              rel = item.fetch('path')
-              raise "unexpected #{rel}" unless expected.key?(rel)
-              raise "sha #{rel}" unless item.fetch('sha256') == expected.fetch(rel)
-              local = File.join('tran_tuan_noi_that_release', 'files', rel)
-              raise "local missing #{rel}" unless File.file?(local)
-              raise "local sha #{rel}" unless Digest::SHA256.file(local).hexdigest == expected.fetch(rel)
+            raise 'version' unless data['version'] == '1.9.59'
+            raise 'license' unless data['license_version'] == '2.0.1'
+            raise 'rbe ready' unless data['rbe_ready'] == true
+            raise 'false official rbe flag missing' unless data['official_rbe_encrypted'] == false
+            raise 'customer package' unless data['customer_package'] == 'TRANTUAN-NOIITHAT-KHACH.rbz'
+            raise 'admin package' unless data['admin_package'] == 'TRANTUAN-NOIITHAT-ADM.rbz'
+            paths = Array(data['files']).map { |x| x['path'] }
+            %w[TranTuanNoiThat.rb tran_tuan_noi_that/bootstrap.rb tran_tuan_noi_that/license_rsa_offline_v200.rb tran_tuan_noi_that/license_rsa_offline_v201_patch.rb tran_tuan_noi_that/settings.rb].each do |p|
+              raise "manifest missing #{p}" unless paths.include?(p)
             end
           end
-          puts 'MANIFEST 1.9.58 OK'
+          puts 'MANIFEST 1.9.59 OK'
           RUBY
 
-      - name: Test offline RSA verification
+      - name: Test unified offline RSA license and UI
         shell: bash
         run: |
           set -euo pipefail
@@ -76,8 +74,17 @@ jobs:
             end
           end
           load 'tran_tuan_noi_that_release/files/tran_tuan_noi_that/license_rsa_offline_v200.rb'
+          load 'tran_tuan_noi_that_release/files/tran_tuan_noi_that/license_rsa_offline_v201_patch.rb'
           lic = TranTuanNoiThat::License
-          key = OpenSSL::PKey::RSA.new(2048)
+          raise 'license patch version' unless lic::VERSION == '2.0.1'
+          raise 'zalo wrong' unless lic::ZALO == '0338162946'
+          raise 'bank wrong' unless lic::BANK_NAME == 'KienlongBank' && lic::BANK_ACCOUNT == '0338162946' && lic::BANK_OWNER == 'TRẦN ĐÌNH TUẤN'
+          raise '90 price wrong' unless lic::PLANS['90d']['price_vnd'] == 50_000
+          raise '180 price wrong' unless lic::PLANS['180d']['price_vnd'] == 100_000
+          raise 'life price wrong' unless lic::PLANS['lifetime']['price_vnd'] == 200_000
+          raise 'sale plans wrong' unless lic::SALE_PLAN_IDS == %w[90d 180d lifetime]
+
+          key = OpenSSL::PKey::RSA.new(3072)
           now = Time.now
           machine = 'TT-TEST-TEST-TEST'
           make = lambda do |plan, expires_at|
@@ -110,21 +117,24 @@ jobs:
           life = make.call('lifetime', nil)
           life_state = lic.parse_activation_code(life, key.public_key.to_pem, machine, now)
           raise 'lifetime rejected' unless life_state['lifetime'] == true
-          html = lic.dialog_html
-          raise 'zalo missing' unless html.include?('033816946')
-          raise 'bank missing' unless html.include?('0338162946') && html.include?('KienlongBank')
-          raise 'price missing' unless html.include?('50.000đ') && html.include?('100.000đ') && html.include?('120.000đ') && html.include?('200.000đ')
-          script = html[/<script>(.*?)<\/script>/m,1]
-          File.write('/tmp/tt_rsa_offline_ui.js', script)
-          puts 'RSA OFFLINE VERIFY OK'
-          RUBY
-          node --check /tmp/tt_rsa_offline_ui.js
 
-      - name: Build clean 1.9.58 RBZ
+          html = lic.dialog_html
+          raise 'zalo missing' unless html.include?('0338162946')
+          raise 'bank missing' unless html.include?('KienlongBank') && html.include?('TRẦN ĐÌNH TUẤN')
+          raise 'price missing' unless html.include?('50.000đ') && html.include?('100.000đ') && html.include?('200.000đ')
+          raise 'old sale plan leaked' if html.include?('120.000đ') || html.include?('360 NGÀY')
+          raise 'one-code wording missing' unless html.include?('1 MÃ BẢN QUYỀN MỞ TOÀN BỘ HỆ THỐNG')
+          script = html[/<script>(.*?)<\/script>/m,1]
+          File.write('/tmp/tt_rsa_commercial_ui.js', script)
+          puts 'UNIFIED RSA COMMERCIAL TEST OK'
+          RUBY
+          node --check /tmp/tt_rsa_commercial_ui.js
+
+      - name: Build TRANTUAN-NOIITHAT-KHACH.rbz
         shell: bash
         run: |
           set -euo pipefail
-          STAGE="$RUNNER_TEMP/tt_1958"
+          STAGE="$RUNNER_TEMP/trantuan_customer"
           rm -rf "$STAGE"
           mkdir -p "$STAGE"
           rsync -a tran_tuan_noi_that_release/files/ "$STAGE/" \
@@ -137,41 +147,35 @@ jobs:
             --exclude 'tran_tuan_noi_that/license_commercial_v130_qr.rb' \
             --exclude 'tran_tuan_noi_that/license_commercial_v140_auto.rb' \
             --exclude 'tran_tuan_noi_that/license_rsa_v150.rb'
+
+          # Không phát hành source Grain dạng .inc rời. Gộp thành một runtime Ruby
+          # để bước ký/mã hóa chính thức của SketchUp có thể chuyển nó thành .rbe.
+          cat tran_tuan_noi_that_release/files/tran_tuan_noi_that/grain_tool_part1.inc \
+              tran_tuan_noi_that_release/files/tran_tuan_noi_that/grain_tool_part2.inc \
+              tran_tuan_noi_that_release/files/tran_tuan_noi_that/grain_tool_part3.inc \
+              > "$STAGE/tran_tuan_noi_that/grain_tool.rb"
+          rm -f "$STAGE/tran_tuan_noi_that/grain_tool_part1.inc" "$STAGE/tran_tuan_noi_that/grain_tool_part2.inc" "$STAGE/tran_tuan_noi_that/grain_tool_part3.inc"
+
           cd "$STAGE"
-          zip -r "$GITHUB_WORKSPACE/TRANTUAN_NOI_THAT_1.9.58_STABLE.rbz" .
-          unzip -t "$GITHUB_WORKSPACE/TRANTUAN_NOI_THAT_1.9.58_STABLE.rbz"
-          if unzip -l "$GITHUB_WORKSPACE/TRANTUAN_NOI_THAT_1.9.58_STABLE.rbz" | grep -Eq 'license_(payment|owner_admin|commercial|manager|rsa_v150)'; then
-            echo 'Legacy commercial license file leaked into RBZ' >&2
+          zip -r "$GITHUB_WORKSPACE/TRANTUAN-NOIITHAT-KHACH.rbz" .
+          unzip -t "$GITHUB_WORKSPACE/TRANTUAN-NOIITHAT-KHACH.rbz"
+          if unzip -l "$GITHUB_WORKSPACE/TRANTUAN-NOIITHAT-KHACH.rbz" | grep -Eq 'license_(payment|owner_admin|commercial|manager|rsa_v150)'; then
+            echo 'Legacy commercial license file leaked into CUSTOMER RBZ' >&2
             exit 1
           fi
-          unzip -l "$GITHUB_WORKSPACE/TRANTUAN_NOI_THAT_1.9.58_STABLE.rbz" | grep -F 'license_rsa_offline_v200.rb'
+          if unzip -l "$GITHUB_WORKSPACE/TRANTUAN-NOIITHAT-KHACH.rbz" | grep -Eq 'grain_tool_part[123]\.inc'; then
+            echo 'Grain .inc source leaked into CUSTOMER RBZ' >&2
+            exit 1
+          fi
+          if unzip -p "$GITHUB_WORKSPACE/TRANTUAN-NOIITHAT-KHACH.rbz" | grep -E 'BEGIN (RSA )?PRIVATE KEY'; then
+            echo 'PRIVATE KEY LEAKED INTO CUSTOMER RBZ' >&2
+            exit 1
+          fi
+          unzip -l "$GITHUB_WORKSPACE/TRANTUAN-NOIITHAT-KHACH.rbz" | grep -F 'license_rsa_offline_v201_patch.rb'
 
-      - name: Build updater package
-        shell: bash
-        run: |
-          set -euo pipefail
-          STAGE="$RUNNER_TEMP/tt_1958_update"
-          rm -rf "$STAGE"
-          mkdir -p "$STAGE/tran_tuan_noi_that"
-          cp tran_tuan_noi_that_release/files/TranTuanNoiThat.rb "$STAGE/"
-          cp tran_tuan_noi_that_release/files/tran_tuan_noi_that/bootstrap.rb "$STAGE/tran_tuan_noi_that/"
-          cp tran_tuan_noi_that_release/files/tran_tuan_noi_that/license_rsa_offline_v200.rb "$STAGE/tran_tuan_noi_that/"
-          cp tran_tuan_noi_that_release/files/tran_tuan_noi_that/settings.rb "$STAGE/tran_tuan_noi_that/"
-          cp tran_tuan_noi_that_release/update_latest.json "$STAGE/"
-          cd "$STAGE"
-          zip -r "$GITHUB_WORKSPACE/TRANTUAN_RSA_OFFLINE_2.0.0_UPDATE.zip" .
-          unzip -t "$GITHUB_WORKSPACE/TRANTUAN_RSA_OFFLINE_2.0.0_UPDATE.zip"
-
-      - name: Upload stable RBZ
+      - name: Upload CUSTOMER RBZ
         uses: actions/upload-artifact@v4
         with:
-          name: TRANTUAN_NOI_THAT_1.9.58_STABLE
-          path: TRANTUAN_NOI_THAT_1.9.58_STABLE.rbz
-          if-no-files-found: error
-
-      - name: Upload RSA offline update
-        uses: actions/upload-artifact@v4
-        with:
-          name: TRANTUAN_RSA_OFFLINE_2.0.0_UPDATE
-          path: TRANTUAN_RSA_OFFLINE_2.0.0_UPDATE.zip
+          name: TRANTUAN-NOIITHAT-KHACH
+          path: TRANTUAN-NOIITHAT-KHACH.rbz
           if-no-files-found: error
