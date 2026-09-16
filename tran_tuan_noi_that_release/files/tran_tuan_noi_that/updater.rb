@@ -12,30 +12,63 @@ module TranTuanNoiThat
     OPEN_TIMEOUT = 3
     READ_TIMEOUT = 8
 
+    def silent_update?
+      @silent_update == true
+    end
+
     def check(interactive = true)
       manifest = fetch_manifest
       latest = manifest.fetch('version').to_s
       local = TranTuanNoiThat.current_version.to_s
 
-      unless newer?(latest, local)
+      if !newer?(latest, local)
         if files_outdated?(manifest)
-          answer = UI.messagebox(
-            "Phiên bản #{latest} đã ghi nhận nhưng file cài đặt đang thiếu hoặc chưa đúng.\nSửa và nạp lại ngay không?",
-            MB_YESNO
-          )
-          return false unless answer == IDYES
-          return install(manifest)
+          if interactive
+            answer = UI.messagebox(
+              "Phiên bản #{latest} đã ghi nhận nhưng file cài đặt đang thiếu hoặc chưa đúng.\nSửa và nạp lại ngay không?",
+              MB_YESNO
+            )
+            return false unless answer == IDYES
+          end
+          return with_update_mode(!interactive) { install(manifest) }
         end
-        return UI.messagebox("Đang dùng phiên bản mới nhất: #{local}") if interactive
+        UI.messagebox("Đang dùng phiên bản mới nhất: #{local}") if interactive
         return false
       end
 
-      answer = UI.messagebox("Có phiên bản #{latest}.\nTải, cài và nạp ngay không?", MB_YESNO)
-      return false unless answer == IDYES
-      install(manifest)
+      if interactive
+        answer = UI.messagebox("Có phiên bản #{latest}.\nTải, cài và nạp ngay không?", MB_YESNO)
+        return false unless answer == IDYES
+      end
+
+      with_update_mode(!interactive) { install(manifest) }
     rescue StandardError => error
       message = "Không kiểm tra được cập nhật:\n#{friendly_error(error)}"
-      interactive ? UI.messagebox(message) : (puts message)
+      if interactive
+        UI.messagebox(message)
+      else
+        puts "[TT Auto Update] #{message}"
+        Sketchup.status_text = message.gsub("\n", ' ') if defined?(Sketchup)
+      end
+      false
+    end
+
+    def with_update_mode(silent)
+      previous = @silent_update
+      @silent_update = !!silent
+      close_transient_dialogs if @silent_update
+      yield
+    ensure
+      @silent_update = previous
+    end
+
+    def close_transient_dialogs
+      if defined?(TranTuanNoiThat::License) && TranTuanNoiThat::License.respond_to?(:close_license_dialog)
+        TranTuanNoiThat::License.close_license_dialog
+      end
+      true
+    rescue StandardError => error
+      puts "[TT Auto Update close dialogs] #{error.class}: #{error.message}"
       false
     end
 
@@ -119,7 +152,14 @@ module TranTuanNoiThat
       load_round_fix
       TranTuanNoiThat.save_setting('installed_version', manifest['version'])
       Settings.notify("Đã cập nhật và nạp phiên bản #{manifest['version']}.", 'ok') if defined?(Settings)
-      UI.messagebox("Cập nhật #{manifest['version']} thành công.\nKhông cần khởi động lại SketchUp.")
+
+      if silent_update?
+        message = "Đã tự cập nhật #{manifest['version']} · không cần khởi động lại máy tính."
+        puts "[TT Auto Update] #{message}"
+        Sketchup.status_text = message if defined?(Sketchup)
+      else
+        UI.messagebox("Cập nhật #{manifest['version']} thành công.\nKhông cần khởi động lại SketchUp.")
+      end
       true
     ensure
       FileUtils.remove_entry(staging) if defined?(staging) && staging && File.directory?(staging)
@@ -205,7 +245,7 @@ module TranTuanNoiThat
       raise 'Chỉ cho phép cập nhật HTTPS.' unless uri.is_a?(URI::HTTPS)
 
       headers = {
-        'User-Agent' => 'TranTuanNoiThat-SketchUp/1.9.54',
+        'User-Agent' => 'TranTuanNoiThat-SketchUp/1.9.60',
         'Cache-Control' => 'no-cache, no-store, max-age=0',
         'Pragma' => 'no-cache'
       }
@@ -245,8 +285,6 @@ module TranTuanNoiThat
     end
 
     def files_outdated?(manifest)
-      # Bản ký .rbe không được so với đường dẫn source .rb trong manifest.
-      # Update Bridge quản lý trạng thái riêng và không chạm vào chữ ký.
       return false if signed_runtime?
 
       manifest.fetch('files').any? do |item|
@@ -311,11 +349,7 @@ module TranTuanNoiThat
   end
 end
 
-# Khi 1.9.53 chuyển tiếp lên 1.9.54, updater.rb tạm thời được nạp từ
-# thư mục đã ký. Nó chỉ dùng để kích hoạt bridge rồi tự xóa sau đó.
 if defined?(TranTuanNoiThat::Updater)
   TranTuanNoiThat::Updater.load_bridge
   TranTuanNoiThat::Updater.schedule_transition_cleanup
 end
-
-TranTuanNoiThat::Updater.load_round_fix if defined?(TranTuanNoiThat::Updater)
