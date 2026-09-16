@@ -73,7 +73,6 @@ module TTTranTuanUpdateLoader
         bytes = TranTuanNoiThat::Updater.download_verified(item.fetch('url'), expected, relative)
 
         if relative == LOADER_NAME
-          # Loader nằm ngoài extension đã ký nên có thể tự cập nhật an toàn.
           loader_target = File.join(PLUGINS_ROOT, LOADER_NAME)
           File.binwrite("#{loader_target}.new", bytes)
           FileUtils.mv("#{loader_target}.new", loader_target, force: true)
@@ -95,9 +94,7 @@ module TTTranTuanUpdateLoader
       }
       write_state(state)
 
-      unless apply_state(state)
-        raise 'Đã tải update nhưng không thể nạp bản vá runtime.'
-      end
+      raise 'Đã tải update nhưng không thể nạp bản vá runtime.' unless apply_state(state)
 
       TranTuanNoiThat.save_setting('installed_version', version)
       if defined?(TranTuanNoiThat::Settings)
@@ -173,8 +170,6 @@ module TTTranTuanUpdateLoader
           local = TranTuanNoiThat.current_version.to_s
           state = TTTranTuanUpdateLoader.read_state
           state_version = state['version'].to_s
-          # Với runtime .rbe, không so manifest .rb với thư mục đã ký.
-          # Chỉ coi thiếu update khi server cùng version nhưng cache bridge chưa có.
           return false if latest == local
           return false if !state_version.empty? && state_version == latest
           false
@@ -191,14 +186,15 @@ module TTTranTuanUpdateLoader
 
     def boot
       attempts = 0
-      UI.start_timer(0.5, true) do |timer|
+      timer_id = nil
+      timer_id = UI.start_timer(0.5, true) do
         attempts += 1
         if defined?(TranTuanNoiThat::Updater)
-          UI.stop_timer(timer)
+          UI.stop_timer(timer_id) if timer_id
           patch_updater
           apply_state
         elsif attempts >= 40
-          UI.stop_timer(timer)
+          UI.stop_timer(timer_id) if timer_id
           puts '[TT Update Bridge] Không tìm thấy TranTuanNoiThat::Updater sau 20 giây.'
         end
       end
