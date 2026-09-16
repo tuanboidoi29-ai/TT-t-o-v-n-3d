@@ -225,9 +225,23 @@ module TranTuanNoiThat
       clean
     end
 
+    # Source/manifest keeps the historical lowercase path. Commercial RBZs are
+    # packaged using SketchUp Warehouse best-practice naming:
+    #   TranTuanNoiThat.rb + TranTuanNoiThat/
+    # Route updates into whichever runtime folder actually loaded this plugin.
+    def runtime_relative_path(relative)
+      clean = safe_path(relative)
+      legacy_prefix = 'tran_tuan_noi_that/'
+      return clean unless clean.start_with?(legacy_prefix)
+      return clean unless File.basename(TranTuanNoiThat::ROOT.to_s) == 'TranTuanNoiThat'
+
+      "TranTuanNoiThat/#{clean.delete_prefix(legacy_prefix)}"
+    end
+
     def install_path(relative)
       plugins = File.expand_path(Sketchup.find_support_file('Plugins'))
-      target = File.expand_path(File.join(plugins, relative))
+      mapped = runtime_relative_path(relative)
+      target = File.expand_path(File.join(plugins, mapped))
       raise 'File cập nhật nằm ngoài thư mục Plugins.' unless target.start_with?(plugins + File::SEPARATOR)
       target
     end
