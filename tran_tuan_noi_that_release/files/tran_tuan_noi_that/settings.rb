@@ -11,7 +11,7 @@ module TranTuanNoiThat
   load grain_patch_v350_hotfix if File.file?(grain_patch_v350_hotfix)
   load grain_reload_v351 if File.file?(grain_reload_v351)
 
-  # License: cache -> Payment -> Owner Admin -> UI fixes -> QR V1.3.0 -> AUTO SePay V1.4.0.
+  # License: cache -> Payment -> Owner Admin -> UI fixes -> QR V1.3.0 -> AUTO SePay V1.4.0 -> RSA machine lock V1.5.0.
   license_payment_v110 = File.join(ROOT, 'license_payment_v110.rb')
   license_owner_admin_v120 = File.join(ROOT, 'license_owner_admin_v120.rb')
   license_owner_admin_v121_fix = File.join(ROOT, 'license_owner_admin_v121_fix.rb')
@@ -19,6 +19,7 @@ module TranTuanNoiThat
   license_owner_admin_v123_fix = File.join(ROOT, 'license_owner_admin_v123_fix.rb')
   license_commercial_v130_qr = File.join(ROOT, 'license_commercial_v130_qr.rb')
   license_commercial_v140_auto = File.join(ROOT, 'license_commercial_v140_auto.rb')
+  license_rsa_v150 = File.join(ROOT, 'license_rsa_v150.rb')
   load license_payment_v110 if File.file?(license_payment_v110)
   load license_owner_admin_v120 if File.file?(license_owner_admin_v120)
   load license_owner_admin_v121_fix if File.file?(license_owner_admin_v121_fix)
@@ -26,6 +27,7 @@ module TranTuanNoiThat
   load license_owner_admin_v123_fix if File.file?(license_owner_admin_v123_fix)
   load license_commercial_v130_qr if File.file?(license_commercial_v130_qr)
   load license_commercial_v140_auto if File.file?(license_commercial_v140_auto)
+  load license_rsa_v150 if File.file?(license_rsa_v150)
 
   # Layout load order bắt buộc:
   # base -> V0.3.0 -> compat -> V0.4.0 -> compat -> V0.5.0 -> V0.6.0 -> V0.7.0 -> V0.8.0 -> V0.8.1.
