@@ -13,7 +13,7 @@ module TranTuanNoiThat
   NAME = 'TRẦN TUẤN NỘI THẤT'.freeze unless const_defined?(:NAME, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.52'.freeze
+  VERSION = '1.9.53'.freeze
 
   remove_const(:MANIFEST_URL) if const_defined?(:MANIFEST_URL, false)
   MANIFEST_URL = 'https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_release/update_latest.json'.freeze
@@ -62,7 +62,7 @@ module TranTuanNoiThat
     end
 
     def reload_runtime
-      # License V1.0.2 -> Payment V1.1.0 -> Owner Admin V1.2.x -> QR Commercial V1.3.0.
+      # License V1.0.2 -> Payment V1.1.0 -> Owner Admin V1.2.x -> QR V1.3.0 -> AUTO SePay V1.4.0.
       # Grain V3.5.0, LayoutStats V0.8.1 và Bo Cong V2.2.7 giữ nguyên.
       %w[
         board_tool.rb
@@ -81,6 +81,7 @@ module TranTuanNoiThat
         license_ui_v122_fix.rb
         license_owner_admin_v123_fix.rb
         license_commercial_v130_qr.rb
+        license_commercial_v140_auto.rb
         layout_stats_tool.rb
         layout_stats_v030_patch.rb
         layout_stats_v040_compat.rb
@@ -141,7 +142,7 @@ module TranTuanNoiThat
       @license_cmd ||= command(
         'Bản Quyền',
         'license.svg',
-        'Mã máy · mua từng chức năng · OWNER quản lý giá, QR thanh toán, máy khách và quyền.'
+        'Mã máy · mua từng chức năng · QR + SePay tự nhận thanh toán · OWNER quản lý giá, khách và quyền.'
       ) { License.show_dialog }
       add_feature_command_once(@license_cmd, :license_menu_installed)
       true
