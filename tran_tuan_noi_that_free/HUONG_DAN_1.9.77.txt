@@ -1,0 +1,6 @@
+TRẦN TUẤN NỘI THẤT 1.9.77
+TAB mở bảng cài đặt: Màu MDF, chọn màu riêng hoặc nạp ảnh JPG/PNG dưới 15 MB.
+Ảnh thu nhỏ tối đa 512px, được lưu cùng mẫu. Bấm Lưu thay đổi mẫu để giữ màu/ảnh.
+Bảng 3D hiển thị ảnh vân; preview ngoài model dùng màu đại diện của ảnh.
+Chỉ đổi mô phỏng, không gán màu mới vào hình học được tạo.
+Đã kiểm tra cú pháp Ruby/JS và lưu/mở thông số trên tệp thật. Chưa thử trực tiếp SketchUp Windows hoặc hiển thị trong trình duyệt.

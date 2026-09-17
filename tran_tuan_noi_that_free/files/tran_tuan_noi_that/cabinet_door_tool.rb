@@ -35,6 +35,10 @@ module TranTuanNoiThat
 
     def validate(raw)
       s = defaults.merge(raw)
+      s['preview_color']=(s['preview_color'] || '#c6a477').to_s
+      raise 'Mã màu phải có dạng #RRGGBB.' unless /\A#[0-9a-fA-F]{6}\z/.match?(s['preview_color'])
+      s['preview_image']=s['preview_image'].to_s
+      raise 'Ảnh màu không hợp lệ hoặc quá lớn.' unless s['preview_image'].empty? || (s['preview_image'].bytesize<1_500_000 && /\Adata:image\/jpeg;base64,[A-Za-z0-9+\/=]+\z/.match?(s['preview_image']))
       s['tag_name']=s['tag_name'].to_s.strip
       raise 'Tên Tag/Layer tối đa 80 ký tự.' if s['tag_name'].length>80
       s['preset_name']=s['preset_name'].to_s.strip
@@ -291,13 +295,13 @@ module TranTuanNoiThat
         h3{grid-column:1/-1;margin:12px 0 0;color:#146dcc}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}label{display:block}input,select{display:block;box-sizing:border-box;width:100%;padding:9px;margin-top:5px;border:1px solid #b6c6d6;border-radius:5px;background:white}
         footer{position:sticky;bottom:0;background:#f4f6fa;padding:12px 0}button{background:#146dcc;color:white;padding:12px 22px;border:0;border-radius:5px;cursor:pointer}#error{color:#b32222;margin:8px 0}
         .editor{display:grid;grid-template-columns:380px 1fr;gap:22px}.editor>.grid{max-height:480px;overflow-y:auto;padding-right:8px}aside{position:sticky;top:0;align-self:start}canvas{width:100%;background:#fff4e7;border-radius:10px;touch-action:none;cursor:grab}[hidden]{display:none!important}</style><h2>CHỈNH MẪU CÁNH</h2><label>Mẫu đã lưu<select id="saved_preset" onchange="loadPreset()"><option value="">Mẫu mới / thông số hiện tại</option></select></label><p>Chọn kiểu cánh để chỉnh thông số tương ứng. Đơn vị mm; rộng/cao = 0 lấy theo chuột.<br>CTRL: phủ/lọt · SHIFT: ngang/dọc · /N: chia đều · ENTER: tạo.</p>
-        <div class="editor"><aside><canvas id="preview" width="380" height="480"></canvas><p>Kéo chuột để xoay 3D · Lăn chuột để thu/phóng</p><button onclick="yaw=-0.35;pitch=0.15;zoom=1;draw()">Góc nhìn ban đầu</button></aside><div class="grid">#{inputs}</div></div><footer><div id="error"></div><label>Tên Tag/Layer (để trống = tên mẫu)<input id="tag_name" maxlength="80" value="#{CGI.escapeHTML(values['tag_name'].to_s)}" placeholder="Ví dụ: Hậu tủ 9mm"></label><label>Tên mẫu riêng<input id="preset_name" value="#{CGI.escapeHTML(values['preset_name'].to_s)}" placeholder="Ví dụ: Huỳnh tủ áo 2 ô"></label><button onclick="savePreset()">Lưu thành mẫu mới</button> <button id="update_preset" disabled onclick="updatePreset()">Lưu thay đổi mẫu</button> <button onclick="apply()">#{tool ? "Áp dụng & xem trước" : "Dùng mẫu để vẽ"}</button></footer>
-        <script>const keys=#{FIELDS.map(&:first).to_json};function values(){let s={};keys.forEach(k=>s[k]=document.getElementById(k).value);s.preset_name=document.getElementById('preset_name').value;s.tag_name=document.getElementById('tag_name').value;return s;}function apply(){sketchup.apply(JSON.stringify(values()));}function savePreset(){sketchup.save_preset(document.getElementById("preset_name").value,JSON.stringify(values()));}function error(s){document.getElementById('error').textContent=s;}
+        <div class="editor"><aside><label>Màu mô phỏng<input id="preview_color" type="color" value="#{CGI.escapeHTML(values.fetch('preview_color','#c6a477'))}" oninput="previewImage='';texture=null;draw()"></label><button onclick="document.getElementById('preview_color').value='#c6a477';previewImage='';texture=null;draw()">Màu MDF</button> <label>Nạp ảnh màu/vân (JPG, PNG)<input type="file" accept="image/jpeg,image/png" onchange="importColor(this.files[0])"></label><small>Ảnh hiện trong bảng 3D; ngoài model dùng màu đại diện. Chỉ đổi mô phỏng.</small><canvas id="preview" width="380" height="480"></canvas><p>Kéo chuột để xoay 3D · Lăn chuột để thu/phóng</p><button onclick="yaw=-0.35;pitch=0.15;zoom=1;draw()">Góc nhìn ban đầu</button></aside><div class="grid">#{inputs}</div></div><footer><div id="error"></div><label>Tên Tag/Layer (để trống = tên mẫu)<input id="tag_name" maxlength="80" value="#{CGI.escapeHTML(values['tag_name'].to_s)}" placeholder="Ví dụ: Hậu tủ 9mm"></label><label>Tên mẫu riêng<input id="preset_name" value="#{CGI.escapeHTML(values['preset_name'].to_s)}" placeholder="Ví dụ: Huỳnh tủ áo 2 ô"></label><button onclick="savePreset()">Lưu thành mẫu mới</button> <button id="update_preset" disabled onclick="updatePreset()">Lưu thay đổi mẫu</button> <button onclick="apply()">#{tool ? "Áp dụng & xem trước" : "Dùng mẫu để vẽ"}</button></footer>
+        <script>const keys=#{FIELDS.map(&:first).to_json};function values(){let s={};keys.forEach(k=>s[k]=document.getElementById(k).value);s.preset_name=document.getElementById('preset_name').value;s.tag_name=document.getElementById('tag_name').value;s.preview_color=document.getElementById('preview_color').value;s.preview_image=previewImage;return s;}function apply(){sketchup.apply(JSON.stringify(values()));}function savePreset(){sketchup.save_preset(document.getElementById("preset_name").value,JSON.stringify(values()));}function error(s){document.getElementById('error').textContent=s;}
         function presetList(records,id){let select=document.getElementById('saved_preset');select.innerHTML='';let empty=document.createElement('option');empty.value='';empty.textContent='Mẫu mới / thông số hiện tại';select.appendChild(empty);records.forEach(r=>{let o=document.createElement('option');o.value=r.id;o.textContent=r.name;select.appendChild(o);});select.value=id||'';document.getElementById('update_preset').disabled=!select.value.startsWith('custom_');}
         function loadPreset(){let id=document.getElementById('saved_preset').value;document.getElementById('update_preset').disabled=!id.startsWith('custom_');if(id)sketchup.load_preset(id);else document.getElementById('preset_name').value='';}
-        function receivePreset(r){document.getElementById('tag_name').value=r.settings.tag_name||'';keys.forEach(k=>{if(r.settings[k]!==undefined)document.getElementById(k).value=r.settings[k];});document.getElementById('preset_name').value=r.name;requestPreview();}
+        function receivePreset(r){document.getElementById('preview_color').value=r.settings.preview_color||'#c6a477';loadTexture(r.settings.preview_image||'');document.getElementById('tag_name').value=r.settings.tag_name||'';keys.forEach(k=>{if(r.settings[k]!==undefined)document.getElementById(k).value=r.settings[k];});document.getElementById('preset_name').value=r.name;requestPreview();}
         function updatePreset(){sketchup.update_preset(document.getElementById('saved_preset').value,document.getElementById('preset_name').value,JSON.stringify(values()));}
-        #{dialog_preview_script}</script></html>
+        #{dialog_preview_script(values)}</script></html>
       HTML
       @dialog.add_action_callback('preview') do |_ctx,json|
         begin
@@ -353,10 +357,13 @@ module TranTuanNoiThat
       @dialog.show
     end
 
-    def dialog_preview_script
+    def dialog_preview_script(values={})
       <<~JS
+        let previewImage=#{values['preview_image'].to_s.to_json},texture=null;
         let mesh=[],yaw=-0.35,pitch=0.15,zoom=1,timer;
         const canvas=document.getElementById('preview'),ctx=canvas.getContext('2d');
+        function loadTexture(data){previewImage=data;texture=null;if(!data){draw();return;}let img=new Image();img.onload=()=>{if(previewImage===data){texture=img;draw();}};img.onerror=()=>{previewImage='';error('Không đọc được ảnh màu.');};img.src=data;}
+        function importColor(file){if(!file)return;if(!['image/jpeg','image/png'].includes(file.type)||file.size>15*1024*1024){error('Chọn ảnh JPG/PNG dưới 15 MB.');return;}let reader=new FileReader();reader.onerror=()=>error('Không đọc được tệp ảnh.');reader.onload=()=>{let img=new Image();img.onerror=()=>error('Ảnh không hợp lệ.');img.onload=()=>{let c=document.createElement('canvas'),ratio=Math.min(1,512/Math.max(img.width,img.height));c.width=Math.max(1,Math.round(img.width*ratio));c.height=Math.max(1,Math.round(img.height*ratio));let g=c.getContext('2d');g.fillStyle='#ffffff';g.fillRect(0,0,c.width,c.height);g.drawImage(img,0,0,c.width,c.height);let sample=document.createElement('canvas');sample.width=sample.height=1;let sc=sample.getContext('2d');sc.drawImage(c,0,0,1,1);let rgb=sc.getImageData(0,0,1,1).data;document.getElementById('preview_color').value='#'+Array.from(rgb).slice(0,3).map(v=>v.toString(16).padStart(2,'0')).join('');loadTexture(c.toDataURL('image/jpeg',0.85));error('Đã nạp ảnh màu. Lưu mẫu để giữ ảnh.');};img.src=reader.result;};reader.readAsDataURL(file);}
         function setMesh(m){mesh=m;draw();}
         function draw(){
           ctx.clearRect(0,0,380,480);if(!mesh.length)return;
@@ -368,7 +375,9 @@ module TranTuanNoiThat
           mesh.map(f=>[f[0].map(transform),f[1],f[2]]).sort((a,b)=>a[0].reduce((s,p)=>s+p[2],0)/a[0].length-b[0].reduce((s,p)=>s+p[2],0)/b[0].length).forEach(f=>{
             let p=f[0],a=p[1].map((v,i)=>v-p[0][i]),b=p[2].map((v,i)=>v-p[0][i]),n=a[0]*b[1]-a[1]*b[0];
             ctx.beginPath();p.forEach((v,i)=>i?ctx.lineTo(v[0],v[1]):ctx.moveTo(v[0],v[1]));ctx.closePath();
-            ctx.fillStyle=f[1]?'rgba(255,200,145,0.35)':(n<0?'#ffd2a3':'#fac48e');ctx.fill();ctx.strokeStyle='#d69a60';ctx.lineWidth=0.8;ctx.beginPath();p.forEach((v,i)=>{if(!f[2]||f[2][i]){let w=p[(i+1)%p.length];ctx.moveTo(v[0],v[1]);ctx.lineTo(w[0],w[1]);}});ctx.stroke();});
+            ctx.fillStyle=document.getElementById('preview_color').value;ctx.fill();
+            if(texture){ctx.save();ctx.clip();let o=transform([lo[0],lo[1],hi[2]]),u=transform([hi[0],lo[1],hi[2]]),v=transform([lo[0],hi[1],hi[2]]);ctx.transform((u[0]-o[0])/texture.width,(u[1]-o[1])/texture.width,(v[0]-o[0])/texture.height,(v[1]-o[1])/texture.height,o[0],o[1]);ctx.drawImage(texture,0,0);ctx.restore();}
+            if(n>=0){ctx.fillStyle='rgba(0,0,0,0.10)';ctx.fill();}ctx.strokeStyle='#d69a60';ctx.lineWidth=0.8;ctx.beginPath();p.forEach((v,i)=>{if(!f[2]||f[2][i]){let w=p[(i+1)%p.length];ctx.moveTo(v[0],v[1]);ctx.lineTo(w[0],w[1]);}});ctx.stroke();});
         }
         let drag=null;
         canvas.onpointerdown=e=>{drag=[e.clientX,e.clientY];canvas.setPointerCapture(e.pointerId);};
@@ -382,7 +391,7 @@ module TranTuanNoiThat
         }
         function requestPreview(){visibility();clearTimeout(timer);timer=setTimeout(()=>sketchup.preview(JSON.stringify(values())),180);}
         keys.forEach(k=>document.getElementById(k).addEventListener('input',requestPreview));
-        window.addEventListener('load',()=>{requestPreview();sketchup.list_presets();});
+        window.addEventListener('load',()=>{loadTexture(previewImage);requestPreview();sketchup.list_presets();});
       JS
     end
 
@@ -849,7 +858,7 @@ module TranTuanNoiThat
         @world.each do |parts|
           parts.each do |part,faces|
             faces.each_with_index do |face,index|
-              view.drawing_color=Sketchup::Color.new(255, 190, 125, 115)
+              view.drawing_color=Sketchup::Color.new(*(@settings.fetch('preview_color','#c6a477').delete('#').scan(/../).map { |c| c.to_i(16) }+[160]))
               view.draw(GL_POLYGON,face)
               view.drawing_color=Sketchup::Color.new(205, 132, 65)
               segments=[]
