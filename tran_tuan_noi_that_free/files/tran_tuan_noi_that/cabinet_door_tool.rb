@@ -248,18 +248,38 @@ module TranTuanNoiThat
       [result,lines]
     end
 
+    def edge_snap_points(edge,transformation)
+      a=edge.start.position.transform(transformation)
+      b=edge.end.position.transform(transformation)
+      mid=Geom::Point3d.new((a.x+b.x)/2.0,(a.y+b.y)/2.0,(a.z+b.z)/2.0)
+      [[a,'Đầu cạnh',0],[b,'Đầu cạnh',0],[mid,'Trung điểm cạnh',1]]
+    end
+
+    def nearest_snap(candidates,x,y,view,radius=14)
+      ranked=candidates.filter_map do |item|
+        point=item[0]
+        next if view.camera.direction.dot(point-view.camera.eye)<=0
+        screen=view.screen_coords(point)
+        distance=Math.hypot(screen.x-x,screen.y-y)
+        next if distance>radius
+        [distance,item[2],item]
+      end
+      ranked.min_by { |distance,priority,_| [distance,priority] }&.last
+    end
+
     class Tool
       attr_reader :settings
       def initialize(s)
         @settings=s; @ip=Sketchup::InputPoint.new; @ref=Sketchup::InputPoint.new
-        @model=Sketchup.active_model; @path=@model.active_path; reset
+        @model=Sketchup.active_model; @path=@model.active_path
+        @snap_probes=Array.new(9) { Sketchup::InputPoint.new }; reset
       end
       def activate; @active=true; status; end
       def active?; @active && Sketchup.active_model==@model; end
       def deactivate(view); @active=false; view.invalidate; end
       def resume(view); @active=true; status; view.invalidate; end
       def reset
-        @stage=0; @equal_count=nil; @equal_anchor=nil; @vcb_typing=false; @split_axis=0; @internal=@settings['split_scope']!='Toàn vùng'; @cells=nil; @candidate=nil; @history=[]; @hover=nil; @split_lines=[]; @sign=1; @doors=nil; @origin=nil; @error=nil; @last=nil
+        @snap_point=nil; @snap_label=nil; @snap_cell=nil; @stage=0; @equal_count=nil; @equal_anchor=nil; @vcb_typing=false; @split_axis=0; @internal=@settings['split_scope']!='Toàn vùng'; @cells=nil; @candidate=nil; @history=[]; @hover=nil; @split_lines=[]; @sign=1; @doors=nil; @origin=nil; @error=nil; @last=nil
         @u=X_AXIS; @v=Z_AXIS; @n=@u.cross(@v); @ip.clear; @ref.clear; status
       end
       def configure(s)
@@ -316,7 +336,38 @@ module TranTuanNoiThat
       end
       def pick(x,y,view)
         @stage==0 ? @ip.pick(view,x,y) : @ip.pick(view,x,y,@ref)
-        view.tooltip=@ip.tooltip if @ip.valid?
+        candidates=[]
+        offsets=[[0,0],[-8,0],[8,0],[0,-8],[0,8],[-8,-8],[8,-8],[-8,8],[8,8]]
+        offsets.each_with_index do |(dx,dy),i|
+          probe=@snap_probes[i]
+          @stage==0 ? probe.pick(view,x+dx,y+dy) : probe.pick(view,x+dx,y+dy,@ref)
+          next unless probe.valid?
+          edge=probe.edge
+          if edge && edge.valid?
+            CabinetDoor.edge_snap_points(edge,probe.transformation).each do |point,label,priority|
+              candidates << [point,label,priority,probe,nil]
+            end
+          elsif probe.vertex
+            candidates << [probe.position,'Đầu cạnh',0,probe,nil]
+          end
+        end
+        # Preview cells do not exist in the model yet: provide their own snap points.
+        if @stage==2 && @cells
+          z=@settings['offset']+(@settings['fit']=='Phủ ngoài' ? @settings['thickness'] : 0)
+          @cells.each_with_index do |(cx,cy,w,h),i|
+            corners=[[cx,cy],[cx+w,cy],[cx+w,cy+h],[cx,cy+h]]
+            corners.each_with_index do |point,j|
+              candidates << [world([point[0],point[1],z]),'Góc ô cánh',0,nil,i]
+              other=corners[(j+1)%4]
+              mid=[(point[0]+other[0])/2.0,(point[1]+other[1])/2.0]
+              candidates << [world([mid[0],mid[1],z]),'Trung điểm cạnh ô cánh',1,nil,i]
+            end
+          end
+        end
+        best=CabinetDoor.nearest_snap(candidates,x,y,view)
+        @snap_point=best && best[0]; @snap_label=best && best[1]; @snap_cell=best && best[4]
+        @ip.copy!(best[3]) if best && best[3]
+        view.tooltip=@snap_point ? @snap_label : (@ip.valid? ? @ip.tooltip : '')
       end
       def onMouseMove(flags,x,y,view)
         if @stage==2
@@ -326,11 +377,19 @@ module TranTuanNoiThat
           z=@settings['offset']+(@settings['fit']=='Phủ ngoài' ? @settings['thickness'] : 0)
           plane_origin=@base.offset(@n,(z*@sign).mm)
           point=Geom.intersect_line_plane(view.pickray(x,y),[plane_origin,@n])
-          if @ip.valid? && @ip.degrees_of_freedom<3
+          if @snap_point
+            point=@snap_point
+          elsif @ip.valid? && @ip.degrees_of_freedom<3
             point=@ip.position
           end
           if point
             d=point-@base; @hover=[d.dot(@u).to_mm,d.dot(@v).to_mm]
+            # An edge midpoint belongs to this preview cell. Move only the
+            # targeting coordinate inside; retain the exact cut coordinate.
+            if @snap_cell && @cells[@snap_cell]
+              cell=@cells[@snap_cell]; other=1-@split_axis
+              @hover[other]=cell[other]+cell[other+2]/2.0
+            end
           else
             @hover=nil
           end
@@ -342,7 +401,7 @@ module TranTuanNoiThat
       end
       def update_rectangle(x,y,view)
         p=Geom.intersect_line_plane(view.pickray(x,y),[@origin,@n])
-        p=@ip.position if @ip.valid? && @ip.degrees_of_freedom<3
+        p=@snap_point || (@ip.valid? && @ip.degrees_of_freedom<3 ? @ip.position : p)
         @last=p
         if p
           rebuild
@@ -372,7 +431,7 @@ module TranTuanNoiThat
       def onLButtonDown(flags,x,y,view)
         if @stage==0
           pick(x,y,view); return unless @ip.valid?
-          @origin=@ip.position; @ref.copy!(@ip); axes_from_face; @stage=1
+          @origin=@snap_point || @ip.position; @ref=Sketchup::InputPoint.new(@origin); axes_from_face; @stage=1
         elsif @stage==1
           pick(x,y,view); update_rectangle(x,y,view)
           return UI.beep unless @doors
@@ -477,7 +536,13 @@ module TranTuanNoiThat
       end
 
       def draw(view)
-        @ip.draw(view) if @ip.display?
+        @ip.draw(view) if @ip.display? && !@snap_point
+        if @snap_point
+          color=Sketchup::Color.new(20,180,90)
+          # Square endpoints, triangle midpoints (SketchUp draw_points styles).
+          style=@snap_label.to_s.include?('Trung điểm') ? 6 : 1
+          view.draw_points([@snap_point],10,style,color)
+        end
         return unless @doors && @world
         view.line_width=1
         @world.each do |parts|
@@ -498,6 +563,7 @@ module TranTuanNoiThat
       end
       def getExtents
         bb=Geom::BoundingBox.new
+        bb.add(@snap_point) if @snap_point
         (@world || []).each { |parts| parts.each { |_p,faces| faces.each { |f| bb.add(f) } } }
         bb
       end
