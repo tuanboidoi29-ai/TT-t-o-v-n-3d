@@ -1,0 +1,36 @@
+TRẦN TUẤN NỘI THẤT 1.9.66 – VẼ CÁNH TỦ
+Cài RBZ bằng Extension Manager > Install Extension, hoặc Kiểm Tra Cập Nhật.
+Có icon Vẽ Cánh Tủ trên thanh công cụ chính. Bộ co kéo giữ nguyên 1.9.65.
+
+1. Chọn Vẽ Cánh Tủ, nhập thông số, bấm Áp dụng & xem trước.
+2. Chọn góc 1 và góc 2 trên vùng lắp cánh. Mặt tủ tại góc 1 xác định mặt phẳng.
+   Không có mặt: mặc định XZ. Khi kéo: ← XZ, → YZ, ↑ XY.
+3. Xem trước hình học 3D. F đảo hướng trước/sau; TAB chỉnh thông số.
+4. Click lần nữa tạo. Công cụ tiếp tục để đặt bộ cánh khác. ESC chọn lại / thoát.
+
+Bốn mẫu: cánh phẳng, cánh khung tấm lòng, cánh khung kính, cánh soi huỳnh vát lõm.
+30 thông số: rộng/cao vùng lắp (0 = theo chuột); số cánh ngang/hàng; dày;
+khe bốn cạnh và giữa cánh/hàng; phủ bốn cạnh; dịch trước/sau;
+khung bốn cạnh; số ô lòng dọc; đố giữa; dày lòng; dày kính;
+độ lùi mặt lòng/kính; rộng vát; sâu soi; độ đậm kính.
+Mọi kích thước mm, trừ số lượng và độ đậm kính (%).
+
+Phủ ngoài: hai điểm là vùng tham chiếu, cộng phần phủ rồi trừ khe.
+Nếu chọn kích thước ngoài của tủ, để phủ = 0; nếu chọn lòng tủ, nhập phủ theo hồi.
+Lọt lòng: trừ khe, bỏ qua phần phủ; mặt trước cánh nằm trên mặt phẳng chọn.
+Dịch trước/sau theo hướng mặt cánh; F đổi hướng nếu preview quay vào trong.
+Rộng/cao cố định xác định vùng trước khi cộng phủ và trừ khe, không phải từng cánh.
+Cánh chia đều ngang và dọc. Các ô lòng chia theo chiều cao.
+Soi huỳnh là mặt vát thẳng và lòng lõm thật, không phải chỉ vẽ nét trang trí.
+Cánh khung/kính gồm các thanh và tấm lòng riêng, tiếp xúc mép; chưa tạo mộng/rãnh liên kết.
+
+Mỗi cánh là Group riêng, các chi tiết ở trong. Một Undo hoàn tác cả lần tạo.
+Tạo tại ngữ cảnh đang mở; không tự sửa nhóm tủ được bắt điểm.
+Nếu đang sửa component có nhiều bản sao, Make Unique trước khi tạo cánh.
+Không tạo trong đối tượng khóa. Không yêu cầu kích hoạt bản quyền.
+
+Kiểm tra: cú pháp Ruby; tính khe/độ phủ/chia cánh; kín hình học, hướng mặt,
+thể tích, giới hạn thông số; kiểm thử co kéo cũ bằng API mô phỏng.
+Chưa kiểm thử trực tiếp trên SketchUp Windows; cần kiểm tra thực tế trong SketchUp 2022.
+Tham khảo API: https://ruby.sketchup.com/Sketchup/InputPoint.html
+https://ruby.sketchup.com/Sketchup/Model.html#edit_transform-instance_method

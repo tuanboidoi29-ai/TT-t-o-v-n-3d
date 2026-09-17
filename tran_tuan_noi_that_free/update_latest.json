@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.65",
+  "version": "1.9.66",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Thêm khóa trục bằng phím mũi tên: phải X, trái Y, lên Z, xuống bỏ khóa.",
+  "notes": "Thêm Vẽ Cánh Tủ: phẳng, khung, kính, soi huỳnh; 30 thông số, preview 3D, tạo liên tục. Giữ nguyên co kéo 1.9.65.",
   "files": [
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -14,7 +14,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "a549c3cf990bcf2c5d12714d1c3cda895dc14abbca3b73f90ceec94e1f4be30d"
+      "sha256": "d7dbec5a90a85d5a50517000898cb8198df46604d30dcd4a3191112c54726daf"
     },
     {
       "path": "tran_tuan_noi_that/board_tool.rb",
@@ -24,12 +24,17 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "dbe7a29dbf41d5ad4ea2e41ae67880c65108e5d902d4aeb15413f33eaf37ab29"
+      "sha256": "21d96a35c808be4ce93d5bddc5152a5e0b13ff339bc27f51cf2c447bc0509e78"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/box_tool.rb",
       "sha256": "afd8426366792744c6176eb24f301632dd08f95f700968ae70403690db4207eb"
+    },
+    {
+      "path": "tran_tuan_noi_that/cabinet_door_tool.rb",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/cabinet_door_tool.rb",
+      "sha256": "6c00a5d553de682580b492385078fcc51e21ed151ed04398f98ef2501cf12e20"
     },
     {
       "path": "tran_tuan_noi_that/drawer_tool.rb",
@@ -80,6 +85,11 @@
       "path": "tran_tuan_noi_that/icons/box.svg",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/icons/box.svg",
       "sha256": "cada72d3957496f3d7008e955e2d0a817497197a7e0f40d6e8d180eccdbab292"
+    },
+    {
+      "path": "tran_tuan_noi_that/icons/cabinet_door.svg",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/icons/cabinet_door.svg",
+      "sha256": "534152a1ad05f354433a4aaea77826c2da26f867b448777038babff703035b3f"
     },
     {
       "path": "tran_tuan_noi_that/icons/drawer.svg",
@@ -179,7 +189,7 @@
     {
       "path": "tran_tuan_noi_that/settings.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/settings.rb",
-      "sha256": "32312e9fe05b1d054dedba4deffc6c4fda3d7775d7d94a156bd3ec5a193dc40b"
+      "sha256": "760d4c726c052a40576509059e7de3224d8f82c34b7c82b6f1692a8763977670"
     },
     {
       "path": "tran_tuan_noi_that/stretch_auto_scan_fix.rb",
@@ -214,7 +224,7 @@
     {
       "path": "tran_tuan_noi_that/updater.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/updater.rb",
-      "sha256": "ec917f56fa13551ef267cfa1b2f814e554749dcac10ea88a3a5adec13a7fb93d"
+      "sha256": "b975a54175c32a3a506c125bec08b66fd46f17b30682d5c26fafaff161791c4d"
     }
   ],
   "stretch_mode_version": "1.0.1"
