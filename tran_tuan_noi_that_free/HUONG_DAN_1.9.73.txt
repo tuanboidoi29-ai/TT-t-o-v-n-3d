@@ -1,0 +1,12 @@
+TRẦN TUẤN NỘI THẤT 1.9.73 — CHỈNH MẪU CÁNH
+Vẽ Cánh Tủ → Tạo / chỉnh mẫu cánh riêng: mở bảng độc lập.
+Chọn mẫu đã lưu để mở thông số. Hở trái/phải/trên/dưới tính riêng, mm.
+Chỉnh mẫu → đặt tên → Lưu thành mẫu mới.
+Mở mẫu riêng → sửa → Lưu thay đổi mẫu để cập nhật đúng mẫu đó.
+Mẫu có sẵn chỉ lưu thành bản mới. Mẫu riêng lưu trong cài đặt SketchUp.
+Lưu không tạo hình học; Dùng mẫu để vẽ mới vào công cụ đặt cánh.
+TAB khi đang vẽ mở thông số; Áp dụng cập nhật preview.
+Preview MDF cam nhạt, có kéo xoay và thu/phóng.
+Mẫu lưu thông số, chưa lưu đường chia tay hoặc hình SKP tùy ý.
+Đã kiểm tra lưu/mở/cập nhật qua API mô phỏng và cú pháp Ruby/JavaScript.
+Chưa thử trực tiếp trên SketchUp Windows.

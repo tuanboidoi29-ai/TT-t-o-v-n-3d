@@ -12,7 +12,7 @@ module TranTuanNoiThat
       ['width','Rộng vùng chọn (0 = theo chuột)',0], ['height','Cao vùng chọn (0 = theo chuột)',0],
       ['cols','Số cánh ngang',2], ['rows','Số hàng cánh',1],
       ['thickness','Dày cánh / khung',17.5],
-      ['left','Khe trái',2], ['right','Khe phải',2], ['top','Khe trên',2], ['bottom','Khe dưới',2],
+      ['left','Hở trái',2], ['right','Hở phải',2], ['top','Hở trên',2], ['bottom','Hở dưới',2],
       ['gap_x','Khe giữa cánh ngang',2], ['gap_y','Khe giữa hàng',2],
       ['over_left','Phủ trái (chỉ Phủ ngoài)',0], ['over_right','Phủ phải',0],
       ['over_top','Phủ trên',0], ['over_bottom','Phủ dưới',0],
@@ -90,13 +90,22 @@ module TranTuanNoiThat
       raise 'Không đọc được mẫu đã lưu; dữ liệu gốc vẫn được giữ nguyên.'
     end
 
-    def save_preset(name,options)
+    def save_preset(name,options,id=nil)
       name=name.to_s.strip
       raise 'Nhập tên mẫu từ 1 đến 80 ký tự.' if name.empty? || name.length>80
       options=validate(options)
       records=custom_presets
       record={'id'=>"custom_#{Time.now.to_i}_#{rand(1_000_000_000)}",'name'=>name,'settings'=>options}
-      records << record
+      # Test the actual geometry before persisting a preset.
+      layout(options['width']>0 ? options['width'] : 500*options['cols'],
+        options['height']>0 ? options['height'] : 760*options['rows'],options)
+      if id && !id.to_s.empty?
+        index=records.index { |item| item['id']==id }
+        raise 'Chọn mẫu riêng đã lưu để cập nhật. Mẫu có sẵn chỉ được lưu thành bản mới.' unless index
+        record['id']=id; records[index]=record
+      else
+        records << record
+      end
       TranTuanNoiThat.save_setting('cabinet_door_presets_v1',records.to_json)
       record
     end
@@ -173,7 +182,7 @@ module TranTuanNoiThat
       <<~HTML
         <!doctype html><html lang="vi"><meta charset="utf-8"><style>
         body{font:14px Arial;margin:24px;background:#f3f5f8;color:#24394e}h2{margin:0 0 8px}.grid{display:grid;grid-template-columns:1fr;gap:6px}.card{font:inherit;background:white;border:1px solid #d3dde7;border-radius:10px;padding:12px;cursor:pointer;color:inherit;text-align:left}.card:hover,.card:focus{border-color:#1673cb;background:#edf6ff}.art{height:175px;display:flex;justify-content:center;margin-bottom:12px}.art svg{height:100%;max-width:100%}strong,span{display:block}span{font-size:12px;margin-top:6px;color:#2670a6}#error{color:#b32626}p{line-height:1.5}@media(max-width:600px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-        </style><h2>MẪU CÁNH TỦ</h2><p>Chọn mẫu để vẽ ngay. <b>TAB</b> mở thông số và lưu mẫu riêng. <b>SHIFT</b> đổi hướng chia; <b>ENTER</b> tạo cánh.</p><p id="error">#{CGI.escapeHTML(warning)}</p><div class="grid">#{cards}</div>
+        </style><h2>MẪU CÁNH TỦ</h2><p>Chọn mẫu để vẽ ngay. <b>TAB</b> mở thông số và lưu mẫu riêng. <b>SHIFT</b> đổi hướng chia; <b>ENTER</b> tạo cánh.</p><button onclick="sketchup.customize()">Tạo / chỉnh mẫu cánh riêng</button><p id="error">#{CGI.escapeHTML(warning)}</p><div class="grid">#{cards}</div>
         <script>document.querySelectorAll('button[data-id]').forEach(b=>b.onclick=()=>sketchup.use_preset(b.dataset.id));document.addEventListener('keydown',e=>{if(e.key==='Tab'){e.preventDefault();sketchup.customize();}});function error(s){document.getElementById('error').textContent=s;}</script></html>
       HTML
     end
@@ -206,7 +215,7 @@ module TranTuanNoiThat
 
     def show_settings(tool = nil)
       @dialog.close if @dialog && @dialog.visible?
-      @dialog = UI::HtmlDialog.new(dialog_title:'TRẦN TUẤN – VẼ CÁNH TỦ', preferences_key:'TT_CabinetDoor', scrollable:true, resizable:true, width:1000, height:760, style:UI::HtmlDialog::STYLE_DIALOG)
+      @dialog = UI::HtmlDialog.new(dialog_title:'TRẦN TUẤN – CHỈNH MẪU CÁNH', preferences_key:'TT_CabinetDoor', scrollable:true, resizable:true, width:1000, height:760, style:UI::HtmlDialog::STYLE_DIALOG)
       values = tool ? tool.settings : (JSON.parse(TranTuanNoiThat.setting('cabinet_door_options','{}')) rescue {})
       values = defaults.merge(values)
       inputs = FIELDS.map do |k,label,d,choices|
@@ -223,9 +232,14 @@ module TranTuanNoiThat
         body{font:14px Arial;margin:22px;background:#f4f6fa;color:#192d42}h2{margin:0 0 10px}p{line-height:1.5}
         h3{grid-column:1/-1;margin:12px 0 0;color:#146dcc}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}label{display:block}input,select{display:block;box-sizing:border-box;width:100%;padding:9px;margin-top:5px;border:1px solid #b6c6d6;border-radius:5px;background:white}
         footer{position:sticky;bottom:0;background:#f4f6fa;padding:12px 0}button{background:#146dcc;color:white;padding:12px 22px;border:0;border-radius:5px;cursor:pointer}#error{color:#b32222;margin:8px 0}
-        .editor{display:grid;grid-template-columns:380px 1fr;gap:22px}.editor>.grid{max-height:480px;overflow-y:auto;padding-right:8px}aside{position:sticky;top:0;align-self:start}canvas{width:100%;background:#fff4e7;border-radius:10px;touch-action:none;cursor:grab}[hidden]{display:none!important}</style><h2>VẼ CÁNH TỦ</h2><p>Chọn kiểu cánh để chỉnh thông số tương ứng. Đơn vị mm; rộng/cao = 0 lấy theo chuột.<br>CTRL: phủ/lọt · SHIFT: ngang/dọc · /N: chia đều · ENTER: tạo.</p>
-        <div class="editor"><aside><canvas id="preview" width="380" height="480"></canvas><p>Kéo chuột để xoay 3D · Lăn chuột để thu/phóng</p><button onclick="yaw=-0.35;pitch=0.15;zoom=1;draw()">Góc nhìn ban đầu</button></aside><div class="grid">#{inputs}</div></div><footer><div id="error"></div><label>Tên mẫu riêng<input id="preset_name" placeholder="Ví dụ: Huỳnh tủ áo 2 ô"></label><button onclick="savePreset()">Lưu thành mẫu mới</button> <button onclick="apply()">Áp dụng & xem trước</button></footer>
-        <script>const keys=#{FIELDS.map(&:first).to_json};function values(){let s={};keys.forEach(k=>s[k]=document.getElementById(k).value);return s;}function apply(){sketchup.apply(JSON.stringify(values()));}function savePreset(){sketchup.save_preset(document.getElementById("preset_name").value,JSON.stringify(values()));}function error(s){document.getElementById('error').textContent=s;}#{dialog_preview_script}</script></html>
+        .editor{display:grid;grid-template-columns:380px 1fr;gap:22px}.editor>.grid{max-height:480px;overflow-y:auto;padding-right:8px}aside{position:sticky;top:0;align-self:start}canvas{width:100%;background:#fff4e7;border-radius:10px;touch-action:none;cursor:grab}[hidden]{display:none!important}</style><h2>CHỈNH MẪU CÁNH</h2><label>Mẫu đã lưu<select id="saved_preset" onchange="loadPreset()"><option value="">Mẫu mới / thông số hiện tại</option></select></label><p>Chọn kiểu cánh để chỉnh thông số tương ứng. Đơn vị mm; rộng/cao = 0 lấy theo chuột.<br>CTRL: phủ/lọt · SHIFT: ngang/dọc · /N: chia đều · ENTER: tạo.</p>
+        <div class="editor"><aside><canvas id="preview" width="380" height="480"></canvas><p>Kéo chuột để xoay 3D · Lăn chuột để thu/phóng</p><button onclick="yaw=-0.35;pitch=0.15;zoom=1;draw()">Góc nhìn ban đầu</button></aside><div class="grid">#{inputs}</div></div><footer><div id="error"></div><label>Tên mẫu riêng<input id="preset_name" placeholder="Ví dụ: Huỳnh tủ áo 2 ô"></label><button onclick="savePreset()">Lưu thành mẫu mới</button> <button id="update_preset" disabled onclick="updatePreset()">Lưu thay đổi mẫu</button> <button onclick="apply()">#{tool ? "Áp dụng & xem trước" : "Dùng mẫu để vẽ"}</button></footer>
+        <script>const keys=#{FIELDS.map(&:first).to_json};function values(){let s={};keys.forEach(k=>s[k]=document.getElementById(k).value);return s;}function apply(){sketchup.apply(JSON.stringify(values()));}function savePreset(){sketchup.save_preset(document.getElementById("preset_name").value,JSON.stringify(values()));}function error(s){document.getElementById('error').textContent=s;}
+        function presetList(records,id){let select=document.getElementById('saved_preset');select.innerHTML='';let empty=document.createElement('option');empty.value='';empty.textContent='Mẫu mới / thông số hiện tại';select.appendChild(empty);records.forEach(r=>{let o=document.createElement('option');o.value=r.id;o.textContent=r.name;select.appendChild(o);});select.value=id||'';document.getElementById('update_preset').disabled=!select.value.startsWith('custom_');}
+        function loadPreset(){let id=document.getElementById('saved_preset').value;document.getElementById('update_preset').disabled=!id.startsWith('custom_');if(id)sketchup.load_preset(id);else document.getElementById('preset_name').value='';}
+        function receivePreset(r){keys.forEach(k=>{if(r.settings[k]!==undefined)document.getElementById(k).value=r.settings[k];});document.getElementById('preset_name').value=r.name;requestPreview();}
+        function updatePreset(){sketchup.update_preset(document.getElementById('saved_preset').value,document.getElementById('preset_name').value,JSON.stringify(values()));}
+        #{dialog_preview_script}</script></html>
       HTML
       @dialog.add_action_callback('preview') do |_ctx,json|
         begin
@@ -238,14 +252,31 @@ module TranTuanNoiThat
           @dialog.execute_script("setMesh([]);error(#{e.message.to_json});")
         end
       end
-      @dialog.add_action_callback('save_preset') do |_ctx,name,json|
-        begin
-          save_preset(name,JSON.parse(json))
-          @dialog.execute_script("error(#{'Đã lưu mẫu mới. Lần mở công cụ sau, chọn mẫu trong danh sách.'.to_json})")
-        rescue StandardError=>e
-          @dialog.execute_script("error(#{e.message.to_json})")
-        end
+      refresh_presets=proc do |id|
+        records=built_in_presets+custom_presets
+        @dialog.execute_script("presetList(#{records.map { |r| r.slice('id','name') }.to_json},#{id.to_json});")
       end
+      @dialog.add_action_callback('list_presets') do |_ctx|
+        begin; refresh_presets.call(nil)
+        rescue StandardError=>e; @dialog.execute_script("error(#{e.message.to_json})"); end
+      end
+      @dialog.add_action_callback('load_preset') do |_ctx,id|
+        begin
+          record=(built_in_presets+custom_presets).find { |r| r['id']==id }
+          raise 'Không tìm thấy mẫu đã lưu.' unless record
+          record=record.merge('settings'=>validate(record['settings']))
+          @dialog.execute_script("receivePreset(#{record.to_json});")
+        rescue StandardError=>e; @dialog.execute_script("error(#{e.message.to_json})"); end
+      end
+      persist=proc do |name,json,id|
+        begin
+          record=save_preset(name,JSON.parse(json),id)
+          refresh_presets.call(record['id'])
+          @dialog.execute_script("error(#{('Đã lưu mẫu: '+record['name']).to_json});")
+        rescue StandardError=>e; @dialog.execute_script("error(#{e.message.to_json})"); end
+      end
+      @dialog.add_action_callback('save_preset') { |_ctx,name,json| persist.call(name,json,nil) }
+      @dialog.add_action_callback('update_preset') { |_ctx,id,name,json| persist.call(name,json,id) }
       @dialog.add_action_callback('apply') do |_ctx,json|
         begin
           s = validate(JSON.parse(json))
@@ -292,7 +323,7 @@ module TranTuanNoiThat
         }
         function requestPreview(){visibility();clearTimeout(timer);timer=setTimeout(()=>sketchup.preview(JSON.stringify(values())),180);}
         keys.forEach(k=>document.getElementById(k).addEventListener('input',requestPreview));
-        window.addEventListener('load',requestPreview);
+        window.addEventListener('load',()=>{requestPreview();sketchup.list_presets();});
       JS
     end
 
