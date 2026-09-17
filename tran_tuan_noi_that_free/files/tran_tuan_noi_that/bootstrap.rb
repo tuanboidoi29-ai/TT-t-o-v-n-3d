@@ -11,7 +11,7 @@ module TranTuanNoiThat
   NAME = 'TRẦN TUẤN NỘI THẤT'.freeze unless const_defined?(:NAME, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.78'.freeze
+  VERSION = '1.9.79'.freeze
 
   class << self
     def setting(key, default = nil)
@@ -157,7 +157,7 @@ module TranTuanNoiThat
 
     def install_rename_ui
       return unless defined?(TranTuanNoiThat::RenameTool)
-      @rename_cmd ||= command('Đổi Tên + Thống Kê', 'rename.svg', 'Quét Group/Component, biên dạng 2D, đổi tên và thống kê độ dày') { RenameTool.show }
+      @rename_cmd ||= command('Đổi Tên + Thống Kê', 'rename.svg', 'Quét Group/Component, biên dạng 3D, đổi tên và thống kê độ dày') { RenameTool.show }
       add_feature_command_once(@rename_cmd, :rename_menu_installed)
     end
 

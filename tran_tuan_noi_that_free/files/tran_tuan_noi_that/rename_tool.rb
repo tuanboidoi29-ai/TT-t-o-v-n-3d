@@ -115,40 +115,30 @@ module TranTuanNoiThat
       @rows.sort_by! { |r| [r[:name].downcase,r[:id]] }
       send_js('setRows',{rows:@rows,summary:summary(@rows)})
     end
-    # Orthographic projection of real edges in the selected object's local axes.
+    # Actual geometry, including nested transforms; no proxy bounding box.
     def outline(path,axis='auto')
-      root=path.last; dims=dimensions(root,path)
-      axes=case axis
-      when 'xy';[0,1]
-      when 'xz';[0,2]
-      when 'yz';[1,2]
-      else;(0..2).to_a.sort_by { |i| -dims[i] }[0,2]
-      end
-      tr=transform(path);scales=[tr.xaxis.length,tr.yaxis.length,tr.zaxis.length]
-      stack=[[root,Geom::Transformation.new,[]]];lines=[];truncated=false
+      stack=[[path.last,transform(path),[]]];lines=[];faces=[];truncated=false
       until stack.empty?
-        obj,local,ancestors=stack.pop
+        obj,tr,ancestors=stack.pop
         next if ancestors.include?(obj.definition)
         entities(obj).each do |e|
           if e.is_a?(Sketchup::Edge)
-            a=e.start.position.transform(local).to_a;b=e.end.position.transform(local).to_a
-            points=[a,b].map { |p| axes.map { |i| (p[i]*scales[i]).to_mm } }
-            lines<<points unless points[0]==points[1]
-            if lines.length>=6000;truncated=true;break;end
+            lines << [e.start.position,e.end.position].map { |p| p.transform(tr).to_a.map(&:to_mm) }
+          elsif e.is_a?(Sketchup::Face)
+            mesh=e.mesh(0)
+            mesh.polygons.each do |poly|
+              points=poly.map { |i| mesh.point_at(i.abs).transform(tr).to_a.map(&:to_mm) }
+              (1...points.length-1).each { |i| faces << [points[0],points[i],points[i+1]] }
+              if faces.length>=12000;truncated=true;break;end
+            end
           elsif container?(e) && e.valid?
-            stack<<[e,local*e.transformation,ancestors+[obj.definition]]
+            stack << [e,tr*e.transformation,ancestors+[obj.definition]]
           end
+          if lines.length>=6000 || faces.length>=12000;truncated=true;break;end
         end
         break if truncated
       end
-      return {svg:'',note:'Đối tượng không có cạnh để hiển thị.'} if lines.empty?
-      xs=lines.flatten(1).map(&:first);ys=lines.flatten(1).map(&:last)
-      w=[xs.max-xs.min,0.01].max;h=[ys.max-ys.min,0.01].max;k=[440/w,340/h].min
-      body=lines.uniq.map do |a,b|
-        p=[a,b].map { |x,y| [30+(x-xs.min)*k,30+(ys.max-y)*k] }
-        "M#{p[0][0].round(2)},#{p[0][1].round(2)}L#{p[1][0].round(2)},#{p[1][1].round(2)}"
-      end.join(' ')
-      {svg:"<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 500 400'><path d='#{body}' fill='none' stroke='#ce782a' stroke-width='1.2'/></svg>",note:truncated ? 'Hiển thị tối đa 6.000 cạnh.' : 'Biên dạng chiếu từ cạnh thật; gồm cạnh trước và sau.'}
+      {lines:lines,faces:faces,note:truncated ? 'Preview giới hạn 6.000 cạnh / 12.000 tam giác.' : 'Hình học thật · Kéo để xoay · Lăn chuột để thu/phóng.'}
     end
     def choose(id,select_model=false,axis='auto')
       ensure_model;raise 'Đợi quét xong.' if @busy

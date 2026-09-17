@@ -20,7 +20,7 @@ module TranTuanNoiThat
   tt_runtime_load.call('layout_stats_v081_cut_offset_fix')
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.78'.freeze
+  VERSION = '1.9.79'.freeze
 
   module Settings
     extend self
