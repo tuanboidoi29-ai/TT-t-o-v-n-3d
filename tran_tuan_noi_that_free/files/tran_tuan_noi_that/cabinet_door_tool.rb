@@ -84,7 +84,7 @@ module TranTuanNoiThat
         body{font:14px Arial;margin:22px;background:#f4f6fa;color:#192d42}h2{margin:0 0 10px}p{line-height:1.5}
         h3{grid-column:1/-1;margin:12px 0 0;color:#146dcc}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}label{display:block}input,select{display:block;box-sizing:border-box;width:100%;padding:9px;margin-top:5px;border:1px solid #b6c6d6;border-radius:5px;background:white}
         footer{position:sticky;bottom:0;background:#f4f6fa;padding:12px 0}button{background:#146dcc;color:white;padding:12px 22px;border:0;border-radius:5px;cursor:pointer}#error{color:#b32222;margin:8px 0}
-        </style><h2>VẼ CÁNH TỦ</h2><p>Đơn vị: mm (trừ số lượng và %). Chọn 2 góc của vùng lắp cánh; SHIFT đổi chia ngang/dọc; click giữ đường chia; ENTER tạo. TAB mở thông số, Áp dụng cập nhật preview; F đảo hướng ra trước. Rộng/cao = 0 để lấy theo chuột.</p>
+        </style><h2>VẼ CÁNH TỦ</h2><p>Đơn vị: mm (trừ số lượng và %). Chọn 2 góc của vùng lắp cánh; SHIFT đổi chia ngang/dọc; gõ /3, /4… chia đều ô đang trỏ; click giữ đường chia; ENTER tạo. TAB mở thông số, Áp dụng cập nhật preview; F đảo hướng ra trước. Rộng/cao = 0 để lấy theo chuột.</p>
         <p>Áp dụng sẽ cập nhật preview. Đổi kích thước vùng, số cánh, khe hoặc độ phủ sẽ đặt lại các đường chia bằng chuột; đổi mẫu, khung, độ dày giữ các ô đã chia.</p><div class="grid">#{inputs}</div><footer><div id="error"></div><button onclick="apply()">Áp dụng & xem trước</button></footer>
         <script>const keys=#{FIELDS.map(&:first).to_json};function apply(){let s={};keys.forEach(k=>s[k]=document.getElementById(k).value);sketchup.apply(JSON.stringify(s));}function error(s){document.getElementById('error').textContent=s;}</script></html>
       HTML
@@ -225,6 +225,29 @@ module TranTuanNoiThat
       [changed ? result : nil,lines]
     end
 
+    def equal_cells(cells,point,axis,count,internal,s)
+      raise 'Nhập /2 đến /60 để chia đều.' unless count.is_a?(Integer) && count.between?(2,60)
+      index=cells.index { |x,y,w,h| point && point[0]>x && point[0]<x+w && point[1]>y && point[1]<y+h }
+      raise 'Hãy trỏ chuột vào ô cánh cần chia trước khi gõ /N.' unless index
+      gap=s[axis==0 ? 'gap_x' : 'gap_y']; lines=[]
+      result=cells.each_with_index.flat_map do |cell,i|
+        next [cell.dup] if internal && i!=index
+        start=cell[axis]; size=cell[axis+2]
+        part=(size-(count-1)*gap)/count
+        raise 'Số phần / khe quá lớn: mỗi cánh phải từ 10 mm.' if part<10
+        Array.new(count) do |j|
+          item=cell.dup; item[axis]=start+j*(part+gap); item[axis+2]=part
+          if j<count-1
+            cut=item[axis]+part+gap/2.0; x,y,w,h=cell
+            lines << (axis==0 ? [[cut,y],[cut,y+h]] : [[x,cut],[x+w,cut]])
+          end
+          item
+        end
+      end
+      raise 'Tối đa 60 cánh mỗi lần tạo.' if result.length>60
+      [result,lines]
+    end
+
     class Tool
       attr_reader :settings
       def initialize(s)
@@ -236,7 +259,7 @@ module TranTuanNoiThat
       def deactivate(view); @active=false; view.invalidate; end
       def resume(view); @active=true; status; view.invalidate; end
       def reset
-        @stage=0; @split_axis=0; @internal=@settings['split_scope']!='Toàn vùng'; @cells=nil; @candidate=nil; @history=[]; @hover=nil; @split_lines=[]; @sign=1; @doors=nil; @origin=nil; @error=nil; @last=nil
+        @stage=0; @equal_count=nil; @equal_anchor=nil; @vcb_typing=false; @split_axis=0; @internal=@settings['split_scope']!='Toàn vùng'; @cells=nil; @candidate=nil; @history=[]; @hover=nil; @split_lines=[]; @sign=1; @doors=nil; @origin=nil; @error=nil; @last=nil
         @u=X_AXIS; @v=Z_AXIS; @n=@u.cross(@v); @ip.clear; @ref.clear; status
       end
       def configure(s)
@@ -246,7 +269,7 @@ module TranTuanNoiThat
         @settings=s
         @internal=s['split_scope']!='Toàn vùng'
         if reset_grid
-          @cells=nil; @history=[]; @hover=nil; @candidate=nil; @split_lines=[]
+          @cells=nil; @history=[]; @hover=nil; @candidate=nil; @split_lines=[]; @equal_count=nil; @equal_anchor=nil; @vcb_typing=false
           rebuild if @origin && @last
           if @doors
             @cells=CabinetDoor.cells_from_doors(@doors); @stage=2
@@ -266,7 +289,7 @@ module TranTuanNoiThat
         Sketchup.status_text=@error || [
           'VẼ CÁNH: Chọn góc 1 | TAB thông số.',
           "Chọn góc 2, preview 3D | SHIFT chia #{direction} | ← XZ, → YZ, ↑ XY | F đảo hướng | TAB thông số.",
-          "Chia #{direction} · #{mode} | SHIFT đổi hướng · TAB thông số | Click giữ đường chia · ENTER tạo · Backspace lùi."
+          "Chia #{direction} · #{mode} | SHIFT đổi hướng · TAB thông số | Click giữ đường chia · ENTER tạo · /N chia đều · Backspace lùi."
         ][@stage]
       end
       def onCancel(reason,view)
@@ -357,12 +380,36 @@ module TranTuanNoiThat
           @history=[]; @hover=nil; @candidate=nil; @split_lines=[]; @stage=2
         elsif @candidate
           @history << @cells.map(&:dup)
-          @cells=@candidate; @candidate=nil; @hover=nil; @split_lines=[]
+          @cells=@candidate; @candidate=nil; @hover=nil; @split_lines=[]; @equal_count=nil; @equal_anchor=nil; @vcb_typing=false
           @doors=CabinetDoor.layout_cells(@cells,@settings); cache_world
         end
         status; view.invalidate
       end
+      def enableVCB?; @stage==2; end
+
+      def onUserText(text,view)
+        return unless @stage==2
+        match=/\A\s*\/\s*(\d+)\s*\z/.match(text.to_s)
+        raise 'Nhập /3, /4… (từ /2 đến /60).' unless match
+        count=match[1].to_i; point=@equal_anchor || @hover
+        candidate,lines=CabinetDoor.equal_cells(@cells,point,@split_axis,count,@internal,@settings)
+        doors=CabinetDoor.layout_cells(candidate,@settings)
+        @equal_count=count; @equal_anchor=point.dup
+        @candidate=candidate; @split_lines=lines; @doors=doors
+        @vcb_typing=false; @error=nil; cache_world
+        Sketchup.set_status_text('',SB_VCB_VALUE)
+        status; view.invalidate
+      rescue StandardError=>e
+        @vcb_typing=true; @error=e.message; status; view.invalidate; UI.beep
+      end
+
       def onKeyDown(key,repeat,flags,view)
+        # Pass printable keys through to Measurements; Enter submits text first.
+        if @stage==2 && ([191,111,47].include?(key) || (48..57).include?(key) || (96..105).include?(key))
+          @vcb_typing=true
+          return false
+        end
+        return false if @stage==2 && @vcb_typing && [8,13,46].include?(key)
         return true if repeat.to_i>1 && [9,16,13,8,70,83].include?(key)
         case key
         when 16
@@ -378,7 +425,9 @@ module TranTuanNoiThat
             UI.beep
           end
         when 8
-          if @stage==2 && !@history.empty?
+          if @stage==2 && @equal_count
+            @equal_count=nil; @equal_anchor=nil; @hover=nil; refresh_split
+          elsif @stage==2 && !@history.empty?
             @cells=@history.pop; @hover=nil; refresh_split
           end
         when 83
@@ -406,8 +455,12 @@ module TranTuanNoiThat
 
       def refresh_split
         @candidate=nil; @split_lines=[]; @error=nil
-        if @hover
-          candidate,lines=CabinetDoor.split_cells(@cells,@hover,@split_axis,@internal,@settings)
+        if @equal_count || @hover
+          candidate,lines=if @equal_count
+            CabinetDoor.equal_cells(@cells,@equal_anchor,@split_axis,@equal_count,@internal,@settings)
+          else
+            CabinetDoor.split_cells(@cells,@hover,@split_axis,@internal,@settings)
+          end
           if candidate
             begin
               @doors=CabinetDoor.layout_cells(candidate,@settings)
