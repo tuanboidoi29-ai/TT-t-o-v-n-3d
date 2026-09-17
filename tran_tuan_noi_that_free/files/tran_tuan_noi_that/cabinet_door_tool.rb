@@ -83,6 +83,8 @@ module TranTuanNoiThat
 
     def custom_presets
       raw=TranTuanNoiThat.setting('cabinet_door_presets_v1','[]')
+      return [] if raw.nil? || (raw.is_a?(String) && raw.strip.empty?)
+      raise 'Dữ liệu mẫu không đúng định dạng; chưa ghi đè dữ liệu cũ.' unless raw.is_a?(String)
       data=JSON.parse(raw)
       raise 'Dữ liệu mẫu đã lưu không hợp lệ; giữ nguyên dữ liệu để kiểm tra.' unless data.is_a?(Array) && data.all? { |p| p.is_a?(Hash) && p['id'].is_a?(String) && p['name'].is_a?(String) && p['settings'].is_a?(Hash) }
       data
@@ -106,7 +108,11 @@ module TranTuanNoiThat
       else
         records << record
       end
-      TranTuanNoiThat.save_setting('cabinet_door_presets_v1',records.to_json)
+      encoded=records.to_json
+      result=TranTuanNoiThat.save_setting('cabinet_door_presets_v1',encoded)
+      raise 'SketchUp không ghi được mẫu. Kiểm tra quyền lưu cài đặt Windows rồi thử lại.' if result==false
+      stored=custom_presets
+      raise 'Chưa xác nhận được mẫu đã lưu. Vui lòng thử lại.' unless stored==records
       record
     end
 
@@ -270,6 +276,7 @@ module TranTuanNoiThat
       end
       persist=proc do |name,json,id|
         begin
+          raise 'Chưa nhận được thông số từ bảng mẫu. Đóng và mở lại bảng rồi thử lưu.' unless json.is_a?(String) && !json.empty?
           record=save_preset(name,JSON.parse(json),id)
           refresh_presets.call(record['id'])
           @dialog.execute_script("error(#{('Đã lưu mẫu: '+record['name']).to_json});")
