@@ -7,6 +7,7 @@ module TranTuanNoiThat
     FIELDS = [
       ['style','Kiểu cánh','Cánh phẳng',['Cánh phẳng','Cánh khung','Cánh kính','Cánh soi huỳnh']],
       ['fit','Lắp đặt','Phủ ngoài',['Phủ ngoài','Lọt lòng']],
+      ['split_scope','Phạm vi chia bằng chuột','Ô đang trỏ',['Ô đang trỏ','Toàn vùng']],
       ['width','Rộng vùng chọn (0 = theo chuột)',0], ['height','Cao vùng chọn (0 = theo chuột)',0],
       ['cols','Số cánh ngang',2], ['rows','Số hàng cánh',1],
       ['thickness','Dày cánh / khung',17.5],
@@ -83,8 +84,8 @@ module TranTuanNoiThat
         body{font:14px Arial;margin:22px;background:#f4f6fa;color:#192d42}h2{margin:0 0 10px}p{line-height:1.5}
         h3{grid-column:1/-1;margin:12px 0 0;color:#146dcc}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}label{display:block}input,select{display:block;box-sizing:border-box;width:100%;padding:9px;margin-top:5px;border:1px solid #b6c6d6;border-radius:5px;background:white}
         footer{position:sticky;bottom:0;background:#f4f6fa;padding:12px 0}button{background:#146dcc;color:white;padding:12px 22px;border:0;border-radius:5px;cursor:pointer}#error{color:#b32222;margin:8px 0}
-        </style><h2>VẼ CÁNH TỦ</h2><p>Đơn vị: mm (trừ số lượng và %). Chọn 2 góc của vùng lắp cánh; xem trước rồi click tạo. TAB mở lại thông số; F đảo hướng ra trước. Rộng/cao = 0 để lấy theo chuột.</p>
-        <div class="grid">#{inputs}</div><footer><div id="error"></div><button onclick="apply()">Áp dụng & xem trước</button></footer>
+        </style><h2>VẼ CÁNH TỦ</h2><p>Đơn vị: mm (trừ số lượng và %). Chọn 2 góc của vùng lắp cánh; SHIFT đổi chia ngang/dọc; click giữ đường chia; ENTER tạo. TAB mở thông số, Áp dụng cập nhật preview; F đảo hướng ra trước. Rộng/cao = 0 để lấy theo chuột.</p>
+        <p>Áp dụng sẽ cập nhật preview. Đổi kích thước vùng, số cánh, khe hoặc độ phủ sẽ đặt lại các đường chia bằng chuột; đổi mẫu, khung, độ dày giữ các ô đã chia.</p><div class="grid">#{inputs}</div><footer><div id="error"></div><button onclick="apply()">Áp dụng & xem trước</button></footer>
         <script>const keys=#{FIELDS.map(&:first).to_json};function apply(){let s={};keys.forEach(k=>s[k]=document.getElementById(k).value);sketchup.apply(JSON.stringify(s));}function error(s){document.getElementById('error').textContent=s;}</script></html>
       HTML
       @dialog.add_action_callback('apply') do |_ctx,json|
@@ -172,6 +173,58 @@ module TranTuanNoiThat
       end.flatten
     end
 
+    def cells_from_doors(doors)
+      doors.map do |door|
+        pts=door[:parts].flat_map { |p| p[:faces].flatten(1) }
+        [pts.map { |p| p[0] }.min,pts.map { |p| p[1] }.min,door[:width],door[:height]]
+      end
+    end
+
+    def layout_cells(cells,s)
+      raise 'Tối đa 60 cánh mỗi lần tạo.' if cells.length>60
+      raise 'Tối đa 120 ô lòng mỗi lần tạo.' if s['style']!='Cánh phẳng' && cells.length*s['panels']>120
+      local=s.merge('cols'=>1,'rows'=>1,'width'=>0,'height'=>0,
+        'left'=>0,'right'=>0,'top'=>0,'bottom'=>0,
+        'over_left'=>0,'over_right'=>0,'over_top'=>0,'over_bottom'=>0)
+      cells.each_with_index.map do |(x,y,w,h),i|
+        door=layout(w,h,local).first
+        door[:name]=format('TT_CÁNH_%02d %s %.1fx%.1f',i+1,s['style'],w,h)
+        door[:parts].each do |part|
+          part[:faces]=part[:faces].map { |face| face.map { |p| [p[0]+x,p[1]+y,p[2]] } }
+        end
+        door
+      end
+    end
+
+    def split_cells(cells,point,axis,internal,s)
+      # Hover only offers a split inside a leaf, never in a gap or outside.
+      index=cells.index { |x,y,w,h| point[0]>x && point[0]<x+w && point[1]>y && point[1]<y+h }
+      return [nil,[]] unless index
+      target=cells[index]; start=target[axis]; extent=target[axis+2]
+      cut=point[axis]
+      middle=start+extent/2.0
+      cut=middle if (cut-middle).abs <= [extent*0.03,10.0].min
+      gap=s[axis==0 ? 'gap_x' : 'gap_y']
+      changed=false; lines=[]
+      result=cells.each_with_index.flat_map do |cell,i|
+        low=cell[axis]; size=cell[axis+2]
+        if (!internal || i==index) && cut>low && cut<low+size
+          first=cell.dup; second=cell.dup
+          first[axis+2]=cut-low-gap/2.0
+          second[axis]=cut+gap/2.0; second[axis+2]=low+size-cut-gap/2.0
+          # Reject the whole proposal rather than silently altering only some leaves.
+          return [nil,[]] if first[axis+2]<10 || second[axis+2]<10
+          x,y,w,h=cell
+          lines << (axis==0 ? [[cut,y],[cut,y+h]] : [[x,cut],[x+w,cut]])
+          changed=true
+          [first,second]
+        else
+          [cell.dup]
+        end
+      end
+      [changed ? result : nil,lines]
+    end
+
     class Tool
       attr_reader :settings
       def initialize(s)
@@ -183,15 +236,38 @@ module TranTuanNoiThat
       def deactivate(view); @active=false; view.invalidate; end
       def resume(view); @active=true; status; view.invalidate; end
       def reset
-        @stage=0; @sign=1; @doors=nil; @origin=nil; @error=nil; @last=nil
+        @stage=0; @split_axis=0; @internal=@settings['split_scope']!='Toàn vùng'; @cells=nil; @candidate=nil; @history=[]; @hover=nil; @split_lines=[]; @sign=1; @doors=nil; @origin=nil; @error=nil; @last=nil
         @u=X_AXIS; @v=Z_AXIS; @n=@u.cross(@v); @ip.clear; @ref.clear; status
       end
       def configure(s)
-        @settings=s; rebuild if @origin && @last
+        old=@settings; had_cells=!!@cells
+        region_keys=%w[width height cols rows left right top bottom over_left over_right over_top over_bottom fit gap_x gap_y]
+        reset_grid=had_cells && region_keys.any? { |k| old[k]!=s[k] }
+        @settings=s
+        @internal=s['split_scope']!='Toàn vùng'
+        if reset_grid
+          @cells=nil; @history=[]; @hover=nil; @candidate=nil; @split_lines=[]
+          rebuild if @origin && @last
+          if @doors
+            @cells=CabinetDoor.cells_from_doors(@doors); @stage=2
+          else
+            @stage=1
+          end
+        elsif @cells
+          refresh_split
+        elsif @origin && @last
+          rebuild
+        end
         @model.active_view.invalidate; status
       end
       def status
-        Sketchup.status_text=@error || ['VẼ CÁNH: Chọn góc 1 trên mặt tủ | TAB thông số.', 'Chọn góc 2 | ← XZ, → YZ, ↑ XY | F đảo hướng | TAB thông số.', 'Xem trước: Click tạo | F đảo hướng | TAB chỉnh thông số | ESC chọn lại.'][@stage]
+        direction=@split_axis==0 ? 'DỌC' : 'NGANG'
+        mode=@internal ? 'TRONG Ô ĐANG TRỎ' : 'TOÀN VÙNG'
+        Sketchup.status_text=@error || [
+          'VẼ CÁNH: Chọn góc 1 | TAB thông số.',
+          "Chọn góc 2, preview 3D | SHIFT chia #{direction} | ← XZ, → YZ, ↑ XY | F đảo hướng | TAB thông số.",
+          "Chia #{direction} · #{mode} | SHIFT đổi hướng · TAB thông số | Click giữ đường chia · ENTER tạo · Backspace lùi."
+        ][@stage]
       end
       def onCancel(reason,view)
         @stage==0 ? @model.select_tool(nil) : reset
@@ -220,13 +296,30 @@ module TranTuanNoiThat
         view.tooltip=@ip.tooltip if @ip.valid?
       end
       def onMouseMove(flags,x,y,view)
-        return if @stage==2
+        if @stage==2
+          pick(x,y,view)
+          # Intersect the pointer ray with the displayed FRONT plane: no parallax
+          # when the preview is offset or thickness is reversed.
+          z=@settings['offset']+(@settings['fit']=='Phủ ngoài' ? @settings['thickness'] : 0)
+          plane_origin=@base.offset(@n,(z*@sign).mm)
+          point=Geom.intersect_line_plane(view.pickray(x,y),[plane_origin,@n])
+          if @ip.valid? && @ip.degrees_of_freedom<3
+            point=@ip.position
+          end
+          if point
+            d=point-@base; @hover=[d.dot(@u).to_mm,d.dot(@v).to_mm]
+          else
+            @hover=nil
+          end
+          refresh_split; status; view.invalidate; return
+        end
         pick(x,y,view)
         update_rectangle(x,y,view) if @stage==1
         view.invalidate
       end
       def update_rectangle(x,y,view)
-        p=@ip.valid? ? @ip.position : Geom.intersect_line_plane(view.pickray(x,y),[@origin,@n])
+        p=Geom.intersect_line_plane(view.pickray(x,y),[@origin,@n])
+        p=@ip.position if @ip.valid? && @ip.degrees_of_freedom<3
         @last=p
         if p
           rebuild
@@ -240,10 +333,13 @@ module TranTuanNoiThat
         a=(@settings['width'])*(a<0 ? -1 : 1) if @settings['width']>0
         b=(@settings['height'])*(b<0 ? -1 : 1) if @settings['height']>0
         @base=@origin.offset(@u,[a,0].min.mm).offset(@v,[b,0].min.mm)
-        @doors=CabinetDoor.layout(a.abs,b.abs,@settings); @error=nil
-        @world=@doors.map do |door|
-          door[:parts].map { |part| [part,part[:faces].map { |face| face.map { |p| world(p) } }] }
+        @rect_size=[a.abs,b.abs]
+        settings=@settings
+        if @split_axis==1
+          settings=@settings.merge('cols'=>@settings['rows'],'rows'=>@settings['cols'])
         end
+        @doors=CabinetDoor.layout(a.abs,b.abs,settings); @error=nil
+        cache_world
       rescue StandardError=>e
         @doors=nil; @world=nil; @error=e.message
       end
@@ -257,19 +353,43 @@ module TranTuanNoiThat
         elsif @stage==1
           pick(x,y,view); update_rectangle(x,y,view)
           return UI.beep unless @doors
-          @stage=2
-        elsif @doors
-          create
+          @cells=CabinetDoor.cells_from_doors(@doors)
+          @history=[]; @hover=nil; @candidate=nil; @split_lines=[]; @stage=2
+        elsif @candidate
+          @history << @cells.map(&:dup)
+          @cells=@candidate; @candidate=nil; @hover=nil; @split_lines=[]
+          @doors=CabinetDoor.layout_cells(@cells,@settings); cache_world
         end
         status; view.invalidate
       end
       def onKeyDown(key,repeat,flags,view)
-        return if repeat.to_i>1
-        if key==9
+        return true if repeat.to_i>1 && [9,16,13,8,70,83].include?(key)
+        case key
+        when 16
+          @split_axis=1-@split_axis
+          @cells ? refresh_split : (rebuild if @last)
+        when 9
           CabinetDoor.show(self)
-        elsif key==70 && @stage>0
-          @sign *= -1; rebuild if @last
-        elsif @stage==1 && [37,38,39].include?(key)
+        when 13
+          if @stage==2 && @doors
+            # Create exactly the currently displayed geometry (including candidate).
+            create
+          else
+            UI.beep
+          end
+        when 8
+          if @stage==2 && !@history.empty?
+            @cells=@history.pop; @hover=nil; refresh_split
+          end
+        when 83
+          CabinetDoor.show(self)
+        when 70
+          if @stage>0
+            @sign *= -1
+            @cells ? refresh_split : (rebuild if @last)
+          end
+        when 37,38,39
+          return unless @stage==1
           @u,@v=({37=>[X_AXIS,Z_AXIS],38=>[X_AXIS,Y_AXIS],39=>[Y_AXIS,Z_AXIS]})[key]
           @n=@u.cross(@v); rebuild if @last
         else
@@ -277,8 +397,34 @@ module TranTuanNoiThat
         end
         status; view.invalidate; true
       end
+
+      def cache_world
+        @world=@doors.map do |door|
+          door[:parts].map { |part| [part,part[:faces].map { |face| face.map { |p| world(p) } }] }
+        end
+      end
+
+      def refresh_split
+        @candidate=nil; @split_lines=[]; @error=nil
+        if @hover
+          candidate,lines=CabinetDoor.split_cells(@cells,@hover,@split_axis,@internal,@settings)
+          if candidate
+            begin
+              @doors=CabinetDoor.layout_cells(candidate,@settings)
+              @candidate=candidate; @split_lines=lines
+            rescue StandardError=>e
+              @error="Chưa thể chia: #{e.message} | TAB chỉnh thông số; ENTER tạo phần đã giữ."
+            end
+          end
+        end
+        @doors=CabinetDoor.layout_cells(@cells,@settings) unless @candidate
+        cache_world
+      rescue StandardError=>e
+        @doors=nil; @world=nil; @error=e.message
+      end
+
       def draw(view)
-        @ip.draw(view) if @stage<2 && @ip.display?
+        @ip.draw(view) if @ip.display?
         return unless @doors && @world
         view.line_width=1
         @world.each do |parts|
@@ -290,6 +436,11 @@ module TranTuanNoiThat
               view.draw(GL_LINE_LOOP,face)
             end
           end
+        end
+        if @stage==2
+          z=@settings['offset']+(@settings['fit']=='Phủ ngoài' ? @settings['thickness'] : 0)+0.15
+          view.line_width=3; view.drawing_color=Sketchup::Color.new(20,150,245)
+          @split_lines.each { |a,b| view.draw(GL_LINES,[world([a[0],a[1],z]),world([b[0],b[1],z])]) }
         end
       end
       def getExtents

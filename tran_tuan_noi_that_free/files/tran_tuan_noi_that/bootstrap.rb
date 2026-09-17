@@ -11,7 +11,7 @@ module TranTuanNoiThat
   NAME = 'TRẦN TUẤN NỘI THẤT'.freeze unless const_defined?(:NAME, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.66'.freeze
+  VERSION = '1.9.67'.freeze
 
   class << self
     def setting(key, default = nil)
@@ -148,7 +148,7 @@ module TranTuanNoiThat
 
     def install_cabinet_door_ui
       return unless defined?(TranTuanNoiThat::CabinetDoor)
-      @cabinet_door_cmd ||= command('Vẽ Cánh Tủ', 'cabinet_door.svg', 'Cánh phẳng / khung / kính / soi huỳnh; TAB chỉnh thông số') { CabinetDoor.show }
+      @cabinet_door_cmd ||= command('Vẽ Cánh Tủ', 'cabinet_door.svg', 'Cánh phẳng / khung / kính / soi huỳnh; SHIFT chia ngang/dọc; TAB cài đặt; ENTER tạo') { CabinetDoor.show }
       add_feature_command_once(@cabinet_door_cmd, :cabinet_door_menu_installed)
     end
 
