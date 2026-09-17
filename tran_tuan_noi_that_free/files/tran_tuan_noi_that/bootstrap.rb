@@ -11,7 +11,7 @@ module TranTuanNoiThat
   NAME = 'TRẦN TUẤN NỘI THẤT'.freeze unless const_defined?(:NAME, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.77'.freeze
+  VERSION = '1.9.78'.freeze
 
   class << self
     def setting(key, default = nil)
@@ -71,6 +71,8 @@ module TranTuanNoiThat
       %w[
         board_tool
         cabinet_door_tool
+        rename_ui
+        rename_tool
         box_tool
         drawer_tool
         round_tool
@@ -120,6 +122,7 @@ module TranTuanNoiThat
       install_box_ui
       install_drawer_ui
       install_cabinet_door_ui
+      install_rename_ui
       install_round_ui
       install_stretch_mode_ui
       install_grain_ui
@@ -150,6 +153,12 @@ module TranTuanNoiThat
       return unless defined?(TranTuanNoiThat::CabinetDoor)
       @cabinet_door_cmd ||= command('Vẽ Cánh Tủ', 'cabinet_door.svg', 'Cánh phẳng / khung / kính / soi huỳnh; SHIFT chia ngang/dọc; TAB cài đặt; ENTER tạo') { CabinetDoor.show_gallery }
       add_feature_command_once(@cabinet_door_cmd, :cabinet_door_menu_installed)
+    end
+
+    def install_rename_ui
+      return unless defined?(TranTuanNoiThat::RenameTool)
+      @rename_cmd ||= command('Đổi Tên + Thống Kê', 'rename.svg', 'Quét Group/Component, biên dạng 2D, đổi tên và thống kê độ dày') { RenameTool.show }
+      add_feature_command_once(@rename_cmd, :rename_menu_installed)
     end
 
     def install_round_ui
