@@ -677,9 +677,9 @@ module TranTuanNoiThat
         @world.each do |parts|
           parts.each do |part,faces|
             faces.each_with_index do |face,index|
-              view.drawing_color=Sketchup::Color.new(*part[:preview_colors][index])
+              view.drawing_color=Sketchup::Color.new(255, 190, 125, 115)
               view.draw(GL_POLYGON,face)
-              view.drawing_color=Sketchup::Color.new(125,72,30)
+              view.drawing_color=Sketchup::Color.new(205, 132, 65)
               view.draw(GL_LINE_LOOP,face)
             end
           end

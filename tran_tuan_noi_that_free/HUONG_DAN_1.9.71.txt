@@ -1,0 +1,65 @@
+TRẦN TUẤN NỘI THẤT 1.9.71 – CHIA CÁNH TRỰC TIẾP
+
+1. Gọi Vẽ Cánh Tủ: hiện thư viện mẫu có hình 3D. Chọn mẫu để vẽ ngay.
+   Chỉ TAB mở thông số; Áp dụng cập nhật preview.
+2. Bắt góc 1 rồi rê chuột đến góc 2: hiện preview 3D trực tiếp.
+   SHIFT đổi chia dọc / ngang ngay khi chọn vùng.
+   ← XZ, → YZ, ↑ XY đổi mặt phẳng; F đảo hướng trước / sau.
+3. Click góc 2 để giữ vùng. Rê chuột: đường chia xanh và các cánh 3D cập nhật.
+   Đến gần giữa ô sẽ tự bắt tâm (ngưỡng 3% kích thước, tối đa 10 mm).
+4. SHIFT: chuyển chia ngang / dọc.
+   TAB: mở bảng cài đặt. Bấm Áp dụng để cập nhật preview.
+   Phạm vi chia bằng chuột: mặc định Ô đang trỏ; có thể chọn Toàn vùng.
+   Toàn vùng: đường chia đi qua các ô giao với đường đó.
+   Nội bộ: chỉ chia ô đang trỏ, giữ các ô khác; chia tiếp nhiều cấp.
+5. Click để giữ đường chia. Rê tiếp và click để thêm đường chia khác.
+   Backspace lùi lại lần chia vừa giữ.
+6. ENTER tạo đúng toàn bộ preview đang hiển thị, bao gồm đường chia xanh hiện tại.
+   Nếu chỉ muốn tạo các phần đã giữ, đưa chuột ra ngoài vùng rồi ENTER.
+7. Công cụ tiếp tục cho bộ cánh khác. ESC hủy preview; nhấn tiếp để thoát.
+   TAB mở bảng thông số, Áp dụng cập nhật preview ngay.
+
+Bốn mẫu: phẳng, khung, kính, soi huỳnh. Preview và cánh thật dùng cùng hình học.
+Khe giữa cánh được trừ đều hai phía đường chia. Không chia tại khe trống / ngoài vùng.
+Chia quá sát mép hoặc làm ô nhỏ hơn khung sẽ không được áp dụng.
+Mọi thao tác trước ENTER chỉ là preview, không thêm hình học vào model.
+Một Undo hoàn tác toàn bộ lần tạo. Co kéo 1.9.65 giữ nguyên.
+
+Đơn vị mm. Rộng/cao = 0 theo chuột; số cánh/hàng chia đều ban đầu.
+Phủ ngoài cộng phần phủ bốn cạnh rồi trừ khe. Chọn biên ngoài tủ thì phủ = 0.
+Lọt lòng bỏ qua phần phủ, mặt trước nằm trên mặt phẳng chọn. F đổi hướng nếu cần.
+Thay kiểu cánh / chiều dày / khung giữ đường chia; thay vùng/khe/số lượng sẽ đặt lại lưới chia và cập nhật preview tại vùng đã chọn.
+Mỗi cánh là Group chứa chi tiết. Nếu đang mở component dùng chung, Make Unique trước.
+Cánh khung/kính chưa có mộng/rãnh liên kết; soi huỳnh là mặt vát thẳng và lòng lõm.
+
+Đã kiểm tra cú pháp, hình học kín, thể tích, chia nhiều cấp, phím và click bằng API mô phỏng.
+Chưa thử trực tiếp trên SketchUp Windows.
+
+CHIA ĐỀU BẰNG /N
+Sau khi chọn 2 góc, trỏ vào ô cánh, SHIFT chọn ngang/dọc.
+Gõ /3 rồi Enter: preview chia đều 3 phần, tính cả khe giữa.
+Gõ lại /4 rồi Enter: thay bằng 4 phần trên cùng ô gốc.
+Enter lần nữa tạo đúng preview. Click để giữ và tiếp tục chia ô khác.
+Preview /N giữ ô mục tiêu khi di chuyển chuột. Backspace bỏ preview /N.
+TAB mở thông số, Áp dụng cập nhật preview.
+Mặc định chỉ chia ô đang trỏ. Phạm vi Toàn vùng: chia mỗi ô hiện có thành N phần.
+Tối đa 60 cánh; từ chối nhập sai hoặc ô quá nhỏ cho khung.
+API tham khảo: https://ruby.sketchup.com/Sketchup/Tool.html#onUserText-instance_method
+
+BẮT ĐẦU CẠNH / TRUNG ĐIỂM
+Bắt cả hai đầu và trung điểm cạnh thật khi chọn góc 1/góc 2 hoặc chia cánh.
+Nhận điểm trong Group/Component với vị trí đã chuyển về model.
+Bắt thêm các góc và trung điểm cạnh ô preview sau khi giữ vùng.
+Đến gần trong 14 pixel: dấu xanh và chú thích Đầu cạnh / Trung điểm cạnh.
+Rời vùng bắt điểm: trở về rê tự do. Không thay phím SHIFT / TAB / Enter / lệnh /N.
+
+MẪU CÁNH TÙY CHỈNH
+Có 8 mẫu sẵn: phẳng, khung lòng, kính 1/2 ô, huỳnh 1/2/3 ô và huỳnh khung rộng.
+Chọn một mẫu để dùng, không tự bật bảng cài đặt. TAB mới mở thông số.
+Chỉnh thông số, nhập tên, bấm Lưu thành mẫu mới. Không ghi đè mẫu cũ.
+Mẫu lưu trong cài đặt SketchUp của tài khoản Windows, còn sau khi mở lại SketchUp.
+Đây là mẫu thông số cánh, không nhập model SKP và không lưu các đường chia tay.
+Preview huỳnh có mặt khung, vát và lòng lõm với sắc độ riêng; hiện ngay sau điểm đầu.
+Hình mẫu dùng đúng hình học của mẫu, dựng nghiêng để thấy chiều dày.
+
+1.9.71: Preview trong model dùng màu cam nhạt bán trong suốt cho toàn bộ cánh; giữ nét viền để phân biệt khung và huỳnh.
