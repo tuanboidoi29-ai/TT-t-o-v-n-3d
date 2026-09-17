@@ -1,5 +1,8 @@
 # encoding: UTF-8
 require 'cgi'
+require 'json'
+require 'fileutils'
+require 'securerandom'
 # Geometry is generated in mm once, shared by preview and creation.
 module TranTuanNoiThat
   module CabinetDoor
@@ -81,8 +84,20 @@ module TranTuanNoiThat
       end
     end
 
+    def preset_path
+      base=ENV['APPDATA'].to_s
+      base=File.join(Dir.home,'Library','Application Support') if base.empty? && RUBY_PLATFORM.include?('darwin')
+      base=File.join(Dir.home,'.local','share') if base.empty?
+      File.join(base,'TranTuanNoiThat','cabinet_door_presets.json')
+    end
+
     def custom_presets
-      raw=TranTuanNoiThat.setting('cabinet_door_presets_v1','[]')
+      raw=if File.exist?(preset_path)
+        File.read(preset_path,encoding:'UTF-8')
+      else
+        TranTuanNoiThat.setting('cabinet_door_presets_v1','[]')
+      end
+      raise 'Tệp mẫu rỗng bất thường. Bản sao dự phòng .bak được giữ nguyên.' if File.exist?(preset_path) && raw.to_s.strip.empty?
       return [] if raw.nil? || (raw.is_a?(String) && raw.strip.empty?)
       raise 'Dữ liệu mẫu không đúng định dạng; chưa ghi đè dữ liệu cũ.' unless raw.is_a?(String)
       data=JSON.parse(raw)
@@ -93,6 +108,20 @@ module TranTuanNoiThat
     end
 
     def save_preset(name,options,id=nil)
+      FileUtils.mkdir_p(File.dirname(preset_path))
+      File.open(preset_path+'.lock',File::RDWR|File::CREAT,0600) do |lock|
+        raise 'Một phiên SketchUp khác đang lưu mẫu. Thử lại sau vài giây.' unless lock.flock(File::LOCK_EX|File::LOCK_NB)
+        begin
+          persist_preset(name,options,id)
+        ensure
+          lock.flock(File::LOCK_UN)
+        end
+      end
+    rescue SystemCallError, IOError => e
+      raise "Không ghi được tệp mẫu: #{e.message}"
+    end
+
+    def persist_preset(name,options,id=nil)
       name=name.to_s.strip
       raise 'Nhập tên mẫu từ 1 đến 80 ký tự.' if name.empty? || name.length>80
       options=validate(options)
@@ -109,10 +138,18 @@ module TranTuanNoiThat
         records << record
       end
       encoded=records.to_json
-      result=TranTuanNoiThat.save_setting('cabinet_door_presets_v1',encoded)
-      raise 'SketchUp không ghi được mẫu. Kiểm tra quyền lưu cài đặt Windows rồi thử lại.' if result==false
-      stored=custom_presets
-      raise 'Chưa xác nhận được mẫu đã lưu. Vui lòng thử lại.' unless stored==records
+      temp=preset_path+'.'+SecureRandom.hex(8)+'.tmp'
+      begin
+        File.open(temp,'w:UTF-8') do |file|
+          file.write(encoded); file.flush; file.fsync
+        end
+        raise 'Dữ liệu mẫu ghi chưa đủ; mẫu cũ được giữ nguyên.' unless JSON.parse(File.read(temp,encoding:'UTF-8'))==records
+        FileUtils.cp(preset_path,preset_path+'.bak') if File.file?(preset_path)
+        File.rename(temp,preset_path)
+        raise 'Không đọc lại được tệp mẫu sau khi lưu.' unless custom_presets==records
+      ensure
+        File.delete(temp) if File.exist?(temp)
+      end
       record
     end
 

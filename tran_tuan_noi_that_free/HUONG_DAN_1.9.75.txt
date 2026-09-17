@@ -1,0 +1,13 @@
+TRẦN TUẤN NỘI THẤT 1.9.75 — CHỈNH MẪU CÁNH
+Chuyển mẫu sang tệp JSON riêng. Đã kiểm tra tạo/sửa mẫu và đọc lại bằng tiến trình Ruby mới trên tệp thật. Chỉ báo lưu thành công sau khi đọc lại dữ liệu.
+Vẽ Cánh Tủ → Tạo / chỉnh mẫu cánh riêng: mở bảng độc lập.
+Chọn mẫu đã lưu để mở thông số. Hở trái/phải/trên/dưới tính riêng, mm.
+Chỉnh mẫu → đặt tên → Lưu thành mẫu mới.
+Mở mẫu riêng → sửa → Lưu thay đổi mẫu để cập nhật đúng mẫu đó.
+Mẫu có sẵn chỉ lưu thành bản mới. Mẫu riêng lưu tại %APPDATA%/TranTuanNoiThat/cabinet_door_presets.json trên Windows; bản trước ở tệp .bak. Mẫu cũ trong cài đặt được đọc nếu chưa có tệp riêng.
+Lưu không tạo hình học; Dùng mẫu để vẽ mới vào công cụ đặt cánh.
+TAB khi đang vẽ mở thông số; Áp dụng cập nhật preview.
+Preview MDF cam nhạt, có kéo xoay và thu/phóng.
+Mẫu lưu thông số, chưa lưu đường chia tay hoặc hình SKP tùy ý.
+Đã kiểm tra lưu/mở/cập nhật qua API mô phỏng và cú pháp Ruby/JavaScript.
+Chưa thử trực tiếp trên SketchUp Windows.
