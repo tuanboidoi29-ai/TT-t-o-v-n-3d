@@ -45,6 +45,7 @@ module TranTuanNoiThat
       @dialog=UI::HtmlDialog.new(dialog_title:'TRẦN TUẤN – ĐỔI TÊN',preferences_key:'TT_Rename_178',width:1180,height:800,resizable:true,scrollable:true,style:UI::HtmlDialog::STYLE_DIALOG)
       @dialog.set_html(RenameUI.html)
       @dialog.add_action_callback('scan') { |_c,all| scan(all==true) }
+      @dialog.add_action_callback('find_part') { |_c,id| find_part(id) }
       @dialog.add_action_callback('choose') { |_c,id| choose(id,true) }
       @dialog.add_action_callback('projection') { |_c,id,axis| choose(id,false,axis) }
       @dialog.add_action_callback('save') { |_c,json| mutate(JSON.parse(json),false) rescue error($!.message) }
@@ -154,6 +155,19 @@ module TranTuanNoiThat
       send_js('showDetail',row(path).merge(outline(path,axis)))
     rescue StandardError=>e;error(e.message)
     end
+    def find_part(id)
+      ensure_model
+      raise 'Đợi quét xong.' if @busy
+      path=@paths[id]
+      raise 'Chọn tấm trong danh sách trước.' unless path && path.all?(&:valid?)
+      raise 'Tấm hoặc nhóm cha đang khóa; mở khóa trước khi tìm.' if path.any?(&:locked?)
+      choose(id,true)
+      # choose opens the correct editing path before selecting the target.
+      @model.active_view.zoom(@model.selection)
+      @model.active_view.invalidate
+    rescue StandardError=>e;error(e.message)
+    end
+
     def selection_changed
       return if @syncing || @busy || !@dialog || !@dialog.visible?
       UI.stop_timer(@selection_timer) if @selection_timer

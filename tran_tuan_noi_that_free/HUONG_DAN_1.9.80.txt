@@ -1,0 +1,20 @@
+TRẦN TUẤN NỘI THẤT 1.9.80 – ĐỔI TÊN + THỐNG KÊ
+Vẽ Cánh 1.9.77 được giữ nguyên mã nguồn.
+Mở icon Đổi Tên + Thống Kê hoặc Extensions > TRẦN TUẤN NỘI THẤT.
+Chọn cụm ngoài model, bấm Quét vùng đang chọn; nếu không chọn, quét ngữ cảnh đang mở. Quét toàn model dùng toàn bộ model.
+Quét gồm Group và Component lồng nhau. Bảng mặc định chỉ hiện chi tiết cuối để tránh đếm cả cụm cha.
+Bỏ Chỉ hiện chi tiết cuối để hiện/đổi tên cụm cha. Tổng đối tượng và số chi tiết cuối được thống kê riêng.
+Click dòng: mở ngữ cảnh nhóm cha và chọn đối tượng trong model; biên dạng 3D hiện bên phải. Kéo chuột xoay; lăn chuột thu/phóng; Góc nhìn ban đầu để đặt lại.
+Chọn ngoài model cũng cập nhật bảng. Đối tượng ngoài phạm vi quét được thêm vào bảng.
+Nhập tên mới > Lưu tên hoặc Lưu & chi tiết tiếp. Checkbox để đổi cùng tên cho nhiều đối tượng.
+Tag: chỉ đổi khi đánh dấu Đổi Tag cùng lượt lưu. Để trống dùng Untagged.
+Xóa tên: chọn các dòng cần xóa; mở Xóa tên/thay tên hàng loạt. Có tên thay thế và Tag mặc định. Để trống = không tên/Untagged.
+Tìm tấm: chọn dòng > Tìm tấm · Zoom. Mở đúng ngữ cảnh nhóm cha, chọn tấm rồi Zoom Selection bằng API SketchUp.
+Xóa tên gỡ cả Tag cũ; để trống về Untagged, có tên/Tag thay thế thì gán mới. Không xóa định nghĩa Tag của đối tượng khác.
+Mỗi lượt lưu hoặc xóa là một Undo. Không xóa hình học.
+Component đổi tên instance, không đổi tên definition. Chi tiết con trong cha dùng chung cần Make Unique cha trước khi đổi riêng.
+Thống kê độ dày là ước tính cạnh nhỏ nhất của hộp bao theo trục cục bộ, có tính scale. Làm tròn 0,1 mm; không phải phân tích gia công ABF.
+Preview 3D có mặt và cạnh thật; tối đa 6.000 cạnh / 12.000 tam giác.
+Quét theo đợt để giao diện có thể cập nhật, giới hạn 20.000 đối tượng / 64 cấp. Danh sách 200 dòng/trang.
+Đã kiểm tra cú pháp Ruby/JavaScript và logic quét, thống kê, đổi/xóa tên, Tag, khóa và bản sao bằng API mô phỏng.
+Chưa thử trực tiếp trên SketchUp Windows.
