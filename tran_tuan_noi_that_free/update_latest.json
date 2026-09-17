@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.80",
+  "version": "1.9.81",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Đổi Tên: preview 3D xoay/zoom; Tìm tấm chọn và zoom tới tấm trong model; Xóa tên gỡ cả Tag cũ hoặc gán tên/Tag thay thế.",
+  "notes": "Nút Tìm tấm trên từng dòng thống kê Group/Component, chọn đúng đối tượng của dòng và zoom ngay trong model.",
   "files": [
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -14,7 +14,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "ab2f1ff5f881d408edfc87ae1f76b5be448be4e832a2fdc46ac97887c33b3ba2"
+      "sha256": "486442e98d9d0bac357647ae89961844b32bcd92d5c1b6ca12c2c3e998ea45c6"
     },
     {
       "path": "tran_tuan_noi_that/board_tool.rb",
@@ -24,7 +24,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "3000d2ee4b8266f0e14afa205775393ae075b95b68728b9fa5b51ad770fd1433"
+      "sha256": "4a3507b34785e4c2cea220776a6a640839417f4bdfbb4c336809b1fe43ed93bb"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -189,7 +189,7 @@
     {
       "path": "tran_tuan_noi_that/settings.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/settings.rb",
-      "sha256": "13d05db3210a486544ffbc0138d51ca39b2367eb516314520e923129fbf766ff"
+      "sha256": "31c3cb5d3b7dd383e344b07d52b498253aa356c2f98d2ff31546441ecf4c422a"
     },
     {
       "path": "tran_tuan_noi_that/stretch_auto_scan_fix.rb",
@@ -224,7 +224,7 @@
     {
       "path": "tran_tuan_noi_that/updater.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/updater.rb",
-      "sha256": "5f034324a0ea7f7c31de24ddb0d8c2ab5eda22082d4f080038ef4267878afce9"
+      "sha256": "80b1f060ccbc167eb7368a5748c9de9d35b4aeb250c6a47e655c980e422f2c9a"
     },
     {
       "path": "tran_tuan_noi_that/rename_tool.rb",
@@ -234,7 +234,7 @@
     {
       "path": "tran_tuan_noi_that/rename_ui.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/rename_ui.rb",
-      "sha256": "3c8e7beaa77ac4a73a50d1643940794cd142d7732e1d15cc387cf7cdac280172"
+      "sha256": "a9462345d9f266771869188673c5a99ab41f37465aeaa23225c35b348527eb44"
     },
     {
       "path": "tran_tuan_noi_that/icons/rename.svg",
