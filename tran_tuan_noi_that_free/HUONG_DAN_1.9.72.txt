@@ -1,0 +1,13 @@
+TRẦN TUẤN NỘI THẤT 1.9.72
+Mở Vẽ Cánh: danh sách mẫu để chọn dùng ngay.
+TAB: mở cài đặt, có preview 3D kéo xoay, lăn chuột thu/phóng.
+Chỉ hiện thông số phù hợp loại cánh. Áp dụng cập nhật preview trong model.
+CTRL: đổi phủ ngoài/lọt lòng. Khi đổi chế độ lắp, các đường chia được đặt lại theo thông số vùng.
+SHIFT: ngang/dọc. /N: chia đều. ENTER: tạo.
+Bắt đầu cạnh, trung điểm và tâm mặt ván, kể cả Group/Component lồng nhau.
+MDF phay huỳnh là hình học một tấm có vùng lõm; preview cam nhạt, không vân gỗ.
+Lưu thành mẫu mới giữ thông số để dùng lần sau.
+Giữ nguyên phần co kéo đã chốt. Không yêu cầu bản quyền.
+Đã kiểm tra cú pháp Ruby, hình học và logic bằng API/DOM mô phỏng.
+Chưa chạy SketchUp Windows; chưa xác minh trực quan trong trình duyệt.
+API: https://ruby.sketchup.com/Sketchup/Tool.html
