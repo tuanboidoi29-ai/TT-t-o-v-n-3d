@@ -65,7 +65,7 @@ puts "PASS #{$count} assertions including recursive split geometry and keyboard/
 module TranTuanNoiThat::CabinetDoor
   class << self
     attr_accessor :shown_tool
-    def show(tool=nil); self.shown_tool=tool;end
+    def show_settings(tool=nil); self.shown_tool=tool;end
   end
 end
 t.onKeyDown(9,0,0,view);assert(D.shown_tool.equal?(t))

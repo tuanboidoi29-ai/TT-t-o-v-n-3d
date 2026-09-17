@@ -1,4 +1,5 @@
 # encoding: UTF-8
+require 'cgi'
 # Geometry is generated in mm once, shared by preview and creation.
 module TranTuanNoiThat
   module CabinetDoor
@@ -65,7 +66,123 @@ module TranTuanNoiThat
       raise 'Thông số không hợp lệ. Nhập số mm, không kèm đơn vị.'
     end
 
-    def show(tool = nil)
+    def built_in_presets
+      [
+        ['flat','Cánh phẳng','Cánh phẳng',{}],
+        ['frame','Khung lòng phẳng','Cánh khung',{}],
+        ['glass','Khung kính','Cánh kính',{}],
+        ['glass2','Kính 2 ô','Cánh kính',{'panels'=>2}],
+        ['panel1','Huỳnh 1 ô','Cánh soi huỳnh',{}],
+        ['panel2','Huỳnh 2 ô','Cánh soi huỳnh',{'panels'=>2}],
+        ['panel3','Huỳnh 3 ô','Cánh soi huỳnh',{'panels'=>3}],
+        ['panelwide','Huỳnh khung rộng','Cánh soi huỳnh',{'stile_left'=>85,'stile_right'=>85,'rail_top'=>85,'rail_bottom'=>85,'bevel'=>20}]
+      ].map do |id,name,style,extra|
+        {'id'=>'builtin_'+id,'name'=>name,'settings'=>validate(defaults.merge('cols'=>1,'style'=>style).merge(extra))}
+      end
+    end
+
+    def custom_presets
+      raw=TranTuanNoiThat.setting('cabinet_door_presets_v1','[]')
+      data=JSON.parse(raw)
+      raise 'Dữ liệu mẫu đã lưu không hợp lệ; giữ nguyên dữ liệu để kiểm tra.' unless data.is_a?(Array) && data.all? { |p| p.is_a?(Hash) && p['id'].is_a?(String) && p['name'].is_a?(String) && p['settings'].is_a?(Hash) }
+      data
+    rescue JSON::ParserError
+      raise 'Không đọc được mẫu đã lưu; dữ liệu gốc vẫn được giữ nguyên.'
+    end
+
+    def save_preset(name,options)
+      name=name.to_s.strip
+      raise 'Nhập tên mẫu từ 1 đến 80 ký tự.' if name.empty? || name.length>80
+      options=validate(options)
+      records=custom_presets
+      record={'id'=>"custom_#{Time.now.to_i}_#{rand(1_000_000_000)}",'name'=>name,'settings'=>options}
+      records << record
+      TranTuanNoiThat.save_setting('cabinet_door_presets_v1',records.to_json)
+      record
+    end
+
+    def face_color(part,face)
+      return [105,185,215,95] if part[:glass]
+      a,b,c=face[0,3]
+      ab=3.times.map { |i| b[i]-a[i] }; ac=3.times.map { |i| c[i]-a[i] }
+      n=[ab[1]*ac[2]-ab[2]*ac[1],ab[2]*ac[0]-ab[0]*ac[2],ab[0]*ac[1]-ab[1]*ac[0]]
+      length=Math.sqrt(n.sum { |v| v*v }); nz=length>0 ? n[2]/length : 1
+      highest=part[:faces].flatten(1).map { |p| p[2] }.max
+      recessed=nz>0.99 && face.all? { |p| p[2]<highest-0.01 }
+      return [183,130,78,255] if recessed
+      if nz>0.99
+        [235,193,140,255]
+      elsif nz>0.01
+        shade=0.76+0.16*(n[0]-n[1])/length
+        [235,193,140].map { |v| (v*shade).round.clamp(0,255) }+[255]
+      else
+        [145,99,58,255]
+      end
+    end
+
+    def preset_svg(options)
+      # Real preset mesh, projected obliquely: frame, bevel and recessed floor.
+      options=validate(options).merge('cols'=>1,'rows'=>1,'width'=>0,'height'=>0,
+        'left'=>0,'right'=>0,'top'=>0,'bottom'=>0,'over_left'=>0,'over_right'=>0,'over_top'=>0,'over_bottom'=>0)
+      w=[500.0,options['stile_left']+options['stile_right']+options['bevel']*2+120].max
+      h=[760.0,options['rail_top']+options['rail_bottom']+(options['panels']-1)*options['rail_mid']+options['panels']*(options['bevel']*2+90)].max
+      polys=layout(w,h,options).first[:parts].flat_map do |part|
+        part[:faces].map { |f| [f,face_color(part,f)] }
+      end
+      project=proc { |p| [p[0]+p[2]*0.65,-p[1]+p[0]*0.12-p[2]*0.45] }
+      points=polys.flat_map { |f,_| f.map(&project) }
+      xmin,xmax=points.map(&:first).minmax; ymin,ymax=points.map(&:last).minmax
+      body=polys.sort_by { |f,_| f.sum { |p| p[2] }/f.length }.map do |f,color|
+        coords=f.map { |point| project.call(point).map { |v| v.round(2) }.join(',') }.join(' ')
+        "<polygon points='#{coords}' fill='rgb(#{color[0,3].join(',')})' fill-opacity='#{color[3]/255.0}' stroke='#634b35' stroke-width='1.6'/>"
+      end.join
+      "<svg xmlns='http://www.w3.org/2000/svg' viewBox='#{xmin-16} #{ymin-16} #{xmax-xmin+32} #{ymax-ymin+32}' role='img' aria-label='Mẫu cánh 3D'>#{body}</svg>"
+    end
+
+    def gallery_html(records,warning='')
+      cards=records.map do |record|
+        begin
+          svg=preset_svg(record['settings'])
+          "<button class='card' data-id='#{CGI.escapeHTML(record['id'])}'><div class='art'>#{svg}</div><strong>#{CGI.escapeHTML(record['name'])}</strong><span>Chọn & sử dụng</span></button>"
+        rescue StandardError
+          "<div class='card'>#{CGI.escapeHTML(record['name'])}<p>Mẫu có thông số không hợp lệ.</p></div>"
+        end
+      end.join
+      <<~HTML
+        <!doctype html><html lang="vi"><meta charset="utf-8"><style>
+        body{font:14px Arial;margin:24px;background:#f3f5f8;color:#24394e}h2{margin:0 0 8px}.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.card{font:inherit;background:white;border:1px solid #d3dde7;border-radius:10px;padding:12px;cursor:pointer;color:inherit;text-align:left}.card:hover,.card:focus{border-color:#1673cb;background:#edf6ff}.art{height:175px;display:flex;justify-content:center;margin-bottom:12px}.art svg{height:100%;max-width:100%}strong,span{display:block}span{font-size:12px;margin-top:6px;color:#2670a6}#error{color:#b32626}p{line-height:1.5}@media(max-width:600px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+        </style><h2>MẪU CÁNH TỦ</h2><p>Chọn mẫu để vẽ ngay. <b>TAB</b> mở thông số và lưu mẫu riêng. <b>SHIFT</b> đổi hướng chia; <b>ENTER</b> tạo cánh.</p><p id="error">#{CGI.escapeHTML(warning)}</p><div class="grid">#{cards}</div>
+        <script>document.querySelectorAll('button[data-id]').forEach(b=>b.onclick=()=>sketchup.use_preset(b.dataset.id));document.addEventListener('keydown',e=>{if(e.key==='Tab'){e.preventDefault();sketchup.customize();}});function error(s){document.getElementById('error').textContent=s;}</script></html>
+      HTML
+    end
+
+    def show(tool=nil)
+      tool ? show_settings(tool) : show_gallery
+    end
+
+    def show_gallery
+      @gallery.close if @gallery && @gallery.visible?
+      warning=''
+      records=built_in_presets
+      begin; records+=custom_presets; rescue StandardError=>e; warning=e.message; end
+      @gallery=UI::HtmlDialog.new(dialog_title:'TRẦN TUẤN – MẪU CÁNH TỦ',preferences_key:'TT_CabinetDoorGallery',scrollable:true,resizable:true,width:840,height:660,style:UI::HtmlDialog::STYLE_DIALOG)
+      @gallery.set_html(gallery_html(records,warning))
+      @gallery.add_action_callback('use_preset') do |_ctx,id|
+        begin
+          record=records.find { |p| p['id']==id }
+          raise 'Không tìm thấy mẫu.' unless record
+          options=validate(record['settings'])
+          TranTuanNoiThat.save_setting('cabinet_door_options',options.to_json)
+          Sketchup.active_model.select_tool(Tool.new(options)); @gallery.close
+        rescue StandardError=>e
+          @gallery.execute_script("error(#{e.message.to_json})")
+        end
+      end
+      @gallery.add_action_callback('customize') { |_ctx| @gallery.close; show_settings }
+      @gallery.show
+    end
+
+    def show_settings(tool = nil)
       @dialog.close if @dialog && @dialog.visible?
       @dialog = UI::HtmlDialog.new(dialog_title:'TRẦN TUẤN – VẼ CÁNH TỦ', preferences_key:'TT_CabinetDoor', scrollable:true, resizable:true, width:680, height:760, style:UI::HtmlDialog::STYLE_DIALOG)
       values = tool ? tool.settings : (JSON.parse(TranTuanNoiThat.setting('cabinet_door_options','{}')) rescue {})
@@ -85,9 +202,17 @@ module TranTuanNoiThat
         h3{grid-column:1/-1;margin:12px 0 0;color:#146dcc}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}label{display:block}input,select{display:block;box-sizing:border-box;width:100%;padding:9px;margin-top:5px;border:1px solid #b6c6d6;border-radius:5px;background:white}
         footer{position:sticky;bottom:0;background:#f4f6fa;padding:12px 0}button{background:#146dcc;color:white;padding:12px 22px;border:0;border-radius:5px;cursor:pointer}#error{color:#b32222;margin:8px 0}
         </style><h2>VẼ CÁNH TỦ</h2><p>Đơn vị: mm (trừ số lượng và %). Chọn 2 góc của vùng lắp cánh; SHIFT đổi chia ngang/dọc; gõ /3, /4… chia đều ô đang trỏ; click giữ đường chia; ENTER tạo. TAB mở thông số, Áp dụng cập nhật preview; F đảo hướng ra trước. Rộng/cao = 0 để lấy theo chuột.</p>
-        <p>Áp dụng sẽ cập nhật preview. Đổi kích thước vùng, số cánh, khe hoặc độ phủ sẽ đặt lại các đường chia bằng chuột; đổi mẫu, khung, độ dày giữ các ô đã chia.</p><div class="grid">#{inputs}</div><footer><div id="error"></div><button onclick="apply()">Áp dụng & xem trước</button></footer>
-        <script>const keys=#{FIELDS.map(&:first).to_json};function apply(){let s={};keys.forEach(k=>s[k]=document.getElementById(k).value);sketchup.apply(JSON.stringify(s));}function error(s){document.getElementById('error').textContent=s;}</script></html>
+        <p>Áp dụng sẽ cập nhật preview. Đổi kích thước vùng, số cánh, khe hoặc độ phủ sẽ đặt lại các đường chia bằng chuột; đổi mẫu, khung, độ dày giữ các ô đã chia.</p><div class="grid">#{inputs}</div><footer><div id="error"></div><label>Tên mẫu riêng<input id="preset_name" placeholder="Ví dụ: Huỳnh tủ áo 2 ô"></label><button onclick="savePreset()">Lưu thành mẫu mới</button> <button onclick="apply()">Áp dụng & xem trước</button></footer>
+        <script>const keys=#{FIELDS.map(&:first).to_json};function values(){let s={};keys.forEach(k=>s[k]=document.getElementById(k).value);return s;}function apply(){sketchup.apply(JSON.stringify(values()));}function savePreset(){sketchup.save_preset(document.getElementById("preset_name").value,JSON.stringify(values()));}function error(s){document.getElementById('error').textContent=s;}</script></html>
       HTML
+      @dialog.add_action_callback('save_preset') do |_ctx,name,json|
+        begin
+          save_preset(name,JSON.parse(json))
+          @dialog.execute_script("error(#{'Đã lưu mẫu mới. Lần mở công cụ sau, chọn mẫu trong danh sách.'.to_json})")
+        rescue StandardError=>e
+          @dialog.execute_script("error(#{e.message.to_json})")
+        end
+      end
       @dialog.add_action_callback('apply') do |_ctx,json|
         begin
           s = validate(JSON.parse(json))
@@ -432,6 +557,7 @@ module TranTuanNoiThat
         if @stage==0
           pick(x,y,view); return unless @ip.valid?
           @origin=@snap_point || @ip.position; @ref=Sketchup::InputPoint.new(@origin); axes_from_face; @stage=1
+          @last=@origin.offset(@u,500.mm).offset(@v,760.mm); rebuild
         elsif @stage==1
           pick(x,y,view); update_rectangle(x,y,view)
           return UI.beep unless @doors
@@ -475,7 +601,7 @@ module TranTuanNoiThat
           @split_axis=1-@split_axis
           @cells ? refresh_split : (rebuild if @last)
         when 9
-          CabinetDoor.show(self)
+          CabinetDoor.show_settings(self)
         when 13
           if @stage==2 && @doors
             # Create exactly the currently displayed geometry (including candidate).
@@ -490,7 +616,7 @@ module TranTuanNoiThat
             @cells=@history.pop; @hover=nil; refresh_split
           end
         when 83
-          CabinetDoor.show(self)
+          return
         when 70
           if @stage>0
             @sign *= -1
@@ -508,7 +634,10 @@ module TranTuanNoiThat
 
       def cache_world
         @world=@doors.map do |door|
-          door[:parts].map { |part| [part,part[:faces].map { |face| face.map { |p| world(p) } }] }
+          door[:parts].map do |part|
+            part[:preview_colors]=part[:faces].map { |face| CabinetDoor.face_color(part,face) }
+            [part,part[:faces].map { |face| face.map { |p| world(p) } }]
+          end
         end
       end
 
@@ -547,8 +676,8 @@ module TranTuanNoiThat
         view.line_width=1
         @world.each do |parts|
           parts.each do |part,faces|
-            faces.each do |face|
-              view.drawing_color=part[:glass] ? Sketchup::Color.new(80,180,225,75) : Sketchup::Color.new(245,170,100,140)
+            faces.each_with_index do |face,index|
+              view.drawing_color=Sketchup::Color.new(*part[:preview_colors][index])
               view.draw(GL_POLYGON,face)
               view.drawing_color=Sketchup::Color.new(125,72,30)
               view.draw(GL_LINE_LOOP,face)
