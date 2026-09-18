@@ -62,7 +62,6 @@ module Layout
       raise 'page missing' unless l.shared || p
       @entities<<[e,l,p]
     end
-    def set_attribute(*args);end
   end
   class SketchUpModel
     NO_OVERRIDE=0;VECTOR_RENDER=1;HYBRID_RENDER=2

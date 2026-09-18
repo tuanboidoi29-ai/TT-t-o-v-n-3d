@@ -1,0 +1,21 @@
+TRẦN TUẤN NỘI THẤT 1.9.85 — SỬA API VÀ BẢNG XEM TRƯỚC
+
+Cài RBZ đè bằng Extension Manager → Install Extension rồi mở lại SketchUp.
+Hoặc cập nhật GitHub, đóng bảng LayOut cũ và mở lại công cụ.
+
+Sửa: bỏ lời gọi Layout::Document#set_attribute, API chỉ có từ LayOut 2026, không tương thích SketchUp/LayOut 2022.
+Giữ cơ chế lưu cấu hình JSON của 1.9.84.
+
+CÁCH XEM TRƯỚC
+Chọn tủ → Xuất Layout + Thống Kê Ván → chỉnh thông số → Xem trước hồ sơ.
+Bảng bên phải hiển thị từng trang A3 được LayOut xuất thành ảnh PNG 150 DPI.
+Chọn trang từ danh sách, nút trước/sau, Vừa khung hoặc Phóng to.
+Có Dừng dựng; các trang đã dựng vẫn xem được.
+Thay thông số hoặc model: bấm Xem trước hồ sơ lần nữa để làm mới.
+Preview gồm mọi bộ tủ và trang thống kê đã chọn. PDF vẫn xuất ở High.
+Dựng chia theo từng trang để UI có thể nhận lệnh giữa các lượt; render một trang nặng vẫn có thể mất thời gian.
+
+Kiểm tra: 36 kiểm tra logic hồ sơ (Document giả lập không có set_attribute), 22 kiểm tra lưu/các nhánh lỗi, 13 kiểm tra luồng preview và 11 kiểm tra JavaScript giao diện. Kiểm tra cú pháp và gói RBZ đạt. Chưa chạy render thực tế trong SketchUp/LayOut Windows.
+
+Các giới hạn trước vẫn giữ: Dim đặt trực tiếp trong LayOut; chưa tự tạo Dim. Lớp giữ trong .layout; API PDF chưa cung cấp giữ lớp/Optimize for Web.
+Tham chiếu: https://ruby.sketchup.com/Layout/Document.html#set_attribute-instance_method

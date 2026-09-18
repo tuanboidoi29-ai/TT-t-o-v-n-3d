@@ -6,7 +6,7 @@ module Sketchup
   def self.write_default(*a);raise 'Registry must not be used for new saves';end
 end
 module TranTuanNoiThat; module LayoutStats;end;end
-load File.expand_path('../release184/tran_tuan_noi_that/layout_technical.rb',__dir__)
+load (ENV['TT_LAYOUT_SOURCE'] || File.expand_path('../release184/tran_tuan_noi_that/layout_technical.rb',__dir__))
 T=TranTuanNoiThat::LayoutTechnical
 $count=0
 def assert(v,m);raise m unless v;$count+=1;end
