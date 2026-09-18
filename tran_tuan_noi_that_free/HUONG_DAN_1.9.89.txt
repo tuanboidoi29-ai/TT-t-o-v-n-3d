@@ -1,0 +1,35 @@
+TRẦN TUẤN NỘI THẤT 1.9.89 — HỒ SƠ LAYOUT A3
+
+CÀI VÀ DÙNG
+Cài RBZ đè bằng Extension Manager, đóng/mở lại SketchUp. Hoặc Kiểm Tra Cập Nhật từ GitHub rồi mở lại bảng.
+Tiêu đề bảng phải có 1.9.89. Bản này dùng cấu hình mới, mặc định cắt 20 mm.
+1. Thoát chế độ sửa Group. Chọn một/nhiều Group cha của tủ.
+2. Chọn Quét Group/Component đang chọn hoặc Quét tất cả; đặt Tên công trình và Tên bản vẽ.
+3. Chọn góc nhìn, X-ray từng góc, khoảng cắt, tỷ lệ, cỡ chữ và bảng thống kê.
+4. Quét/kiểm tra model → Xem trước hồ sơ. Chọn từng trang, Gần đối tượng/Toàn trang, Phóng to.
+5. Xuất PDF → chọn nơi lưu. Không cần lưu model trước. Mỗi Group/Component cha tạo một hồ sơ riêng, thống kê các tấm bên trong.
+
+GÓC NHÌN
+Mặt bằng; mặt đứng ngoài; mặt bên trái; mặt bên phải; mặt cắt thùng trước; mặt cắt thùng trái; mặt cắt thùng phải; phối cảnh 3D.
+Mỗi góc có lựa chọn X-ray riêng (mặc định bật). X-ray/phối cảnh dùng Hybrid. Tắt X-ray để dùng nét Vector kỹ thuật theo lựa chọn.
+Góc nhìn theo trục model: trước nhìn từ Y âm; trái từ X âm; phải từ X dương; trên từ Z dương.
+Cắt trước từ Y nhỏ nhất vào trong, trái từ X nhỏ nhất, phải từ X lớn nhất; mặc định 20 mm, chỉnh được. Nếu vượt chiều sâu/rộng thì vị trí cắt giới hạn sát mặt đối diện.
+
+DIM
+DIM tổng ngang/dọc trên các trang hình chiếu và mặt cắt; không DIM đo hình chiếu trên phối cảnh.
+DIM chi tiết là chuỗi chia đoạn theo biên chiếu hình học tấm, gồm độ dày, khoảng hở và vị trí đợt/vách. Mặt cắt chỉ dùng phần hình học còn lại sau cắt. Đơn vị mm, lấy tỷ lệ thực của viewport, không gõ đè số đo.
+DIM đặt ngang/dọc trên chính trang mặt trước/các mặt cắt, tách tầng chữ; DIM tổng ngoài cùng. Nếu chữ quá dày, công cụ báo chọn tỷ lệ lớn hơn (ví dụ 1:10) hoặc giảm cỡ chữ DIM.
+DIM hiện tại ghi nhận hình học tại lúc xuất. Khi sửa model cần dựng/xuất lại, chưa liên kết tự động tới từng đỉnh bằng Update Reference.
+Các mẫu có biên cong/nghiêng được đo theo khoảng chiếu lên trục bản vẽ, không phải chiều dài dọc cạnh nghiêng.
+
+CHỮ VÀ THỐNG KÊ
+Chỉnh riêng chữ DIM (6–18pt), tiêu đề (10–18pt), bảng thống kê (12–18pt, mặc định 14).
+Bảng thống kê lặp tiêu đề cột và tự chia trang theo cỡ chữ. Có tên tấm, dài/rộng/dày, số lượng, vật liệu, vân, diện tích.
+
+LƯU
+PDF và preview dùng bản sao SKP tạm, không ghi đè SKP gốc. Công cụ tạo/cập nhật Scene kỹ thuật trong model hiện tại.
+Xuất .layout/mẫu giữ tham chiếu lâu dài nên dùng luồng lưu SKP. PDF có nét Vector/Hybrid, High; API chưa hỗ trợ xuất lớp PDF/Optimize for Web.
+
+KIỂM TRA
+Đã đối chiếu API SketchUp/LayOut, kiểm tra cú pháp và gói, 69 logic hồ sơ/DIM/quét/hình học, 22 cấu hình, 16 PDF/bản sao tạm, 13 preview, 26 JavaScript và callback 7 nút/lỗi khởi tạo.
+Chưa có SketchUp/LayOut Windows trong môi trường kiểm thử, nên chưa xác minh renderer hoặc xác nhận chạy trên máy người dùng. Nếu gặp lỗi, gửi ảnh dòng báo lỗi đầu bảng và tiêu đề phiên bản.

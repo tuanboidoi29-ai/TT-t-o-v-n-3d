@@ -17,15 +17,15 @@ module TranTuanNoiThat
              'cut_left'=>'Mặt cắt thùng trái','cut_right'=>'Mặt cắt thùng phải',
              'overview'=>'Phối cảnh 3D'}.freeze
     remove_const(:DEFAULTS) if const_defined?(:DEFAULTS, false)
-    DEFAULTS = {'project'=>'','scale'=>20.0,'cut_scale'=>20.0,'render'=>'Vector',
-                'cut_mm'=>100.0,'quality'=>90.0,'stats'=>true,'stats_font'=>14.0,
+    DEFAULTS = {'drawing'=>'Hồ sơ tủ','scope'=>'selected','detail_dims'=>true,'title_font'=>13.0,'xray_views'=>VIEWS.keys,'project'=>'','scale'=>20.0,'cut_scale'=>20.0,'render'=>'Vector',
+                'cut_mm'=>20.0,'quality'=>90.0,'stats'=>true,'stats_font'=>14.0,
                 'dimensions'=>true,'dim_offset'=>12.0,'dim_font'=>10.0,
                 'views'=>VIEWS.keys}.freeze
     def helper; LayoutStats; end
     def normalize(data)
       raise 'Dữ liệu cài đặt không hợp lệ.' unless data.is_a?(Hash)
       out = DEFAULTS.merge(data.select { |k,_| DEFAULTS.key?(k) })
-      %w[scale cut_scale cut_mm quality dim_offset dim_font stats_font].each do |key|
+      %w[scale cut_scale cut_mm quality dim_offset dim_font stats_font title_font].each do |key|
         out[key] = Float(out[key])
         raise "Thông số #{key} không hợp lệ." unless out[key].finite?
       end
@@ -36,6 +36,13 @@ module TranTuanNoiThat
       raise 'Chọn ít nhất một góc nhìn.' unless out['views'].is_a?(Array) && !out['views'].empty?
       raise 'Góc nhìn không hợp lệ.' unless (out['views'] - VIEWS.keys).empty?
       out['views'] = VIEWS.keys.select { |k| out['views'].include?(k) }
+      raise 'Phạm vi quét không hợp lệ.' unless %w[selected all].include?(out['scope'])
+      raise 'Danh sách X-ray không hợp lệ.' unless out['xray_views'].is_a?(Array) && (out['xray_views']-VIEWS.keys).empty?
+      out['xray_views'] = VIEWS.keys.select { |k| out['xray_views'].include?(k) }
+      out['drawing'] = out['drawing'].to_s.strip[0,100]
+      out['drawing'] = 'Hồ sơ tủ' if out['drawing'].empty?
+      out['detail_dims'] = out['detail_dims'] == true
+      raise 'Cỡ chữ tiêu đề phải từ 10 đến 18 pt.' unless out['title_font'].between?(10,18)
       out['project'] = out['project'].to_s.strip[0,160]
       raise 'Khoảng cách DIM phải từ 5 đến 20 mm trên giấy.' unless out['dim_offset'].between?(5,20)
       raise 'Cỡ chữ DIM phải từ 6 đến 18 pt.' unless out['dim_font'].between?(6,18)
@@ -51,13 +58,11 @@ module TranTuanNoiThat
         home = Dir.home if home.empty?
         base = File.join(home, '.config')
       end
-      File.join(base, 'TranTuanNoiThat', 'layout_a3_settings.json')
+      File.join(base, 'TranTuanNoiThat', 'layout_a3_v189_settings.json')
     end
     def settings
       @config_warning = nil
       return normalize(JSON.parse(File.read(config_path, encoding: 'UTF-8'))) if File.file?(config_path)
-      legacy = Sketchup.read_default('TranTuanNoiThat.LayoutTechnical','settings','').to_s
-      return normalize(JSON.parse(legacy)) unless legacy.empty?
       normalize({})
     rescue StandardError => e
       @config_warning = "Không đọc được cấu hình cũ; đang dùng mặc định. #{e.message}"
@@ -112,14 +117,25 @@ module TranTuanNoiThat
         @dialog.bring_to_front
         return
       end
+      @busy = false
       @model = Sketchup.active_model
       @dialog = UI::HtmlDialog.new(dialog_title:'TRẦN TUẤN · HỒ SƠ LAYOUT A3',
-        preferences_key:'TranTuanNoiThat.LayoutTechnical',scrollable:true,resizable:true,
+        preferences_key:'TranTuanNoiThat.LayoutTechnical189',scrollable:true,resizable:true,
         width:1180,height:820,style:UI::HtmlDialog::STYLE_DIALOG)
       @dialog.set_html(html)
-      @dialog.add_action_callback('ready') { |_c| send_state }
+      @dialog.add_action_callback('ready') do |_c|
+        begin
+          send_state
+        rescue StandardError => e
+          @dialog.execute_script("receive(#{JSON.generate(normalize({}))})") if @dialog
+          report("Không nạp được cấu hình cũ; dùng mặc định. #{e.message}",true)
+        end
+      end
       @dialog.add_action_callback('run') do |_c, action, json|
-        next if @busy
+        if @busy
+          report('Đang xử lý thao tác trước. Nếu đang xem trước, bấm Dừng dựng để kết thúc.')
+          next
+        end
         @busy = true
         begin
           raise 'Đã đổi mô hình. Đóng bảng và mở lại công cụ.' unless Sketchup.active_model == @model
@@ -168,20 +184,55 @@ module TranTuanNoiThat
       return nil if key == 'overview'
       width,height = projected_size(key,bb)
       d = denominator(key,o)
-      reserve = o['dimensions'] ? o['dim_offset'] + o['dim_font'] * 25.4 / 72.0 + 4.0 : 10.0
+      reserve = o['detail_dims'] ? detail_outer_offset(o)+o['dim_font']*25.4/72.0+6.0 : o['dimensions'] ? o['dim_offset'] + o['dim_font'] * 25.4 / 72.0 + 4.0 : 10.0
       available_w = 390.0 - reserve * 2
       available_h = 235.0 - reserve * 2
       return nil if width/d <= available_w && height/d <= available_h
       minimum = [width/available_w,height/available_h].max.ceil
       "#{VIEWS[key]} không vừa vùng vẽ A3 ở 1:#{format('%g',d)} (#{(width/d).round(1)} × #{(height/d).round(1)} mm). Chọn tỷ lệ 1:#{minimum} hoặc nhỏ hơn, hoặc chỉ chọn cụm/chi tiết cần xuất."
     end
+    def export_jobs(model,options)
+      source = options['scope'] == 'all' ? model.entities.to_a : model.selection.to_a
+      roots = source.select { |e| e.valid? && helper.container?(e) }
+      raise 'Chưa chọn Group/Component. Chọn tủ trong model hoặc đổi phạm vi sang Quét tất cả.' if roots.empty?
+      # Each selected parent produces its own document, including all nested boards.
+      roots.each_with_index.map do |root,i|
+        name = helper.tt_scope_name(root,i+1)
+        {roots:[root],name:name,key:helper.tt_entity_id(root).to_s,index:i+1,
+         stats:helper.tt_stats_for_roots([root],name)}
+      end
+    end
+    def detail_parts(roots)
+      parts=[]
+      edge_count=0
+      visit = lambda do |entity,parent,path|
+        return unless entity.valid? && helper.container?(entity)
+        return if entity.hidden? || (entity.respond_to?(:layer) && !entity.layer.visible?)
+        tr = parent * entity.transformation
+        entities = helper.child_entities(entity)
+        return unless entities
+        children = entities.to_a.select { |e| e.valid? && helper.container?(e) }
+        faces = entities.grep(Sketchup::Face)
+        unless faces.empty?
+          edge_count += entities.grep(Sketchup::Edge).length
+          raise 'Phạm vi có quá nhiều cạnh để đặt DIM chi tiết. Chọn từng cụm tủ nhỏ hơn hoặc tắt DIM chi tiết.' if edge_count > 200000
+          edges = entities.grep(Sketchup::Edge).map { |e| [e.start.position.transform(tr),e.end.position.transform(tr)] }
+          points = edges.flatten.uniq { |point| [point.x,point.y,point.z] }
+          parts << {points:points,edges:edges,path:path+[entity]} unless points.empty?
+        end
+        children.each { |child| visit.call(child,tr,path+[entity]) }
+      end
+      roots.each { |root| visit.call(root,Geom::Transformation.new,[]) }
+      parts
+    end
     def check_jobs(o)
       model = Sketchup.active_model
       raise 'Thoát chế độ sửa Group/Component trước khi xuất để Scene lưu đúng phạm vi.' if model.active_path && !model.active_path.empty?
-      jobs = helper.tt_layout_jobs
+      jobs = export_jobs(model,o)
       raise 'Chọn Group/Component chứa tủ hoặc tấm ván trước khi xuất.' if jobs.empty?
       jobs.each do |job|
         job[:bounds] = helper.tt_scope_bounds_for_roots(model,job[:roots])
+        job[:detail_parts] = detail_parts(job[:roots]) if o['detail_dims']
         o['views'].each do |key|
           error = fit_error(key,job[:bounds],o)
           raise "#{job[:name]}: #{error}" if error
@@ -189,12 +240,12 @@ module TranTuanNoiThat
       end
       jobs
     end
-    def profile(options,section,material)
+    def profile(options,section,material,xray=false)
       values = {'DisplaySectionCuts'=>section,'DisplaySectionPlanes'=>false,
         'SectionCutFilled'=>section,'SectionCutDrawEdges'=>true,
         'SectionDefaultFillColor'=>Sketchup::Color.new(0,0,0),
         'SectionDefaultCutColor'=>Sketchup::Color.new(0,0,0),
-        'ModelTransparency'=>false,'DrawBackEdges'=>false,'DrawHidden'=>false,
+        'ModelTransparency'=>xray,'MaterialTransparency'=>true,'DrawBackEdges'=>xray,'DrawHidden'=>false,
         'DrawGround'=>false,'DrawHorizon'=>false,'DisplaySketchAxes'=>false,
         'DisplayWatermarks'=>false,'DisplayFog'=>false,'EdgeType'=>0,
         'DrawSilhouettes'=>false,'DrawLineEnds'=>false,'ExtendLines'=>false,
@@ -202,7 +253,7 @@ module TranTuanNoiThat
         'BackgroundColor'=>Sketchup::Color.new(255,255,255),
         'FaceFrontColor'=>Sketchup::Color.new(255,255,255),
         'FaceBackColor'=>Sketchup::Color.new(255,255,255),
-        'Texture'=>material,'RenderMode'=>material ? 2 : 1}
+        'Texture'=>material,'RenderMode'=>(material || xray) ? 2 : 1}
       keys = options.keys
       values.each { |k,v| options[k] = v if keys.include?(k) }
       %w[ROPDrawHiddenGeometry ROPDrawHiddenObjects].each { |k| options[k] = false if keys.include?(k) }
@@ -240,14 +291,14 @@ module TranTuanNoiThat
           model.entities.active_section_plane = section ? planes.fetch(key.to_sym) : nil
           model.active_view.camera = camera(key,job[:bounds])
           material = key == 'overview' || o['render'] == 'Hybrid'
-          profile(model.rendering_options,section,material)
+          profile(model.rendering_options,section,material,o['xray_views'].include?(key))
           model.shadow_info['DisplayShadows'] = false unless key == 'overview'
           # Stable ownership attributes: rerun updates our scene, never overwrites a user's scene by name.
           owner = "#{job[:key]}:#{key}"
           page = model.pages.find { |p| p.get_attribute('TT_LayoutTechnical','owner') == owner }
-          page ||= model.pages.add("#{job[:name]}_#{VIEWS[key]}")
+          page ||= model.pages.add("#{o['drawing']}_#{job[:name]}_#{VIEWS[key]}")
           page.set_attribute('TT_LayoutTechnical','owner',owner)
-          page.name = "#{job[:name]}_#{VIEWS[key]}"
+          page.name = "#{o['drawing']}_#{job[:name]}_#{VIEWS[key]}"
           page.use_camera = true
           page.use_shadow_info = true
           page.use_rendering_options = true
@@ -257,7 +308,7 @@ module TranTuanNoiThat
           page.use_hidden_layers = true
           page.include_in_animation = false
           page.update
-          profile(page.rendering_options,section,material)
+          profile(page.rendering_options,section,material,o['xray_views'].include?(key))
           scenes[key] = helper.tt_scene_layout_index(model,page)
         end
         helper.tt_restore_scope_visibility(visibility)
@@ -305,6 +356,98 @@ module TranTuanNoiThat
       bottom = [[bottom+pad,0.0].max,page_h].min
       return nil unless right>left && bottom>top
       [left/page_w,top/page_h,(right-left)/page_w,(bottom-top)/page_h]
+    end
+    def detail_outer_offset(options)
+      8.0 + 4.0 * (options['dim_font']*25.4/72.0+2.0)
+    end
+    def clipped_detail_points(part,key,bounds,options)
+      return part[:points] unless key.start_with?('cut_')
+      offsets = helper.tt_v081_effective_offsets(bounds,options['cut_mm'])
+      axis = key == 'cut_front' ? :y : :x
+      coordinate = case key
+                   when 'cut_front' then bounds.min.y + offsets[:front]
+                   when 'cut_left' then bounds.min.x + offsets[:left]
+                   else bounds.max.x - offsets[:right]
+                   end
+      sign = key == 'cut_right' ? -1.0 : 1.0
+      distance = lambda { |point| (point.public_send(axis)-coordinate)*sign }
+      points = part[:points].select { |point| distance.call(point) >= -0.000001 }
+      part[:edges].each do |a,b|
+        da=distance.call(a);db=distance.call(b)
+        next unless da*db < 0.0
+        t=da/(da-db)
+        points << Geom::Point3d.new(a.x+(b.x-a.x)*t,a.y+(b.y-a.y)*t,a.z+(b.z-a.z)*t)
+      end
+      points
+    end
+    def chain_segments(values,scale)
+      tolerance=0.1/25.4*scale
+      sorted=[]
+      values.sort.each { |v| sorted<<v if sorted.empty? || v-sorted.last > tolerance }
+      sorted.each_cons(2).to_a
+    end
+    def dimension_lanes(segments,scale,font)
+      lanes=Array.new(4) { [] }
+      segments.map do |a,b|
+        mm=(b-a).abs/scale*25.4
+        # Reserve label width, not only the short measured span (e.g. board thickness).
+        width=[format('%.1f',mm).length*font*0.62/72.0+2.0/25.4,(b-a).abs].max
+        center=(a+b)/2.0;range=[center-width/2,center+width/2]
+        lane=lanes.index { |ranges| ranges.none? { |l,r| range[0]<r && range[1]>l } }
+        raise 'DIM chi tiết quá dày chữ. Chọn tỷ lệ lớn hơn (ví dụ 1:10) hoặc giảm cỡ chữ DIM.' unless lane
+        lanes[lane]<<range
+        [a,b,lane]
+      end
+    end
+    def add_chain_dimension(doc,layer,page,viewport,a,b,ea,eb,options)
+      dimension=Layout::LinearDimension.new(Geom::Point2d.new(*a),Geom::Point2d.new(*b),4.0/25.4)
+      dimension.auto_scale=false
+      dimension.scale=viewport.scale
+      dimension.custom_text=false
+      dimension.start_extent_point=Geom::Point2d.new(*ea)
+      dimension.end_extent_point=Geom::Point2d.new(*eb)
+      dimension.start_offset_length=1.0/25.4
+      dimension.end_offset_length=1.0/25.4
+      style=dimension.style
+      style.set_dimension_units(Layout::Style::DECIMAL_MILLIMETERS,0.1)
+      style.stroke_width=0.25
+      style.stroke_color=helper.dark
+      style.start_arrow_type=Layout::Style::ARROW_SLASH_RIGHT
+      style.end_arrow_type=Layout::Style::ARROW_SLASH_RIGHT
+      style.start_arrow_size=1.5;style.end_arrow_size=1.5
+      ts=style.get_sub_style(Layout::Style::DIMENSION_TEXT)
+      ts.font_family='Arial';ts.font_size=options['dim_font'];ts.text_color=helper.dark
+      style.set_sub_style(Layout::Style::DIMENSION_TEXT,ts)
+      dimension.style=style
+      doc.add_entity(dimension,layer,page)
+    end
+    def add_detail_dimensions(doc,layer,page,viewport,job,key,box,options)
+      xs=[];ys=[]
+      Array(job[:detail_parts]).each do |part|
+        points=clipped_detail_points(part,key,job[:bounds],options)
+        next if points.empty?
+        projected=points.map { |p| viewport.model_to_paper_point(p) }
+        xs.concat([projected.map(&:x).min,projected.map(&:x).max])
+        ys.concat([projected.map(&:y).min,projected.map(&:y).max])
+      end
+      count=0
+      [[:x,xs],[:y,ys]].each do |axis,values|
+        segments=chain_segments(values,viewport.scale)
+        # One segment duplicates the total, so add chains only for subdivision.
+        next if segments.length<2
+        dimension_lanes(segments,viewport.scale,options['dim_font']).each do |a,b,lane|
+          offset=(4.0+lane*(options['dim_font']*25.4/72.0+2.0))/25.4
+          if axis == :x
+            add_chain_dimension(doc,layer,page,viewport,[a,box[3]],[b,box[3]],
+              [a,box[3]+offset],[b,box[3]+offset],options)
+          else
+            add_chain_dimension(doc,layer,page,viewport,[box[0],a],[box[0],b],
+              [box[0]-offset,a],[box[0]-offset,b],options)
+          end
+          count+=1
+        end
+      end
+      count
     end
     def add_total_dimensions(doc,layer,page,viewport,box,options)
       left,top,right,bottom = box
@@ -411,7 +554,7 @@ module TranTuanNoiThat
         viewport = Layout::SketchUpModel.new(path,Geom::Bounds2d.new(15/25.4,25/25.4,390/25.4,235/25.4))
         viewport.current_scene = scenes.fetch(key)
         viewport.display_background = false
-        viewport.render_mode = key == 'overview' || o['render'] == 'Hybrid' ? Layout::SketchUpModel::HYBRID_RENDER : Layout::SketchUpModel::VECTOR_RENDER
+        viewport.render_mode = key == 'overview' || o['render'] == 'Hybrid' || o['xray_views'].include?(key) ? Layout::SketchUpModel::HYBRID_RENDER : Layout::SketchUpModel::VECTOR_RENDER
         if key != 'overview'
           raise "Scene #{VIEWS[key]} chưa phải hình chiếu song song." if viewport.perspective?
           viewport.scale = 1.0/denominator(key,o)
@@ -421,12 +564,15 @@ module TranTuanNoiThat
         doc.add_entity(viewport,models,page)
         viewport.render if viewport.render_needed?
         box = paper_bounds(viewport,job.fetch(:bounds))
-        add_total_dimensions(doc,dims,page,viewport,box,o) if o['dimensions'] && key != 'overview'
-        padding = o['dimensions'] && key != 'overview' ? o['dim_offset'] + o['dim_font']*25.4/72.0 + 6.0 : 8.0
+        measured = o['detail_dims'] && (key == 'front' || key.start_with?('cut_'))
+        detail_count = measured ? add_detail_dimensions(doc,dims,page,viewport,job,key,box,o) : 0
+        total_options = detail_count > 0 ? o.merge('dim_offset'=>detail_outer_offset(o)) : o
+        add_total_dimensions(doc,dims,page,viewport,box,total_options) if o['dimensions'] && key != 'overview'
+        padding = detail_count > 0 ? detail_outer_offset(o)+o['dim_font']*25.4/72.0+6.0 : o['dimensions'] && key != 'overview' ? o['dim_offset'] + o['dim_font']*25.4/72.0 + 6.0 : 8.0
         @last_document_focus << focus_rectangle(box,padding)
         ratio = key == 'overview' ? 'Phối cảnh — không dùng đo tỷ lệ' : "Tỷ lệ 1:#{format('%g',denominator(key,o))}"
-        text(doc,notes,page,"#{job[:name]} · #{VIEWS[key]}",15,13,275,9,13,true)
-        text(doc,notes,page,ratio,295,13,108,9,10)
+        text(doc,notes,page,"#{o['drawing']} · #{job[:name]} · #{VIEWS[key]}#{o['xray_views'].include?(key) ? ' · X-ray' : ''}",15,13,290,12,o['title_font'],true)
+        text(doc,notes,page,ratio,310,13,95,9,10)
       end
       if o['stats']
         job[:stats][:rows].each_slice(stats_rows_per_page(o)).with_index do |rows,i|
@@ -439,14 +585,19 @@ module TranTuanNoiThat
       doc.layers.active = dims
       doc
     end
+    def safe_filename(name)
+      value = name.to_s.gsub(/[<>:"\\\/|?*\x00-\x1f]/,'_').sub(/[. ]+\z/,'')
+      value.empty? ? 'TT_HO_SO_A3' : value
+    end
     def run(action,o)
       helper.ensure_layout_api! unless action == 'scenes'
+      report('Đang quét model và kiểm tra kích thước…')
       jobs = check_jobs(o)
       model = Sketchup.active_model
       path = model.path.to_s
       if action != 'preview' && action != 'scenes'
         ext = action == 'pdf' ? 'pdf' : 'layout'
-        base = action == 'template' ? 'TT_MAU_A3' : 'TT_HO_SO_A3'
+        base = action == 'template' ? 'TT_MAU_A3' : safe_filename(o['drawing'])
         target = UI.savepanel('Lưu hồ sơ A3',path.empty? ? nil : File.dirname(path),"#{base}.#{ext}")
         return report('Đã hủy xuất.') unless target
         target += ".#{ext}" unless File.extname(target).downcase == ".#{ext}"
@@ -457,10 +608,12 @@ module TranTuanNoiThat
         return report('Đã hủy lưu mô hình.') unless path
       end
       outputs = []
+      report('Đang tạo các góc nhìn và mặt cắt…')
       scene_sets = jobs.map { |job| prepare_scenes(model,job,o) }
       if temporary_source
         source_folder = Dir.mktmpdir('TT_PDF_Source_')
         path = File.join(source_folder,'model.skp')
+        report('Đang chuẩn bị mô hình tạm để xuất…')
         raise 'Không tạo được bản sao tạm để xuất PDF.' unless model.save_copy(path) && File.file?(path) && File.size(path)>0
       else
         raise 'Không lưu được các Scene vào SKP.' unless model.save
@@ -477,6 +630,7 @@ module TranTuanNoiThat
         ext = %w[pdf preview].include?(action) ? 'pdf' : 'layout'
         output = helper.tt_output_path(target,job,i,jobs.length,ext)
         if ext == 'pdf'
+          report("Đang ghi PDF #{i+1}/#{jobs.length}…")
           doc.export(output,compress_images:true,compress_quality:o['quality']/100.0)
         else
           # Save using current host format; never request a newer format than installed LayOut.
@@ -597,22 +751,22 @@ module TranTuanNoiThat
       <!doctype html><html lang="vi"><head><meta charset="utf-8"><style>
       *{box-sizing:border-box}body{font:14px Arial,sans-serif;margin:0;background:#f4f6f8;color:#253443}header{background:#173d4a;color:white;padding:20px 24px}h1{font-size:21px;margin:0 0 7px}main{padding:18px 24px}.card{background:white;border:1px solid #dce3e8;border-radius:9px;padding:16px;margin-bottom:14px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}label{display:block}input:not([type=checkbox]),select{display:block;width:100%;padding:8px;border:1px solid #bccbd4;border-radius:5px;margin-top:5px}.views{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}button{border:0;border-radius:5px;padding:10px 13px;background:#156a7a;color:white;cursor:pointer}button.secondary{background:#e3ecf1;color:#253443}button:disabled{opacity:.5;cursor:wait}.buttons{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}small,p{line-height:1.5}.muted{color:#617281}#status{white-space:pre-wrap;padding:12px;border-radius:6px;background:#e9f1f4;overflow-wrap:anywhere}.error{color:#a32929}summary{cursor:pointer;font-weight:bold}h2{font-size:16px;margin:0 0 12px}
       .workspace{display:grid;grid-template-columns:minmax(330px,420px) minmax(400px,1fr);gap:18px;align-items:start}.preview-panel{position:sticky;top:12px}.preview-screen{background:#dce3e8;overflow:auto;height:500px;padding:14px;text-align:center}.preview-screen img{max-width:100%;height:auto;box-shadow:0 2px 12px #0003;display:block;margin:auto;background:white}.preview-screen img[hidden]{display:none}.preview-screen.zoom img{max-width:none;width:1600px}.preview-screen canvas{width:100%;max-width:100%;height:auto;display:block;background:white}.preview-screen canvas[hidden]{display:none}.preview-screen.zoom canvas{max-width:none;width:1600px}.preview-controls{display:flex;gap:6px;align-items:center;margin:10px 0}.preview-controls select{min-width:0;flex:1;margin:0}.preview-controls button{padding:9px}#preview-label{font-weight:bold;margin:8px 0}#preview-note{font-size:12px;color:#617281}@media(max-width:850px){.workspace{grid-template-columns:1fr}.preview-panel{position:static}.preview-screen{height:400px}}
-      </style></head><body><header><h1>Hồ sơ LayOut A3</h1>Scene riêng · Giữ tỷ lệ · Khung tên tự động</header><main><div class="workspace"><div>
-      <form id="form"><div class="card"><h2>Công trình & tỷ lệ</h2><label>Tên công trình<input id="project" maxlength="160"></label><div class="grid" style="margin-top:12px">
+      </style></head><body><header><h1>Hồ sơ LayOut A3 · 1.9.89</h1>Scene riêng · Giữ tỷ lệ · Khung tên tự động</header><main><div id="status" role="status" style="position:sticky;top:0;z-index:5;margin-bottom:12px">Sẵn sàng.</div><div class="workspace"><div>
+      <form id="form"><div class="card"><h2>1. Phạm vi & tên bản vẽ</h2><label>Phạm vi quét<select id="scope"><option value="selected">Quét Group/Component đang chọn</option><option value="all">Quét tất cả Group/Component</option></select></label><label>Tên bản vẽ<input id="drawing" maxlength="100"></label><label>Tên công trình<input id="project" maxlength="160"></label><div class="grid" style="margin-top:12px">
       <label>Mặt bằng / mặt đứng — tỷ lệ 1:<input id="scale" type="number" min="1" max="500" step="any" list="ratios" required></label>
       <label>Mặt cắt / chi tiết — tỷ lệ 1:<input id="cut_scale" type="number" min="1" max="500" step="any" list="ratios" required></label>
       <datalist id="ratios"><option value="5"><option value="10"><option value="20"><option value="25"><option value="50"></datalist>
       <label>Vị trí cắt vào từ mép (mm)<input id="cut_mm" type="number" min="0.1" max="5000" step="any" required></label>
       <label>Nét kỹ thuật<select id="render"><option>Vector</option><option>Hybrid</option></select></label></div>
       <p class="muted">A3 ngang, 420 × 297 mm. Hình chiếu song song và Preserve Scale luôn bật. Nếu mô hình vượt khung, công cụ báo để bạn chọn lại tỷ lệ.</p></div>
-      <div class="card"><h2>Mỗi góc nhìn một trang</h2><div id="views" class="views"></div><p><label><input id="stats" type="checkbox"> Kèm bảng thống kê ván</label></p><label>Cỡ chữ bảng thống kê (pt)<input id="stats_font" type="number" min="12" max="18" step="1" required></label><p class="muted">Mặc định 14 pt. Chữ lớn hơn sẽ tự chia thêm trang.</p><small>Chọn Group/Component ngoài model trước khi xuất. Không chọn gì: lấy các cụm trong model. Hướng trước theo −Y, trên theo +Z của hệ trục model.</small></div>
-      <div class="card"><h2>Kích thước tự động</h2><label><input id="dimensions" type="checkbox"> Tạo DIM tổng ngang / dọc</label><div class="grid" style="margin-top:12px"><label>Cách biên (mm trên giấy)<input id="dim_offset" type="number" min="5" max="20" step="any" required></label><label>Cỡ chữ DIM (pt)<input id="dim_font" type="number" min="6" max="18" step="any" required></label></div><p class="muted">DIM tổng theo biên khối, đơn vị mm, nằm trên lớp Dim. Khi sửa model, dựng/xuất lại để cập nhật DIM tự tạo. Trang phối cảnh không đặt DIM đo theo hình chiếu.</p></div>
+      <div class="card"><h2>2. Góc nhìn & X-ray</h2><p>Mỗi góc nhìn một trang. Chọn X-ray bên cạnh góc nhìn cần xuyên thấu.</p><div id="views" class="views"></div><p><label><input id="stats" type="checkbox"> Kèm bảng thống kê ván</label></p><label>Cỡ chữ bảng thống kê (pt)<input id="stats_font" type="number" min="12" max="18" step="1" required></label><p class="muted">Mặc định 14 pt. Chữ lớn hơn sẽ tự chia thêm trang.</p><small>Chọn Group/Component ngoài model trước khi xuất. Quét tất cả: mỗi Group/Component cha thành một hồ sơ riêng. Hướng trước theo −Y, trên theo +Z của hệ trục model.</small></div>
+      <div class="card"><h2>3. DIM & cỡ chữ</h2><label><input id="detail_dims" type="checkbox"> DIM chia đoạn tại mặt trước và các mặt cắt</label><label><input id="dimensions" type="checkbox"> Tạo DIM tổng ngang / dọc</label><div class="grid" style="margin-top:12px"><label>Cách biên (mm trên giấy)<input id="dim_offset" type="number" min="5" max="20" step="any" required></label><label>Cỡ chữ DIM (pt)<input id="dim_font" type="number" min="6" max="18" step="any" required></label></div><label>Cỡ chữ tiêu đề (pt)<input id="title_font" type="number" min="10" max="18" step="any" required></label><p class="muted">DIM chi tiết theo biên hình học tấm trong mặt chiếu; mặt cắt chỉ lấy phần còn lại sau cắt. DIM tổng theo biên khối, đơn vị mm, nằm trên lớp Dim. Khi sửa model, dựng/xuất lại để cập nhật DIM tự tạo. Trang phối cảnh không đặt DIM đo theo hình chiếu.</p></div>
       <div class="card"><h2>In & PDF</h2><p>Xuất PDF và xem trước không yêu cầu lưu model. Chỉ chọn nơi lưu PDF.</p><div class="grid"><label>Độ phân giải<select data-fixed="true" disabled><option>High · 300 DPI</option></select></label><label>Chất lượng ảnh nén (%)<input id="quality" type="number" min="50" max="100" required></label></div>
       <p class="muted">Phối cảnh dùng Hybrid. Nét Vector giữ sắc khi phóng to. File LayOut có các lớp Đồ gỗ, Dim, Chú thích, Khung tên và Thống kê.</p>
       <small>Xuất lớp PDF và Optimize for Web: chưa có trong API LayOut; PDF ở đây nén ảnh, không cam kết giữ lớp hoặc mở tức thì.</small></div>
-      <div class="buttons"><button type="button" class="secondary" onclick="run('check')">Kiểm tra vùng chọn</button><button type="button" class="secondary" onclick="run('save')">Lưu cấu hình</button><button type="button" class="secondary" onclick="run('scenes')">Tạo / cập nhật Scene</button></div>
-      <div class="buttons"><button type="button" onclick="run('layout')">Xuất LayOut</button><button type="button" onclick="run('preview')">Xem trước hồ sơ</button><button type="button" onclick="run('pdf')">Xuất PDF</button><button type="button" onclick="run('template')">Tạo file mẫu A3</button></div></form>
-      <div id="status" role="status">Sẵn sàng.</div><details class="card" style="margin-top:14px"><summary>Dim liên kết, cập nhật công trình & dùng mẫu</summary>
+      <div class="buttons"><button type="button" class="secondary" data-action="check">Quét / kiểm tra model</button><button type="button" class="secondary" data-action="save">Lưu cấu hình</button><button type="button" class="secondary" data-action="scenes">Tạo / cập nhật Scene</button></div>
+      <div class="buttons"><button type="button" data-action="layout">Xuất LayOut</button><button type="button" data-action="preview">Xem trước hồ sơ</button><button type="button" data-action="pdf">Xuất PDF</button><button type="button" data-action="template">Tạo file mẫu A3</button></div></form>
+      <details class="card" style="margin-top:14px"><summary>Dim liên kết, cập nhật công trình & dùng mẫu</summary>
       <p>Object Snap đã bật. Trong LayOut chọn lớp Dim, dùng Dimension và bắt hai đầu trực tiếp lên cạnh/đỉnh viewport. Không gõ đè số đo. Sau khi sửa và lưu SKP, dùng Update Reference; kiểm tra liên kết nếu đã xóa/tạo lại hình học.</p>
       <p>Đổi tên công trình tại Document Setup → Auto-Text → Project Name. PageNumber tự chạy. In PDF ở Actual Size / 100% để giữ tỷ lệ.</p>
       <p>Tạo file mẫu A3 → mở trong LayOut → Save As Template. Với công trình khác, tạo Scene trước rồi Relink SKP; kiểm tra lại Scene tương ứng và Dim. Thời gian cập nhật phụ thuộc độ nặng mô hình.</p>
@@ -623,13 +777,23 @@ module TranTuanNoiThat
       <div class="buttons"><button class="preview-nav secondary" onclick="focusPreview(true)">Gần đối tượng</button><button class="preview-nav secondary" onclick="focusPreview(false)">Toàn trang</button><button class="preview-nav secondary" onclick="zoomPreview(false)">Vừa khung</button><button class="preview-nav secondary" onclick="zoomPreview(true)">Phóng to</button><button id="cancel-preview" class="preview-nav secondary" onclick="sketchup.cancel_preview()" hidden>Dừng dựng</button></div>
       <small>Ảnh xem trước 150 DPI. Thay đổi model hoặc thông số: bấm Xem trước hồ sơ để cập nhật. PDF xuất ở High.</small></section></div></main>
       <script>
+      window.addEventListener('error',function(e){var box=document.getElementById('status');if(box){box.textContent='Lỗi giao diện: '+e.message;box.className='error'}});
       const labels={top:'Mặt bằng',front:'Mặt đứng ngoài',left:'Mặt bên trái',right:'Mặt bên phải',cut_front:'Mặt cắt thùng trước',cut_left:'Mặt cắt thùng trái',cut_right:'Mặt cắt thùng phải',overview:'Phối cảnh 3D'};
-      Object.keys(labels).forEach(k=>{const l=document.createElement('label'),c=document.createElement('input');c.type='checkbox';c.dataset.view=k;l.appendChild(c);l.appendChild(document.createTextNode(' '+labels[k]));document.getElementById('views').appendChild(l)});
-      function receive(o){['project','scale','cut_scale','cut_mm','render','quality','dim_offset','dim_font','stats_font'].forEach(k=>document.getElementById(k).value=o[k]);document.getElementById('stats').checked=o.stats;document.getElementById('dimensions').checked=o.dimensions;document.querySelectorAll('[data-view]').forEach(c=>c.checked=o.views.includes(c.dataset.view))}
-      function payload(){const o={};['project','scale','cut_scale','cut_mm','render','quality','dim_offset','dim_font','stats_font'].forEach(k=>o[k]=document.getElementById(k).value);o.stats=document.getElementById('stats').checked;o.dimensions=document.getElementById('dimensions').checked;o.views=Array.from(document.querySelectorAll('[data-view]:checked')).map(c=>c.dataset.view);return o}
+      Object.keys(labels).forEach(k=>{const l=document.createElement('label'),c=document.createElement('input');c.type='checkbox';c.dataset.view=k;l.appendChild(c);l.appendChild(document.createTextNode(' '+labels[k]));document.getElementById('views').appendChild(l);const xl=document.createElement('label'),xc=document.createElement('input');xc.type='checkbox';xc.dataset.xray=k;xl.appendChild(xc);xl.appendChild(document.createTextNode(' X-ray'));document.getElementById('views').appendChild(xl)});
+      let readyReceived=false;
+      function receive(o){readyReceived=true;o=Object.assign({},initialOptions,o);['project','scale','cut_scale','cut_mm','render','quality','dim_offset','dim_font','stats_font','drawing','scope','title_font'].forEach(k=>document.getElementById(k).value=o[k]);document.getElementById('stats').checked=o.stats;document.getElementById('dimensions').checked=o.dimensions;document.getElementById('detail_dims').checked=o.detail_dims;document.querySelectorAll('[data-xray]').forEach(c=>c.checked=o.xray_views.includes(c.dataset.xray));document.querySelectorAll('[data-view]').forEach(c=>c.checked=o.views.includes(c.dataset.view))}
+      function payload(){const o={};['project','scale','cut_scale','cut_mm','render','quality','dim_offset','dim_font','stats_font','drawing','scope','title_font'].forEach(k=>o[k]=document.getElementById(k).value);o.stats=document.getElementById('stats').checked;o.dimensions=document.getElementById('dimensions').checked;o.detail_dims=document.getElementById('detail_dims').checked;o.xray_views=Array.from(document.querySelectorAll('[data-xray]:checked')).map(c=>c.dataset.xray);o.views=Array.from(document.querySelectorAll('[data-view]:checked')).map(c=>c.dataset.view);return o}
       function report(t,e){const s=document.getElementById('status');s.textContent=t;s.className=e?'error':''}
       function setBusy(b){document.querySelectorAll('#form button,#form input,#form select').forEach(e=>e.disabled=b);document.querySelectorAll('[data-fixed]').forEach(e=>e.disabled=true)}
-      function run(a){if(!document.getElementById('form').reportValidity())return;setBusy(true);report('Đang xử lý…');try{sketchup.run(a,JSON.stringify(payload()))}catch(e){setBusy(false);report(e.message,true)}}
+      function run(a){
+        try{
+          const invalid=Array.from(document.querySelectorAll('#form input,#form select')).find(e=>!e.disabled&&e.willValidate&&!e.validity.valid);
+          if(invalid){const label=invalid.closest('label');report('Kiểm tra '+(label?label.textContent.trim():invalid.id)+': '+invalid.validationMessage,true);invalid.focus();invalid.reportValidity();return}
+          if(!window.sketchup||typeof window.sketchup.run!=='function'){report('Chưa kết nối được với SketchUp. Đóng bảng và mở lại công cụ.',true);return}
+          const json=JSON.stringify(payload());
+          setBusy(true);report('Đang xử lý…');window.sketchup.run(a,json);
+        }catch(e){setBusy(false);report('Không thực hiện được: '+e.message,true)}
+      }
       let previewPages=[],currentPage=-1,focusMode=true,currentFocus=null;
       function resetPreview(){previewPages=[];currentPage=-1;document.getElementById('preview-list').textContent='';const im=document.getElementById('preview-image');im.hidden=true;im.removeAttribute('src');document.getElementById('preview-canvas').hidden=true;currentFocus=null;document.getElementById('preview-label').textContent='Đang dựng trang…';document.getElementById('preview-note').textContent='Đang dựng từ hồ sơ LayOut. Các trang xong trước có thể xem ngay.'}
       function previewRunning(b){document.getElementById('cancel-preview').hidden=!b;if(!b&&previewPages.length)document.getElementById('preview-note').textContent=previewPages.length+' trang đã dựng. Có thể chuyển trang và phóng to.'}
@@ -642,7 +806,19 @@ module TranTuanNoiThat
       function focusPreview(b){focusMode=b;zoomPreview(false);drawPreview()}
       function zoomPreview(b){document.getElementById('preview-screen').classList.toggle('zoom',b)}
       document.getElementById('form').addEventListener('change',()=>{if(previewPages.length)document.getElementById('preview-note').textContent='Thông số đã đổi — bấm Xem trước hồ sơ để cập nhật ảnh.'});
-      document.getElementById('form').addEventListener('submit' ,e=>e.preventDefault());sketchup.ready();
+      document.getElementById('form').addEventListener('submit' ,e=>e.preventDefault());
+      const initialOptions={drawing:'Hồ sơ tủ',scope:'selected',title_font:13,detail_dims:true,xray_views:Object.keys(labels),project:'Công trình mới',scale:20,cut_scale:20,cut_mm:20,render:'Vector',quality:90,dim_offset:12,dim_font:10,stats_font:14,stats:true,dimensions:true,views:Object.keys(labels)};
+      receive(initialOptions);readyReceived=false;
+      let readyAttempts=0;
+      function connectRuby(){
+        if(readyReceived)return;
+        readyAttempts++;
+        try{if(window.sketchup&&typeof window.sketchup.ready==='function')window.sketchup.ready()}catch(e){report('Chưa nhận được cấu hình: '+e.message,true)}
+        if(!readyReceived&&readyAttempts<4)setTimeout(connectRuby,500);
+        else if(!readyReceived)report('Chưa nhận được cấu hình từ SketchUp. Đang dùng thông số mặc định; nếu nút vẫn không phản hồi, đóng bảng và mở lại công cụ.',true);
+      }
+      document.querySelectorAll('[data-action]').forEach(button=>button.addEventListener('click',()=>run(button.dataset.action)));
+      connectRuby();
       </script></body></html>
       HTML
     end
