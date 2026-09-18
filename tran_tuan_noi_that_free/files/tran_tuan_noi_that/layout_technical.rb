@@ -2,9 +2,14 @@
 # Native linked LayOut documents; SketchUp/LayOut 2021+.
 require 'json'
 require 'tmpdir'
+require 'fileutils'
+require 'tempfile'
 module TranTuanNoiThat
   module LayoutTechnical
     extend self
+    @dialog.close if @dialog
+    @dialog = nil
+    @busy = false
     remove_const(:VIEWS) if const_defined?(:VIEWS, false)
     VIEWS = {'top'=>'Mặt bằng','front'=>'Mặt đứng ngoài','left'=>'Mặt bên trái',
              'right'=>'Mặt bên phải','cut_front'=>'Mặt cắt thùng trước',
@@ -33,15 +38,68 @@ module TranTuanNoiThat
       out['stats'] = out['stats'] == true
       out
     end
+    def config_path
+      base = ENV['APPDATA'].to_s.strip
+      if base.empty?
+        home = ENV['USERPROFILE'].to_s.strip
+        home = Dir.home if home.empty?
+        base = File.join(home, '.config')
+      end
+      File.join(base, 'TranTuanNoiThat', 'layout_a3_settings.json')
+    end
     def settings
-      normalize(JSON.parse(Sketchup.read_default('TranTuanNoiThat.LayoutTechnical','settings',JSON.generate(DEFAULTS))))
-    rescue StandardError
-      DEFAULTS.merge('views'=>VIEWS.keys)
+      @config_warning = nil
+      return normalize(JSON.parse(File.read(config_path, encoding: 'UTF-8'))) if File.file?(config_path)
+      legacy = Sketchup.read_default('TranTuanNoiThat.LayoutTechnical','settings','').to_s
+      return normalize(JSON.parse(legacy)) unless legacy.empty?
+      normalize({})
+    rescue StandardError => e
+      @config_warning = "Không đọc được cấu hình cũ; đang dùng mặc định. #{e.message}"
+      normalize({})
     end
     def persist(options)
-      value = JSON.generate(options)
-      Sketchup.write_default('TranTuanNoiThat.LayoutTechnical','settings',value)
-      raise 'Không lưu được cấu hình xuất.' unless Sketchup.read_default('TranTuanNoiThat.LayoutTechnical','settings','') == value
+      options = normalize(options)
+      path = config_path
+      FileUtils.mkdir_p(File.dirname(path))
+      temp = Tempfile.new(['layout_a3_', '.json'], File.dirname(path))
+      begin
+        temp.binmode
+        temp.write(JSON.pretty_generate(options).encode('UTF-8'))
+        temp.flush
+        temp.fsync
+        temp.close
+        saved = normalize(JSON.parse(File.read(temp.path, encoding: 'UTF-8')))
+        raise 'Kiểm tra dữ liệu cấu hình thất bại.' unless saved == options
+        # Same-directory rename keeps an existing valid configuration intact if writing fails.
+        File.rename(temp.path, path)
+        saved = normalize(JSON.parse(File.read(path, encoding: 'UTF-8')))
+        raise 'Không xác minh được cấu hình đã lưu.' unless saved == options
+        true
+      ensure
+        temp.close! if temp
+      end
+    rescue StandardError => e
+      raise "Không lưu được cấu hình: #{e.message}"
+    end
+    def dispatch(action, options)
+      @config_warning = nil
+      case action
+      when 'save'
+        persist(options)
+        report('Đã lưu cấu hình cho lần xuất sau.')
+      when 'check'
+        report(check_jobs(options).map { |j| "#{j[:name]}: #{j[:stats][:total_pieces]} chi tiết — vừa khung ở tỷ lệ đã chọn." }.join("\n"))
+      when 'layout','pdf','preview','template','scenes'
+        # Saving preferences is not a prerequisite for processing the current model.
+        begin
+          persist(options)
+        rescue StandardError => e
+          @config_warning = "Chưa lưu cấu hình cho lần sau; thao tác này vẫn dùng thông số đang nhập. #{e.message}"
+        end
+        run(action,options)
+      else
+        raise 'Thao tác không hợp lệ.'
+      end
     end
     def show
       if @dialog && @dialog.visible?
@@ -60,13 +118,7 @@ module TranTuanNoiThat
         begin
           raise 'Đã đổi mô hình. Đóng bảng và mở lại công cụ.' unless Sketchup.active_model == @model
           options = normalize(JSON.parse(json))
-          persist(options)
-          case action
-          when 'save' then report('Đã lưu cấu hình cho lần xuất sau.')
-          when 'check' then report(check_jobs(options).map { |j| "#{j[:name]}: #{j[:stats][:total_pieces]} chi tiết — vừa khung ở tỷ lệ đã chọn." }.join("\n"))
-          when 'layout','pdf','preview','template','scenes' then run(action,options)
-          else raise 'Thao tác không hợp lệ.'
-          end
+          dispatch(action,options)
         rescue StandardError => e
           report(e.message,true)
           puts "[TT LayOut] #{e.class}: #{e.message}\n#{Array(e.backtrace).first(8).join("\n")}"
@@ -83,8 +135,10 @@ module TranTuanNoiThat
       o['project'] = File.basename(@model.path.to_s,'.skp') if o['project'].empty?
       o['project'] = 'Công trình mới' if o['project'].empty?
       @dialog.execute_script("receive(#{JSON.generate(o)})")
+      report(@config_warning, true) if @config_warning
     end
     def report(message,error=false)
+      message = "#{message}\n#{@config_warning}" if @config_warning && message != @config_warning
       @dialog.execute_script("report(#{JSON.generate(message.to_s)},#{error ? 'true' : 'false'})") if @dialog
     end
     def denominator(key,o); key.start_with?('cut_') ? o['cut_scale'] : o['scale']; end

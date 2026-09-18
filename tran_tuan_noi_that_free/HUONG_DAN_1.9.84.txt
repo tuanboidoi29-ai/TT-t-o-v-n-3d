@@ -1,0 +1,16 @@
+TRẦN TUẤN NỘI THẤT 1.9.84 — SỬA LƯU CẤU HÌNH LAYOUT
+
+Cài RBZ bằng Extension Manager → Install Extension rồi mở lại SketchUp.
+Hoặc Kiểm Tra Cập Nhật GitHub, đóng bảng LayOut cũ và mở lại công cụ.
+
+Sửa lỗi 1.9.83: tất cả nút bị chặn khi kiểm tra đọc lại cấu hình không khớp.
+Cấu hình mới lưu JSON UTF-8 trong thư mục người dùng:
+%APPDATA%/TranTuanNoiThat/layout_a3_settings.json (Windows).
+Lưu cấu hình có xác minh dữ liệu thực đọc lại, hỗ trợ tên tiếng Việt và dấu nháy.
+Kiểm tra vùng chọn không yêu cầu lưu.
+Tạo Scene, Xuất LayOut, Xem trước PDF, Xuất PDF, Tạo mẫu vẫn chạy bằng thông số đang nhập nếu không lưu được cấu hình; bảng báo rõ cảnh báo.
+
+Chọn tủ ngoài chế độ sửa Group → Xuất Layout + Thống Kê Ván → đặt tỷ lệ → Kiểm tra vùng chọn → Xuất.
+Công cụ chưa tự tạo Dim. Đặt Dimension bắt trực tiếp lên viewport trong LayOut.
+Giữ lớp trong .layout. API không cung cấp xuất lớp PDF/Optimize for Web; PDF nén ảnh.
+Đã đạt 22 kiểm tra lưu/các nhánh lỗi và 36 kiểm tra logic hồ sơ, kiểm tra cú pháp và gói RBZ. Chưa chạy trực tiếp SketchUp/LayOut Windows.
