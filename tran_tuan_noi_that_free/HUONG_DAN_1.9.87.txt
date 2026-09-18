@@ -1,0 +1,16 @@
+TRẦN TUẤN NỘI THẤT 1.9.87 — PDF TRỰC TIẾP, CHỮ THỐNG KÊ LỚN
+
+Cài RBZ đè và khởi động lại SketchUp, hoặc dùng Kiểm Tra Cập Nhật và mở lại bảng LayOut.
+Chọn tủ → Xuất Layout + Thống Kê Ván → Xuất PDF → chọn nơi lưu PDF.
+Không cần lưu model trước. PDF và Xem trước dùng bản sao SKP tạm từ trạng thái hiện tại, không ghi đè SKP gốc, không đổi tên/path model đang mở. Bản sao tạm được dọn sau xuất, hoàn tất xem trước, hủy hoặc lỗi.
+Công cụ vẫn tạo/cập nhật các Scene kỹ thuật trong model hiện tại.
+Xuất .layout/file mẫu liên kết và nút Tạo/cập nhật Scene vẫn theo luồng lưu SKP để giữ tham chiếu lâu dài.
+
+BẢNG THỐNG KÊ
+Chữ mặc định 14 pt, cả tiêu đề cột và dữ liệu; chỉnh trong ô Cỡ chữ bảng thống kê từ 12 đến 18 pt.
+Tự chia trang theo cỡ chữ; mặc định tối đa 11 dòng dữ liệu mỗi trang. Giữ đủ danh sách, lặp tiêu đề cột mỗi trang, đơn vị kích thước mm.
+Trong xem trước, chọn trang Thống kê rồi Phóng to để đọc chi tiết.
+DIM tổng ngang/dọc và zoom gần đối tượng của 1.9.86 được giữ nguyên. DIM tự tạo cần dựng/xuất lại khi sửa model.
+
+Kiểm tra: 49 hồ sơ/DIM/bảng, 22 cấu hình, 13 xem trước, 16 xuất PDF/bản sao tạm, 15 JavaScript. Cú pháp/gói RBZ đạt. Chưa thử renderer trực tiếp SketchUp/LayOut Windows.
+API PDF chưa hỗ trợ giữ lớp PDF/Optimize for Web; các lớp được giữ trong .layout.

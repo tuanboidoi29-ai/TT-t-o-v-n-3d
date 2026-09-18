@@ -18,14 +18,14 @@ module TranTuanNoiThat
              'overview'=>'Phối cảnh 3D'}.freeze
     remove_const(:DEFAULTS) if const_defined?(:DEFAULTS, false)
     DEFAULTS = {'project'=>'','scale'=>20.0,'cut_scale'=>20.0,'render'=>'Vector',
-                'cut_mm'=>100.0,'quality'=>90.0,'stats'=>true,
+                'cut_mm'=>100.0,'quality'=>90.0,'stats'=>true,'stats_font'=>14.0,
                 'dimensions'=>true,'dim_offset'=>12.0,'dim_font'=>10.0,
                 'views'=>VIEWS.keys}.freeze
     def helper; LayoutStats; end
     def normalize(data)
       raise 'Dữ liệu cài đặt không hợp lệ.' unless data.is_a?(Hash)
       out = DEFAULTS.merge(data.select { |k,_| DEFAULTS.key?(k) })
-      %w[scale cut_scale cut_mm quality dim_offset dim_font].each do |key|
+      %w[scale cut_scale cut_mm quality dim_offset dim_font stats_font].each do |key|
         out[key] = Float(out[key])
         raise "Thông số #{key} không hợp lệ." unless out[key].finite?
       end
@@ -39,6 +39,7 @@ module TranTuanNoiThat
       out['project'] = out['project'].to_s.strip[0,160]
       raise 'Khoảng cách DIM phải từ 5 đến 20 mm trên giấy.' unless out['dim_offset'].between?(5,20)
       raise 'Cỡ chữ DIM phải từ 6 đến 18 pt.' unless out['dim_font'].between?(6,18)
+      raise 'Cỡ chữ thống kê phải từ 12 đến 18 pt.' unless out['stats_font'].between?(12,18)
       out['dimensions'] = out['dimensions'] == true
       out['stats'] = out['stats'] == true
       out
@@ -341,6 +342,39 @@ module TranTuanNoiThat
         doc.add_entity(dim,layer,page)
       end
     end
+    def stats_row_height(options)
+      # Room for three lines plus cell padding; never shrink text to fit a page.
+      options['stats_font'] * 25.4 / 72.0 * 3.3 + 2.0
+    end
+    def stats_rows_per_page(options)
+      [(220.0 / stats_row_height(options)).floor - 1, 1].max
+    end
+    def add_readable_stats(doc,layer,page,rows,options)
+      headers = ['STT','TÊN TẤM','DÀI','RỘNG','DÀY','SL','VẬT LIỆU','VÂN','m²']
+      widths = [14,100,32,32,24,18,90,50,30]
+      table = Layout::Table.new(Geom::Bounds2d.new(15/25.4,32/25.4,390/25.4,
+        stats_row_height(options)*(rows.length+1)/25.4),rows.length+1,headers.length)
+      widths.each_with_index { |width,i| table.get_column(i).width = width/25.4 }
+      values = [headers] + rows.map do |row|
+        [row[:stt].to_s,row[:name].to_s,helper.format_mm(row[:length_mm]),
+         helper.format_mm(row[:width_mm]),helper.format_mm(row[:thickness_mm]),
+         row[:qty].to_i.to_s,row[:material].to_s,row[:grain].to_s,format('%.3f',row[:area_m2].to_f)]
+      end
+      values.each_with_index do |cells,r|
+        cells.each_with_index do |value,c|
+          value = ' ' if value.empty?
+          item = Layout::FormattedText.new(value,Geom::Point2d.new(0,0),Layout::FormattedText::ANCHOR_TYPE_TOP_LEFT)
+          style = item.style(0)
+          style.font_family = 'Arial'
+          style.font_size = options['stats_font']
+          style.text_bold = r.zero?
+          style.text_color = helper.dark
+          item.apply_style(style,0,value.length)
+          table[r,c].data = item
+        end
+      end
+      doc.add_entity(table,layer,page)
+    end
     def build_document(job,path,scenes,o)
       doc = Layout::Document.new
       @last_document_focus = []
@@ -395,11 +429,10 @@ module TranTuanNoiThat
         text(doc,notes,page,ratio,295,13,108,9,10)
       end
       if o['stats']
-        # Existing table helper: use shared AutoText footer, suppress its old footer/title overlap.
-        job[:stats][:rows].each_slice(20).with_index do |rows,i|
+        job[:stats][:rows].each_slice(stats_rows_per_page(o)).with_index do |rows,i|
           page = doc.pages.add("Thống kê #{i+1}")
-          text(doc,notes,page,'THỐNG KÊ CHI TIẾT',15,13,300,9,13,true)
-          helper.add_stats_table(doc,stats_layer,page,rows)
+          text(doc,notes,page,'THỐNG KÊ CHI TIẾT · KÍCH THƯỚC mm',15,13,390,12,16,true)
+          add_readable_stats(doc,stats_layer,page,rows,o)
           @last_document_focus << nil
         end
       end
@@ -418,13 +451,26 @@ module TranTuanNoiThat
         return report('Đã hủy xuất.') unless target
         target += ".#{ext}" unless File.extname(target).downcase == ".#{ext}"
       end
-      path = helper.ensure_model_saved(model)
-      return report('Đã hủy lưu mô hình.') unless path
+      temporary_source = %w[pdf preview].include?(action)
+      unless temporary_source
+        path = helper.ensure_model_saved(model)
+        return report('Đã hủy lưu mô hình.') unless path
+      end
       outputs = []
       scene_sets = jobs.map { |job| prepare_scenes(model,job,o) }
-      raise 'Không lưu được các Scene vào SKP.' unless model.save
+      if temporary_source
+        source_folder = Dir.mktmpdir('TT_PDF_Source_')
+        path = File.join(source_folder,'model.skp')
+        raise 'Không tạo được bản sao tạm để xuất PDF.' unless model.save_copy(path) && File.file?(path) && File.size(path)>0
+      else
+        raise 'Không lưu được các Scene vào SKP.' unless model.save
+      end
       return report("Đã lưu Scene cho #{jobs.length} bộ tủ vào SKP.") if action == 'scenes'
-      return start_preview(jobs,path,scene_sets,o) if action == 'preview'
+      if action == 'preview'
+        start_preview(jobs,path,scene_sets,o,source_folder)
+        source_folder = nil # Ownership passes to the asynchronous preview until finish/cancel.
+        return
+      end
       jobs.each_with_index do |job,i|
         report("Đang dựng #{i+1}/#{jobs.length}: #{job[:name]}…")
         doc = build_document(job,path,scene_sets[i],o)
@@ -446,6 +492,14 @@ module TranTuanNoiThat
     rescue StandardError => e
       suffix = outputs && !outputs.empty? ? "\nĐã tạo trước khi lỗi:\n#{outputs.join("\n")}" : ''
       raise "#{e.message}#{suffix}"
+    ensure
+      doc = nil
+      remove_source_folder(source_folder) if source_folder
+    end
+    def remove_source_folder(folder)
+      FileUtils.remove_entry(folder) if folder && File.directory?(folder)
+    rescue StandardError => e
+      puts "[TT temporary SKP cleanup] #{e.message}"
     end
     def clear_preview_files
       if @preview_dir && File.directory?(@preview_dir)
@@ -456,13 +510,13 @@ module TranTuanNoiThat
     rescue StandardError => e
       puts "[TT LayOut preview cleanup] #{e.message}"
     end
-    def start_preview(jobs,path,scene_sets,options)
+    def start_preview(jobs,path,scene_sets,options,source_folder=nil)
       finish_preview(nil)
       clear_preview_files
       @preview_dir = Dir.mktmpdir('TT_Layout_Preview_')
       @preview_pages = []
       @preview_state = {jobs:jobs,path:path,scenes:scene_sets,options:options,
-                        job_index:0,page_index:0,doc:nil}
+                        job_index:0,page_index:0,doc:nil,source_folder:source_folder}
       @busy = true
       @dialog.execute_script('resetPreview();setBusy(true);previewRunning(true)') if @dialog
       report('Đang dựng bảng xem trước từ hồ sơ LayOut…')
@@ -474,7 +528,12 @@ module TranTuanNoiThat
     def finish_preview(message,error=false)
       UI.stop_timer(@preview_timer) if @preview_timer
       @preview_timer = nil
+      state = @preview_state
       @preview_state = nil
+      if state
+        state[:doc] = nil
+        remove_source_folder(state[:source_folder])
+      end
       @busy = false
       if @dialog
         @dialog.execute_script('setBusy(false);previewRunning(false)')
@@ -546,9 +605,9 @@ module TranTuanNoiThat
       <label>Vị trí cắt vào từ mép (mm)<input id="cut_mm" type="number" min="0.1" max="5000" step="any" required></label>
       <label>Nét kỹ thuật<select id="render"><option>Vector</option><option>Hybrid</option></select></label></div>
       <p class="muted">A3 ngang, 420 × 297 mm. Hình chiếu song song và Preserve Scale luôn bật. Nếu mô hình vượt khung, công cụ báo để bạn chọn lại tỷ lệ.</p></div>
-      <div class="card"><h2>Mỗi góc nhìn một trang</h2><div id="views" class="views"></div><p><label><input id="stats" type="checkbox"> Kèm bảng thống kê ván</label></p><small>Chọn Group/Component ngoài model trước khi xuất. Không chọn gì: lấy các cụm trong model. Hướng trước theo −Y, trên theo +Z của hệ trục model.</small></div>
+      <div class="card"><h2>Mỗi góc nhìn một trang</h2><div id="views" class="views"></div><p><label><input id="stats" type="checkbox"> Kèm bảng thống kê ván</label></p><label>Cỡ chữ bảng thống kê (pt)<input id="stats_font" type="number" min="12" max="18" step="1" required></label><p class="muted">Mặc định 14 pt. Chữ lớn hơn sẽ tự chia thêm trang.</p><small>Chọn Group/Component ngoài model trước khi xuất. Không chọn gì: lấy các cụm trong model. Hướng trước theo −Y, trên theo +Z của hệ trục model.</small></div>
       <div class="card"><h2>Kích thước tự động</h2><label><input id="dimensions" type="checkbox"> Tạo DIM tổng ngang / dọc</label><div class="grid" style="margin-top:12px"><label>Cách biên (mm trên giấy)<input id="dim_offset" type="number" min="5" max="20" step="any" required></label><label>Cỡ chữ DIM (pt)<input id="dim_font" type="number" min="6" max="18" step="any" required></label></div><p class="muted">DIM tổng theo biên khối, đơn vị mm, nằm trên lớp Dim. Khi sửa model, dựng/xuất lại để cập nhật DIM tự tạo. Trang phối cảnh không đặt DIM đo theo hình chiếu.</p></div>
-      <div class="card"><h2>In & PDF</h2><div class="grid"><label>Độ phân giải<select data-fixed="true" disabled><option>High · 300 DPI</option></select></label><label>Chất lượng ảnh nén (%)<input id="quality" type="number" min="50" max="100" required></label></div>
+      <div class="card"><h2>In & PDF</h2><p>Xuất PDF và xem trước không yêu cầu lưu model. Chỉ chọn nơi lưu PDF.</p><div class="grid"><label>Độ phân giải<select data-fixed="true" disabled><option>High · 300 DPI</option></select></label><label>Chất lượng ảnh nén (%)<input id="quality" type="number" min="50" max="100" required></label></div>
       <p class="muted">Phối cảnh dùng Hybrid. Nét Vector giữ sắc khi phóng to. File LayOut có các lớp Đồ gỗ, Dim, Chú thích, Khung tên và Thống kê.</p>
       <small>Xuất lớp PDF và Optimize for Web: chưa có trong API LayOut; PDF ở đây nén ảnh, không cam kết giữ lớp hoặc mở tức thì.</small></div>
       <div class="buttons"><button type="button" class="secondary" onclick="run('check')">Kiểm tra vùng chọn</button><button type="button" class="secondary" onclick="run('save')">Lưu cấu hình</button><button type="button" class="secondary" onclick="run('scenes')">Tạo / cập nhật Scene</button></div>
@@ -566,8 +625,8 @@ module TranTuanNoiThat
       <script>
       const labels={top:'Mặt bằng',front:'Mặt đứng ngoài',left:'Mặt bên trái',right:'Mặt bên phải',cut_front:'Mặt cắt thùng trước',cut_left:'Mặt cắt thùng trái',cut_right:'Mặt cắt thùng phải',overview:'Phối cảnh 3D'};
       Object.keys(labels).forEach(k=>{const l=document.createElement('label'),c=document.createElement('input');c.type='checkbox';c.dataset.view=k;l.appendChild(c);l.appendChild(document.createTextNode(' '+labels[k]));document.getElementById('views').appendChild(l)});
-      function receive(o){['project','scale','cut_scale','cut_mm','render','quality','dim_offset','dim_font'].forEach(k=>document.getElementById(k).value=o[k]);document.getElementById('stats').checked=o.stats;document.getElementById('dimensions').checked=o.dimensions;document.querySelectorAll('[data-view]').forEach(c=>c.checked=o.views.includes(c.dataset.view))}
-      function payload(){const o={};['project','scale','cut_scale','cut_mm','render','quality','dim_offset','dim_font'].forEach(k=>o[k]=document.getElementById(k).value);o.stats=document.getElementById('stats').checked;o.dimensions=document.getElementById('dimensions').checked;o.views=Array.from(document.querySelectorAll('[data-view]:checked')).map(c=>c.dataset.view);return o}
+      function receive(o){['project','scale','cut_scale','cut_mm','render','quality','dim_offset','dim_font','stats_font'].forEach(k=>document.getElementById(k).value=o[k]);document.getElementById('stats').checked=o.stats;document.getElementById('dimensions').checked=o.dimensions;document.querySelectorAll('[data-view]').forEach(c=>c.checked=o.views.includes(c.dataset.view))}
+      function payload(){const o={};['project','scale','cut_scale','cut_mm','render','quality','dim_offset','dim_font','stats_font'].forEach(k=>o[k]=document.getElementById(k).value);o.stats=document.getElementById('stats').checked;o.dimensions=document.getElementById('dimensions').checked;o.views=Array.from(document.querySelectorAll('[data-view]:checked')).map(c=>c.dataset.view);return o}
       function report(t,e){const s=document.getElementById('status');s.textContent=t;s.className=e?'error':''}
       function setBusy(b){document.querySelectorAll('#form button,#form input,#form select').forEach(e=>e.disabled=b);document.querySelectorAll('[data-fixed]').forEach(e=>e.disabled=true)}
       function run(a){if(!document.getElementById('form').reportValidity())return;setBusy(true);report('Đang xử lý…');try{sketchup.run(a,JSON.stringify(payload()))}catch(e){setBusy(false);report(e.message,true)}}

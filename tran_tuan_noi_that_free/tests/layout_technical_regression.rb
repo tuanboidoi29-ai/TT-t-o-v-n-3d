@@ -27,9 +27,20 @@ module Layout
     attr_accessor :solid_filled,:pattern_filled,:stroked,:stroke_width,:font_family,:font_size,:text_bold,:text_color
   end
   class FormattedText
-    def initialize(*a);end
+    ANCHOR_TYPE_TOP_LEFT=0
+    attr_reader :value,:applied_style
+    def initialize(value,*a);@value=value;end
     def style(i);Style.new;end
-    def apply_style(*a);end
+    def apply_style(style,*a);@applied_style=style;end
+  end
+  class Table
+    Cell=Struct.new(:data);Column=Struct.new(:width)
+    attr_reader :bounds,:cells,:columns,:dimensions
+    def initialize(bounds,rows,cols)
+      @bounds=bounds;@dimensions=[rows,cols];@cells=Array.new(rows){Array.new(cols){Cell.new}};@columns=Array.new(cols){Column.new}
+    end
+    def [](r,c);@cells.fetch(r).fetch(c);end
+    def get_column(i);@columns.fetch(i);end
   end
   class Rectangle
     attr_accessor :style
@@ -100,6 +111,7 @@ module TranTuanNoiThat
   module LayoutStats
     extend self
     def setup_a3(doc);end
+    def format_mm(v);format("%g",v.to_f);end
     def dark;Sketchup::Color.new(0,0,0);end
     def add_text(doc,layer,page,*args);doc.add_entity(args,layer,page);args;end
     def add_stats_table(doc,layer,page,rows);doc.add_entity(rows,layer,page);end
@@ -155,7 +167,15 @@ assert(vp.all?{|v|v.events.last==:render},'native render requested')
 assert(doc.object_snap_enabled==true,'object snap')
 assert(doc.layers.map(&:name)==['Đồ gỗ','Chú thích','Dim','Khung tên','Thống kê'],'layer separation')
 assert(doc.layers.active.name=='Dim','ready for linked manual dimensions')
-assert(doc.pages.size==11,'8 drawing + 3 statistics pages (20 rows max)')
+assert(doc.pages.size==12,'8 drawing + 4 legible statistics pages')
+tables=doc.entities.map(&:first).grep(Layout::Table)
+assert(tables.flat_map{|t|t.cells.drop(1)}.size==41,'all statistics rows retained across page breaks')
+assert(tables.all?{|t|t.dimensions[0]<=12},'at most 11 body rows at 14pt')
+assert(tables.all?{|t|t.cells.flatten.all?{|c|c.data.applied_style.font_size==14}},'14pt applies to every header and body cell')
+assert(tables.all?{|t|(t.columns.sum(&:width)*25.4-390).abs<0.01},'table columns fit 390mm print width')
+assert(tables.all?{|t|(t.bounds.values[1]+t.bounds.values[3])*25.4<260},'statistics stay above title block')
+assert(T.stats_rows_per_page(options.merge('stats_font'=>18))<T.stats_rows_per_page(options),'larger text gets fewer rows')
+rejects('too small statistics font accepted'){T.normalize('stats_font'=>8)}
 assert(doc.auto_text_definitions.map(&:tag)==['<Project Name>','<PageNumber>'],'real autotext tokens')
 assert(doc.entities.any?{|e,l,p| l.shared && p.nil?},'shared title block')
 keys=%w[DisplaySectionCuts DisplaySectionPlanes SectionCutFilled SectionCutDrawEdges SectionDefaultFillColor SectionDefaultCutColor Texture RenderMode]
