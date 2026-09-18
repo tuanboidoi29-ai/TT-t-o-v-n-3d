@@ -9,6 +9,8 @@ module Sketchup
   def self.write_default(a,b,v); (@defaults||={})[[a,b]]=v; end
 end
 module Geom
+  Point2d=Struct.new(:x,:y)
+  Point3d=Struct.new(:x,:y,:z)
   class Bounds2d
     attr_reader :values
     def initialize(*a);@values=a;end
@@ -16,6 +18,12 @@ module Geom
 end
 module Layout
   class Style
+    DECIMAL_MILLIMETERS=1;ARROW_SLASH_RIGHT=2;DIMENSION_TEXT=3
+    attr_accessor :stroke_color,:start_arrow_type,:end_arrow_type,:start_arrow_size,:end_arrow_size
+    attr_reader :units
+    def set_dimension_units(*args);@units=args;end
+    def get_sub_style(type);Style.new;end
+    def set_sub_style(*args);end
     attr_accessor :solid_filled,:pattern_filled,:stroked,:stroke_width,:font_family,:font_size,:text_bold,:text_color
   end
   class FormattedText
@@ -63,12 +71,25 @@ module Layout
       @entities<<[e,l,p]
     end
   end
+  class LinearDimension
+    attr_accessor :auto_scale,:scale,:custom_text,:start_extent_point,:end_extent_point,:start_offset_length,:end_offset_length,:style
+    attr_reader :a,:b
+    def initialize(a,b,height);@a=a;@b=b;@style=Style.new;end
+  end
   class SketchUpModel
     NO_OVERRIDE=0;VECTOR_RENDER=1;HYBRID_RENDER=2
     attr_accessor :display_background,:render_mode,:preserve_scale_on_resize,:line_weight
     attr_reader :scale,:events,:current_scene
     def initialize(path,bounds);@events=[];end
     def current_scene=(n);@current_scene=n;@events<<:scene;end
+    def model_to_paper_point(p)
+      s=scale||0.05
+      case current_scene
+      when 1 then Geom::Point2d.new(2+p.x*s,7-p.y*s)
+      when 3,4,6,7 then Geom::Point2d.new(2+p.y*s,7-p.z*s)
+      else Geom::Point2d.new(2+p.x*s,7-p.z*s)
+      end
+    end
     def perspective?;false;end
     def scale=(s);raise 'scale before scene' unless current_scene;@scale=s;@events<<:scale;end
     def render_needed?;true;end
@@ -102,18 +123,30 @@ rejects('invalid compression accepted'){T.normalize('quality'=>49)}
 rejects('invalid cut accepted'){T.normalize('cut_mm'=>-1)}
 T.persist(options)
 assert(T.settings==options,'preferences roundtrip')
-Box=Struct.new(:width,:height,:depth)
+Box=Struct.new(:width,:height,:depth) do
+  def corner(i);Geom::Point3d.new((i&1)==0 ? 0 : width,(i&2)==0 ? 0 : height,(i&4)==0 ? 0 : depth);end
+end
 bb=Box.new(6000.0/25.4,600.0/25.4,2400.0/25.4)
 assert(T.fit_error('front',bb,options).nil?,'6m cabinet fits at 1:20')
 assert(T.fit_error('front',bb,options.merge('scale'=>10)).include?('không vừa'),'oversized rejected')
 assert(T.projected_size('top',bb).map(&:round)==[6000,600],'plan projected axes')
 assert(T.projected_size('left',bb).map(&:round)==[600,2400],'side projected axes')
 assert(T.denominator('cut_front',options.merge('cut_scale'=>5))==5,'independent cut scale')
-job={name:'Bếp mẫu',stats:{rows:Array.new(41){|i|{stt:i+1}}}}
+job={bounds:bb,name:'Bếp mẫu',stats:{rows:Array.new(41){|i|{stt:i+1}}}}
 scenes=options['views'].each_with_index.to_h.transform_values{|i|i+1}
 doc=T.build_document(job,'test.skp',scenes,options)
 vp=doc.entities.map(&:first).grep(Layout::SketchUpModel)
 assert(vp.size==8,'8 views')
+if options['dimensions']
+  dimensions=doc.entities.map(&:first).grep(Layout::LinearDimension)
+  assert(dimensions.size==14,'two dimensions for each orthographic page')
+  assert(dimensions.all?{|d|d.scale==0.05 && d.custom_text==false && d.auto_scale==false},'native dimensions use true viewport scale')
+  measures=dimensions.first(4).map{|d|(Math.hypot(d.a.x-d.b.x,d.a.y-d.b.y)/d.scale*25.4).round(1)}
+  assert(measures==[6000.0,600.0,6000.0,2400.0],'top and front dimension values in mm')
+  assert(dimensions[0].start_extent_point.y>dimensions[0].a.y,'horizontal dimension outside below')
+  assert(dimensions[1].start_extent_point.x<dimensions[1].a.x,'vertical dimension outside left')
+  assert(dimensions.all?{|d|d.style.units==[1,0.1]},'mm precision')
+end
 assert(vp.all?(&:preserve_scale_on_resize),'all preserve scale')
 assert(vp.first(7).all?{|v|v.scale==0.05},'technical exact 1:20')
 assert(vp.last.scale.nil?,'perspective not labelled scaled')

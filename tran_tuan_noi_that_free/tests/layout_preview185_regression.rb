@@ -17,7 +17,7 @@ module UI
   end
 end
 module TranTuanNoiThat;module LayoutStats;end;end
-load File.expand_path('../release185/tran_tuan_noi_that/layout_technical.rb',__dir__)
+load (ENV['TT_LAYOUT_SOURCE'] || File.expand_path('../release185/tran_tuan_noi_that/layout_technical.rb',__dir__))
 class FakeDialog
   attr_reader :scripts
   def initialize;@scripts=[];end

@@ -1,0 +1,23 @@
+TRẦN TUẤN NỘI THẤT 1.9.86 — DIM TỔNG + ZOOM GẦN ĐỐI TƯỢNG
+
+Cài RBZ đè rồi mở lại SketchUp hoặc cập nhật GitHub và mở lại bảng LayOut.
+Chọn tủ → Xuất Layout + Thống Kê Ván → Xem trước hồ sơ.
+
+DIM TỰ ĐỘNG (mặc định bật)
+Mặt đứng/mặt cắt trước: rộng × cao.
+Mặt bên/mặt cắt bên: sâu × cao.
+Mặt bằng: rộng × sâu.
+Đặt DIM tổng ngang bên dưới, DIM dọc bên trái trên lớp Dim; khoảng cách mặc định 12 mm trên giấy, chữ 10 pt; cho phép chỉnh.
+Dùng đối tượng LinearDimension của LayOut, đơn vị mm, tỷ lệ khớp viewport. Không gõ đè số đo bằng chữ.
+Đây là DIM tổng từ biên khối ở thời điểm xuất, chưa nối tự động với từng đỉnh mô hình. Khi sửa model phải dựng/xuất lại để cập nhật DIM tự tạo; không chỉ Update Reference. Có thể đặt thêm DIM chi tiết liên kết trực tiếp trong LayOut bằng Object Snap.
+Trang phối cảnh không có DIM đo theo hình chiếu. Hướng đo theo các mặt chiếu và hệ trục model.
+Công cụ dành thêm khoảng trống cho DIM; nếu vượt khổ A3 sẽ báo chọn lại tỷ lệ hoặc phạm vi xuất.
+
+PREVIEW
+Mặc định Gần đối tượng: phóng vùng chứa tủ và DIM, bỏ khoảng trắng quanh trang.
+Toàn trang: xem đủ A3 và khung tên. Vừa khung/Phóng to điều chỉnh mức xem.
+Zoom chỉ thay đổi hiển thị trong bảng, không thay tỷ lệ viewport/PDF.
+Ảnh preview 150 DPI; PDF High. Trang thống kê luôn hiển thị toàn trang.
+
+Kiểm tra: 42 logic hồ sơ/DIM, 22 lưu cấu hình, 13 luồng preview, 14 JavaScript giao diện. Cú pháp/gói RBZ đạt. Chưa chạy trực tiếp SketchUp/LayOut Windows.
+API PDF chưa hỗ trợ giữ lớp PDF/Optimize for Web; các lớp được giữ trong .layout.
