@@ -1,0 +1,28 @@
+TRẦN TUẤN NỘI THẤT 1.9.83 — HỒ SƠ LAYOUT A3
+
+Cài RBZ bằng Extension Manager → Install Extension; mở lại SketchUp.
+Chọn Group/Component ở ngoài chế độ sửa → Xuất Layout + Thống Kê Ván.
+Đặt tên công trình, tỷ lệ mặt đứng và mặt cắt (mẫu số: 20 nghĩa là 1:20).
+Chọn trang muốn xuất; kiểm tra vùng chọn; Xuất LayOut hoặc Xem trước PDF thật.
+Mỗi góc nhìn một trang A3 ngang. Mô hình vượt khung sẽ báo, không tự đổi tỷ lệ.
+Hướng trước theo -Y, mặt bằng theo +Z của hệ trục model. Tủ xoay khác hướng cần căn lại hoặc tự chọn Scene trong LayOut.
+Các Scene tự lưu camera song song, trạng thái ẩn và Section Fills đen. Mặt cắt cần đường bao hình học kín; không tự sửa hình học hở.
+Vị trí cắt tính từ biên vào, giới hạn trong khối khi giá trị vượt chiều sâu.
+Object Snap bật. Trong LayOut dùng Dimension bắt trực tiếp lên đỉnh/cạnh viewport; không gõ đè số đo. Plugin chưa tự tạo Dim.
+Lưu SKP → Update Reference. Khi xóa/tạo lại chi tiết hoặc Relink model khác phải kiểm tra lại liên kết Dim.
+Project Name và PageNumber là Auto-Text thật trong khung tên chung. Đổi Project Name tại Document Setup → Auto-Text.
+File mẫu A3: nút Tạo file mẫu A3 → mở .layout → File → Save As Template. Công trình khác tạo Scene trước, Relink SKP rồi kiểm tra Scene, tỷ lệ, Dim.
+Tỷ lệ được giữ khi đổi khung viewport. Vector cho kỹ thuật, Hybrid cho phối cảnh hoặc vật liệu. Output resolution High, PDF nén ảnh theo % chọn.
+In Actual Size / 100%, không Fit to page.
+
+GIỚI HẠN CÒN LẠI
+API LayOut Document.export không cung cấp Export layers to PDF layers hoặc Optimize for Web/linearization. Bản này giữ lớp trong .layout; không cam kết lớp PDF. Nén ảnh không đồng nghĩa linearization.
+Không cam kết cập nhật trong 5 giây. Tốc độ tùy mô hình và máy.
+Đã kiểm tra cú pháp, 36 kiểm tra logic/API giả lập và gói RBZ. Chưa chạy SketchUp/LayOut Windows, chưa kiểm chứng render, in và Dim cập nhật trong phần mềm thật.
+Giữ nguyên công cụ cánh tủ và co kéo. Kèm sửa Đổi tên: chọn Group cha quét các Group/Component con lồng nhau.
+
+Tài liệu tham chiếu:
+https://ruby.sketchup.com/Layout/Document.html
+https://ruby.sketchup.com/Layout/SketchUpModel.html
+https://ruby.sketchup.com/Sketchup/Page.html
+https://ruby.sketchup.com/Sketchup/RenderingOptions.html

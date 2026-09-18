@@ -64,6 +64,12 @@ module TranTuanNoiThat
     rescue StandardError
       @observer=nil; @busy=false
     end
+    def child_scope(paths)
+      paths.flat_map do |path|
+        children=entities(path.last).select { |e| container?(e) && e.valid? }
+        children.empty? ? [path] : children.map { |e| path+[e] }
+      end
+    end
     def scan(all=false,paths=nil)
       ensure_model
       @generation+=1; generation=@generation; @busy=true
@@ -75,8 +81,10 @@ module TranTuanNoiThat
         selected=all ? [] : @model.selection.to_a.select { |e| container?(e) }
         roots=selected.empty? ? (all ? @model.entities : @model.active_entities).select { |e| container?(e) } : selected
         queue=roots.map { |e| prefix+[e] }
+        queue=child_scope(queue) unless selected.empty?
         @roots=queue.map(&:dup)
       end
+      send_js('resetScope',nil)
       @paths={};@rows=[];visited={}
       send_js('scanState',{busy:true,message:'Đang quét…'})
       tick=nil
@@ -169,7 +177,7 @@ module TranTuanNoiThat
     end
 
     def selection_changed
-      return if @syncing || @busy || !@dialog || !@dialog.visible?
+      return if @syncing || !@dialog || !@dialog.visible?
       UI.stop_timer(@selection_timer) if @selection_timer
       @selection_timer=UI.start_timer(0.1,false) do
         @selection_timer=nil
@@ -177,11 +185,11 @@ module TranTuanNoiThat
           ensure_model
           prefix=@model.active_path || []
           paths=@model.selection.to_a.select { |e| container?(e) }.map { |e| prefix+[e] }
-          ids=paths.map { |p| key(p) }
-          paths.each { |p| @paths[key(p)]=p }
-          publish unless paths.empty?
-          send_js('selectRows',ids)
-          choose(ids.first,false) if ids.first
+          if paths.empty?
+            send_js('selectRows',[])
+          else
+            scan(false,child_scope(paths))
+          end
         rescue StandardError=>e;error(e.message);end
       end
     end
