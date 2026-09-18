@@ -21,7 +21,7 @@ module TranTuanNoiThat
   tt_runtime_load.call('layout_technical')
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.90'.freeze
+  VERSION = '1.9.91'.freeze
 
   module Settings
     extend self

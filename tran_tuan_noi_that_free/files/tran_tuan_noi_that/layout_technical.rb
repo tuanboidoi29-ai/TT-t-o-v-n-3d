@@ -395,7 +395,10 @@ module TranTuanNoiThat
         width=[format('%.1f',mm).length*font*0.62/72.0+2.0/25.4,(b-a).abs].max
         center=(a+b)/2.0;range=[center-width/2,center+width/2]
         lane=lanes.index { |ranges| ranges.none? { |l,r| range[0]<r && range[1]>l } }
-        raise 'DIM chi tiết quá dày chữ. Chọn tỷ lệ lớn hơn (ví dụ 1:10) hoặc giảm cỡ chữ DIM.' unless lane
+        unless lane
+          lane=lanes.length
+          lanes<<[]
+        end
         lanes[lane]<<range
         [a,b,lane]
       end
@@ -431,24 +434,50 @@ module TranTuanNoiThat
         xs.concat([projected.map(&:x).min,projected.map(&:x).max])
         ys.concat([projected.map(&:y).min,projected.map(&:y).max])
       end
+      @detail_batches={}
       count=0
       [[:x,xs],[:y,ys]].each do |axis,values|
         segments=chain_segments(values,viewport.scale)
         # One segment duplicates the total, so add chains only for subdivision.
         next if segments.length<2
         dimension_lanes(segments,viewport.scale,options['dim_font']).each do |a,b,lane|
-          offset=(4.0+lane*(options['dim_font']*25.4/72.0+2.0))/25.4
-          if axis == :x
-            add_chain_dimension(doc,layer,page,viewport,[a,box[3]],[b,box[3]],
-              [a,box[3]+offset],[b,box[3]+offset],options)
+          batch=lane/4
+          spec=[axis,a,b,lane%4]
+          if batch.zero?
+            draw_detail_spec(doc,layer,page,viewport,box,options,spec)
           else
-            add_chain_dimension(doc,layer,page,viewport,[box[0],a],[box[0],b],
-              [box[0]-offset,a],[box[0]-offset,b],options)
+            (@detail_batches[batch] ||= []) << spec
           end
           count+=1
         end
       end
       count
+    end
+    def draw_detail_spec(doc,layer,page,viewport,box,options,spec)
+      axis,a,b,lane=spec
+      offset=(4.0+lane*(options['dim_font']*25.4/72.0+2.0))/25.4
+      if axis == :x
+        add_chain_dimension(doc,layer,page,viewport,[a,box[3]],[b,box[3]],
+          [a,box[3]+offset],[b,box[3]+offset],options)
+      else
+        add_chain_dimension(doc,layer,page,viewport,[box[0],a],[box[0],b],
+          [box[0]-offset,a],[box[0]-offset,b],options)
+      end
+    end
+    def drawing_viewport(doc,layer,page,path,scene,key,options)
+      viewport = Layout::SketchUpModel.new(path,Geom::Bounds2d.new(15/25.4,25/25.4,390/25.4,235/25.4))
+      viewport.current_scene = scene
+      viewport.display_background = false
+      viewport.render_mode = key == 'overview' || options['render'] == 'Hybrid' || options['xray_views'].include?(key) ? Layout::SketchUpModel::HYBRID_RENDER : Layout::SketchUpModel::VECTOR_RENDER
+      if key != 'overview'
+        raise "Scene #{VIEWS[key]} chưa phải hình chiếu song song." if viewport.perspective?
+        viewport.scale = 1.0/denominator(key,options)
+      end
+      viewport.preserve_scale_on_resize = true
+      viewport.line_weight = 0.35
+      doc.add_entity(viewport,layer,page)
+      viewport.render if viewport.render_needed?
+      viewport
     end
     def add_total_dimensions(doc,layer,page,viewport,box,options)
       left,top,right,bottom = box
@@ -552,18 +581,8 @@ module TranTuanNoiThat
       o['views'].each_with_index do |key,i|
         page = i.zero? ? doc.pages.first : doc.pages.add(VIEWS[key])
         page.name = format('%02d · %s',i+1,VIEWS[key])
-        viewport = Layout::SketchUpModel.new(path,Geom::Bounds2d.new(15/25.4,25/25.4,390/25.4,235/25.4))
-        viewport.current_scene = scenes.fetch(key)
-        viewport.display_background = false
-        viewport.render_mode = key == 'overview' || o['render'] == 'Hybrid' || o['xray_views'].include?(key) ? Layout::SketchUpModel::HYBRID_RENDER : Layout::SketchUpModel::VECTOR_RENDER
-        if key != 'overview'
-          raise "Scene #{VIEWS[key]} chưa phải hình chiếu song song." if viewport.perspective?
-          viewport.scale = 1.0/denominator(key,o)
-        end
-        viewport.preserve_scale_on_resize = true
-        viewport.line_weight = 0.35
-        doc.add_entity(viewport,models,page)
-        viewport.render if viewport.render_needed?
+        @detail_batches={}
+        viewport = drawing_viewport(doc,models,page,path,scenes.fetch(key),key,o)
         box = paper_bounds(viewport,job.fetch(:bounds))
         measured = o['detail_dims'] && (key == 'front' || key.start_with?('cut_'))
         detail_count = measured ? add_detail_dimensions(doc,dims,page,viewport,job,key,box,o) : 0
@@ -574,6 +593,19 @@ module TranTuanNoiThat
         ratio = key == 'overview' ? 'Phối cảnh — không dùng đo tỷ lệ' : "Tỷ lệ 1:#{format('%g',denominator(key,o))}"
         text(doc,notes,page,"#{o['drawing']} · #{job[:name]} · #{VIEWS[key]}#{o['xray_views'].include?(key) ? ' · X-ray' : ''}",15,13,290,12,o['title_font'],true)
         text(doc,notes,page,ratio,310,13,95,9,10)
+        unless @detail_batches.empty?
+          text(doc,notes,page,"DIM còn lại: xem #{@detail_batches.length} trang chi tiết tiếp theo.",15,26,390,7,9)
+          @detail_batches.sort.each do |batch,specs|
+            extra_page=doc.pages.add("#{VIEWS[key]} · DIM chi tiết #{batch+1}")
+            extra_view=drawing_viewport(doc,models,extra_page,path,scenes.fetch(key),key,o)
+            extra_box=paper_bounds(extra_view,job.fetch(:bounds))
+            specs.each { |spec| draw_detail_spec(doc,dims,extra_page,extra_view,extra_box,o,spec) }
+            add_total_dimensions(doc,dims,extra_page,extra_view,extra_box,total_options) if o['dimensions']
+            text(doc,notes,extra_page,"#{o['drawing']} · #{VIEWS[key]} · DIM chi tiết #{batch+1}",15,13,290,12,o['title_font'],true)
+            text(doc,notes,extra_page,ratio,310,13,95,9,10)
+            @last_document_focus << focus_rectangle(extra_box,padding)
+          end
+        end
       end
       if o['stats']
         job[:stats][:rows].each_slice(stats_rows_per_page(o)).with_index do |rows,i|
@@ -770,7 +802,7 @@ module TranTuanNoiThat
       <!doctype html><html lang="vi"><head><meta charset="utf-8"><style>
       *{box-sizing:border-box}body{font:14px Arial,sans-serif;margin:0;background:#f4f6f8;color:#253443}header{background:#173d4a;color:white;padding:20px 24px}h1{font-size:21px;margin:0 0 7px}main{padding:18px 24px}.card{background:white;border:1px solid #dce3e8;border-radius:9px;padding:16px;margin-bottom:14px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}label{display:block}input:not([type=checkbox]),select{display:block;width:100%;padding:8px;border:1px solid #bccbd4;border-radius:5px;margin-top:5px}.views{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}button{border:0;border-radius:5px;padding:10px 13px;background:#156a7a;color:white;cursor:pointer}button.secondary{background:#e3ecf1;color:#253443}button:disabled{opacity:.5;cursor:wait}.buttons{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}small,p{line-height:1.5}.muted{color:#617281}#status{white-space:pre-wrap;padding:12px;border-radius:6px;background:#e9f1f4;overflow-wrap:anywhere}.error{color:#a32929}summary{cursor:pointer;font-weight:bold}h2{font-size:16px;margin:0 0 12px}
       .workspace{display:grid;grid-template-columns:minmax(330px,420px) minmax(400px,1fr);gap:18px;align-items:start}.preview-panel{position:sticky;top:12px}.preview-screen{background:#dce3e8;overflow:auto;height:500px;padding:14px;text-align:center}.preview-screen img{max-width:100%;height:auto;box-shadow:0 2px 12px #0003;display:block;margin:auto;background:white}.preview-screen img[hidden]{display:none}.preview-screen.zoom img{max-width:none;width:1600px}.preview-screen canvas{width:100%;max-width:100%;height:auto;display:block;background:white}.preview-screen canvas[hidden]{display:none}.preview-screen.zoom canvas{max-width:none;width:1600px}.preview-controls{display:flex;gap:6px;align-items:center;margin:10px 0}.preview-controls select{min-width:0;flex:1;margin:0}.preview-controls button{padding:9px}#preview-label{font-weight:bold;margin:8px 0}#preview-note{font-size:12px;color:#617281}@media(max-width:850px){.workspace{grid-template-columns:1fr}.preview-panel{position:static}.preview-screen{height:400px}}
-      </style></head><body><header><h1>Hồ sơ LayOut A3 · 1.9.90</h1>Scene riêng · Giữ tỷ lệ · Khung tên tự động</header><main><div id="status" role="status" style="position:sticky;top:0;z-index:5;margin-bottom:12px">Sẵn sàng.</div><div class="workspace"><div>
+      </style></head><body><header><h1>Hồ sơ LayOut A3 · 1.9.91</h1>Scene riêng · Giữ tỷ lệ · Khung tên tự động</header><main><div id="status" role="status" style="position:sticky;top:0;z-index:5;margin-bottom:12px">Sẵn sàng.</div><div class="workspace"><div>
       <form id="form"><div class="card"><h2>1. Phạm vi & tên bản vẽ</h2><label>Phạm vi quét<select id="scope"><option value="selected">Quét Group/Component đang chọn</option><option value="all">Quét tất cả Group/Component</option></select></label><label>Tên bản vẽ<input id="drawing" maxlength="100"></label><label>Tên công trình<input id="project" maxlength="160"></label><div class="grid" style="margin-top:12px">
       <label>Mặt bằng / mặt đứng — tỷ lệ 1:<input id="scale" type="number" min="1" max="500" step="any" list="ratios" required></label>
       <label>Mặt cắt / chi tiết — tỷ lệ 1:<input id="cut_scale" type="number" min="1" max="500" step="any" list="ratios" required></label>
@@ -779,7 +811,7 @@ module TranTuanNoiThat
       <label>Nét kỹ thuật<select id="render"><option>Vector</option><option>Hybrid</option></select></label></div>
       <p class="muted">A3 ngang, 420 × 297 mm. Hình chiếu song song và Preserve Scale luôn bật. Nếu mô hình vượt khung, công cụ báo để bạn chọn lại tỷ lệ.</p></div>
       <div class="card"><h2>2. Góc nhìn & X-ray</h2><p>Mỗi góc nhìn một trang. Chọn X-ray bên cạnh góc nhìn cần xuyên thấu.</p><div id="views" class="views"></div><p><label><input id="stats" type="checkbox"> Kèm bảng thống kê ván</label></p><label>Cỡ chữ bảng thống kê (pt)<input id="stats_font" type="number" min="12" max="18" step="1" required></label><p class="muted">Mặc định 14 pt. Chữ lớn hơn sẽ tự chia thêm trang.</p><small>Chọn Group/Component ngoài model trước khi xuất. Quét tất cả: mỗi Group/Component cha thành một hồ sơ riêng. Hướng trước theo −Y, trên theo +Z của hệ trục model.</small></div>
-      <div class="card"><h2>3. DIM & cỡ chữ</h2><label><input id="detail_dims" type="checkbox"> DIM chia đoạn tại mặt trước và các mặt cắt</label><label><input id="dimensions" type="checkbox"> Tạo DIM tổng ngang / dọc</label><div class="grid" style="margin-top:12px"><label>Cách biên (mm trên giấy)<input id="dim_offset" type="number" min="5" max="20" step="any" required></label><label>Cỡ chữ DIM (pt)<input id="dim_font" type="number" min="6" max="18" step="any" required></label></div><label>Cỡ chữ tiêu đề (pt)<input id="title_font" type="number" min="10" max="18" step="any" required></label><p class="muted">DIM chi tiết theo biên hình học tấm trong mặt chiếu; mặt cắt chỉ lấy phần còn lại sau cắt. DIM tổng theo biên khối, đơn vị mm, nằm trên lớp Dim. Khi sửa model, dựng/xuất lại để cập nhật DIM tự tạo. Trang phối cảnh không đặt DIM đo theo hình chiếu.</p></div>
+      <div class="card"><h2>3. DIM & cỡ chữ</h2><label><input id="detail_dims" type="checkbox"> DIM chia đoạn tại mặt trước và các mặt cắt</label><label><input id="dimensions" type="checkbox"> Tạo DIM tổng ngang / dọc</label><div class="grid" style="margin-top:12px"><label>Cách biên (mm trên giấy)<input id="dim_offset" type="number" min="5" max="20" step="any" required></label><label>Cỡ chữ DIM (pt)<input id="dim_font" type="number" min="6" max="18" step="any" required></label></div><label>Cỡ chữ tiêu đề (pt)<input id="title_font" type="number" min="10" max="18" step="any" required></label><p class="muted">DIM dày chữ sẽ tự tách sang trang chi tiết bổ sung, giữ đủ số đo và tỷ lệ. DIM chi tiết theo biên hình học tấm trong mặt chiếu; mặt cắt chỉ lấy phần còn lại sau cắt. DIM tổng theo biên khối, đơn vị mm, nằm trên lớp Dim. Khi sửa model, dựng/xuất lại để cập nhật DIM tự tạo. Trang phối cảnh không đặt DIM đo theo hình chiếu.</p></div>
       <div class="card"><h2>In & PDF</h2><p>Không cần chọn nơi lưu SKP trước. Model chưa từng lưu sẽ được lưu nền tự động, giữ lại trong ModelBackups; đường dẫn hiện ở thông báo. Model đã lưu dùng bản sao tạm. Chỉ chọn nơi lưu PDF.</p><div class="grid"><label>Độ phân giải<select data-fixed="true" disabled><option>High · 300 DPI</option></select></label><label>Chất lượng ảnh nén (%)<input id="quality" type="number" min="50" max="100" required></label></div>
       <p class="muted">Phối cảnh dùng Hybrid. Nét Vector giữ sắc khi phóng to. File LayOut có các lớp Đồ gỗ, Dim, Chú thích, Khung tên và Thống kê.</p>
       <small>Xuất lớp PDF và Optimize for Web: chưa có trong API LayOut; PDF ở đây nén ảnh, không cam kết giữ lớp hoặc mở tức thì.</small></div>

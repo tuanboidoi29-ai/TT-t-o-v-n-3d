@@ -1,0 +1,8 @@
+TRẦN TUẤN NỘI THẤT 1.9.91 — SỬA DIM DÀY CHỮ CHẶN XEM TRƯỚC
+Cài RBZ đè và mở lại SketchUp, hoặc Kiểm Tra Cập Nhật rồi mở lại bảng.
+Chọn tủ → Xem trước hồ sơ. Khi nhiều DIM sát nhau, công cụ tạo các trang DIM chi tiết bổ sung ngay sau trang góc nhìn tương ứng.
+Trang phụ có cùng mô hình, Scene và tỷ lệ; tối đa 4 tầng chữ mỗi trang, giữ đủ các đoạn đo. Chọn các trang này trong danh sách xem trước. PDF xuất kèm các trang đó.
+Không cần đổi tỷ lệ hoặc giảm chữ chỉ để vượt lỗi DIM dày chữ. Hồ sơ có thể nhiều trang hơn.
+Giữ cách lưu nền model mới của 1.9.90; model đã lưu dùng bản sao tạm.
+Đã tái hiện lỗi bản 1.9.90 bằng trường hợp 50 đoạn sát nhau trên hai mặt chiếu, bản sửa giữ đủ 100 DIM và đúng Scene/tỷ lệ trên từng trang; 57 kiểm tra chia trang đạt cùng các kiểm tra hồ sơ hiện có.
+Chưa chạy renderer trực tiếp trong SketchUp/LayOut Windows.
