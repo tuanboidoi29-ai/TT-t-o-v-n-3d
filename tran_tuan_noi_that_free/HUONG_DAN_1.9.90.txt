@@ -1,0 +1,15 @@
+TRẦN TUẤN NỘI THẤT 1.9.90 — SỬA XEM TRƯỚC MODEL MỚI
+Sửa lỗi thực tế: Model must be saved before copying.
+Cài RBZ đè và mở lại SketchUp, hoặc Kiểm Tra Cập Nhật rồi mở lại bảng. Tiêu đề phải hiện 1.9.90.
+Chọn tủ → Xem trước hồ sơ hoặc Xuất PDF.
+
+MODEL CHƯA TỪNG LƯU
+SketchUp không cho save_copy khi model chưa có file. Công cụ tự lưu lần đầu vào thư mục ModelBackups cạnh tệp cấu hình, thường tại %APPDATA%/TranTuanNoiThat/ModelBackups/TT_Model_.../Model.skp.
+Đây là file thật của model đang mở: tên/path model sẽ chuyển sang file nền này. File được giữ lại, không xóa khi đóng bảng, hủy hoặc xuất lỗi. Thông báo hiển thị đường dẫn. Có thể dùng File → Save As để chuyển tới thư mục công trình.
+Không hiện hộp bắt chọn chỗ lưu SKP; xuất PDF vẫn hỏi nơi lưu PDF.
+
+MODEL ĐÃ LƯU
+Dùng save_copy để chụp trạng thái hiện tại, không ghi đè SKP gốc, không đổi path. Chỉ dọn bản sao tạm sau xuất/xem trước.
+
+Đã tái hiện đúng lỗi 1.9.89 với mô phỏng save_copy từ chối model chưa lưu; bản sửa đạt 23 kiểm tra lưu/xem trước/PDF/hủy/lỗi. Cú pháp/gói RBZ đạt. Chưa chạy trực tiếp SketchUp/LayOut Windows.
+Giữ nguyên các chức năng LayOut 1.9.89.

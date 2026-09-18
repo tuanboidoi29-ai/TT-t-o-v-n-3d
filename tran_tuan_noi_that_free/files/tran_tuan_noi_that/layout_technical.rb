@@ -168,6 +168,7 @@ module TranTuanNoiThat
       report(@config_warning, true) if @config_warning
     end
     def report(message,error=false)
+      message = "#{message}\nModel mới đã được lưu nền tại: #{@auto_model_path}\nDùng File → Save As khi muốn đổi nơi lưu model." if @auto_model_path
       message = "#{message}\n#{@config_warning}" if @config_warning && message != @config_warning
       @dialog.execute_script("report(#{JSON.generate(message.to_s)},#{error ? 'true' : 'false'})") if @dialog
     end
@@ -585,11 +586,25 @@ module TranTuanNoiThat
       doc.layers.active = dims
       doc
     end
+    def save_initial_model(model)
+      raise 'Chỉ lưu nền tự động cho model chưa từng lưu.' unless model.path.to_s.empty?
+      base = File.join(File.dirname(config_path),'ModelBackups')
+      FileUtils.mkdir_p(base)
+      # This is the model's first real save, not an expendable export temporary file.
+      # Never remove this directory on success, cancellation, export failure or dialog close.
+      folder = Dir.mktmpdir('TT_Model_',base)
+      path = File.join(folder,'Model.skp')
+      report('Model mới chưa từng lưu. Đang tạo bản SKP nền để xem trước/xuất PDF…')
+      raise "Không lưu được model nền tại #{path}." unless model.save(path) && File.file?(path) && File.size(path)>0
+      @auto_model_path = path
+      path
+    end
     def safe_filename(name)
       value = name.to_s.gsub(/[<>:"\\\/|?*\x00-\x1f]/,'_').sub(/[. ]+\z/,'')
       value.empty? ? 'TT_HO_SO_A3' : value
     end
     def run(action,o)
+      @auto_model_path = nil unless Sketchup.active_model.path.to_s == @auto_model_path
       helper.ensure_layout_api! unless action == 'scenes'
       report('Đang quét model và kiểm tra kích thước…')
       jobs = check_jobs(o)
@@ -611,10 +626,14 @@ module TranTuanNoiThat
       report('Đang tạo các góc nhìn và mặt cắt…')
       scene_sets = jobs.map { |job| prepare_scenes(model,job,o) }
       if temporary_source
-        source_folder = Dir.mktmpdir('TT_PDF_Source_')
-        path = File.join(source_folder,'model.skp')
-        report('Đang chuẩn bị mô hình tạm để xuất…')
-        raise 'Không tạo được bản sao tạm để xuất PDF.' unless model.save_copy(path) && File.file?(path) && File.size(path)>0
+        if model.path.to_s.empty?
+          path = save_initial_model(model)
+        else
+          source_folder = Dir.mktmpdir('TT_PDF_Source_')
+          path = File.join(source_folder,'model.skp')
+          report('Đang chuẩn bị mô hình tạm để xuất…')
+          raise 'Không tạo được bản sao tạm để xuất PDF.' unless model.save_copy(path) && File.file?(path) && File.size(path)>0
+        end
       else
         raise 'Không lưu được các Scene vào SKP.' unless model.save
       end
@@ -751,7 +770,7 @@ module TranTuanNoiThat
       <!doctype html><html lang="vi"><head><meta charset="utf-8"><style>
       *{box-sizing:border-box}body{font:14px Arial,sans-serif;margin:0;background:#f4f6f8;color:#253443}header{background:#173d4a;color:white;padding:20px 24px}h1{font-size:21px;margin:0 0 7px}main{padding:18px 24px}.card{background:white;border:1px solid #dce3e8;border-radius:9px;padding:16px;margin-bottom:14px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}label{display:block}input:not([type=checkbox]),select{display:block;width:100%;padding:8px;border:1px solid #bccbd4;border-radius:5px;margin-top:5px}.views{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}button{border:0;border-radius:5px;padding:10px 13px;background:#156a7a;color:white;cursor:pointer}button.secondary{background:#e3ecf1;color:#253443}button:disabled{opacity:.5;cursor:wait}.buttons{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}small,p{line-height:1.5}.muted{color:#617281}#status{white-space:pre-wrap;padding:12px;border-radius:6px;background:#e9f1f4;overflow-wrap:anywhere}.error{color:#a32929}summary{cursor:pointer;font-weight:bold}h2{font-size:16px;margin:0 0 12px}
       .workspace{display:grid;grid-template-columns:minmax(330px,420px) minmax(400px,1fr);gap:18px;align-items:start}.preview-panel{position:sticky;top:12px}.preview-screen{background:#dce3e8;overflow:auto;height:500px;padding:14px;text-align:center}.preview-screen img{max-width:100%;height:auto;box-shadow:0 2px 12px #0003;display:block;margin:auto;background:white}.preview-screen img[hidden]{display:none}.preview-screen.zoom img{max-width:none;width:1600px}.preview-screen canvas{width:100%;max-width:100%;height:auto;display:block;background:white}.preview-screen canvas[hidden]{display:none}.preview-screen.zoom canvas{max-width:none;width:1600px}.preview-controls{display:flex;gap:6px;align-items:center;margin:10px 0}.preview-controls select{min-width:0;flex:1;margin:0}.preview-controls button{padding:9px}#preview-label{font-weight:bold;margin:8px 0}#preview-note{font-size:12px;color:#617281}@media(max-width:850px){.workspace{grid-template-columns:1fr}.preview-panel{position:static}.preview-screen{height:400px}}
-      </style></head><body><header><h1>Hồ sơ LayOut A3 · 1.9.89</h1>Scene riêng · Giữ tỷ lệ · Khung tên tự động</header><main><div id="status" role="status" style="position:sticky;top:0;z-index:5;margin-bottom:12px">Sẵn sàng.</div><div class="workspace"><div>
+      </style></head><body><header><h1>Hồ sơ LayOut A3 · 1.9.90</h1>Scene riêng · Giữ tỷ lệ · Khung tên tự động</header><main><div id="status" role="status" style="position:sticky;top:0;z-index:5;margin-bottom:12px">Sẵn sàng.</div><div class="workspace"><div>
       <form id="form"><div class="card"><h2>1. Phạm vi & tên bản vẽ</h2><label>Phạm vi quét<select id="scope"><option value="selected">Quét Group/Component đang chọn</option><option value="all">Quét tất cả Group/Component</option></select></label><label>Tên bản vẽ<input id="drawing" maxlength="100"></label><label>Tên công trình<input id="project" maxlength="160"></label><div class="grid" style="margin-top:12px">
       <label>Mặt bằng / mặt đứng — tỷ lệ 1:<input id="scale" type="number" min="1" max="500" step="any" list="ratios" required></label>
       <label>Mặt cắt / chi tiết — tỷ lệ 1:<input id="cut_scale" type="number" min="1" max="500" step="any" list="ratios" required></label>
@@ -761,7 +780,7 @@ module TranTuanNoiThat
       <p class="muted">A3 ngang, 420 × 297 mm. Hình chiếu song song và Preserve Scale luôn bật. Nếu mô hình vượt khung, công cụ báo để bạn chọn lại tỷ lệ.</p></div>
       <div class="card"><h2>2. Góc nhìn & X-ray</h2><p>Mỗi góc nhìn một trang. Chọn X-ray bên cạnh góc nhìn cần xuyên thấu.</p><div id="views" class="views"></div><p><label><input id="stats" type="checkbox"> Kèm bảng thống kê ván</label></p><label>Cỡ chữ bảng thống kê (pt)<input id="stats_font" type="number" min="12" max="18" step="1" required></label><p class="muted">Mặc định 14 pt. Chữ lớn hơn sẽ tự chia thêm trang.</p><small>Chọn Group/Component ngoài model trước khi xuất. Quét tất cả: mỗi Group/Component cha thành một hồ sơ riêng. Hướng trước theo −Y, trên theo +Z của hệ trục model.</small></div>
       <div class="card"><h2>3. DIM & cỡ chữ</h2><label><input id="detail_dims" type="checkbox"> DIM chia đoạn tại mặt trước và các mặt cắt</label><label><input id="dimensions" type="checkbox"> Tạo DIM tổng ngang / dọc</label><div class="grid" style="margin-top:12px"><label>Cách biên (mm trên giấy)<input id="dim_offset" type="number" min="5" max="20" step="any" required></label><label>Cỡ chữ DIM (pt)<input id="dim_font" type="number" min="6" max="18" step="any" required></label></div><label>Cỡ chữ tiêu đề (pt)<input id="title_font" type="number" min="10" max="18" step="any" required></label><p class="muted">DIM chi tiết theo biên hình học tấm trong mặt chiếu; mặt cắt chỉ lấy phần còn lại sau cắt. DIM tổng theo biên khối, đơn vị mm, nằm trên lớp Dim. Khi sửa model, dựng/xuất lại để cập nhật DIM tự tạo. Trang phối cảnh không đặt DIM đo theo hình chiếu.</p></div>
-      <div class="card"><h2>In & PDF</h2><p>Xuất PDF và xem trước không yêu cầu lưu model. Chỉ chọn nơi lưu PDF.</p><div class="grid"><label>Độ phân giải<select data-fixed="true" disabled><option>High · 300 DPI</option></select></label><label>Chất lượng ảnh nén (%)<input id="quality" type="number" min="50" max="100" required></label></div>
+      <div class="card"><h2>In & PDF</h2><p>Không cần chọn nơi lưu SKP trước. Model chưa từng lưu sẽ được lưu nền tự động, giữ lại trong ModelBackups; đường dẫn hiện ở thông báo. Model đã lưu dùng bản sao tạm. Chỉ chọn nơi lưu PDF.</p><div class="grid"><label>Độ phân giải<select data-fixed="true" disabled><option>High · 300 DPI</option></select></label><label>Chất lượng ảnh nén (%)<input id="quality" type="number" min="50" max="100" required></label></div>
       <p class="muted">Phối cảnh dùng Hybrid. Nét Vector giữ sắc khi phóng to. File LayOut có các lớp Đồ gỗ, Dim, Chú thích, Khung tên và Thống kê.</p>
       <small>Xuất lớp PDF và Optimize for Web: chưa có trong API LayOut; PDF ở đây nén ảnh, không cam kết giữ lớp hoặc mở tức thì.</small></div>
       <div class="buttons"><button type="button" class="secondary" data-action="check">Quét / kiểm tra model</button><button type="button" class="secondary" data-action="save">Lưu cấu hình</button><button type="button" class="secondary" data-action="scenes">Tạo / cập nhật Scene</button></div>
