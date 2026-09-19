@@ -37,7 +37,19 @@ tool.instance_variable_set(:@openings,[[18.mm,582.mm,18.mm,782.mm]])
   delta=[b.x-a.x,b.y-a.y,b.z-a.z]
   assert(delta.count { |v| v.abs > 1e-6 } == 1,'single-axis dimension')
   assert((delta.zip(o.to_a).map { |x,y| x*y }.inject(0,:+)).abs < 1e-6,'perpendicular offset')
-  assert(a.y == 0 && b.y == 0,'front plane') unless kind == :total
+  assert(a.y == 0 && b.y == 0,'front plane') unless kind == :total || (b.y-a.y).abs > 1e-6
  end
 end
 puts 'Front projection, horizontal/vertical axes, perpendicular offsets and three totals passed'
+
+mod.options['horizontal']=false
+mod.options['height']=false
+mod.options['depth']=false
+mod.options['total']=false
+tool.rebuild
+assert(tool.instance_variable_get(:@specs).all? { |s| s.last == :opening },'opening-only filter')
+mod.options['opening']=false
+mod.options['depth']=true
+tool.rebuild
+assert(tool.instance_variable_get(:@specs).all? { |a,b,o,k| b.y != a.y && b.x == a.x && b.z == a.z },'depth-only filter')
+puts 'Dimension type filters passed'

@@ -7,6 +7,29 @@ module TranTuanNoiThat
       @front_settings ||= [120.0, 80.0, 1.0, 25.0]
     end
 
+    def options
+      @dim_options ||= {'horizontal'=>true,'depth'=>true,'height'=>true,'opening'=>true,'total'=>true,
+                        'detail_color'=>'#e58b16','total_color'=>'#1976d2','opening_color'=>'#16834a'}
+    end
+
+    def validate_options(data)
+      raise 'Thiếu lựa chọn DIM.' unless data.is_a?(Hash)
+      keys = %w[horizontal depth height opening total]
+      raise 'Lựa chọn DIM không hợp lệ.' unless keys.all? { |k| data[k] == true || data[k] == false }
+      raise 'Hãy bật ít nhất một loại DIM.' unless keys.any? { |k| data[k] }
+      raise 'Màu DIM phải là mã #RRGGBB.' unless %w[detail_color total_color opening_color].all? { |k| data[k].is_a?(String) && data[k].match?(/\A#[0-9a-fA-F]{6}\z/) }
+      options.keys.each_with_object({}) { |k,h| h[k] = data[k] }
+    end
+
+    def color(kind)
+      options[{total: 'total_color',detail: 'detail_color',opening: 'opening_color'}.fetch(kind)]
+    end
+
+    def drawing_color(kind)
+      hex = color(kind)
+      Sketchup::Color.new(hex[1,2].to_i(16),hex[3,2].to_i(16),hex[5,2].to_i(16))
+    end
+
     def marks(values, minimum)
       result = []
       values.sort.each { |v| result << v if result.empty? || v - result.last >= minimum }
@@ -109,6 +132,16 @@ module TranTuanNoiThat
         @hi = @values.map(&:max)
         @cursor = @lo.map { |v| v - DetailDimensions.settings[0].mm }
         previous = existing_groups.first
+        if previous
+          stored_options = previous.get_attribute('TT_FRONT_DIM','options')
+          if stored_options
+            begin
+              DetailDimensions.options.replace(DetailDimensions.validate_options(JSON.parse(stored_options)))
+            rescue JSON::ParserError, RuntimeError
+              # Old or malformed metadata does not prevent rescanning geometry.
+            end
+          end
+        end
         saved = previous && previous.get_attribute('TT_FRONT_DIM','cursor')
         @cursor = saved if saved.is_a?(Array) && saved.size == 3
         eye = local(@model.active_view.camera.eye)
@@ -159,16 +192,21 @@ module TranTuanNoiThat
           distance = [(@cursor[off]-base[off]).abs,gap].max
           list = DetailDimensions.marks(@values[axis],minimum)
           list.each_cons(2).with_index do |(a,b),i|
-            next if list.size == 2
+            next if !DetailDimensions.options[axis == 0 ? 'horizontal' : 'height'] || (list.size == 2 && DetailDimensions.options['total'])
             lane = b-a < height*5 ? i % 3 : 0
             add_spec(a,b,axis,off,base,side*(distance+tier*lane),:detail)
           end
-          add_spec(@lo[axis],@hi[axis],axis,off,base,side*(distance+tier*3),:total)
+          add_spec(@lo[axis],@hi[axis],axis,off,base,side*(distance+tier*3),:total) if DetailDimensions.options['total']
         end
         base = @hi.dup
-        add_spec(@lo[1],@hi[1],1,0,base,gap+tier*4,:total)
+        if DetailDimensions.options['depth']
+          DetailDimensions.marks(@values[1],minimum).each_cons(2).with_index do |(a,b),i|
+            add_spec(a,b,1,0,base,gap+tier*(4+i%3),:detail)
+          end
+        end
+        add_spec(@lo[1],@hi[1],1,0,base,gap+tier*7,:total) if DetailDimensions.options['total']
         @openings.each do |a,b,bottom,top|
-          next if b-a < minimum
+          next if b-a < minimum || !DetailDimensions.options['opening']
           base = [a,@front,bottom]
           add_spec(a,b,0,2,base,(top-bottom)/2,:opening)
         end
@@ -224,28 +262,36 @@ module TranTuanNoiThat
 
       def configure
         return @dialog.bring_to_front if @dialog && @dialog.visible?
-        @dialog = UI::HtmlDialog.new(dialog_title: 'DIM tự động mặt trước',preferences_key: 'TTFrontDim198',width: 410,height: 510,resizable: false)
+        @dialog = UI::HtmlDialog.new(dialog_title: 'DIM tự động mặt trước',preferences_key: 'TTFrontDim198',width: 460,height: 780,resizable: true)
         values = DetailDimensions.settings
+        choices = {'horizontal'=>'DIM ngang — rộng X','depth'=>'DIM dọc — sâu Y','height'=>'DIM cao — đứng Z','opening'=>'DIM lọt lòng — rộng ngang','total'=>'DIM tổng — rộng / cao / sâu'}
+        checks = choices.map { |key,title| "<label>#{title}<input type=\"checkbox\" id=\"enable_#{key}\" #{DetailDimensions.options[key] ? 'checked' : ''}></label>" }.join
+        colors = {'detail_color'=>'Màu DIM chi tiết','total_color'=>'Màu DIM tổng','opening_color'=>'Màu DIM lọt lòng'}.map { |key,title| "<label>#{title}<input type=\"color\" id=\"#{key}\" value=\"#{DetailDimensions.options[key]}\"></label>" }.join
         @dialog.set_html(<<~HTML)
           <!doctype html><html lang="vi"><meta charset="utf-8"><style>
           body{font:14px Arial;margin:24px;color:#17324b;background:#f5f7fa}h2{font-size:20px}label{display:flex;justify-content:space-between;align-items:center;margin:16px 0}input{width:90px;padding:8px;border:1px solid #bbc8d4;border-radius:5px}button{width:100%;padding:12px;background:#1675bd;color:white;border:0;border-radius:6px;font-weight:bold}p{line-height:1.5}#message{color:#176c39}
           </style><h2>DIM mặt trước</h2><p>Đo ngang · đo cao · tổng rộng/cao/sâu · rộng lọt lòng</p>
-          <form id="form">
+          <form id="form">#{checks}<hr>#{colors}<hr>
           <label>Cách mép (mm)<input id="gap" type="number" min="1" max="10000" step="any" value="#{values[0]}" required></label>
           <label>Cách tầng DIM (mm)<input id="tier" type="number" min="1" max="10000" step="any" value="#{values[1]}" required></label>
           <label>Đoạn nhỏ nhất (mm)<input id="minimum" type="number" min="0.1" max="1000" step="any" value="#{values[2]}" required></label>
           <label>Cao chữ DIM (mm)<input id="height" type="number" min="1" max="200" step="any" value="#{values[3]}" required></label>
           <button id="update">Cập nhật</button></form><p id="message">Áp dụng cho bản xem trước hoặc bộ DIM vừa đặt.</p>
-          <script>document.getElementById('form').addEventListener('submit',function(e){e.preventDefault();document.getElementById('update').disabled=true;sketchup.update(JSON.stringify(['gap','tier','minimum','height'].map(id=>Number(document.getElementById(id).value))));});function result(message){document.getElementById('message').textContent=message;document.getElementById('update').disabled=false;}</script></html>
+          <script>document.getElementById('form').addEventListener('submit',function(e){e.preventDefault();document.getElementById('update').disabled=true;const options={};['horizontal','depth','height','opening','total'].forEach(id=>options[id]=document.getElementById('enable_'+id).checked);['detail_color','total_color','opening_color'].forEach(id=>options[id]=document.getElementById(id).value);sketchup.update(JSON.stringify({values:['gap','tier','minimum','height'].map(id=>Number(document.getElementById(id).value)),options:options}));});function result(message){document.getElementById('message').textContent=message;document.getElementById('update').disabled=false;}</script></html>
         HTML
         @dialog.add_action_callback('update') do |_context,payload|
           before = DetailDimensions.settings.dup
+          old_options = DetailDimensions.options.dup
           begin
             raise 'Hãy mở lại công cụ trong mô hình hiện tại.' unless @active && Sketchup.active_model == @model && !@model.active_path
-            data = JSON.parse(payload)
+            payload = JSON.parse(payload)
+            raise 'Dữ liệu không hợp lệ.' unless payload.is_a?(Hash)
+            new_options = DetailDimensions.validate_options(payload['options'])
+            data = payload['values']
             limits = [[1,10000],[1,10000],[0.1,1000],[1,200]]
             raise 'Thông số không hợp lệ.' unless data.is_a?(Array) && data.size == 4 && data.each_with_index.all? { |v,i| v.is_a?(Numeric) && v.finite? && v >= limits[i][0] && v <= limits[i][1] }
             DetailDimensions.settings.replace(data)
+            DetailDimensions.options.replace(new_options)
             rebuild
             if @state == :placed || (@roots && !existing_groups.empty?)
               commit
@@ -253,9 +299,10 @@ module TranTuanNoiThat
             end
             @model.active_view.invalidate
             status
-            @dialog.execute_script("result(#{JSON.generate('Đã cập nhật cỡ chữ và thông số DIM.')})")
+            @dialog.execute_script("result(#{JSON.generate('Đã cập nhật loại DIM, màu sắc và cỡ chữ.')})")
           rescue StandardError => e
             DetailDimensions.settings.replace(before)
+            DetailDimensions.options.replace(old_options)
             rebuild
             @dialog.execute_script("result(#{JSON.generate('Không cập nhật: '+e.message)})")
           end
@@ -288,6 +335,7 @@ module TranTuanNoiThat
           group.set_attribute('TT_FRONT_DIM','source',source)
           group.set_attribute('TT_FRONT_DIM','settings',DetailDimensions.settings)
           group.set_attribute('TT_FRONT_DIM','cursor',@cursor)
+          group.set_attribute('TT_FRONT_DIM','options',JSON.generate(DetailDimensions.options))
           @specs.each { |spec| render_dimension(group.entities,*spec) }
           @model.entities.erase_entities(old) unless old.empty?
           @model.commit_operation
@@ -302,6 +350,7 @@ module TranTuanNoiThat
         group = entities.add_group
         group.name = kind == :opening ? 'Rộng lọt lòng' : (kind == :total ? 'DIM tổng' : 'DIM chi tiết')
         group.layer = @model.layers.add({opening: 'TT_DIM_LOT_LONG',total: 'TT_DIM_TONG',detail: 'TT_DIM_CHI_TIET'}[kind])
+        color = DetailDimensions.drawing_color(kind)
         aa = a+offset; bb = b+offset
         along = (b-a).normalize
         across = offset.normalize
@@ -309,13 +358,23 @@ module TranTuanNoiThat
         across.reverse! if across.dot(@basis[2]) < -0.001 || across.dot(@basis[0]) < -0.001
         height = DetailDimensions.settings[3].mm
         en = group.entities
-        en.add_line(a,aa.offset(offset.normalize,height*0.4))
-        en.add_line(b,bb.offset(offset.normalize,height*0.4))
-        en.add_line(aa,bb)
+        normal = along.cross(across)
+        width = [height*0.035,0.5.mm].max
+        colored_line(en,a,aa.offset(offset.normalize,height*0.4),normal,width,color)
+        colored_line(en,b,bb.offset(offset.normalize,height*0.4),normal,width,color)
+        colored_line(en,aa,bb,normal,width,color)
         tick = height*0.25
-        [aa,bb].each { |p| en.add_line(p.offset(along,-tick).offset(across,-tick),p.offset(along,tick).offset(across,tick)) }
+        [aa,bb].each { |p| colored_line(en,p.offset(along,-tick).offset(across,-tick),p.offset(along,tick).offset(across,tick),normal,width,color) }
         text = en.add_group
         raise 'Không tạo được chữ DIM.' unless text.entities.add_3d_text(label(a,b,kind),TextAlignLeft,'Arial',false,false,height,0.1.mm,0,true,0)
+        text.entities.each do |entity|
+          if entity.is_a?(Sketchup::Face)
+            entity.material = color
+            entity.back_material = color
+          elsif entity.is_a?(Sketchup::Edge)
+            entity.hidden = true
+          end
+        end
         bounds = text.bounds
         midpoint = Geom.linear_combination(0.5,aa,0.5,bb)
         along.reverse! if along.cross(across).dot(@model.active_view.camera.eye - midpoint) < 0
@@ -323,11 +382,23 @@ module TranTuanNoiThat
         text.transformation = Geom::Transformation.axes(origin,along,across,along.cross(across))
       end
 
+      # Thin filled ribbons show their own color without changing the model's edge style.
+      def colored_line(entities,a,b,normal,width,color)
+        return if a.distance(b) < 0.001
+        side = normal.cross(b-a).normalize
+        part = entities.add_group
+        face = part.entities.add_face(a.offset(side,width/2),b.offset(side,width/2),b.offset(side,-width/2),a.offset(side,-width/2))
+        raise 'Không tạo được nét DIM màu.' unless face
+        face.material = color
+        face.back_material = color
+        face.edges.each { |edge| edge.hidden = true }
+      end
+
       def draw(view)
         return if @state == :placed
         @specs.each do |a,b,o,kind|
           aa = a+o; bb = b+o
-          view.drawing_color = {total: 'blue',detail: 'darkorange',opening: 'green'}[kind]
+          view.drawing_color = DetailDimensions.drawing_color(kind)
           view.line_width = 1
           view.draw(GL_LINES,[a,aa,aa,bb,bb,b])
           middle = Geom.linear_combination(0.5,aa,0.5,bb)
