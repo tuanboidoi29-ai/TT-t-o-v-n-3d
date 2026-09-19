@@ -1,0 +1,14 @@
+TRẦN TUẤN NỘI THẤT 1.9.93 — PDF NHANH
+
+Cài RBZ đè qua Extension Manager > Install Extension. Lưu model rồi mở lại SketchUp nếu bảng vẫn hiện phiên bản cũ.
+Trong Hồ sơ LayOut > In & PDF > Chế độ xuất PDF:
+- PDF nhanh (mặc định): ảnh mô hình Raster, mức Medium. Nét mô hình giảm độ sắc khi phóng to. Chữ, DIM và bảng thống kê là các đối tượng riêng.
+- PDF chất lượng in: Vector/Hybrid, mức High như trước.
+Không tự bỏ góc nhìn, DIM hoặc các trang DIM bổ sung. Chế độ PDF không đổi chế độ xuất file .layout.
+PDF nhanh bỏ bước render xem trước từng viewport, để bộ xuất PDF dựng ảnh ở chất lượng xuất.
+Không quét cạnh để chia DIM khi các góc đã chọn không sử dụng DIM chi tiết.
+Thông báo hoàn tất có tổng thời gian xử lý.
+
+Đã kiểm tra 26 tình huống giao diện cũ và 3 tình huống chọn chế độ PDF/cấu hình cũ, cú pháp JavaScript và đối chiếu RBZ với danh sách SHA256.
+Chưa chạy Ruby hoặc bộ dựng SketchUp/LayOut Windows tại môi trường này. Chưa có đo tốc độ thực tế; không cam kết thời gian xuất hoặc mức tăng tốc. Nếu chậm ở lưu SKP/tạo Scene, chế độ Raster không giải quyết toàn bộ thời gian đó.
+Thử cùng một cụm tủ với hai chế độ để so thời gian và kiểm tra chữ, DIM, mặt cắt và bảng thống kê.
