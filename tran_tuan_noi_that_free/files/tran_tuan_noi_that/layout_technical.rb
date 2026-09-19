@@ -95,12 +95,16 @@ module TranTuanNoiThat
     def dispatch(action, options)
       @config_warning = nil
       case action
+      when 'excel'
+        export_excel(options)
+      when 'preview'
+        start_safe_preview(options)
       when 'save'
         persist(options)
         report('Đã lưu cấu hình cho lần xuất sau.')
       when 'check'
         report(check_jobs(options).map { |j| "#{j[:name]}: #{j[:stats][:total_pieces]} chi tiết — vừa khung ở tỷ lệ đã chọn." }.join("\n"))
-      when 'layout','pdf','preview','template','scenes'
+      when 'layout','pdf','template','scenes'
         # Saving preferences is not a prerequisite for processing the current model.
         begin
           persist(options)
@@ -203,7 +207,7 @@ module TranTuanNoiThat
          stats:helper.tt_stats_for_roots([root],name)}
       end
     end
-    def detail_parts(roots)
+    def detail_parts(roots,edge_limit=200000)
       parts=[]
       edge_count=0
       visit = lambda do |entity,parent,path|
@@ -216,7 +220,7 @@ module TranTuanNoiThat
         faces = entities.grep(Sketchup::Face)
         unless faces.empty?
           edge_count += entities.grep(Sketchup::Edge).length
-          raise 'Phạm vi có quá nhiều cạnh để đặt DIM chi tiết. Chọn từng cụm tủ nhỏ hơn hoặc tắt DIM chi tiết.' if edge_count > 200000
+          raise 'Phạm vi có quá nhiều cạnh để đặt DIM chi tiết. Chọn từng cụm tủ nhỏ hơn hoặc tắt DIM chi tiết.' if edge_count > edge_limit
           edges = entities.grep(Sketchup::Edge).map { |e| [e.start.position.transform(tr),e.end.position.transform(tr)] }
           points = edges.flatten.uniq { |point| [point.x,point.y,point.z] }
           parts << {points:points,edges:edges,path:path+[entity]} unless points.empty?
@@ -728,7 +732,7 @@ module TranTuanNoiThat
       schedule_preview(@preview_state)
     end
     def schedule_preview(state)
-      @preview_timer = UI.start_timer(0.05,false) { preview_step(state) }
+      @preview_timer = UI.start_timer(0.05,false) { state[:safe] ? safe_preview_step(state) : preview_step(state) }
     end
     def finish_preview(message,error=false)
       UI.stop_timer(@preview_timer) if @preview_timer
@@ -792,17 +796,173 @@ module TranTuanNoiThat
       index = Integer(id)
       raise 'Trang xem trước không hợp lệ.' unless index >= 0 && @preview_pages && index < @preview_pages.length
       page = @preview_pages[index]
-      data = 'data:image/png;base64,' + Base64.strict_encode64(File.binread(page[:path]))
+      data = (page[:svg] ? 'data:image/svg+xml;base64,' + Base64.strict_encode64(page[:svg]) : 'data:image/png;base64,' + Base64.strict_encode64(File.binread(page[:path])))
       @dialog.execute_script("showPreviewImage(#{JSON.generate({id:index,label:page[:label],src:data,focus:page[:focus]})})") if @dialog
     rescue StandardError => e
       report("Không mở được trang xem trước: #{e.message}",true)
+    end
+    def xml_text(value)
+      value.to_s.encode('UTF-8',invalid: :replace,undef: :replace,replace:'').gsub(/[\x00-\x08\x0b\x0c\x0e-\x1f]/,'').gsub('&','&amp;').gsub('<','&lt;').gsub('>','&gt;').gsub('"','&quot;')
+    end
+    # Read-only preview: never enters the native LayOut rendering pipeline.
+    def start_safe_preview(options)
+      finish_preview(nil)
+      clear_preview_files
+      raise 'Thoát chế độ sửa Group/Component trước khi xem trước.' if @model.active_path
+      jobs = export_jobs(@model,options)
+      raise 'Chọn ít cụm hơn: xem trước tối đa 48 góc nhìn mỗi lần.' if jobs.length * options['views'].length > 48
+      @preview_pages = []
+      @preview_state = {safe:true,jobs:jobs,options:options,job_index:0,page_index:0}
+      @busy = true
+      @dialog.execute_script('resetPreview();setBusy(true);previewRunning(true)')
+      schedule_preview(@preview_state)
+    end
+    def safe_preview_step(state)
+      return unless @preview_state.equal?(state) && @dialog
+      @preview_timer = nil
+      raise 'Đã đổi mô hình; mở lại công cụ.' unless Sketchup.active_model == @model
+      job = state[:jobs][state[:job_index]]
+      return finish_preview("Đã dựng #{@preview_pages.length} trang hình chiếu nét. Xem trước không thay đổi model.") unless job
+      unless state[:parts]
+        raise 'Đối tượng đã thay đổi. Hãy quét lại.' unless job[:roots].all?(&:valid?)
+        state[:parts] = detail_parts(job[:roots],30000)
+        raise 'Mô hình quá nhiều cạnh để xem trước nhẹ. Chọn từng cụm nhỏ hơn.' if state[:parts].sum { |part| part[:edges].length } > 30000
+        state[:bounds] = helper.tt_scope_bounds_for_roots(@model,job[:roots])
+      end
+      o = state[:options]
+      key = o['views'][state[:page_index]]
+      unless key
+        state[:job_index] += 1
+        state[:page_index] = 0
+        state[:parts] = nil
+        schedule_preview(state)
+        return
+      end
+      svg = safe_preview_svg(job,state[:parts],state[:bounds],key,o)
+      id = @preview_pages.length
+      label = "#{job[:name]} · #{VIEWS[key]} · nét hình học"
+      @preview_pages << {svg:svg,label:label,focus:nil}
+      @dialog.execute_script("addPreviewPage(#{JSON.generate({id:id,label:label})})")
+      show_preview_page(0) if id.zero?
+      state[:page_index] += 1
+      report("Đã dựng #{@preview_pages.length} trang nét hình học…")
+      schedule_preview(state)
+    rescue StandardError => e
+      finish_preview("Không dựng được xem trước: #{e.message}",true)
+    end
+    def safe_preview_svg(job,parts,bounds,key,o)
+      project = lambda do |p|
+        case key
+        when 'top' then [p.x,-p.y]
+        when 'left','cut_left' then [-p.y,-p.z]
+        when 'right','cut_right' then [p.y,-p.z]
+        when 'overview' then [(p.x-p.y)*0.70710678,(p.x+p.y)*0.40824829-p.z*0.81649658]
+        else [p.x,-p.z]
+        end
+      end
+      segments=[]
+      axis=nil
+      if key.start_with?('cut_')
+        offsets=helper.tt_v081_effective_offsets(bounds,o['cut_mm'])
+        axis=key == 'cut_front' ? :y : :x
+        coordinate=key == 'cut_front' ? bounds.min.y+offsets[:front] : key == 'cut_left' ? bounds.min.x+offsets[:left] : bounds.max.x-offsets[:right]
+        sign=key == 'cut_right' ? -1.0 : 1.0
+      end
+      parts.each do |part|
+        part[:edges].each do |a,b|
+          if axis
+            da=(a.public_send(axis)-coordinate)*sign;db=(b.public_send(axis)-coordinate)*sign
+            next if da<0 && db<0
+            if da*db<0
+              t=da/(da-db)
+              point=Geom::Point3d.new(a.x+(b.x-a.x)*t,a.y+(b.y-a.y)*t,a.z+(b.z-a.z)*t)
+              if da < 0
+                a = point
+              else
+                b = point
+              end
+            end
+          end
+          segments << [project.call(a),project.call(b)]
+        end
+      end
+      points=segments.flatten(1)
+      raise 'Không có hình học trong góc nhìn này.' if points.empty?
+      xs=points.map(&:first);ys=points.map(&:last)
+      minx,maxx=xs.minmax;miny,maxy=ys.minmax
+      w=[maxx-minx,0.01].max;h=[maxy-miny,0.01].max
+      scale=key == 'overview' ? [1000.0/w,600.0/h].min : 25.4*3.0/denominator(key,o)
+      raise 'Hình vượt khung xem trước. Tăng mẫu số tỷ lệ.' if w*scale>1080 || h*scale>660
+      ox=630-w*scale/2;oy=440-h*scale/2
+      path=segments.map { |a,b| format('M%.2f %.2fL%.2f %.2f',ox+(a[0]-minx)*scale,oy+(a[1]-miny)*scale,ox+(b[0]-minx)*scale,oy+(b[1]-miny)*scale) }.join
+      label=xml_text("#{job[:name]} · #{VIEWS[key]}")
+      dimensions=''
+      if o['dimensions'] && key!='overview'
+        dimensions="<text x='630' y='810' text-anchor='middle'>Khung hình chiếu: #{(w*25.4).round(1)} × #{(h*25.4).round(1)} mm · 1:#{denominator(key,o)}</text>"
+      end
+      "<svg xmlns='http://www.w3.org/2000/svg' width='1260' height='891' viewBox='0 0 1260 891'><rect width='1260' height='891' fill='white'/><rect x='20' y='20' width='1220' height='851' fill='none' stroke='#334155'/><g font-family='Arial' font-size='19' fill='#173d4a'><text x='40' y='57'>#{label}</text><text x='40' y='850' font-size='14'>Xem trước nét hình học · có cạnh khuất · chưa mô phỏng DIM chi tiết / vật liệu / nét giao cắt</text>#{dimensions}</g><path d='#{path}' fill='none' stroke='#334155' stroke-width='1'/></svg>"
+    end
+    # Minimal standards-compliant XLSX package; no Excel installation required.
+    def write_xlsx_zip(path,entries)
+      require 'zlib'
+      central=[]
+      File.open(path,'wb') do |io|
+        entries.each do |name,body|
+          name=name.b;body=body.encode('UTF-8').b
+          crc=Zlib.crc32(body);size=body.bytesize;offset=io.pos
+          io.write([0x04034b50,20,0,0,0,33,crc,size,size,name.bytesize,0].pack('VvvvvvVVVvv'))
+          io.write(name);io.write(body)
+          central << [0x02014b50,20,20,0,0,0,33,crc,size,size,name.bytesize,0,0,0,0,0,offset].pack('VvvvvvvVVVvvvvvVV')+name
+        end
+        offset=io.pos;central.each { |entry| io.write(entry) };size=io.pos-offset
+        io.write([0x06054b50,0,0,central.length,central.length,size,offset,0].pack('VvvvvVVv'))
+      end
+    end
+    def export_excel(o)
+      model=Sketchup.active_model
+      raise 'Thoát chế độ sửa Group/Component trước khi thống kê.' if model.active_path
+      jobs=export_jobs(model,o)
+      target=UI.savepanel('Xuất thống kê ván Excel',nil,"#{safe_filename(o['drawing'])}_VAN.xlsx")
+      return report('Đã hủy xuất Excel.') unless target
+      target += '.xlsx' unless File.extname(target).downcase=='.xlsx'
+      rows=[['Cụm tủ','STT','Tên ván','Dài (mm)','Rộng (mm)','Dày (mm)','Số lượng','Vật liệu','Hướng vân','Diện tích (m²)']]
+      jobs.each do |job|
+        job[:stats][:rows].each do |r|
+          rows << [job[:name],r[:stt].to_i,r[:name],r[:length_mm].to_f,r[:width_mm].to_f,r[:thickness_mm].to_f,r[:qty].to_i,r[:material],r[:grain],r[:area_m2].to_f]
+        end
+      end
+      raise 'Không tìm thấy ván để xuất.' if rows.length==1
+      raise 'Quá nhiều dòng cho một bảng Excel.' if rows.length>1048575
+      data=rows.each_with_index.map do |row,i|
+        cells=row.each_with_index.map do |v,j|
+          ref="#{(65+j).chr}#{i+1}"
+          v.is_a?(Numeric) ? "<c r='#{ref}'><v>#{v}</v></c>" : "<c r='#{ref}' t='inlineStr'><is><t xml:space='preserve'>#{xml_text(v)}</t></is></c>"
+        end.join
+        "<row r='#{i+1}'>#{cells}</row>"
+      end.join
+      last=rows.length;total=last+1
+      data += "<row r='#{total}'><c r='A#{total}' t='inlineStr'><is><t>TỔNG CỘNG</t></is></c><c r='G#{total}'><f>SUM(G2:G#{last})</f><v>#{rows.drop(1).sum { |r| r[6] }}</v></c><c r='J#{total}'><f>SUM(J2:J#{last})</f><v>#{rows.drop(1).sum { |r| r[9] }}</v></c></row>"
+      ns='http://schemas.openxmlformats.org/spreadsheetml/2006/main'
+      entries={
+        '[Content_Types].xml'=>%Q{<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>},
+        '_rels/.rels'=>'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>',
+        'xl/workbook.xml'=>%Q{<workbook xmlns="#{ns}" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Thống kê ván" sheetId="1" r:id="rId1"/></sheets><calcPr fullCalcOnLoad="1"/></workbook>},
+        'xl/_rels/workbook.xml.rels'=>'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>',
+        'xl/worksheets/sheet1.xml'=>%Q{<worksheet xmlns="#{ns}"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols><col min="1" max="1" width="28" customWidth="1"/><col min="2" max="2" width="8" customWidth="1"/><col min="3" max="3" width="32" customWidth="1"/><col min="4" max="10" width="18" customWidth="1"/></cols><sheetData>#{data}</sheetData><autoFilter ref="A1:J#{last}"/></worksheet>}
+      }
+      tmp=Tempfile.new(['TT_Excel_','.xlsx'],File.dirname(target));temp_path=tmp.path;tmp.close
+      write_xlsx_zip(temp_path,entries)
+      FileUtils.mv(temp_path,target,force:true)
+      report("Đã xuất #{rows.length-1} dòng ván của #{jobs.length} cụm tủ:\n#{target}")
+    ensure
+      tmp.close! if tmp
     end
     def html
       <<~'HTML'
       <!doctype html><html lang="vi"><head><meta charset="utf-8"><style>
       *{box-sizing:border-box}body{font:14px Arial,sans-serif;margin:0;background:#f4f6f8;color:#253443}header{background:#173d4a;color:white;padding:20px 24px}h1{font-size:21px;margin:0 0 7px}main{padding:18px 24px}.card{background:white;border:1px solid #dce3e8;border-radius:9px;padding:16px;margin-bottom:14px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}label{display:block}input:not([type=checkbox]),select{display:block;width:100%;padding:8px;border:1px solid #bccbd4;border-radius:5px;margin-top:5px}.views{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}button{border:0;border-radius:5px;padding:10px 13px;background:#156a7a;color:white;cursor:pointer}button.secondary{background:#e3ecf1;color:#253443}button:disabled{opacity:.5;cursor:wait}.buttons{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}small,p{line-height:1.5}.muted{color:#617281}#status{white-space:pre-wrap;padding:12px;border-radius:6px;background:#e9f1f4;overflow-wrap:anywhere}.error{color:#a32929}summary{cursor:pointer;font-weight:bold}h2{font-size:16px;margin:0 0 12px}
-      .workspace{display:grid;grid-template-columns:minmax(330px,420px) minmax(400px,1fr);gap:18px;align-items:start}.preview-panel{position:sticky;top:12px}.preview-screen{background:#dce3e8;overflow:auto;height:500px;padding:14px;text-align:center}.preview-screen img{max-width:100%;height:auto;box-shadow:0 2px 12px #0003;display:block;margin:auto;background:white}.preview-screen img[hidden]{display:none}.preview-screen.zoom img{max-width:none;width:1600px}.preview-screen canvas{width:100%;max-width:100%;height:auto;display:block;background:white}.preview-screen canvas[hidden]{display:none}.preview-screen.zoom canvas{max-width:none;width:1600px}.preview-controls{display:flex;gap:6px;align-items:center;margin:10px 0}.preview-controls select{min-width:0;flex:1;margin:0}.preview-controls button{padding:9px}#preview-label{font-weight:bold;margin:8px 0}#preview-note{font-size:12px;color:#617281}@media(max-width:850px){.workspace{grid-template-columns:1fr}.preview-panel{position:static}.preview-screen{height:400px}}
-      </style></head><body><header><h1>Hồ sơ LayOut A3 · 1.9.91</h1>Scene riêng · Giữ tỷ lệ · Khung tên tự động</header><main><div id="status" role="status" style="position:sticky;top:0;z-index:5;margin-bottom:12px">Sẵn sàng.</div><div class="workspace"><div>
+      .workspace{display:flex;flex-direction:column;gap:18px}.workspace>div{width:100%}.preview-panel{order:-1;width:100%;position:static}.preview-screen{background:#dce3e8;overflow:auto;height:500px;padding:14px;text-align:center}.preview-screen img{max-width:100%;height:auto;box-shadow:0 2px 12px #0003;display:block;margin:auto;background:white}.preview-screen img[hidden]{display:none}.preview-screen.zoom img{max-width:none;width:1600px}.preview-screen canvas{width:100%;max-width:100%;height:auto;display:block;background:white}.preview-screen canvas[hidden]{display:none}.preview-screen.zoom canvas{max-width:none;width:1600px}.preview-controls{display:flex;gap:6px;align-items:center;margin:10px 0}.preview-controls select{min-width:0;flex:1;margin:0}.preview-controls button{padding:9px}#preview-label{font-weight:bold;margin:8px 0}#preview-note{font-size:12px;color:#617281}@media(max-width:850px){.workspace{grid-template-columns:1fr}.preview-panel{position:static}.preview-screen{height:400px}}
+      </style></head><body><header><h1>Hồ sơ LayOut A3 · 1.9.92</h1>Scene riêng · Giữ tỷ lệ · Khung tên tự động</header><main><div id="status" role="status" style="position:sticky;top:0;z-index:5;margin-bottom:12px">Sẵn sàng.</div><div class="workspace"><div>
       <form id="form"><div class="card"><h2>1. Phạm vi & tên bản vẽ</h2><label>Phạm vi quét<select id="scope"><option value="selected">Quét Group/Component đang chọn</option><option value="all">Quét tất cả Group/Component</option></select></label><label>Tên bản vẽ<input id="drawing" maxlength="100"></label><label>Tên công trình<input id="project" maxlength="160"></label><div class="grid" style="margin-top:12px">
       <label>Mặt bằng / mặt đứng — tỷ lệ 1:<input id="scale" type="number" min="1" max="500" step="any" list="ratios" required></label>
       <label>Mặt cắt / chi tiết — tỷ lệ 1:<input id="cut_scale" type="number" min="1" max="500" step="any" list="ratios" required></label>
@@ -816,17 +976,17 @@ module TranTuanNoiThat
       <p class="muted">Phối cảnh dùng Hybrid. Nét Vector giữ sắc khi phóng to. File LayOut có các lớp Đồ gỗ, Dim, Chú thích, Khung tên và Thống kê.</p>
       <small>Xuất lớp PDF và Optimize for Web: chưa có trong API LayOut; PDF ở đây nén ảnh, không cam kết giữ lớp hoặc mở tức thì.</small></div>
       <div class="buttons"><button type="button" class="secondary" data-action="check">Quét / kiểm tra model</button><button type="button" class="secondary" data-action="save">Lưu cấu hình</button><button type="button" class="secondary" data-action="scenes">Tạo / cập nhật Scene</button></div>
-      <div class="buttons"><button type="button" data-action="layout">Xuất LayOut</button><button type="button" data-action="preview">Xem trước hồ sơ</button><button type="button" data-action="pdf">Xuất PDF</button><button type="button" data-action="template">Tạo file mẫu A3</button></div></form>
+      <div class="buttons"><button type="button" data-action="layout">Xuất LayOut</button><button type="button" data-action="preview">Xem trước hồ sơ</button><button type="button" data-action="pdf">Xuất PDF</button><button type="button" data-action="excel">Xuất thống kê Excel</button><button type="button" data-action="template">Tạo file mẫu A3</button></div></form>
       <details class="card" style="margin-top:14px"><summary>Dim liên kết, cập nhật công trình & dùng mẫu</summary>
       <p>Object Snap đã bật. Trong LayOut chọn lớp Dim, dùng Dimension và bắt hai đầu trực tiếp lên cạnh/đỉnh viewport. Không gõ đè số đo. Sau khi sửa và lưu SKP, dùng Update Reference; kiểm tra liên kết nếu đã xóa/tạo lại hình học.</p>
       <p>Đổi tên công trình tại Document Setup → Auto-Text → Project Name. PageNumber tự chạy. In PDF ở Actual Size / 100% để giữ tỷ lệ.</p>
       <p>Tạo file mẫu A3 → mở trong LayOut → Save As Template. Với công trình khác, tạo Scene trước rồi Relink SKP; kiểm tra lại Scene tương ứng và Dim. Thời gian cập nhật phụ thuộc độ nặng mô hình.</p>
       <p>Section Fills chỉ kín khi hình học tại mặt cắt tạo được đường bao kín. Không tự sửa hình học tủ. Công cụ tạo DIM tổng ngang/dọc từ biên khối. DIM tự tạo cần dựng/xuất lại khi model đổi; DIM chi tiết có thể đặt thêm trực tiếp trong LayOut bằng Object Snap.</p></details></div>
-      <section class="card preview-panel"><h2>Bảng xem trước A3</h2><p id="preview-note">Bấm Xem trước hồ sơ để dựng từng trang từ LayOut.</p>
+      <section class="card preview-panel"><h2>Bảng xem trước A3</h2><p id="preview-note">Bấm Xem trước hồ sơ để xem hình chiếu nét nhẹ, không tạo Scene hoặc lưu model.</p>
       <div class="preview-controls"><button class="preview-nav" onclick="movePage(-1)" title="Trang trước">◀</button><select class="preview-nav" id="preview-list" onchange="selectPage(this.value)" aria-label="Chọn trang"></select><button class="preview-nav" onclick="movePage(1)" title="Trang sau">▶</button></div>
       <div id="preview-label">Chưa có trang xem trước</div><div id="preview-screen" class="preview-screen"><img id="preview-image" alt="Bản vẽ A3" hidden><canvas id="preview-canvas" aria-label="Xem trước bản vẽ và kích thước" hidden></canvas></div>
       <div class="buttons"><button class="preview-nav secondary" onclick="focusPreview(true)">Gần đối tượng</button><button class="preview-nav secondary" onclick="focusPreview(false)">Toàn trang</button><button class="preview-nav secondary" onclick="zoomPreview(false)">Vừa khung</button><button class="preview-nav secondary" onclick="zoomPreview(true)">Phóng to</button><button id="cancel-preview" class="preview-nav secondary" onclick="sketchup.cancel_preview()" hidden>Dừng dựng</button></div>
-      <small>Ảnh xem trước 150 DPI. Thay đổi model hoặc thông số: bấm Xem trước hồ sơ để cập nhật. PDF xuất ở High.</small></section></div></main>
+      <small>Xem trước nét hình học, có cạnh khuất; không mô phỏng vật liệu, DIM chi tiết hoặc nét giao mặt cắt. Hồ sơ LayOut/PDF dùng bộ dựng riêng.</small></section></div></main>
       <script>
       window.addEventListener('error',function(e){var box=document.getElementById('status');if(box){box.textContent='Lỗi giao diện: '+e.message;box.className='error'}});
       const labels={top:'Mặt bằng',front:'Mặt đứng ngoài',left:'Mặt bên trái',right:'Mặt bên phải',cut_front:'Mặt cắt thùng trước',cut_left:'Mặt cắt thùng trái',cut_right:'Mặt cắt thùng phải',overview:'Phối cảnh 3D'};
@@ -846,7 +1006,7 @@ module TranTuanNoiThat
         }catch(e){setBusy(false);report('Không thực hiện được: '+e.message,true)}
       }
       let previewPages=[],currentPage=-1,focusMode=true,currentFocus=null;
-      function resetPreview(){previewPages=[];currentPage=-1;document.getElementById('preview-list').textContent='';const im=document.getElementById('preview-image');im.hidden=true;im.removeAttribute('src');document.getElementById('preview-canvas').hidden=true;currentFocus=null;document.getElementById('preview-label').textContent='Đang dựng trang…';document.getElementById('preview-note').textContent='Đang dựng từ hồ sơ LayOut. Các trang xong trước có thể xem ngay.'}
+      function resetPreview(){previewPages=[];currentPage=-1;document.getElementById('preview-list').textContent='';const im=document.getElementById('preview-image');im.hidden=true;im.removeAttribute('src');document.getElementById('preview-canvas').hidden=true;currentFocus=null;document.getElementById('preview-label').textContent='Đang dựng trang…';document.getElementById('preview-note').textContent='Đang dựng hình chiếu nét nhẹ. Các trang xong trước có thể xem ngay.'}
       function previewRunning(b){document.getElementById('cancel-preview').hidden=!b;if(!b&&previewPages.length)document.getElementById('preview-note').textContent=previewPages.length+' trang đã dựng. Có thể chuyển trang và phóng to.'}
       function addPreviewPage(p){previewPages.push(p);const o=document.createElement('option');o.value=p.id;o.textContent=(p.id+1)+'. '+p.label;document.getElementById('preview-list').appendChild(o)}
       function selectPage(id){id=Number(id);if(!Number.isInteger(id)||id<0||id>=previewPages.length)return;currentPage=id;document.getElementById('preview-list').value=String(id);sketchup.preview_page(id)}

@@ -1,0 +1,27 @@
+TRẦN TUẤN NỘI THẤT 1.9.92
+
+CÀI ĐẶT
+Lưu model đang làm. Extension Manager > Install Extension > chọn RBZ này.
+Nếu bảng đang mở, đóng và mở lại. Nếu vẫn hiện 1.9.91, lưu model và khởi động lại SketchUp.
+
+THAY ĐỔI
+- Xem trước ở trên cùng, phần chức năng phía dưới.
+- Nút Xem trước dùng hình chiếu SVG đọc từ cạnh thật trong Group/Component.
+- Không gọi LayOut renderer, tạo Scene hoặc lưu model khi xem trước.
+- Dựng từng góc nhìn, có Dừng dựng, giới hạn 30.000 cạnh/cụm và 48 góc nhìn/lượt.
+- Xuất thống kê Excel .xlsx độc lập với xem trước và LayOut, không cần cài Excel.
+- Các cột: cụm tủ, STT, tên ván, dài/rộng/dày mm, số lượng, vật liệu, hướng vân, diện tích m².
+- Có lọc, cố định dòng tiêu đề và công thức tổng số lượng/diện tích.
+
+GIỚI HẠN CẦN BIẾT
+Xem trước mới là hình chiếu nét có cạnh khuất, chưa mô phỏng vật liệu, DIM chi tiết, nét giao mặt cắt hoặc bảng thống kê trên trang. Số đo khung hình chiếu được ghi khi bật DIM tổng.
+Xuất LayOut/PDF vẫn dùng bộ dựng cũ; thay đổi này không xác nhận sửa các lỗi khác trong bộ xuất.
+Chưa chạy trực tiếp trên SketchUp 2022, chưa có crash log để kết luận nguyên nhân sập. Môi trường xây dựng không có Ruby/SketchUp để chạy kiểm thử Ruby.
+Đã kiểm tra cú pháp JavaScript, đường gọi xem trước và cấu trúc gói RBZ.
+
+THỬ TRÊN MÁY
+1. Mở bản sao model, chọn một cụm tủ nhỏ.
+2. Mở Hồ sơ LayOut, xác nhận số phiên bản 1.9.92.
+3. Xem trước, chuyển trang, Dừng dựng, đóng/mở bảng.
+4. Xuất Excel, mở file và đối chiếu số tấm/kích thước với model.
+5. Nếu còn sập, gửi model mẫu và thời điểm thao tác bị sập.
