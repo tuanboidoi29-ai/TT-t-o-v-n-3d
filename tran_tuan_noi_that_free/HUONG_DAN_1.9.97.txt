@@ -1,0 +1,27 @@
+TRẦN TUẤN NỘI THẤT 1.9.97 — DIM CHI TIẾT
+Cài RBZ bằng Extension Manager > Install Extension hoặc dùng nút cập nhật plugin.
+Thoát chế độ sửa Group/Component trước khi đo.
+
+DIM BẮT NHIỀU ĐIỂM
+Bấm icon DIM > bắt lần lượt các điểm trên mô hình > Enter (hoặc menu chuột phải kết thúc chọn) > rê chuột ra ngoài > bấm đặt.
+X/Y/Z chọn trục đo; Tab đổi mặt đo; Backspace bỏ điểm cuối; Esc hủy.
+Đo khoảng cách chiếu theo trục, không đo đường xiên nối các điểm.
+
+DIM TỰ ĐỘNG
+Chọn một hoặc nhiều Group/Component rồi bấm AUTO; hoặc bấm AUTO rồi chọn cụm.
+Tab đổi mặt Đứng/Bằng/Cạnh. Rê ra phía muốn đặt, bấm tạo.
+Quét các cấu kiện con đang hiển thị, DIM tổng 3 chiều và các đoạn theo biên cấu kiện trên mặt đang chọn.
+Một cụm: theo trục riêng của cụm (hỗ trợ xoay/tỷ lệ). Nhiều cụm: theo trục XYZ chung, DIM chung cho vùng chọn.
+Chuột phải > Cài đặt DIM: khoảng cách, khoảng tầng, đoạn nhỏ nhất, mốc Biên cấu kiện hoặc Đỉnh hình học.
+Đỉnh hình học lấy nhiều mốc hơn (kể cả rãnh/chi tiết), có thể tạo nhiều đường; tăng đoạn nhỏ nhất nếu cần.
+Mốc được chiếu lên mặt đo, không phải nhận diện ngữ nghĩa tự động mọi lỗ/bản lề.
+Nếu nhìn song song mặt đo và đường DIM không bám chuột, đổi mặt bằng Tab hoặc Orbit.
+
+DIM là đối tượng Dimension gốc, đơn vị theo Model Info > Units. Preview hiển thị mm.
+Tag riêng TT_DIM_TONG và TT_DIM_CHI_TIET. Mỗi lần đặt một Undo.
+DIM dùng điểm tọa độ: không tự cập nhật khi sửa cấu kiện. Xóa DIM cũ rồi tạo lại sau thay đổi.
+Không tự quét lúc khởi động. Giới hạn 500 DIM, 5.000 cấu kiện, 150.000 cạnh mỗi lần; chia vùng nếu vượt.
+
+KIỂM TRA
+36 file Ruby qua kiểm tra cú pháp Ruby 3.1; kiểm thử gộp mốc, ván mỏng, hình chiếu, hai phía offset và ba mặt đo đạt bằng mô phỏng.
+Chưa có môi trường SketchUp Windows để kiểm chứng bắt điểm, hiển thị, Undo và hiệu năng thực tế. Cần thử trên bản sao mô hình trước khi dùng hồ sơ sản xuất.

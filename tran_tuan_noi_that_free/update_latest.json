@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.96",
+  "version": "1.9.97",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Phối cảnh 3D lấy camera hiện tại của SketchUp khi bấm Xem trước/Xuất PDF, giữ hướng và Perspective/Parallel Projection; bỏ góc cố định và tự zoom. Các mặt kỹ thuật giữ hướng cũ. Two-Point/Match Photo chưa hỗ trợ. Chưa kiểm thử bộ dựng Windows.",
+  "notes": "Thêm DIM bắt nhiều điểm và Auto DIM: xem trước, đổi mặt Tab, DIM tổng 3 chiều và chuỗi mốc cấu kiện, một Undo. Kiểm tra Ruby và hình học mô phỏng đạt; chưa chạy trực tiếp SketchUp Windows.",
   "files": [
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -14,7 +14,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "bab30c6e167256e4b46ad54e75fdcd0ae39552fd11bfcf86ce63d589154a565f"
+      "sha256": "8d148ba2f3d4ea1f52931627e1090feb1e2e9fb9cae00805c654d3b1188919f4"
     },
     {
       "path": "tran_tuan_noi_that/board_tool.rb",
@@ -24,7 +24,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "f0310cb86fd271ff73d303a28a5481691f0eda76c717cc3b3b1a05245039f4b7"
+      "sha256": "3163eb913ef6f402b42a6ddd382313d9c3682e81589296196d44d52200b46f3e"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -35,6 +35,11 @@
       "path": "tran_tuan_noi_that/cabinet_door_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/cabinet_door_tool.rb",
       "sha256": "b3faef4b9114e350897664e1c2b4cd3ca997534a0d53d5cf3f35681d33a7000c"
+    },
+    {
+      "path": "tran_tuan_noi_that/dimension_tool.rb",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/dimension_tool.rb",
+      "sha256": "29e89a49b76a34c42e9e3e896a79956a9ac44faa84196fe8083e247cdbdc7ed2"
     },
     {
       "path": "tran_tuan_noi_that/drawer_tool.rb",
@@ -92,6 +97,16 @@
       "sha256": "534152a1ad05f354433a4aaea77826c2da26f867b448777038babff703035b3f"
     },
     {
+      "path": "tran_tuan_noi_that/icons/dim_auto.svg",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/icons/dim_auto.svg",
+      "sha256": "70cb274116bed0fb950dc47dc84f3d5b21796bb551a486786f9fda5bb9e4f4eb"
+    },
+    {
+      "path": "tran_tuan_noi_that/icons/dim_points.svg",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/icons/dim_points.svg",
+      "sha256": "bdc1da24e5e09b0aa7642f2f4c775a80d6d2720d5ef5ea1b248e3230ed58a2e9"
+    },
+    {
       "path": "tran_tuan_noi_that/icons/drawer.svg",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/icons/drawer.svg",
       "sha256": "1df7e8471d80c05fd9c97a50af6e926f34a616bcc9564fdea4ccecc4e36dd2a4"
@@ -110,6 +125,11 @@
       "path": "tran_tuan_noi_that/icons/main.svg",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/icons/main.svg",
       "sha256": "dcc77bbd1fd28fb5fcb94c32a5e3f48559af0ef62a2d429720f76c792a4d5c97"
+    },
+    {
+      "path": "tran_tuan_noi_that/icons/rename.svg",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/icons/rename.svg",
+      "sha256": "8598be6cf185647a65a97a256c737954cfc389e729f44b1fc240ef0997898295"
     },
     {
       "path": "tran_tuan_noi_that/icons/settings.svg",
@@ -177,6 +197,21 @@
       "sha256": "c2d95c5148ebd42b3263214e1e97fbe2ccec0a05b673796fea05c953dca9a24a"
     },
     {
+      "path": "tran_tuan_noi_that/layout_technical.rb",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/layout_technical.rb",
+      "sha256": "a368ffb59df1f91968e89a8eaad80103611003799b95889079af97b1ae617888"
+    },
+    {
+      "path": "tran_tuan_noi_that/rename_tool.rb",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/rename_tool.rb",
+      "sha256": "c93fcb6fd3a82e537d578655d38b5f68d310d2fa6f74d0d2d69ba2b211b80d1c"
+    },
+    {
+      "path": "tran_tuan_noi_that/rename_ui.rb",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/rename_ui.rb",
+      "sha256": "fd71147bdadb84b2eb8c9464c9583052d69da73a195f4d65409a27edb5a8e469"
+    },
+    {
       "path": "tran_tuan_noi_that/round_smooth_fix.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/round_smooth_fix.rb",
       "sha256": "ba5a4d165c4a300aa80e7f91a4cd9f86416179b3410ae64901f0589418793699"
@@ -189,7 +224,7 @@
     {
       "path": "tran_tuan_noi_that/settings.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/settings.rb",
-      "sha256": "22a506802f3bd131e8298c5e121cb4aeaf16d9c0b63f9a93834f9b4a941d4f6d"
+      "sha256": "556eb34afc728ec4ce3dc837fefbfa92a69fddc2d09758219b82d4a628b4fb1b"
     },
     {
       "path": "tran_tuan_noi_that/stretch_auto_scan_fix.rb",
@@ -224,27 +259,7 @@
     {
       "path": "tran_tuan_noi_that/updater.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/updater.rb",
-      "sha256": "5ae0e4a9f68114c5a4fa208c7289511fe11adf682e64e3831f7fee74ebfbdc9e"
-    },
-    {
-      "path": "tran_tuan_noi_that/rename_tool.rb",
-      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/rename_tool.rb",
-      "sha256": "c93fcb6fd3a82e537d578655d38b5f68d310d2fa6f74d0d2d69ba2b211b80d1c"
-    },
-    {
-      "path": "tran_tuan_noi_that/rename_ui.rb",
-      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/rename_ui.rb",
-      "sha256": "fd71147bdadb84b2eb8c9464c9583052d69da73a195f4d65409a27edb5a8e469"
-    },
-    {
-      "path": "tran_tuan_noi_that/icons/rename.svg",
-      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/icons/rename.svg",
-      "sha256": "8598be6cf185647a65a97a256c737954cfc389e729f44b1fc240ef0997898295"
-    },
-    {
-      "path": "tran_tuan_noi_that/layout_technical.rb",
-      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/layout_technical.rb",
-      "sha256": "2771e8adc481c26a4e23ab438cea0d49252426cb0937ea1df09710b29c98df8f"
+      "sha256": "386d85bd5d5cadff38945f07349df84f4da6e86d3e929a51d31b845b593c9aae"
     }
   ],
   "stretch_mode_version": "1.0.1"

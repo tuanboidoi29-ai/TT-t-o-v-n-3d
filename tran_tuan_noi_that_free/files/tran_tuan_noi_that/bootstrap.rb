@@ -11,7 +11,7 @@ module TranTuanNoiThat
   NAME = 'TRẦN TUẤN NỘI THẤT'.freeze unless const_defined?(:NAME, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.96'.freeze
+  VERSION = '1.9.97'.freeze
 
   class << self
     def setting(key, default = nil)
@@ -82,6 +82,7 @@ module TranTuanNoiThat
         grain_align_fix
         grain_standard_2440_fix
         grain_reload_v351_fix
+        dimension_tool
         layout_stats_tool
         layout_stats_v030_patch
         layout_stats_v040_compat
@@ -127,6 +128,7 @@ module TranTuanNoiThat
       install_stretch_mode_ui
       install_grain_ui
       install_layout_stats_ui
+      install_dimensions_ui
       refresh_feature_commands
       @toolbar.restore if @toolbar
       @toolbar.show if @toolbar
@@ -197,6 +199,13 @@ module TranTuanNoiThat
     rescue StandardError => error
       puts "[TT UI Grain] #{error.class}: #{error.message}"
       false
+    end
+
+    def install_dimensions_ui
+      @dim_points_cmd ||= command('DIM bắt nhiều điểm', 'dim_points.svg', 'Bắt điểm, Enter, rê chuột ra ngoài để đặt chuỗi DIM.') { DetailDimensions.launch(false) }
+      @dim_auto_cmd ||= command('DIM tự động', 'dim_auto.svg', 'Quét cụm được chọn; Tab đổi mặt; rê chuột đặt DIM tổng và chi tiết.') { DetailDimensions.launch(true) }
+      add_feature_command_once(@dim_points_cmd, :dim_points_menu_installed)
+      add_feature_command_once(@dim_auto_cmd, :dim_auto_menu_installed)
     end
 
     def install_layout_stats_ui
