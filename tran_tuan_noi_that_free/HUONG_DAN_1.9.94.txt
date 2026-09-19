@@ -1,0 +1,18 @@
+TRẦN TUẤN NỘI THẤT 1.9.94 — PHỐI CẢNH MODEL CÓ VẬT LIỆU
+
+Cài RBZ qua Extension Manager > Install Extension hoặc Kiểm tra cập nhật.
+Lưu model rồi mở lại SketchUp nếu bảng vẫn hiện bản cũ.
+Chọn cụm tủ > Hồ sơ LayOut > tích Phối cảnh 3D > Xem trước hồ sơ.
+
+THAY ĐỔI
+- Trang phối cảnh xem trước chụp model thực trong SketchUp: có mặt, màu và texture đang gán, vật liệu kính giữ độ trong suốt riêng.
+- Tắt X-ray cho phối cảnh ở cả xem trước và Scene xuất PDF/LayOut, kể cả cấu hình cũ đang bật.
+- Ảnh phối cảnh 1170 x 705, tắt antialias để giảm tải. Chỉ chụp khi bấm Xem trước, không chạy khi khởi động.
+- Tạm đặt camera và ẩn đối tượng ngoài phạm vi; khôi phục camera, hiển thị và selection qua ensure. Không tạo Scene/lưu model khi xem trước.
+- Các trang kỹ thuật vẫn xem trước bằng SVG nét; PDF giữ bộ DIM, thống kê và hai chế độ nhanh/chất lượng in của 1.9.93.
+- Cùng hướng camera và tỷ lệ khung 390:235 cho phối cảnh xem trước và PDF; phần xem trước đóng khung bằng đường chéo để tránh cắt cụm.
+
+KIỂM TRA VÀ GIỚI HẠN
+Đã chạy kiểm tra giao diện chọn PDF, cấu hình cũ, vô hiệu X-ray phối cảnh; kiểm tra ngữ pháp mã LayOut bằng parser (không phải chạy Ruby); đối chiếu file RBZ và SHA256.
+Chưa chạy SketchUp/LayOut 2022 trên Windows, chưa xác minh ảnh chụp, màu/vật liệu, khôi phục trạng thái hoặc PDF bằng bộ dựng thật. Không cam kết đã hết lỗi sập hoặc tốc độ xuất.
+Màu và vật liệu lấy từ model đang có; không tự tạo texture cho tấm chưa gán, không phải render quang học V-Ray.

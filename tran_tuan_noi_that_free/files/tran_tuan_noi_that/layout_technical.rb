@@ -17,7 +17,7 @@ module TranTuanNoiThat
              'cut_left'=>'Mặt cắt thùng trái','cut_right'=>'Mặt cắt thùng phải',
              'overview'=>'Phối cảnh 3D'}.freeze
     remove_const(:DEFAULTS) if const_defined?(:DEFAULTS, false)
-    DEFAULTS = {'drawing'=>'Hồ sơ tủ','scope'=>'selected','detail_dims'=>true,'title_font'=>13.0,'xray_views'=>VIEWS.keys,'project'=>'','scale'=>20.0,'cut_scale'=>20.0,'render'=>'Vector',
+    DEFAULTS = {'drawing'=>'Hồ sơ tủ','scope'=>'selected','detail_dims'=>true,'title_font'=>13.0,'xray_views'=>(VIEWS.keys - ['overview']),'project'=>'','scale'=>20.0,'cut_scale'=>20.0,'render'=>'Vector',
                 'cut_mm'=>20.0,'quality'=>90.0,'pdf_mode'=>'fast','stats'=>true,'stats_font'=>14.0,
                 'dimensions'=>true,'dim_offset'=>12.0,'dim_font'=>10.0,
                 'views'=>VIEWS.keys}.freeze
@@ -39,7 +39,7 @@ module TranTuanNoiThat
       out['views'] = VIEWS.keys.select { |k| out['views'].include?(k) }
       raise 'Phạm vi quét không hợp lệ.' unless %w[selected all].include?(out['scope'])
       raise 'Danh sách X-ray không hợp lệ.' unless out['xray_views'].is_a?(Array) && (out['xray_views']-VIEWS.keys).empty?
-      out['xray_views'] = VIEWS.keys.select { |k| out['xray_views'].include?(k) }
+      out['xray_views'] = VIEWS.keys.select { |k| k != 'overview' && out['xray_views'].include?(k) }
       out['drawing'] = out['drawing'].to_s.strip[0,100]
       out['drawing'] = 'Hồ sơ tủ' if out['drawing'].empty?
       out['detail_dims'] = out['detail_dims'] == true
@@ -272,7 +272,10 @@ module TranTuanNoiThat
         cam.height = [bb.height.to_f,bb.width.to_f/(390.0/235.0),1.0].max * 1.1
         cam
       elsif key == 'overview'
-        helper.tt_iso_camera(bb)
+        cam = helper.tt_iso_camera(bb)
+        cam.aspect_ratio = 390.0/235.0
+        cam.height = [bb.diagonal.to_f*1.12,1.0].max
+        cam
       else
         helper.tt_ortho_camera(key.sub('cut_','').to_sym,bb)
       end
@@ -298,6 +301,7 @@ module TranTuanNoiThat
           model.active_view.camera = camera(key,job[:bounds])
           material = key == 'overview' || o['render'] == 'Hybrid'
           profile(model.rendering_options,section,material,o['xray_views'].include?(key))
+          overview_profile(model.rendering_options) if key == 'overview'
           model.shadow_info['DisplayShadows'] = false unless key == 'overview'
           # Stable ownership attributes: rerun updates our scene, never overwrites a user's scene by name.
           owner = "#{job[:key]}:#{key}"
@@ -315,6 +319,7 @@ module TranTuanNoiThat
           page.include_in_animation = false
           page.update
           profile(page.rendering_options,section,material,o['xray_views'].include?(key))
+          overview_profile(page.rendering_options) if key == 'overview'
           scenes[key] = helper.tt_scene_layout_index(model,page)
         end
         helper.tt_restore_scope_visibility(visibility)
@@ -822,7 +827,7 @@ module TranTuanNoiThat
     def xml_text(value)
       value.to_s.encode('UTF-8',invalid: :replace,undef: :replace,replace:'').gsub(/[\x00-\x08\x0b\x0c\x0e-\x1f]/,'').gsub('&','&amp;').gsub('<','&lt;').gsub('>','&gt;').gsub('"','&quot;')
     end
-    # Read-only preview: never enters the native LayOut rendering pipeline.
+    # Preview avoids LayOut rendering. Overview temporarily captures the SketchUp viewport.
     def start_safe_preview(options)
       finish_preview(nil)
       clear_preview_files
@@ -840,33 +845,92 @@ module TranTuanNoiThat
       @preview_timer = nil
       raise 'Đã đổi mô hình; mở lại công cụ.' unless Sketchup.active_model == @model
       job = state[:jobs][state[:job_index]]
-      return finish_preview("Đã dựng #{@preview_pages.length} trang hình chiếu nét. Xem trước không thay đổi model.") unless job
-      unless state[:parts]
-        raise 'Đối tượng đã thay đổi. Hãy quét lại.' unless job[:roots].all?(&:valid?)
-        state[:parts] = detail_parts(job[:roots],30000)
-        raise 'Mô hình quá nhiều cạnh để xem trước nhẹ. Chọn từng cụm nhỏ hơn.' if state[:parts].sum { |part| part[:edges].length } > 30000
-        state[:bounds] = helper.tt_scope_bounds_for_roots(@model,job[:roots])
-      end
+      return finish_preview("Đã dựng #{@preview_pages.length} trang xem trước. Phối cảnh 3D hiển thị màu và vật liệu model.") unless job
       o = state[:options]
       key = o['views'][state[:page_index]]
       unless key
         state[:job_index] += 1
         state[:page_index] = 0
         state[:parts] = nil
+        state[:bounds] = nil
         schedule_preview(state)
         return
       end
-      svg = safe_preview_svg(job,state[:parts],state[:bounds],key,o)
+      raise 'Đối tượng đã thay đổi. Hãy quét lại.' unless job[:roots].all?(&:valid?)
+      state[:bounds] ||= helper.tt_scope_bounds_for_roots(@model,job[:roots])
+      if key == 'overview'
+        svg = overview_preview_svg(job,state[:bounds])
+        label = "#{job[:name]} · Phối cảnh 3D · màu và vật liệu model"
+      else
+        state[:parts] ||= detail_parts(job[:roots],30000)
+        svg = safe_preview_svg(job,state[:parts],state[:bounds],key,o)
+        label = "#{job[:name]} · #{VIEWS[key]} · nét hình học"
+      end
       id = @preview_pages.length
-      label = "#{job[:name]} · #{VIEWS[key]} · nét hình học"
       @preview_pages << {svg:svg,label:label,focus:nil}
       @dialog.execute_script("addPreviewPage(#{JSON.generate({id:id,label:label})})")
       show_preview_page(0) if id.zero?
       state[:page_index] += 1
-      report("Đã dựng #{@preview_pages.length} trang nét hình học…")
+      report("Đã dựng #{@preview_pages.length} trang xem trước…")
       schedule_preview(state)
     rescue StandardError => e
       finish_preview("Không dựng được xem trước: #{e.message}",true)
+    end
+    def overview_profile(options)
+      # Shaded faces with textures; material alpha remains enabled for glass.
+      values = {'RenderMode'=>2,'Texture'=>true,'ModelTransparency'=>false,
+                'MaterialTransparency'=>true,'DisplayColorByLayer'=>false,
+                'DrawBackEdges'=>false,'DrawHidden'=>false,
+                'DisplaySectionCuts'=>false,'DisplaySectionPlanes'=>false,
+                'DisplaySketchAxes'=>false,'DisplayInstanceAxes'=>false,
+                'DisplayDims'=>false,'DisplayText'=>false,'HideConstructionGeometry'=>true,
+                'ROPDrawHiddenGeometry'=>false,'ROPDrawHiddenObjects'=>false}
+      keys = options.keys
+      values.each { |key,value| options[key]=value if keys.include?(key) }
+    end
+    def overview_preview_svg(job,bounds)
+      model = @model
+      view = model.active_view
+      saved_camera = helper.tt_clone_camera(view.camera)
+      saved_render = {}
+      model.rendering_options.each { |key,value| saved_render[key]=value }
+      visibility = helper.tt_scope_visibility_state(model)
+      selection = model.selection.to_a
+      @preview_dir ||= Dir.mktmpdir('TT_Overview_Preview_')
+      path = File.join(@preview_dir,"overview_#{job[:index]}.png")
+      operation_open = false
+      begin
+        model.start_operation('TT · Ảnh xem trước tạm',true)
+        operation_open = true
+        helper.tt_apply_scope_visibility(model,job[:roots])
+        model.selection.clear
+        profile(model.rendering_options,false,true,false)
+        overview_profile(model.rendering_options)
+        cam = camera('overview',bounds)
+        # Conservative sphere fit at the same 390:235 aspect as the PDF viewport.
+        cam.aspect_ratio = 390.0/235.0
+        cam.height = [bounds.diagonal.to_f*1.12,1.0].max
+        view.camera = cam
+        view.refresh
+        written = view.write_image(filename:path,width:1170,height:705,antialias:false,transparent:false)
+        raise 'SketchUp không tạo được ảnh phối cảnh 3D.' unless written && File.file?(path) && File.size(path)>8
+        raise 'Ảnh phối cảnh không hợp lệ.' unless File.binread(path,8)=="\x89PNG\r\n\x1a\n".b
+        image_data=Base64.strict_encode64(File.binread(path))
+      ensure
+        begin
+          model.abort_operation if operation_open
+        ensure
+          helper.tt_restore_scope_visibility(visibility)
+          saved_render.each { |key,value| model.rendering_options[key]=value }
+          view.camera=saved_camera
+          model.selection.clear
+          valid_selection=selection.select(&:valid?)
+          model.selection.add(valid_selection) unless valid_selection.empty?
+          view.invalidate
+        end
+      end
+      label=xml_text("#{job[:name]} · PHỐI CẢNH 3D")
+      "<svg xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink' width='1260' height='891' viewBox='0 0 1260 891'><rect width='1260' height='891' fill='white'/><rect x='20' y='20' width='1220' height='851' fill='none' stroke='#334155'/><text x='45' y='55' font-family='Arial' font-size='22' fill='#173d4a'>#{label}</text><image x='45' y='85' width='1170' height='705' xlink:href='data:image/png;base64,#{image_data}'/><text x='45' y='845' font-family='Arial' font-size='17'>Mặt, màu và vật liệu đang gán trong model · Không dùng đo tỷ lệ</text></svg>"
     end
     def safe_preview_svg(job,parts,bounds,key,o)
       project = lambda do |p|
@@ -980,7 +1044,7 @@ module TranTuanNoiThat
       <!doctype html><html lang="vi"><head><meta charset="utf-8"><style>
       *{box-sizing:border-box}body{font:14px Arial,sans-serif;margin:0;background:#f4f6f8;color:#253443}header{background:#173d4a;color:white;padding:20px 24px}h1{font-size:21px;margin:0 0 7px}main{padding:18px 24px}.card{background:white;border:1px solid #dce3e8;border-radius:9px;padding:16px;margin-bottom:14px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}label{display:block}input:not([type=checkbox]),select{display:block;width:100%;padding:8px;border:1px solid #bccbd4;border-radius:5px;margin-top:5px}.views{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}button{border:0;border-radius:5px;padding:10px 13px;background:#156a7a;color:white;cursor:pointer}button.secondary{background:#e3ecf1;color:#253443}button:disabled{opacity:.5;cursor:wait}.buttons{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}small,p{line-height:1.5}.muted{color:#617281}#status{white-space:pre-wrap;padding:12px;border-radius:6px;background:#e9f1f4;overflow-wrap:anywhere}.error{color:#a32929}summary{cursor:pointer;font-weight:bold}h2{font-size:16px;margin:0 0 12px}
       .workspace{display:flex;flex-direction:column;gap:18px}.workspace>div{width:100%}.preview-panel{order:-1;width:100%;position:static}.preview-screen{background:#dce3e8;overflow:auto;height:500px;padding:14px;text-align:center}.preview-screen img{max-width:100%;height:auto;box-shadow:0 2px 12px #0003;display:block;margin:auto;background:white}.preview-screen img[hidden]{display:none}.preview-screen.zoom img{max-width:none;width:1600px}.preview-screen canvas{width:100%;max-width:100%;height:auto;display:block;background:white}.preview-screen canvas[hidden]{display:none}.preview-screen.zoom canvas{max-width:none;width:1600px}.preview-controls{display:flex;gap:6px;align-items:center;margin:10px 0}.preview-controls select{min-width:0;flex:1;margin:0}.preview-controls button{padding:9px}#preview-label{font-weight:bold;margin:8px 0}#preview-note{font-size:12px;color:#617281}@media(max-width:850px){.workspace{grid-template-columns:1fr}.preview-panel{position:static}.preview-screen{height:400px}}
-      </style></head><body><header><h1>Hồ sơ LayOut A3 · 1.9.93</h1>Scene riêng · Giữ tỷ lệ · Khung tên tự động</header><main><div id="status" role="status" style="position:sticky;top:0;z-index:5;margin-bottom:12px">Sẵn sàng.</div><div class="workspace"><div>
+      </style></head><body><header><h1>Hồ sơ LayOut A3 · 1.9.94</h1>Scene riêng · Giữ tỷ lệ · Khung tên tự động</header><main><div id="status" role="status" style="position:sticky;top:0;z-index:5;margin-bottom:12px">Sẵn sàng.</div><div class="workspace"><div>
       <form id="form"><div class="card"><h2>1. Phạm vi & tên bản vẽ</h2><label>Phạm vi quét<select id="scope"><option value="selected">Quét Group/Component đang chọn</option><option value="all">Quét tất cả Group/Component</option></select></label><label>Tên bản vẽ<input id="drawing" maxlength="100"></label><label>Tên công trình<input id="project" maxlength="160"></label><div class="grid" style="margin-top:12px">
       <label>Mặt bằng / mặt đứng — tỷ lệ 1:<input id="scale" type="number" min="1" max="500" step="any" list="ratios" required></label>
       <label>Mặt cắt / chi tiết — tỷ lệ 1:<input id="cut_scale" type="number" min="1" max="500" step="any" list="ratios" required></label>
@@ -1000,17 +1064,17 @@ module TranTuanNoiThat
       <p>Đổi tên công trình tại Document Setup → Auto-Text → Project Name. PageNumber tự chạy. In PDF ở Actual Size / 100% để giữ tỷ lệ.</p>
       <p>Tạo file mẫu A3 → mở trong LayOut → Save As Template. Với công trình khác, tạo Scene trước rồi Relink SKP; kiểm tra lại Scene tương ứng và Dim. Thời gian cập nhật phụ thuộc độ nặng mô hình.</p>
       <p>Section Fills chỉ kín khi hình học tại mặt cắt tạo được đường bao kín. Không tự sửa hình học tủ. Công cụ tạo DIM tổng ngang/dọc từ biên khối. DIM tự tạo cần dựng/xuất lại khi model đổi; DIM chi tiết có thể đặt thêm trực tiếp trong LayOut bằng Object Snap.</p></details></div>
-      <section class="card preview-panel"><h2>Bảng xem trước A3</h2><p id="preview-note">Bấm Xem trước hồ sơ để xem hình chiếu nét nhẹ, không tạo Scene hoặc lưu model.</p>
+      <section class="card preview-panel"><h2>Bảng xem trước A3</h2><p id="preview-note">Phối cảnh 3D hiển thị mặt, màu và vật liệu của model; các mặt kỹ thuật dùng hình chiếu nét nhẹ.</p>
       <div class="preview-controls"><button class="preview-nav" onclick="movePage(-1)" title="Trang trước">◀</button><select class="preview-nav" id="preview-list" onchange="selectPage(this.value)" aria-label="Chọn trang"></select><button class="preview-nav" onclick="movePage(1)" title="Trang sau">▶</button></div>
       <div id="preview-label">Chưa có trang xem trước</div><div id="preview-screen" class="preview-screen"><img id="preview-image" alt="Bản vẽ A3" hidden><canvas id="preview-canvas" aria-label="Xem trước bản vẽ và kích thước" hidden></canvas></div>
       <div class="buttons"><button class="preview-nav secondary" onclick="focusPreview(true)">Gần đối tượng</button><button class="preview-nav secondary" onclick="focusPreview(false)">Toàn trang</button><button class="preview-nav secondary" onclick="zoomPreview(false)">Vừa khung</button><button class="preview-nav secondary" onclick="zoomPreview(true)">Phóng to</button><button id="cancel-preview" class="preview-nav secondary" onclick="sketchup.cancel_preview()" hidden>Dừng dựng</button></div>
-      <small>Xem trước nét hình học, có cạnh khuất; không mô phỏng vật liệu, DIM chi tiết hoặc nét giao mặt cắt. Hồ sơ LayOut/PDF dùng bộ dựng riêng.</small></section></div></main>
+      <small>Phối cảnh 3D: ảnh model có mặt, màu và vật liệu, không X-ray. Các trang kỹ thuật xem trước bằng nét, chưa mô phỏng DIM chi tiết và nét giao mặt cắt. PDF dùng bộ dựng riêng.</small></section></div></main>
       <script>
       window.addEventListener('error',function(e){var box=document.getElementById('status');if(box){box.textContent='Lỗi giao diện: '+e.message;box.className='error'}});
       const labels={top:'Mặt bằng',front:'Mặt đứng ngoài',left:'Mặt bên trái',right:'Mặt bên phải',cut_front:'Mặt cắt thùng trước',cut_left:'Mặt cắt thùng trái',cut_right:'Mặt cắt thùng phải',overview:'Phối cảnh 3D'};
-      Object.keys(labels).forEach(k=>{const l=document.createElement('label'),c=document.createElement('input');c.type='checkbox';c.dataset.view=k;l.appendChild(c);l.appendChild(document.createTextNode(' '+labels[k]));document.getElementById('views').appendChild(l);const xl=document.createElement('label'),xc=document.createElement('input');xc.type='checkbox';xc.dataset.xray=k;xl.appendChild(xc);xl.appendChild(document.createTextNode(' X-ray'));document.getElementById('views').appendChild(xl)});
+      Object.keys(labels).forEach(k=>{const l=document.createElement('label'),c=document.createElement('input');c.type='checkbox';c.dataset.view=k;l.appendChild(c);l.appendChild(document.createTextNode(' '+labels[k]));document.getElementById('views').appendChild(l);const xl=document.createElement('label'),xc=document.createElement('input');xc.type='checkbox';xc.dataset.xray=k;if(k==='overview'){xc.dataset.fixed='true';xc.disabled=true;}xl.appendChild(xc);xl.appendChild(document.createTextNode(k==='overview'?' Màu và vật liệu':' X-ray'));document.getElementById('views').appendChild(xl)});
       let readyReceived=false;
-      function receive(o){readyReceived=true;o=Object.assign({},initialOptions,o);['project','scale','cut_scale','cut_mm','render','quality','dim_offset','dim_font','stats_font','drawing','scope','title_font','pdf_mode'].forEach(k=>document.getElementById(k).value=o[k]);document.getElementById('stats').checked=o.stats;document.getElementById('dimensions').checked=o.dimensions;document.getElementById('detail_dims').checked=o.detail_dims;document.querySelectorAll('[data-xray]').forEach(c=>c.checked=o.xray_views.includes(c.dataset.xray));document.querySelectorAll('[data-view]').forEach(c=>c.checked=o.views.includes(c.dataset.view))}
+      function receive(o){readyReceived=true;o=Object.assign({},initialOptions,o);['project','scale','cut_scale','cut_mm','render','quality','dim_offset','dim_font','stats_font','drawing','scope','title_font','pdf_mode'].forEach(k=>document.getElementById(k).value=o[k]);document.getElementById('stats').checked=o.stats;document.getElementById('dimensions').checked=o.dimensions;document.getElementById('detail_dims').checked=o.detail_dims;document.querySelectorAll('[data-xray]').forEach(c=>c.checked=c.dataset.xray!=='overview'&&o.xray_views.includes(c.dataset.xray));document.querySelectorAll('[data-view]').forEach(c=>c.checked=o.views.includes(c.dataset.view))}
       function payload(){const o={};['project','scale','cut_scale','cut_mm','render','quality','dim_offset','dim_font','stats_font','drawing','scope','title_font','pdf_mode'].forEach(k=>o[k]=document.getElementById(k).value);o.stats=document.getElementById('stats').checked;o.dimensions=document.getElementById('dimensions').checked;o.detail_dims=document.getElementById('detail_dims').checked;o.xray_views=Array.from(document.querySelectorAll('[data-xray]:checked')).map(c=>c.dataset.xray);o.views=Array.from(document.querySelectorAll('[data-view]:checked')).map(c=>c.dataset.view);return o}
       function report(t,e){const s=document.getElementById('status');s.textContent=t;s.className=e?'error':''}
       function setBusy(b){document.querySelectorAll('#form button,#form input,#form select').forEach(e=>e.disabled=b);document.querySelectorAll('[data-fixed]').forEach(e=>e.disabled=true)}
@@ -1036,7 +1100,7 @@ module TranTuanNoiThat
       function zoomPreview(b){document.getElementById('preview-screen').classList.toggle('zoom',b)}
       document.getElementById('form').addEventListener('change',()=>{if(previewPages.length)document.getElementById('preview-note').textContent='Thông số đã đổi — bấm Xem trước hồ sơ để cập nhật ảnh.'});
       document.getElementById('form').addEventListener('submit' ,e=>e.preventDefault());
-      const initialOptions={drawing:'Hồ sơ tủ',scope:'selected',title_font:13,detail_dims:true,xray_views:Object.keys(labels),project:'Công trình mới',scale:20,cut_scale:20,cut_mm:20,render:'Vector',quality:90,pdf_mode:'fast',dim_offset:12,dim_font:10,stats_font:14,stats:true,dimensions:true,views:Object.keys(labels)};
+      const initialOptions={drawing:'Hồ sơ tủ',scope:'selected',title_font:13,detail_dims:true,xray_views:Object.keys(labels).filter(k=>k!=='overview'),project:'Công trình mới',scale:20,cut_scale:20,cut_mm:20,render:'Vector',quality:90,pdf_mode:'fast',dim_offset:12,dim_font:10,stats_font:14,stats:true,dimensions:true,views:Object.keys(labels)};
       receive(initialOptions);readyReceived=false;
       let readyAttempts=0;
       function connectRuby(){
