@@ -11,7 +11,7 @@ module TranTuanNoiThat
   NAME = 'TRẦN TUẤN NỘI THẤT'.freeze unless const_defined?(:NAME, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.97'.freeze
+  VERSION = '1.9.98'.freeze
 
   class << self
     def setting(key, default = nil)
@@ -202,9 +202,11 @@ module TranTuanNoiThat
     end
 
     def install_dimensions_ui
-      @dim_points_cmd ||= command('DIM bắt nhiều điểm', 'dim_points.svg', 'Bắt điểm, Enter, rê chuột ra ngoài để đặt chuỗi DIM.') { DetailDimensions.launch(false) }
-      @dim_auto_cmd ||= command('DIM tự động', 'dim_auto.svg', 'Quét cụm được chọn; Tab đổi mặt; rê chuột đặt DIM tổng và chi tiết.') { DetailDimensions.launch(true) }
-      add_feature_command_once(@dim_points_cmd, :dim_points_menu_installed)
+      # Existing sessions cannot remove toolbar/menu entries through SketchUp's API.
+      # Disable the retired command until the next SketchUp restart.
+      @dim_points_cmd.set_validation_proc { MF_GRAYED } if @dim_points_cmd
+      @dim_auto_cmd ||= command('DIM tự động mặt trước', 'dim_auto.svg', 'DIM ngang, cao, tổng ba chiều và lọt lòng. Tab mở cài đặt.') { DetailDimensions.launch }
+      @dim_auto_cmd.tooltip = 'DIM tự động mặt trước'
       add_feature_command_once(@dim_auto_cmd, :dim_auto_menu_installed)
     end
 

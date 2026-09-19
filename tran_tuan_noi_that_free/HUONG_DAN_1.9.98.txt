@@ -1,0 +1,30 @@
+TRẦN TUẤN NỘI THẤT 1.9.98 — DIM TỰ ĐỘNG MẶT TRƯỚC
+
+Chỉ còn một chức năng DIM tự động. Cài RBZ hoặc bấm cập nhật.
+Nếu đang dùng 1.9.97: khởi động lại SketchUp một lần để bỏ nút/menu DIM bắt điểm cũ; khi nạp nóng nút cũ bị vô hiệu hóa vì API không hỗ trợ xóa mục menu/toolbar.
+
+CÁCH DÙNG
+1. Thoát chế độ sửa Group/Component, chọn cụm tủ rồi bấm DIM tự động mặt trước. Có thể bấm công cụ trước rồi chọn cụm.
+2. Rê chuột ra ngoài để đặt DIM ngang và cao. Bấm đặt bộ DIM.
+3. Tab mở Cài đặt: cách mép, cách tầng, đoạn nhỏ nhất, cao chữ DIM theo mm. Bấm Cập nhật áp dụng ngay cho preview hoặc bộ DIM vừa đặt.
+4. Sau khi đặt vẫn ở công cụ để tiếp tục Tab/Cập nhật; Esc kết thúc. Khi mở lại, chọn đúng cụm tủ ban đầu để cập nhật bộ DIM của cụm đó.
+
+KẾT QUẢ
+- DIM ngang theo X (rộng), DIM đứng theo Z (cao) trên mặt trước XZ của cụm. Sâu theo Y.
+- Một cụm xoay: dùng trục riêng của cụm. Nhiều cụm: dùng trục chung XYZ và kích thước tổng vùng chọn.
+- Ba kích thước tổng rộng/cao/sâu ở ngoài; chuỗi chi tiết theo mốc biên cấu kiện.
+- LL: rộng lọt lòng giữa hồi/vách, chia theo các cao độ đợt. Loại các tấm mỏng theo chiều sâu như hậu/cánh khỏi nhận diện khoang.
+- Nhận lọt lòng dựa trên hộp biên tấm chữ nhật có chiều sâu lớn hơn bề dày. Tủ cong, tấm nghiêng, hình học liền khối hoặc phụ kiện phức tạp cần kiểm tra lại. Không tự nhận mọi loại khoang.
+- Mặt trước là phía +/-Y gần hướng nhìn khi quét, không đổi camera. Tổng sâu nhìn rõ ở phối cảnh; nhìn chính diện sẽ bị thu ngắn.
+
+CỠ CHỮ VÀ CẬP NHẬT
+DIM mới gồm đường và chữ hình học Arial, chiều cao thật theo mm; số đo mm. Không phải đối tượng Dimension gốc.
+Một nhóm TT DIM riêng bên ngoài tủ; các tag TT_DIM_TONG, TT_DIM_CHI_TIET, TT_DIM_LOT_LONG.
+Cập nhật thay bộ DIM của đúng tập cụm được chọn, không cộng dồn và không sửa DIM của cụm khác. Mỗi lần đặt/cập nhật một Undo.
+Không tự bám thay đổi mô hình. Sau sửa ván hãy mở lại công cụ để quét lại và đặt/cập nhật.
+DIM cũ 1.9.97 không tự xóa; nếu đã tạo, xóa thủ công bộ cũ trước khi dùng bộ mới.
+Giới hạn 300 DIM mỗi bộ để giảm chi phí tạo chữ hình học.
+
+KIỂM TRA
+36 file Ruby qua kiểm tra cú pháp; các kiểm thử gộp mốc, hướng DIM, tổng ba chiều, lọt lòng, vách, đợt, hậu/cánh và giao dịch cập nhật/hoàn tác lỗi đạt bằng mô phỏng.
+Chưa kiểm chứng tương tác, font và Undo trực tiếp trên SketchUp Windows.

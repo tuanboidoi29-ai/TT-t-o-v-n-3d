@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.97",
+  "version": "1.9.98",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Thêm DIM bắt nhiều điểm và Auto DIM: xem trước, đổi mặt Tab, DIM tổng 3 chiều và chuỗi mốc cấu kiện, một Undo. Kiểm tra Ruby và hình học mô phỏng đạt; chưa chạy trực tiếp SketchUp Windows.",
+  "notes": "Một công cụ DIM tự động mặt trước: ngang/cao, tổng rộng/cao/sâu và lọt lòng tủ chữ nhật. Tab mở cài đặt; Cập nhật áp dụng cỡ chữ hình học (mm) ngay. Khởi động lại SketchUp một lần để bỏ nút DIM cũ. Chưa kiểm thử trực tiếp SketchUp Windows.",
   "files": [
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -14,7 +14,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "8d148ba2f3d4ea1f52931627e1090feb1e2e9fb9cae00805c654d3b1188919f4"
+      "sha256": "c97f8230681a726bd10aac6725bba147b606b29fd54dc454de121ee354afac50"
     },
     {
       "path": "tran_tuan_noi_that/board_tool.rb",
@@ -24,7 +24,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "3163eb913ef6f402b42a6ddd382313d9c3682e81589296196d44d52200b46f3e"
+      "sha256": "101994b893554c62a1bf2c757f4b98768f5251f9dac1551839b66f5ecef027c3"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -39,7 +39,7 @@
     {
       "path": "tran_tuan_noi_that/dimension_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/dimension_tool.rb",
-      "sha256": "29e89a49b76a34c42e9e3e896a79956a9ac44faa84196fe8083e247cdbdc7ed2"
+      "sha256": "675115fcc419b25435c119ba37c5849ba85e9f03814e38ed86d7e9b9df5084b7"
     },
     {
       "path": "tran_tuan_noi_that/drawer_tool.rb",
@@ -100,11 +100,6 @@
       "path": "tran_tuan_noi_that/icons/dim_auto.svg",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/icons/dim_auto.svg",
       "sha256": "70cb274116bed0fb950dc47dc84f3d5b21796bb551a486786f9fda5bb9e4f4eb"
-    },
-    {
-      "path": "tran_tuan_noi_that/icons/dim_points.svg",
-      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/icons/dim_points.svg",
-      "sha256": "bdc1da24e5e09b0aa7642f2f4c775a80d6d2720d5ef5ea1b248e3230ed58a2e9"
     },
     {
       "path": "tran_tuan_noi_that/icons/drawer.svg",
@@ -199,7 +194,7 @@
     {
       "path": "tran_tuan_noi_that/layout_technical.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/layout_technical.rb",
-      "sha256": "a368ffb59df1f91968e89a8eaad80103611003799b95889079af97b1ae617888"
+      "sha256": "ddc146b4bdfd0e8cdeeb06e7a2560873e332dc254d61fc4b6357ae78ce89fbe6"
     },
     {
       "path": "tran_tuan_noi_that/rename_tool.rb",
@@ -224,7 +219,7 @@
     {
       "path": "tran_tuan_noi_that/settings.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/settings.rb",
-      "sha256": "556eb34afc728ec4ce3dc837fefbfa92a69fddc2d09758219b82d4a628b4fb1b"
+      "sha256": "40871f196423acb943ef09415b18fd07fc5aba709c0e2a1fc81102e9830249fc"
     },
     {
       "path": "tran_tuan_noi_that/stretch_auto_scan_fix.rb",
@@ -259,7 +254,7 @@
     {
       "path": "tran_tuan_noi_that/updater.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/updater.rb",
-      "sha256": "386d85bd5d5cadff38945f07349df84f4da6e86d3e929a51d31b845b593c9aae"
+      "sha256": "f450c690bca073b21e45667c7dd3da7ab5d5aa990a1e6f0027671d49099be075"
     }
   ],
   "stretch_mode_version": "1.0.1"

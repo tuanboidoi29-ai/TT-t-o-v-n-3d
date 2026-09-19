@@ -22,27 +22,22 @@ end
 require_relative '../files/tran_tuan_noi_that/dimension_tool'
 def assert(v,message); raise message unless v; end
 mod = TranTuanNoiThat::DetailDimensions
-tool = mod::Tool.new(false)
-tool.instance_variable_set(:@state,:place)
-tool.instance_variable_set(:@points,[[0,0,0],[18.mm,7.mm,0],[600.mm,0,0]])
-tool.instance_variable_set(:@cursor,[0,0,200.mm])
-tool.rebuild
-specs = tool.instance_variable_get(:@specs)
-assert(specs.size == 3,'two details and total')
-assert(specs.all? { |a,b,o,k| a.y == b.y && a.z == b.z && o.x == 0 },'projected aligned dimension perpendicular offset')
-assert(specs.last.last == :total,'outer overall dimension')
-assert(specs.last[2].z > specs.first[2].z,'overall outside details')
-tool.instance_variable_set(:@cursor,[0,0,-200.mm]); tool.rebuild
-assert(tool.instance_variable_get(:@specs).all? { |s| s[2].z < 0 },'opposite placement')
-auto = mod::Tool.new(true)
-auto.instance_variable_set(:@state,:place)
-auto.instance_variable_set(:@lo,[0,0,0]);auto.instance_variable_set(:@hi,[600.mm,550.mm,800.mm])
-auto.instance_variable_set(:@values,[[0,18.mm,582.mm,600.mm],[0,550.mm],[0,18.mm,782.mm,800.mm]])
-auto.instance_variable_set(:@cursor,[-120.mm,-120.mm,-120.mm])
-3.times do |plane|
- auto.instance_variable_set(:@plane,plane);auto.rebuild
- specs=auto.instance_variable_get(:@specs)
- assert(specs.count { |s| s.last == :total } == 3,"three overall dimensions plane #{plane}")
- assert(specs.all? { |a,b,o,k| ((b.x-a.x)*o.x+(b.y-a.y)*o.y+(b.z-a.z)*o.z).abs < 1e-6 },'perpendicular offsets')
+tool = mod::Tool.new
+tool.instance_variable_set(:@lo,[0,0,0])
+tool.instance_variable_set(:@hi,[600.mm,550.mm,800.mm])
+tool.instance_variable_set(:@values,[[0,18.mm,582.mm,600.mm],[0,550.mm],[0,18.mm,782.mm,800.mm]])
+tool.instance_variable_set(:@front,0)
+tool.instance_variable_set(:@openings,[[18.mm,582.mm,18.mm,782.mm]])
+[-120,1200].each do |side|
+ tool.instance_variable_set(:@cursor,[side.mm,0,side.mm]);tool.rebuild
+ specs=tool.instance_variable_get(:@specs)
+ assert(specs.count { |s| s.last == :total } == 3,'three overall dimensions')
+ assert(specs.count { |s| s.last == :opening } == 1,'clear width dimension')
+ specs.each do |a,b,o,kind|
+  delta=[b.x-a.x,b.y-a.y,b.z-a.z]
+  assert(delta.count { |v| v.abs > 1e-6 } == 1,'single-axis dimension')
+  assert((delta.zip(o.to_a).map { |x,y| x*y }.inject(0,:+)).abs < 1e-6,'perpendicular offset')
+  assert(a.y == 0 && b.y == 0,'front plane') unless kind == :total
+ end
 end
-puts 'Geometry checks passed: projection, offset sides, total lanes and three planes'
+puts 'Front projection, horizontal/vertical axes, perpendicular offsets and three totals passed'
