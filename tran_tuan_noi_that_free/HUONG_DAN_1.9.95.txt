@@ -1,0 +1,16 @@
+TRẦN TUẤN NỘI THẤT 1.9.95 — CHỌN STYLE SKETCHUP
+
+Trong Hồ sơ LayOut > Góc nhìn & X-ray > Style phối cảnh 3D:
+- Màu và vật liệu model: chế độ có mặt, texture, không X-ray như 1.9.94.
+- Style đang hiển thị trong SketchUp: dùng cách hiển thị hiện tại.
+- Danh sách tên Style đang có trong model: chọn trực tiếp.
+Bấm Làm mới Styles sau khi thêm/chọn Style từ Window > Default Tray > Styles trong SketchUp. Plugin chỉ liệt kê Styles trong model, không tự quét thư viện Style chưa nạp.
+Bấm Xem trước hồ sơ để cập nhật hình, hoặc Xuất PDF. Lựa chọn được lưu với cấu hình.
+
+Style áp dụng cho phối cảnh 3D trong xem trước và PDF/LayOut. Giữ màu/nét/nền theo Style thay vì ép về vật liệu. Các lớp chữ/đường dẫn/trục và mặt cắt bị ẩn trên phối cảnh để không lẫn bản vẽ kỹ thuật. Các trang kỹ thuật vẫn giữ thiết lập cũ.
+Phối cảnh dùng Style riêng được xuất Raster để thể hiện hiệu ứng nét; PDF nhanh dùng Medium, chất lượng in dùng High. Chữ/DIM/bảng thống kê riêng vẫn giữ nguyên.
+Style bị xóa/đổi tên: báo chọn lại, không tự chuyển sang Style khác.
+Nếu Style hiện tại có thay đổi chưa lưu, hãy cập nhật Style trong bảng Styles của SketchUp trước khi chọn Style khác.
+Không ghi đè định nghĩa Style. Sau chụp khôi phục Style được chọn, các tùy chọn hiển thị, camera và selection.
+
+Đã kiểm tra giao diện chọn/làm mới/chuyển Style cho PDF, tên Style có ký tự đặc biệt, cấu hình cũ, parser ngữ pháp Ruby và RBZ/hash. Chưa chạy SketchUp/LayOut Windows: cần đối chiếu Style/ảnh/PDF và khôi phục trạng thái trực tiếp trên SketchUp 2022.

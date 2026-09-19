@@ -8,9 +8,9 @@ class Element{
  reportValidity(){return true}
  set textContent(t){this.text=t;this.children=[]}get textContent(){return this.text}
 }
-const ids={};for(const k of ['views','project','scale','cut_scale','cut_mm','render','quality','stats','form','status','preview-list','preview-image','preview-label','preview-note','preview-screen','cancel-preview','dimensions','dim_offset','dim_font','stats_font','drawing','scope','title_font','detail_dims','pdf_mode','preview-canvas'])ids[k]=new Element();
+const ids={};for(const k of ['views','project','scale','cut_scale','cut_mm','render','quality','stats','form','status','preview-list','preview-image','preview-label','preview-note','preview-screen','cancel-preview','dimensions','dim_offset','dim_font','stats_font','drawing','scope','title_font','detail_dims','pdf_mode','overview_style','preview-canvas'])ids[k]=new Element();
 const fixed=new Element('select');fixed.disabled=true;
-const fields=['project','scale','cut_scale','cut_mm','render','quality','stats','dimensions','dim_offset','dim_font','stats_font','drawing','scope','title_font','detail_dims','pdf_mode'].map(k=>ids[k]);
+const fields=['project','scale','cut_scale','cut_mm','render','quality','stats','dimensions','dim_offset','dim_font','stats_font','drawing','scope','title_font','detail_dims','pdf_mode','overview_style'].map(k=>ids[k]);
 const actionButtons=['check','save','scenes','layout','preview','pdf','template'].map(a=>{const e=new Element('button');e.dataset.action=a;return e});
 const xrays=()=>ids.views.children.flatMap(l=>l.children).filter(c=>c.dataset&&c.dataset.xray);
 const views=()=>ids.views.children.flatMap(l=>l.children).filter(c=>c.dataset&&c.dataset.view);

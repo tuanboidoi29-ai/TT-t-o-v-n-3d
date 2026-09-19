@@ -18,7 +18,7 @@ module TranTuanNoiThat
              'overview'=>'Phối cảnh 3D'}.freeze
     remove_const(:DEFAULTS) if const_defined?(:DEFAULTS, false)
     DEFAULTS = {'drawing'=>'Hồ sơ tủ','scope'=>'selected','detail_dims'=>true,'title_font'=>13.0,'xray_views'=>(VIEWS.keys - ['overview']),'project'=>'','scale'=>20.0,'cut_scale'=>20.0,'render'=>'Vector',
-                'cut_mm'=>20.0,'quality'=>90.0,'pdf_mode'=>'fast','stats'=>true,'stats_font'=>14.0,
+                'cut_mm'=>20.0,'quality'=>90.0,'overview_style'=>'','pdf_mode'=>'fast','stats'=>true,'stats_font'=>14.0,
                 'dimensions'=>true,'dim_offset'=>12.0,'dim_font'=>10.0,
                 'views'=>VIEWS.keys}.freeze
     def helper; LayoutStats; end
@@ -44,6 +44,7 @@ module TranTuanNoiThat
       out['drawing'] = 'Hồ sơ tủ' if out['drawing'].empty?
       out['detail_dims'] = out['detail_dims'] == true
       raise 'Cỡ chữ tiêu đề phải từ 10 đến 18 pt.' unless out['title_font'].between?(10,18)
+      out['overview_style'] = out['overview_style'].to_s
       out['project'] = out['project'].to_s.strip[0,160]
       raise 'Khoảng cách DIM phải từ 5 đến 20 mm trên giấy.' unless out['dim_offset'].between?(5,20)
       raise 'Cỡ chữ DIM phải từ 6 đến 18 pt.' unless out['dim_font'].between?(6,18)
@@ -156,6 +157,9 @@ module TranTuanNoiThat
           end
         end
       end
+      @dialog.add_action_callback('refresh_styles') do |_c|
+        send_styles if !@busy && Sketchup.active_model == @model
+      end
       @dialog.add_action_callback('preview_page') { |_c, id| show_preview_page(id) }
       @dialog.add_action_callback('cancel_preview') { |_c| finish_preview('Đã dừng xem trước. Các trang đã dựng vẫn xem được.') }
       @dialog.set_on_closed do
@@ -169,8 +173,40 @@ module TranTuanNoiThat
       o = settings
       o['project'] = File.basename(@model.path.to_s,'.skp') if o['project'].empty?
       o['project'] = 'Công trình mới' if o['project'].empty?
+      send_styles(o['overview_style'])
       @dialog.execute_script("receive(#{JSON.generate(o)})")
       report(@config_warning, true) if @config_warning
+    end
+    def send_styles(selected=nil)
+      names = @model.styles.map { |style| style.name.to_s }.uniq.sort
+      @dialog.execute_script("receiveStyles(#{JSON.generate(names)},#{JSON.generate(selected)})") if @dialog
+    end
+    def check_overview_style(model,options)
+      return unless options['views'].include?('overview')
+      name=options['overview_style'].to_s
+      return if name.empty? || name == '__current__'
+      style=model.styles.find { |item| item.name.to_s == name }
+      raise "Style '#{name}' không còn trong model. Bấm Làm mới Styles rồi chọn lại." unless style
+      if model.styles.active_style_changed && model.styles.selected_style != style
+        raise 'Style hiện tại có chỉnh sửa chưa lưu. Trong bảng Styles của SketchUp, cập nhật Style trước khi chuyển sang Style khác.'
+      end
+    end
+    def apply_overview_style(model,options)
+      name = options['overview_style'].to_s
+      if name.empty?
+        profile(model.rendering_options,false,true,false)
+        overview_profile(model.rendering_options)
+      elsif name != '__current__'
+        style = model.styles.find { |item| item.name.to_s == name }
+        raise "Style '#{name}' không còn trong model. Bấm Làm mới Styles rồi chọn lại." unless style
+        model.styles.selected_style = style unless model.styles.selected_style == style
+      end
+      # Keep appearance from the selected Style; only remove drafting overlays/cuts.
+      values={'DisplaySectionCuts'=>false,'DisplaySectionPlanes'=>false,
+              'DisplaySketchAxes'=>false,'DisplayInstanceAxes'=>false,
+              'DisplayDims'=>false,'DisplayText'=>false,'HideConstructionGeometry'=>true}
+      keys=model.rendering_options.keys
+      values.each { |key,value| model.rendering_options[key]=value if keys.include?(key) }
     end
     def report(message,error=false)
       message = "#{message}\nModel mới đã được lưu nền tại: #{@auto_model_path}\nDùng File → Save As khi muốn đổi nơi lưu model." if @auto_model_path
@@ -296,12 +332,17 @@ module TranTuanNoiThat
                  else {}; end
         helper.tt_apply_scope_visibility(model,job[:roots])
         o['views'].each do |key|
+          model.styles.selected_style = original_style unless model.styles.selected_style == original_style
+          snapshot[:render].each { |name,value| model.rendering_options[name]=value }
           section = key.start_with?('cut_')
           model.entities.active_section_plane = section ? planes.fetch(key.to_sym) : nil
           model.active_view.camera = camera(key,job[:bounds])
           material = key == 'overview' || o['render'] == 'Hybrid'
-          profile(model.rendering_options,section,material,o['xray_views'].include?(key))
-          overview_profile(model.rendering_options) if key == 'overview'
+          if key == 'overview'
+            apply_overview_style(model,o)
+          else
+            profile(model.rendering_options,section,material,o['xray_views'].include?(key))
+          end
           model.shadow_info['DisplayShadows'] = false unless key == 'overview'
           # Stable ownership attributes: rerun updates our scene, never overwrites a user's scene by name.
           owner = "#{job[:key]}:#{key}"
@@ -309,6 +350,7 @@ module TranTuanNoiThat
           page ||= model.pages.add("#{o['drawing']}_#{job[:name]}_#{VIEWS[key]}")
           page.set_attribute('TT_LayoutTechnical','owner',owner)
           page.name = "#{o['drawing']}_#{job[:name]}_#{VIEWS[key]}"
+          page.use_style = true
           page.use_camera = true
           page.use_shadow_info = true
           page.use_rendering_options = true
@@ -318,8 +360,11 @@ module TranTuanNoiThat
           page.use_hidden_layers = true
           page.include_in_animation = false
           page.update
-          profile(page.rendering_options,section,material,o['xray_views'].include?(key))
-          overview_profile(page.rendering_options) if key == 'overview'
+          if key == 'overview'
+            model.rendering_options.each { |name,value| page.rendering_options[name]=value if page.rendering_options.keys.include?(name) }
+          else
+            profile(page.rendering_options,section,material,o['xray_views'].include?(key))
+          end
           scenes[key] = helper.tt_scene_layout_index(model,page)
         end
         helper.tt_restore_scope_visibility(visibility)
@@ -477,8 +522,8 @@ module TranTuanNoiThat
     def drawing_viewport(doc,layer,page,path,scene,key,options)
       viewport = Layout::SketchUpModel.new(path,Geom::Bounds2d.new(15/25.4,25/25.4,390/25.4,235/25.4))
       viewport.current_scene = scene
-      viewport.display_background = false
-      viewport.render_mode = if options['_fast_pdf']
+      viewport.display_background = key == 'overview' && !options['overview_style'].to_s.empty?
+      viewport.render_mode = if options['_fast_pdf'] || (key == 'overview' && !options['overview_style'].to_s.empty?)
                                Layout::SketchUpModel::RASTER_RENDER
                              elsif key == 'overview' || options['render'] == 'Hybrid' || options['xray_views'].include?(key)
                                Layout::SketchUpModel::HYBRID_RENDER
@@ -659,6 +704,7 @@ module TranTuanNoiThat
       value.empty? ? 'TT_HO_SO_A3' : value
     end
     def run(action,o)
+      check_overview_style(Sketchup.active_model,o)
       started_at = Process.clock_gettime(Process::CLOCK_MONOTONIC)
       o = o.merge('_fast_pdf' => (action == 'pdf' && o['pdf_mode'] == 'fast'))
       @auto_model_path = nil unless Sketchup.active_model.path.to_s == @auto_model_path
@@ -829,6 +875,7 @@ module TranTuanNoiThat
     end
     # Preview avoids LayOut rendering. Overview temporarily captures the SketchUp viewport.
     def start_safe_preview(options)
+      check_overview_style(@model,options)
       finish_preview(nil)
       clear_preview_files
       raise 'Thoát chế độ sửa Group/Component trước khi xem trước.' if @model.active_path
@@ -859,8 +906,8 @@ module TranTuanNoiThat
       raise 'Đối tượng đã thay đổi. Hãy quét lại.' unless job[:roots].all?(&:valid?)
       state[:bounds] ||= helper.tt_scope_bounds_for_roots(@model,job[:roots])
       if key == 'overview'
-        svg = overview_preview_svg(job,state[:bounds])
-        label = "#{job[:name]} · Phối cảnh 3D · màu và vật liệu model"
+        svg = overview_preview_svg(job,state[:bounds],o)
+        label = "#{job[:name]} · Phối cảnh 3D · Style đã chọn"
       else
         state[:parts] ||= detail_parts(job[:roots],30000)
         svg = safe_preview_svg(job,state[:parts],state[:bounds],key,o)
@@ -888,9 +935,10 @@ module TranTuanNoiThat
       keys = options.keys
       values.each { |key,value| options[key]=value if keys.include?(key) }
     end
-    def overview_preview_svg(job,bounds)
+    def overview_preview_svg(job,bounds,options)
       model = @model
       view = model.active_view
+      saved_style = model.styles.selected_style
       saved_camera = helper.tt_clone_camera(view.camera)
       saved_render = {}
       model.rendering_options.each { |key,value| saved_render[key]=value }
@@ -904,8 +952,7 @@ module TranTuanNoiThat
         operation_open = true
         helper.tt_apply_scope_visibility(model,job[:roots])
         model.selection.clear
-        profile(model.rendering_options,false,true,false)
-        overview_profile(model.rendering_options)
+        apply_overview_style(model,options)
         cam = camera('overview',bounds)
         # Conservative sphere fit at the same 390:235 aspect as the PDF viewport.
         cam.aspect_ratio = 390.0/235.0
@@ -921,6 +968,7 @@ module TranTuanNoiThat
           model.abort_operation if operation_open
         ensure
           helper.tt_restore_scope_visibility(visibility)
+          model.styles.selected_style=saved_style unless model.styles.selected_style == saved_style
           saved_render.each { |key,value| model.rendering_options[key]=value }
           view.camera=saved_camera
           model.selection.clear
@@ -930,7 +978,7 @@ module TranTuanNoiThat
         end
       end
       label=xml_text("#{job[:name]} · PHỐI CẢNH 3D")
-      "<svg xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink' width='1260' height='891' viewBox='0 0 1260 891'><rect width='1260' height='891' fill='white'/><rect x='20' y='20' width='1220' height='851' fill='none' stroke='#334155'/><text x='45' y='55' font-family='Arial' font-size='22' fill='#173d4a'>#{label}</text><image x='45' y='85' width='1170' height='705' xlink:href='data:image/png;base64,#{image_data}'/><text x='45' y='845' font-family='Arial' font-size='17'>Mặt, màu và vật liệu đang gán trong model · Không dùng đo tỷ lệ</text></svg>"
+      "<svg xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink' width='1260' height='891' viewBox='0 0 1260 891'><rect width='1260' height='891' fill='white'/><rect x='20' y='20' width='1220' height='851' fill='none' stroke='#334155'/><text x='45' y='55' font-family='Arial' font-size='22' fill='#173d4a'>#{label}</text><image x='45' y='85' width='1170' height='705' xlink:href='data:image/png;base64,#{image_data}'/><text x='45' y='845' font-family='Arial' font-size='17'>Phối cảnh theo Style đã chọn · Không dùng đo tỷ lệ</text></svg>"
     end
     def safe_preview_svg(job,parts,bounds,key,o)
       project = lambda do |p|
@@ -1044,7 +1092,7 @@ module TranTuanNoiThat
       <!doctype html><html lang="vi"><head><meta charset="utf-8"><style>
       *{box-sizing:border-box}body{font:14px Arial,sans-serif;margin:0;background:#f4f6f8;color:#253443}header{background:#173d4a;color:white;padding:20px 24px}h1{font-size:21px;margin:0 0 7px}main{padding:18px 24px}.card{background:white;border:1px solid #dce3e8;border-radius:9px;padding:16px;margin-bottom:14px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}label{display:block}input:not([type=checkbox]),select{display:block;width:100%;padding:8px;border:1px solid #bccbd4;border-radius:5px;margin-top:5px}.views{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}button{border:0;border-radius:5px;padding:10px 13px;background:#156a7a;color:white;cursor:pointer}button.secondary{background:#e3ecf1;color:#253443}button:disabled{opacity:.5;cursor:wait}.buttons{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}small,p{line-height:1.5}.muted{color:#617281}#status{white-space:pre-wrap;padding:12px;border-radius:6px;background:#e9f1f4;overflow-wrap:anywhere}.error{color:#a32929}summary{cursor:pointer;font-weight:bold}h2{font-size:16px;margin:0 0 12px}
       .workspace{display:flex;flex-direction:column;gap:18px}.workspace>div{width:100%}.preview-panel{order:-1;width:100%;position:static}.preview-screen{background:#dce3e8;overflow:auto;height:500px;padding:14px;text-align:center}.preview-screen img{max-width:100%;height:auto;box-shadow:0 2px 12px #0003;display:block;margin:auto;background:white}.preview-screen img[hidden]{display:none}.preview-screen.zoom img{max-width:none;width:1600px}.preview-screen canvas{width:100%;max-width:100%;height:auto;display:block;background:white}.preview-screen canvas[hidden]{display:none}.preview-screen.zoom canvas{max-width:none;width:1600px}.preview-controls{display:flex;gap:6px;align-items:center;margin:10px 0}.preview-controls select{min-width:0;flex:1;margin:0}.preview-controls button{padding:9px}#preview-label{font-weight:bold;margin:8px 0}#preview-note{font-size:12px;color:#617281}@media(max-width:850px){.workspace{grid-template-columns:1fr}.preview-panel{position:static}.preview-screen{height:400px}}
-      </style></head><body><header><h1>Hồ sơ LayOut A3 · 1.9.94</h1>Scene riêng · Giữ tỷ lệ · Khung tên tự động</header><main><div id="status" role="status" style="position:sticky;top:0;z-index:5;margin-bottom:12px">Sẵn sàng.</div><div class="workspace"><div>
+      </style></head><body><header><h1>Hồ sơ LayOut A3 · 1.9.95</h1>Scene riêng · Giữ tỷ lệ · Khung tên tự động</header><main><div id="status" role="status" style="position:sticky;top:0;z-index:5;margin-bottom:12px">Sẵn sàng.</div><div class="workspace"><div>
       <form id="form"><div class="card"><h2>1. Phạm vi & tên bản vẽ</h2><label>Phạm vi quét<select id="scope"><option value="selected">Quét Group/Component đang chọn</option><option value="all">Quét tất cả Group/Component</option></select></label><label>Tên bản vẽ<input id="drawing" maxlength="100"></label><label>Tên công trình<input id="project" maxlength="160"></label><div class="grid" style="margin-top:12px">
       <label>Mặt bằng / mặt đứng — tỷ lệ 1:<input id="scale" type="number" min="1" max="500" step="any" list="ratios" required></label>
       <label>Mặt cắt / chi tiết — tỷ lệ 1:<input id="cut_scale" type="number" min="1" max="500" step="any" list="ratios" required></label>
@@ -1052,7 +1100,7 @@ module TranTuanNoiThat
       <label>Vị trí cắt vào từ mép (mm)<input id="cut_mm" type="number" min="0.1" max="5000" step="any" required></label>
       <label>Nét kỹ thuật<select id="render"><option>Vector</option><option>Hybrid</option></select></label></div>
       <p class="muted">A3 ngang, 420 × 297 mm. Hình chiếu song song và Preserve Scale luôn bật. Nếu mô hình vượt khung, công cụ báo để bạn chọn lại tỷ lệ.</p></div>
-      <div class="card"><h2>2. Góc nhìn & X-ray</h2><p>Mỗi góc nhìn một trang. Chọn X-ray bên cạnh góc nhìn cần xuyên thấu.</p><div id="views" class="views"></div><p><label><input id="stats" type="checkbox"> Kèm bảng thống kê ván</label></p><label>Cỡ chữ bảng thống kê (pt)<input id="stats_font" type="number" min="12" max="18" step="1" required></label><p class="muted">Mặc định 14 pt. Chữ lớn hơn sẽ tự chia thêm trang.</p><small>Chọn Group/Component ngoài model trước khi xuất. Quét tất cả: mỗi Group/Component cha thành một hồ sơ riêng. Hướng trước theo −Y, trên theo +Z của hệ trục model.</small></div>
+      <div class="card"><h2>2. Góc nhìn & X-ray</h2><p>Mỗi góc nhìn một trang. Chọn X-ray bên cạnh góc nhìn cần xuyên thấu.</p><label>Style phối cảnh 3D<select id="overview_style"><option value="">Màu và vật liệu model</option><option value="__current__">Style đang hiển thị trong SketchUp</option></select></label><button type="button" class="secondary" onclick="sketchup.refresh_styles()">Làm mới Styles</button><p class="muted">Chọn Style trong model. Để thêm Style từ thư viện SketchUp, chọn nó trong Window → Default Tray → Styles rồi bấm Làm mới Styles. Style áp dụng cho phối cảnh xem trước và PDF; các trang kỹ thuật giữ thiết lập riêng.</p><div id="views" class="views"></div><p><label><input id="stats" type="checkbox"> Kèm bảng thống kê ván</label></p><label>Cỡ chữ bảng thống kê (pt)<input id="stats_font" type="number" min="12" max="18" step="1" required></label><p class="muted">Mặc định 14 pt. Chữ lớn hơn sẽ tự chia thêm trang.</p><small>Chọn Group/Component ngoài model trước khi xuất. Quét tất cả: mỗi Group/Component cha thành một hồ sơ riêng. Hướng trước theo −Y, trên theo +Z của hệ trục model.</small></div>
       <div class="card"><h2>3. DIM & cỡ chữ</h2><label><input id="detail_dims" type="checkbox"> DIM chia đoạn tại mặt trước và các mặt cắt</label><label><input id="dimensions" type="checkbox"> Tạo DIM tổng ngang / dọc</label><div class="grid" style="margin-top:12px"><label>Cách biên (mm trên giấy)<input id="dim_offset" type="number" min="5" max="20" step="any" required></label><label>Cỡ chữ DIM (pt)<input id="dim_font" type="number" min="6" max="18" step="any" required></label></div><label>Cỡ chữ tiêu đề (pt)<input id="title_font" type="number" min="10" max="18" step="any" required></label><p class="muted">DIM dày chữ sẽ tự tách sang trang chi tiết bổ sung, giữ đủ số đo và tỷ lệ. DIM chi tiết theo biên hình học tấm trong mặt chiếu; mặt cắt chỉ lấy phần còn lại sau cắt. DIM tổng theo biên khối, đơn vị mm, nằm trên lớp Dim. Khi sửa model, dựng/xuất lại để cập nhật DIM tự tạo. Trang phối cảnh không đặt DIM đo theo hình chiếu.</p></div>
       <div class="card"><h2>In & PDF</h2><p>Không cần chọn nơi lưu SKP trước. Model chưa từng lưu sẽ được lưu nền tự động, giữ lại trong ModelBackups; đường dẫn hiện ở thông báo. Model đã lưu dùng bản sao tạm. Chỉ chọn nơi lưu PDF.</p><div class="grid"><label>Chế độ xuất PDF<select id="pdf_mode"><option value="fast">PDF nhanh · ảnh mô hình Medium</option><option value="print">PDF chất lượng in · Vector/Hybrid, High</option></select></label><label>Chất lượng ảnh nén (%)<input id="quality" type="number" min="50" max="100" required></label></div>
       <p class="muted">PDF nhanh dùng ảnh mô hình Medium: nhẹ hơn nhưng nét mô hình giảm độ sắc khi phóng to. Chữ, DIM và thống kê giữ riêng; không bỏ trang hoặc số đo. Chất lượng in dùng Vector/Hybrid và High. File LayOut có các lớp Đồ gỗ, Dim, Chú thích, Khung tên và Thống kê.</p>
@@ -1068,14 +1116,15 @@ module TranTuanNoiThat
       <div class="preview-controls"><button class="preview-nav" onclick="movePage(-1)" title="Trang trước">◀</button><select class="preview-nav" id="preview-list" onchange="selectPage(this.value)" aria-label="Chọn trang"></select><button class="preview-nav" onclick="movePage(1)" title="Trang sau">▶</button></div>
       <div id="preview-label">Chưa có trang xem trước</div><div id="preview-screen" class="preview-screen"><img id="preview-image" alt="Bản vẽ A3" hidden><canvas id="preview-canvas" aria-label="Xem trước bản vẽ và kích thước" hidden></canvas></div>
       <div class="buttons"><button class="preview-nav secondary" onclick="focusPreview(true)">Gần đối tượng</button><button class="preview-nav secondary" onclick="focusPreview(false)">Toàn trang</button><button class="preview-nav secondary" onclick="zoomPreview(false)">Vừa khung</button><button class="preview-nav secondary" onclick="zoomPreview(true)">Phóng to</button><button id="cancel-preview" class="preview-nav secondary" onclick="sketchup.cancel_preview()" hidden>Dừng dựng</button></div>
-      <small>Phối cảnh 3D: ảnh model có mặt, màu và vật liệu, không X-ray. Các trang kỹ thuật xem trước bằng nét, chưa mô phỏng DIM chi tiết và nét giao mặt cắt. PDF dùng bộ dựng riêng.</small></section></div></main>
+      <small>Phối cảnh 3D theo Style đã chọn; chọn Màu và vật liệu model để xem có vật liệu, không X-ray. Các trang kỹ thuật xem trước bằng nét, chưa mô phỏng DIM chi tiết và nét giao mặt cắt. PDF dùng bộ dựng riêng.</small></section></div></main>
       <script>
       window.addEventListener('error',function(e){var box=document.getElementById('status');if(box){box.textContent='Lỗi giao diện: '+e.message;box.className='error'}});
       const labels={top:'Mặt bằng',front:'Mặt đứng ngoài',left:'Mặt bên trái',right:'Mặt bên phải',cut_front:'Mặt cắt thùng trước',cut_left:'Mặt cắt thùng trái',cut_right:'Mặt cắt thùng phải',overview:'Phối cảnh 3D'};
-      Object.keys(labels).forEach(k=>{const l=document.createElement('label'),c=document.createElement('input');c.type='checkbox';c.dataset.view=k;l.appendChild(c);l.appendChild(document.createTextNode(' '+labels[k]));document.getElementById('views').appendChild(l);const xl=document.createElement('label'),xc=document.createElement('input');xc.type='checkbox';xc.dataset.xray=k;if(k==='overview'){xc.dataset.fixed='true';xc.disabled=true;}xl.appendChild(xc);xl.appendChild(document.createTextNode(k==='overview'?' Màu và vật liệu':' X-ray'));document.getElementById('views').appendChild(xl)});
+      Object.keys(labels).forEach(k=>{const l=document.createElement('label'),c=document.createElement('input');c.type='checkbox';c.dataset.view=k;l.appendChild(c);l.appendChild(document.createTextNode(' '+labels[k]));document.getElementById('views').appendChild(l);const xl=document.createElement('label'),xc=document.createElement('input');xc.type='checkbox';xc.dataset.xray=k;if(k==='overview'){xc.dataset.fixed='true';xc.disabled=true;}xl.appendChild(xc);xl.appendChild(document.createTextNode(k==='overview'?' Theo Style đã chọn':' X-ray'));document.getElementById('views').appendChild(xl)});
       let readyReceived=false;
-      function receive(o){readyReceived=true;o=Object.assign({},initialOptions,o);['project','scale','cut_scale','cut_mm','render','quality','dim_offset','dim_font','stats_font','drawing','scope','title_font','pdf_mode'].forEach(k=>document.getElementById(k).value=o[k]);document.getElementById('stats').checked=o.stats;document.getElementById('dimensions').checked=o.dimensions;document.getElementById('detail_dims').checked=o.detail_dims;document.querySelectorAll('[data-xray]').forEach(c=>c.checked=c.dataset.xray!=='overview'&&o.xray_views.includes(c.dataset.xray));document.querySelectorAll('[data-view]').forEach(c=>c.checked=o.views.includes(c.dataset.view))}
-      function payload(){const o={};['project','scale','cut_scale','cut_mm','render','quality','dim_offset','dim_font','stats_font','drawing','scope','title_font','pdf_mode'].forEach(k=>o[k]=document.getElementById(k).value);o.stats=document.getElementById('stats').checked;o.dimensions=document.getElementById('dimensions').checked;o.detail_dims=document.getElementById('detail_dims').checked;o.xray_views=Array.from(document.querySelectorAll('[data-xray]:checked')).map(c=>c.dataset.xray);o.views=Array.from(document.querySelectorAll('[data-view]:checked')).map(c=>c.dataset.view);return o}
+      function receiveStyles(names,selected){const e=document.getElementById('overview_style'),old=selected==null?e.value:selected;e.textContent='';[['','Màu và vật liệu model'],['__current__','Style đang hiển thị trong SketchUp'],...names.map(n=>[n,n])].forEach(([v,t])=>{const opt=document.createElement('option');opt.value=v;opt.textContent=t;e.appendChild(opt)});if(old&&!['__current__',...names].includes(old)){const opt=document.createElement('option');opt.value=old;opt.textContent=old+' (không còn trong model)';e.appendChild(opt)}e.value=old||'';}
+      function receive(o){readyReceived=true;o=Object.assign({},initialOptions,o);['project','scale','cut_scale','cut_mm','render','quality','dim_offset','dim_font','stats_font','drawing','scope','title_font','pdf_mode','overview_style'].forEach(k=>document.getElementById(k).value=o[k]);document.getElementById('stats').checked=o.stats;document.getElementById('dimensions').checked=o.dimensions;document.getElementById('detail_dims').checked=o.detail_dims;document.querySelectorAll('[data-xray]').forEach(c=>c.checked=c.dataset.xray!=='overview'&&o.xray_views.includes(c.dataset.xray));document.querySelectorAll('[data-view]').forEach(c=>c.checked=o.views.includes(c.dataset.view))}
+      function payload(){const o={};['project','scale','cut_scale','cut_mm','render','quality','dim_offset','dim_font','stats_font','drawing','scope','title_font','pdf_mode','overview_style'].forEach(k=>o[k]=document.getElementById(k).value);o.stats=document.getElementById('stats').checked;o.dimensions=document.getElementById('dimensions').checked;o.detail_dims=document.getElementById('detail_dims').checked;o.xray_views=Array.from(document.querySelectorAll('[data-xray]:checked')).map(c=>c.dataset.xray);o.views=Array.from(document.querySelectorAll('[data-view]:checked')).map(c=>c.dataset.view);return o}
       function report(t,e){const s=document.getElementById('status');s.textContent=t;s.className=e?'error':''}
       function setBusy(b){document.querySelectorAll('#form button,#form input,#form select').forEach(e=>e.disabled=b);document.querySelectorAll('[data-fixed]').forEach(e=>e.disabled=true)}
       function run(a){
@@ -1100,7 +1149,7 @@ module TranTuanNoiThat
       function zoomPreview(b){document.getElementById('preview-screen').classList.toggle('zoom',b)}
       document.getElementById('form').addEventListener('change',()=>{if(previewPages.length)document.getElementById('preview-note').textContent='Thông số đã đổi — bấm Xem trước hồ sơ để cập nhật ảnh.'});
       document.getElementById('form').addEventListener('submit' ,e=>e.preventDefault());
-      const initialOptions={drawing:'Hồ sơ tủ',scope:'selected',title_font:13,detail_dims:true,xray_views:Object.keys(labels).filter(k=>k!=='overview'),project:'Công trình mới',scale:20,cut_scale:20,cut_mm:20,render:'Vector',quality:90,pdf_mode:'fast',dim_offset:12,dim_font:10,stats_font:14,stats:true,dimensions:true,views:Object.keys(labels)};
+      const initialOptions={drawing:'Hồ sơ tủ',scope:'selected',title_font:13,detail_dims:true,xray_views:Object.keys(labels).filter(k=>k!=='overview'),project:'Công trình mới',scale:20,cut_scale:20,cut_mm:20,render:'Vector',quality:90,pdf_mode:'fast',overview_style:'',dim_offset:12,dim_font:10,stats_font:14,stats:true,dimensions:true,views:Object.keys(labels)};
       receive(initialOptions);readyReceived=false;
       let readyAttempts=0;
       function connectRuby(){

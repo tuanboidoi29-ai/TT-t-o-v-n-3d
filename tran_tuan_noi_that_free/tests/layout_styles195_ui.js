@@ -14,7 +14,7 @@ const fields=['project','scale','cut_scale','cut_mm','render','quality','stats',
 const actionButtons=['check','save','scenes','layout','preview','pdf','template'].map(a=>{const e=new Element('button');e.dataset.action=a;return e});
 const xrays=()=>ids.views.children.flatMap(l=>l.children).filter(c=>c.dataset&&c.dataset.xray);
 const views=()=>ids.views.children.flatMap(l=>l.children).filter(c=>c.dataset&&c.dataset.view);
-const doc={createElement:t=>new Element(t),createTextNode:t=>({text:t}),getElementById:k=>ids[k],querySelectorAll:s=>s==='[data-action]'?actionButtons:s==='[data-xray]'?xrays():s==='[data-xray]:checked'?xrays().filter(c=>c.checked):s==='[data-view]'?views():s==='[data-view]:checked'?views().filter(c=>c.checked):s==='[data-fixed]'?[fixed]:[...fields,...views(),...xrays(),...actionButtons,fixed]};
+const doc={createElement:t=>new Element(t),createTextNode:t=>({text:t}),getElementById:k=>ids[k],querySelectorAll:s=>s==='[data-action]'?actionButtons:s==='[data-xray]'?xrays():s==='[data-xray]:checked'?xrays().filter(c=>c.checked):s==='[data-view]'?views():s==='[data-view]:checked'?views().filter(c=>c.checked):s==='[data-fixed]'?[fixed,...xrays().filter(e=>e.dataset.fixed)]:[...fields,...views(),...xrays(),...actionButtons,fixed]};
 ids['preview-image'].naturalWidth=2480;ids['preview-image'].naturalHeight=1754;ids['preview-image'].complete=true;
 let calls=[];const bridge={ready:()=>calls.push(['ready']),preview_page:id=>calls.push(['page',id]),run:(a,p)=>calls.push(['run',a,JSON.parse(p)])};
 const timers=[];const win={sketchup:bridge,addEventListener:()=>{}};const c=vm.createContext({document:doc,sketchup:bridge,window:win,setTimeout:f=>timers.push(f)});vm.runInContext(fs.readFileSync(require('path').join(__dirname,'../files/tran_tuan_noi_that/layout_technical.rb'),'utf8').split('<script>')[1].split('</script>')[0],c);
@@ -56,3 +56,18 @@ vm.runInContext('setBusy(false)',c);ids.pdf_mode.value='fast';vm.runInContext('r
 vm.runInContext('setBusy(false)',c);ids.pdf_mode.value='print';vm.runInContext('run("pdf")',c);assert(calls.at(-1)[2].pdf_mode==='print','print PDF bridge');
 vm.runInContext('receive({})',c);assert(ids.pdf_mode.value==='fast','old settings default to fast PDF');
 console.log('PASS PDF mode selection and old settings compatibility');
+
+vm.runInContext('receive({xray_views:Object.keys(labels)})',c);
+assert(!xrays().find(e=>e.dataset.xray==='overview').checked,'old settings cannot enable overview X-ray');
+vm.runInContext('setBusy(true);setBusy(false)',c);
+assert(xrays().find(e=>e.dataset.xray==='overview').disabled,'overview X-ray stays disabled');
+vm.runInContext('run("pdf")',c);assert(!calls.at(-1)[2].xray_views.includes('overview'),'PDF excludes overview X-ray');
+console.log('PASS overview material UI and old-settings migration checks');
+
+vm.runInContext('receiveStyles(["Nét chì","Vật liệu <A>"],"Nét chì")',c);
+assert(ids.overview_style.value==='Nét chì'&&ids.overview_style.children.length===4,'native Style list populated');
+assert(ids.overview_style.children[3].textContent==='Vật liệu <A>','Style names inserted as text');
+vm.runInContext('setBusy(false);run("pdf")',c);assert(calls.at(-1)[2].overview_style==='Nét chì','Style passed to export');
+vm.runInContext('receiveStyles([],null)',c);assert(ids.overview_style.value==='Nét chì','missing Style selection preserved for explicit error');
+vm.runInContext('receive({})',c);assert(ids.overview_style.value==='','old settings preserve material default');
+console.log('PASS Style selection/refresh/export compatibility');
