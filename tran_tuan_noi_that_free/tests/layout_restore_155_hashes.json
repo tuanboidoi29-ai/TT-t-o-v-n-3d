@@ -1,0 +1,42 @@
+[
+  {
+    "name": "layout_stats_v070_export_split.rb",
+    "sha256": "2508dfae6e0ede7ba1e0607ba1c32c6a7b5caa1d100b08a9d43b931d9fe1aaa0"
+  },
+  {
+    "name": "layout_stats_v090_technical_dim.rb",
+    "sha256": "10c166fd09a6ef9192b24946ce091fac8507f568483dc57def01d1b40711788b"
+  },
+  {
+    "name": "layout_stats_v081_cut_offset_fix.rb",
+    "sha256": "c2d95c5148ebd42b3263214e1e97fbe2ccec0a05b673796fea05c953dca9a24a"
+  },
+  {
+    "name": "layout_stats_v040_patch.rb",
+    "sha256": "6fc7771222be6a5556f78f484b0d9943ced311aa67066ff916f4c128a85830dc"
+  },
+  {
+    "name": "layout_stats_v050_stable_preview.rb",
+    "sha256": "c293c9599657bc8b04634363d609a7e6ef8c93c811952e9fc3cb807b3f499fb4"
+  },
+  {
+    "name": "layout_stats_v080_five_pages.rb",
+    "sha256": "bd8e5f9c12aa729346714963540bff97a7cd0ae8e6292b526b2d7520f0ccc2e8"
+  },
+  {
+    "name": "layout_stats_v060_compact_scope.rb",
+    "sha256": "e0ec84a1eab9481f8de2fc1549771b3b6360abafb9f42747eabd0df35bc94439"
+  },
+  {
+    "name": "layout_stats_v030_patch.rb",
+    "sha256": "48af8ca4fc90ccbf272218fef6f3ede52171a0e1db2ccb31dfb9b73f4f75eb71"
+  },
+  {
+    "name": "layout_stats_tool.rb",
+    "sha256": "0e867c2dd32e923256f3bdd75fcd461c1d7e1774df6ec5df0f4fe4f34ce024e0"
+  },
+  {
+    "name": "layout_stats_v040_compat.rb",
+    "sha256": "e86e1621579f2a79931e75d51404cec2125b663cfb2eca018432c1255ae3578a"
+  }
+]

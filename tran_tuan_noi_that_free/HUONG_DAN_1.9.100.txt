@@ -1,0 +1,15 @@
+TRẦN TUẤN NỘI THẤT 1.9.100 — KHÔI PHỤC LAYOUT 1.9.55
+
+Cài RBZ bằng Extension Manager hoặc dùng Kiểm Tra Cập Nhật.
+Đóng bảng xuất trước khi cập nhật; nếu giao diện chưa đổi, khởi động lại SketchUp.
+Mở Xuất Layout + Thống Kê Ván để dùng lại giao diện và quy trình 1.9.55.
+
+Nguồn: TRANTUAN_NOI_THAT_1.9.55_DIM_LAYOUT_SOURCE_OWNER_ONLY.rbz.
+Đã khôi phục nguyên byte 10 file layout_stats*.rb, kết thúc bằng layout_stats_v090_technical_dim.rb.
+Các trang và bước xem trước/xuất theo bản gốc 1.9.55, gồm trang DIM kỹ thuật.
+Các tùy chọn mới trong giao diện xuất 1.9.96–1.9.99 (như chọn Style và xuất Excel mới) không còn trong giao diện LayOut đã khôi phục.
+DIM tự động riêng, lọt lòng, cỡ chữ và màu sắc vẫn giữ nguyên bản 1.9.99. Các công cụ vẽ ván, ngăn kéo và công cụ khác không đổi.
+Số phiên bản toàn bộ tăng lên 1.9.100 để cập nhật được; riêng chức năng LayOut dùng lại 1.9.55.
+
+Xác minh: đối chiếu SHA-256 10 file gốc, kiểm tra cú pháp Ruby, thử nạp chuỗi LayOut hai lần và dựng chuỗi HTML bằng Ruby. Mã DIM tự động giống hệt bản 1.9.99.
+Chưa chạy xuất PDF/LayOut trực tiếp trên SketchUp Windows; việc khôi phục không khẳng định đã sửa lỗi trong bản gốc.

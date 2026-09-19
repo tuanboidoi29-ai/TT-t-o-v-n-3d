@@ -18,10 +18,10 @@ module TranTuanNoiThat
   tt_runtime_load.call('layout_stats_v070_export_split')
   tt_runtime_load.call('layout_stats_v080_five_pages')
   tt_runtime_load.call('layout_stats_v081_cut_offset_fix')
-  tt_runtime_load.call('layout_technical')
+  tt_runtime_load.call('layout_stats_v090_technical_dim')
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.99'.freeze
+  VERSION = '1.9.100'.freeze
 
   module Settings
     extend self

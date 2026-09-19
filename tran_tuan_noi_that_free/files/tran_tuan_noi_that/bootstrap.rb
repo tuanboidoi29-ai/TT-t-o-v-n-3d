@@ -11,7 +11,7 @@ module TranTuanNoiThat
   NAME = 'TRẦN TUẤN NỘI THẤT'.freeze unless const_defined?(:NAME, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.99'.freeze
+  VERSION = '1.9.100'.freeze
 
   class << self
     def setting(key, default = nil)
@@ -67,7 +67,21 @@ module TranTuanNoiThat
       false
     end
 
+    def reset_layout_runtime
+      # Drop patched singleton methods and aliases before loading the 1.9.55 chain.
+      [:LayoutTechnical, :LayoutStats].each do |name|
+        next unless TranTuanNoiThat.const_defined?(name, false)
+        runtime = TranTuanNoiThat.const_get(name)
+        runtime.finish_preview(nil) if runtime.respond_to?(:finish_preview)
+        runtime.tt_cancel_preview_job if runtime.respond_to?(:tt_cancel_preview_job)
+        dialog = runtime.instance_variable_get(:@dialog)
+        dialog.close if dialog
+        TranTuanNoiThat.send(:remove_const, name)
+      end
+    end
+
     def reload_runtime
+      reset_layout_runtime
       %w[
         board_tool
         cabinet_door_tool
