@@ -1,0 +1,15 @@
+TRẦN TUẤN NỘI THẤT 1.9.101 — MỖI MẶT MỘT TRANG
+Cài RBZ qua Extension Manager hoặc bấm cập nhật plugin.
+
+Xuất LayOut/PDF trực tiếp: chọn nơi lưu một lần cho cả lượt, không bắt Xem trước.
+Không yêu cầu lưu mô hình chưa có tên, không tự lưu đè SKP gốc. Tạo một bản sao SKP chứa scene cho hồ sơ.
+Mỗi trang chứa một hình chiếu: tổng thể, X-Ray, Line, trước, trái, phải, cắt trước, cắt trái, cắt phải, DIM trước, DIM bên, DIM trên. Tổng 12 trang hình; PDF thêm thống kê từ trang 13.
+Xem trước cũng tách mỗi hình một trang.
+Ưu tiên xuất nhanh: Raster, độ phân giải Medium, giảm thời gian chờ giữa các bước xem trước. Vẫn cần thời gian ghi SKP và dựng viewport; không cam kết không có độ trễ.
+LayOut: giữ nguyên thư mục TT_LAYOUT_NGUON_* bên cạnh hồ sơ để giữ nguồn liên kết. Khi gửi cho người khác, gửi kèm thư mục này.
+PDF: dùng SKP tạm và dọn sau xuất. Không tạo .layout trung gian.
+Nhiều cụm: một hộp lưu chọn tên gốc; tự tạo các tên riêng. Nếu tên riêng đã tồn tại, thêm mã lượt xuất để tránh ghi đè ngoài hộp lưu.
+Scene và DIM kỹ thuật vẫn được tạo trong mô hình như bản cũ; lưu mô hình chính khi anh chủ động muốn giữ chúng.
+Các chức năng DIM tự động và màu vẫn giữ nguyên.
+
+Kiểm tra: cú pháp Ruby; mô phỏng hủy lưu không tạo scene; một hộp lưu/một save_copy; 12 trang/12 viewport; số trang thống kê; giữ nguồn liên kết cho LayOut; kiểm tra gói và mã băm. Chưa thử trực tiếp SketchUp/LayOut Windows hoặc đo thời gian xuất thực tế.
