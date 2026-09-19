@@ -301,6 +301,40 @@ module TranTuanNoiThat
       %w[ROPDrawHiddenGeometry ROPDrawHiddenObjects].each { |k| options[k] = false if keys.include?(k) }
       raise 'SketchUp không hỗ trợ Section Fills.' if section && !keys.include?('SectionCutFilled')
     end
+    def capture_overview_camera(model,options)
+      @overview_camera_data = nil
+      return unless options['views'].include?('overview')
+      view = model.active_view
+      source = view.camera
+      if source.is_2d?
+        raise 'Góc nhìn Two-Point Perspective/Match Photo chưa được hỗ trợ. Chọn Camera → Perspective hoặc Parallel Projection rồi xuất lại.'
+      end
+      aspect = source.aspect_ratio.to_f
+      aspect = view.vpwidth.to_f / [view.vpheight,1].max if aspect <= 0.0
+      @overview_camera_data = {
+        eye:source.eye.to_a,target:source.target.to_a,up:source.up.to_a,
+        perspective:source.perspective?,aspect:aspect,
+        fov:source.perspective? ? source.fov : nil,
+        fov_vertical:source.perspective? ? source.fov_is_height? : nil,
+        height:source.perspective? ? nil : source.height
+      }
+    end
+    def overview_camera_from_data(data)
+      cam = Sketchup::Camera.new(data[:eye],data[:target],data[:up],data[:perspective])
+      cam.aspect_ratio = data[:aspect]
+      if data[:perspective]
+        fov = data[:fov]
+        if cam.fov_is_height? != data[:fov_vertical]
+          tangent = Math.tan(fov*Math::PI/360.0)
+          tangent = data[:fov_vertical] ? tangent*data[:aspect] : tangent/data[:aspect]
+          fov = 2.0*Math.atan(tangent)*180.0/Math::PI
+        end
+        cam.fov = fov
+      else
+        cam.height = data[:height]
+      end
+      cam
+    end
     def camera(key,bb)
       if key == 'top'
         eye = bb.center.offset(Z_AXIS,[bb.diagonal.to_f*2.5,1000.0/25.4].max)
@@ -308,10 +342,8 @@ module TranTuanNoiThat
         cam.height = [bb.height.to_f,bb.width.to_f/(390.0/235.0),1.0].max * 1.1
         cam
       elsif key == 'overview'
-        cam = helper.tt_iso_camera(bb)
-        cam.aspect_ratio = 390.0/235.0
-        cam.height = [bb.diagonal.to_f*1.12,1.0].max
-        cam
+        raise 'Chưa lấy góc nhìn SketchUp. Bấm Xem trước hoặc Xuất lại.' unless @overview_camera_data
+        overview_camera_from_data(@overview_camera_data)
       else
         helper.tt_ortho_camera(key.sub('cut_','').to_sym,bb)
       end
@@ -705,6 +737,7 @@ module TranTuanNoiThat
     end
     def run(action,o)
       check_overview_style(Sketchup.active_model,o)
+      capture_overview_camera(Sketchup.active_model,o)
       started_at = Process.clock_gettime(Process::CLOCK_MONOTONIC)
       o = o.merge('_fast_pdf' => (action == 'pdf' && o['pdf_mode'] == 'fast'))
       @auto_model_path = nil unless Sketchup.active_model.path.to_s == @auto_model_path
@@ -876,6 +909,7 @@ module TranTuanNoiThat
     # Preview avoids LayOut rendering. Overview temporarily captures the SketchUp viewport.
     def start_safe_preview(options)
       check_overview_style(@model,options)
+      capture_overview_camera(@model,options)
       finish_preview(nil)
       clear_preview_files
       raise 'Thoát chế độ sửa Group/Component trước khi xem trước.' if @model.active_path
@@ -954,9 +988,6 @@ module TranTuanNoiThat
         model.selection.clear
         apply_overview_style(model,options)
         cam = camera('overview',bounds)
-        # Conservative sphere fit at the same 390:235 aspect as the PDF viewport.
-        cam.aspect_ratio = 390.0/235.0
-        cam.height = [bounds.diagonal.to_f*1.12,1.0].max
         view.camera = cam
         view.refresh
         written = view.write_image(filename:path,width:1170,height:705,antialias:false,transparent:false)
@@ -1092,7 +1123,7 @@ module TranTuanNoiThat
       <!doctype html><html lang="vi"><head><meta charset="utf-8"><style>
       *{box-sizing:border-box}body{font:14px Arial,sans-serif;margin:0;background:#f4f6f8;color:#253443}header{background:#173d4a;color:white;padding:20px 24px}h1{font-size:21px;margin:0 0 7px}main{padding:18px 24px}.card{background:white;border:1px solid #dce3e8;border-radius:9px;padding:16px;margin-bottom:14px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}label{display:block}input:not([type=checkbox]),select{display:block;width:100%;padding:8px;border:1px solid #bccbd4;border-radius:5px;margin-top:5px}.views{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}button{border:0;border-radius:5px;padding:10px 13px;background:#156a7a;color:white;cursor:pointer}button.secondary{background:#e3ecf1;color:#253443}button:disabled{opacity:.5;cursor:wait}.buttons{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}small,p{line-height:1.5}.muted{color:#617281}#status{white-space:pre-wrap;padding:12px;border-radius:6px;background:#e9f1f4;overflow-wrap:anywhere}.error{color:#a32929}summary{cursor:pointer;font-weight:bold}h2{font-size:16px;margin:0 0 12px}
       .workspace{display:flex;flex-direction:column;gap:18px}.workspace>div{width:100%}.preview-panel{order:-1;width:100%;position:static}.preview-screen{background:#dce3e8;overflow:auto;height:500px;padding:14px;text-align:center}.preview-screen img{max-width:100%;height:auto;box-shadow:0 2px 12px #0003;display:block;margin:auto;background:white}.preview-screen img[hidden]{display:none}.preview-screen.zoom img{max-width:none;width:1600px}.preview-screen canvas{width:100%;max-width:100%;height:auto;display:block;background:white}.preview-screen canvas[hidden]{display:none}.preview-screen.zoom canvas{max-width:none;width:1600px}.preview-controls{display:flex;gap:6px;align-items:center;margin:10px 0}.preview-controls select{min-width:0;flex:1;margin:0}.preview-controls button{padding:9px}#preview-label{font-weight:bold;margin:8px 0}#preview-note{font-size:12px;color:#617281}@media(max-width:850px){.workspace{grid-template-columns:1fr}.preview-panel{position:static}.preview-screen{height:400px}}
-      </style></head><body><header><h1>Hồ sơ LayOut A3 · 1.9.95</h1>Scene riêng · Giữ tỷ lệ · Khung tên tự động</header><main><div id="status" role="status" style="position:sticky;top:0;z-index:5;margin-bottom:12px">Sẵn sàng.</div><div class="workspace"><div>
+      </style></head><body><header><h1>Hồ sơ LayOut A3 · 1.9.96</h1>Scene riêng · Giữ tỷ lệ · Khung tên tự động</header><main><div id="status" role="status" style="position:sticky;top:0;z-index:5;margin-bottom:12px">Sẵn sàng.</div><div class="workspace"><div>
       <form id="form"><div class="card"><h2>1. Phạm vi & tên bản vẽ</h2><label>Phạm vi quét<select id="scope"><option value="selected">Quét Group/Component đang chọn</option><option value="all">Quét tất cả Group/Component</option></select></label><label>Tên bản vẽ<input id="drawing" maxlength="100"></label><label>Tên công trình<input id="project" maxlength="160"></label><div class="grid" style="margin-top:12px">
       <label>Mặt bằng / mặt đứng — tỷ lệ 1:<input id="scale" type="number" min="1" max="500" step="any" list="ratios" required></label>
       <label>Mặt cắt / chi tiết — tỷ lệ 1:<input id="cut_scale" type="number" min="1" max="500" step="any" list="ratios" required></label>
@@ -1100,7 +1131,7 @@ module TranTuanNoiThat
       <label>Vị trí cắt vào từ mép (mm)<input id="cut_mm" type="number" min="0.1" max="5000" step="any" required></label>
       <label>Nét kỹ thuật<select id="render"><option>Vector</option><option>Hybrid</option></select></label></div>
       <p class="muted">A3 ngang, 420 × 297 mm. Hình chiếu song song và Preserve Scale luôn bật. Nếu mô hình vượt khung, công cụ báo để bạn chọn lại tỷ lệ.</p></div>
-      <div class="card"><h2>2. Góc nhìn & X-ray</h2><p>Mỗi góc nhìn một trang. Chọn X-ray bên cạnh góc nhìn cần xuyên thấu.</p><label>Style phối cảnh 3D<select id="overview_style"><option value="">Màu và vật liệu model</option><option value="__current__">Style đang hiển thị trong SketchUp</option></select></label><button type="button" class="secondary" onclick="sketchup.refresh_styles()">Làm mới Styles</button><p class="muted">Chọn Style trong model. Để thêm Style từ thư viện SketchUp, chọn nó trong Window → Default Tray → Styles rồi bấm Làm mới Styles. Style áp dụng cho phối cảnh xem trước và PDF; các trang kỹ thuật giữ thiết lập riêng.</p><div id="views" class="views"></div><p><label><input id="stats" type="checkbox"> Kèm bảng thống kê ván</label></p><label>Cỡ chữ bảng thống kê (pt)<input id="stats_font" type="number" min="12" max="18" step="1" required></label><p class="muted">Mặc định 14 pt. Chữ lớn hơn sẽ tự chia thêm trang.</p><small>Chọn Group/Component ngoài model trước khi xuất. Quét tất cả: mỗi Group/Component cha thành một hồ sơ riêng. Hướng trước theo −Y, trên theo +Z của hệ trục model.</small></div>
+      <div class="card"><h2>2. Góc nhìn & X-ray</h2><p>Mỗi góc nhìn một trang. Chọn X-ray bên cạnh góc nhìn cần xuyên thấu.</p><p class="muted"><b>Hướng phối cảnh: góc nhìn hiện tại trong SketchUp.</b> Xoay/zoom model trước khi bấm Xem trước hoặc Xuất PDF. Mỗi lần bấm sẽ lấy lại góc nhìn; không tự xoay hoặc zoom vừa cụm. Giữ Perspective/Parallel Projection. Khung A3 có thể thêm khoảng trống do khác tỷ lệ màn hình.</p><label>Style phối cảnh 3D<select id="overview_style"><option value="">Màu và vật liệu model</option><option value="__current__">Style đang hiển thị trong SketchUp</option></select></label><button type="button" class="secondary" onclick="sketchup.refresh_styles()">Làm mới Styles</button><p class="muted">Chọn Style trong model. Để thêm Style từ thư viện SketchUp, chọn nó trong Window → Default Tray → Styles rồi bấm Làm mới Styles. Style áp dụng cho phối cảnh xem trước và PDF; các trang kỹ thuật giữ thiết lập riêng.</p><div id="views" class="views"></div><p><label><input id="stats" type="checkbox"> Kèm bảng thống kê ván</label></p><label>Cỡ chữ bảng thống kê (pt)<input id="stats_font" type="number" min="12" max="18" step="1" required></label><p class="muted">Mặc định 14 pt. Chữ lớn hơn sẽ tự chia thêm trang.</p><small>Chọn Group/Component ngoài model trước khi xuất. Quét tất cả: mỗi Group/Component cha thành một hồ sơ riêng. Hướng trước theo −Y, trên theo +Z của hệ trục model.</small></div>
       <div class="card"><h2>3. DIM & cỡ chữ</h2><label><input id="detail_dims" type="checkbox"> DIM chia đoạn tại mặt trước và các mặt cắt</label><label><input id="dimensions" type="checkbox"> Tạo DIM tổng ngang / dọc</label><div class="grid" style="margin-top:12px"><label>Cách biên (mm trên giấy)<input id="dim_offset" type="number" min="5" max="20" step="any" required></label><label>Cỡ chữ DIM (pt)<input id="dim_font" type="number" min="6" max="18" step="any" required></label></div><label>Cỡ chữ tiêu đề (pt)<input id="title_font" type="number" min="10" max="18" step="any" required></label><p class="muted">DIM dày chữ sẽ tự tách sang trang chi tiết bổ sung, giữ đủ số đo và tỷ lệ. DIM chi tiết theo biên hình học tấm trong mặt chiếu; mặt cắt chỉ lấy phần còn lại sau cắt. DIM tổng theo biên khối, đơn vị mm, nằm trên lớp Dim. Khi sửa model, dựng/xuất lại để cập nhật DIM tự tạo. Trang phối cảnh không đặt DIM đo theo hình chiếu.</p></div>
       <div class="card"><h2>In & PDF</h2><p>Không cần chọn nơi lưu SKP trước. Model chưa từng lưu sẽ được lưu nền tự động, giữ lại trong ModelBackups; đường dẫn hiện ở thông báo. Model đã lưu dùng bản sao tạm. Chỉ chọn nơi lưu PDF.</p><div class="grid"><label>Chế độ xuất PDF<select id="pdf_mode"><option value="fast">PDF nhanh · ảnh mô hình Medium</option><option value="print">PDF chất lượng in · Vector/Hybrid, High</option></select></label><label>Chất lượng ảnh nén (%)<input id="quality" type="number" min="50" max="100" required></label></div>
       <p class="muted">PDF nhanh dùng ảnh mô hình Medium: nhẹ hơn nhưng nét mô hình giảm độ sắc khi phóng to. Chữ, DIM và thống kê giữ riêng; không bỏ trang hoặc số đo. Chất lượng in dùng Vector/Hybrid và High. File LayOut có các lớp Đồ gỗ, Dim, Chú thích, Khung tên và Thống kê.</p>

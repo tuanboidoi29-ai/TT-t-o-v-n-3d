@@ -1,0 +1,11 @@
+TRẦN TUẤN NỘI THẤT 1.9.96 — GÓC NHÌN SKETCHUP
+
+Xoay/zoom model trong SketchUp theo góc mong muốn, rồi mở Hồ sơ LayOut.
+Chọn Phối cảnh 3D và Style, bấm Xem trước hoặc Xuất PDF.
+Mỗi lần bấm sẽ lấy camera hiện tại của SketchUp: eye, target, up, Perspective/Parallel Projection, trường nhìn/chiều cao và tỷ lệ khung. Một lượt xuất dùng cùng góc nhìn cho tất cả các cụm được chọn; không tự xoay hoặc zoom lại từng cụm.
+Muốn PDF trùng hướng xem trước: không xoay model giữa hai lần bấm. Muốn đổi góc: xoay trong SketchUp rồi dựng/xuất lại.
+Khung A3 khác tỷ lệ màn hình có thể có khoảng trống. Nếu cụm nằm ngoài góc đang nhìn, plugin không tự đưa cụm vào giữa.
+Các mặt trước/trái/phải/trên và mặt cắt vẫn dùng hướng kỹ thuật, không xoay theo camera.
+Two-Point Perspective/Match Photo chưa hỗ trợ sao chép đầy đủ qua luồng hiện tại; công cụ báo chuyển sang Perspective/Parallel Projection trước khi thực hiện.
+
+Đã kiểm tra giao diện, parser ngữ pháp Ruby và đối chiếu RBZ với SHA256. Chưa kiểm thử camera, ảnh và PDF trong SketchUp/LayOut 2022 Windows.
