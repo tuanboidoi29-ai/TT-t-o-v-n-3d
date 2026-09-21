@@ -6,7 +6,7 @@ module TranTuanNoiThat
   module CamChot
     extend self
 
-    VERSION = '1.9.109'.freeze
+    VERSION = '1.9.110'.freeze
     DICT = 'TT_CAM_CHOT'.freeze
 
     DEFAULTS = {
@@ -71,7 +71,7 @@ module TranTuanNoiThat
 
       @dialog = UI::HtmlDialog.new(
         dialog_title: 'TT - LIÊN KẾT CAM - CHỐT',
-        preferences_key: 'TranTuanNoiThat.CamChot.109',
+        preferences_key: 'TranTuanNoiThat.CamChot.110',
         scrollable: true,
         resizable: true,
         width: 610,
@@ -203,7 +203,7 @@ module TranTuanNoiThat
         <body>
           <div class="top">
             <h2>LIÊN KẾT CAM - CHỐT</h2>
-            <div id="state" class="state">Click tấm CAM rồi click tấm CHỐT trong SketchUp.</div>
+            <div id="state" class="state">Click trực tiếp tấm CAM. Tool sẽ hiện các cạnh giao với tấm khác; click cạnh giao để tạo CAM.</div>
             <div class="legend">
               <span><span class="dot cam"></span>CAM</span>
               <span><span class="dot pin"></span>CHỐT</span>
@@ -239,8 +239,7 @@ module TranTuanNoiThat
                 <button class="green" onclick="createLink()">TẠO LIÊN KẾT (ENTER)</button>
               </div>
               <div class="hint">
-                Cách dùng: click tấm nhận CAM → click tấm nhận CHỐT. Hai tấm cần vuông góc và nằm trong cùng ngữ cảnh đang mở.
-                TAB đổi mặt đặt CAM. Preview cam màu cam, chốt màu xanh. Khi tạo thật, đường khoan được ghi vào _ABF_cuttingLines để ABF nhận khi trải/nesting.
+                Cách dùng: click tấm nhận CAM → các cạnh giao/tiếp giáp sẽ sáng trên View → rê vào cạnh cần liên kết → click cạnh đó để tạo CAM–CHỐT ngay. TAB đảo mặt CAM. Liên kết được ghi trong chính tấm và theo tấm khi di chuyển/copy.
               </div>
             </div>
 
@@ -294,6 +293,8 @@ module TranTuanNoiThat
         @cam = nil
         @pin = nil
         @hover = nil
+        @contacts = []
+        @hover_contact = nil
         @flip_cam = false
         @settings = DEFAULTS.dup
       end
@@ -303,15 +304,18 @@ module TranTuanNoiThat
           @cam = nil
           @pin = nil
           @hover = nil
+          @contacts = []
+          @hover_contact = nil
           @flip_cam = false
         end
         @model = model
         @settings = CamChot.sanitize_settings(settings)
+        rebuild_contacts if @cam
         invalidate
       end
 
       def activate
-        Sketchup.status_text = 'TT CAM-CHỐT: click tấm CAM → click tấm CHỐT · TAB đảo mặt CAM · ENTER tạo.'
+        Sketchup.status_text = 'TT CAM-CHỐT: click tấm CAM → rê vào cạnh giao sáng → click cạnh để tạo · TAB đảo mặt CAM.'
         invalidate
       end
 
@@ -325,6 +329,21 @@ module TranTuanNoiThat
       end
 
       def onMouseMove(_flags, x, y, view)
+        if @cam && @pin.nil?
+          contact = pick_contact(view, x, y)
+          picked = contact ? contact[:entity] : pick_container(view, x, y)
+          changed = contact != @hover_contact || picked != @hover
+          @hover_contact = contact
+          @hover = picked
+          if contact
+            Sketchup.status_text = "Cạnh giao với #{display_name(contact[:entity])} · click để tạo CAM-CHỐT."
+          else
+            Sketchup.status_text = "Đã chọn tấm CAM · #{@contacts.length} cạnh giao hợp lệ · rê chuột lên cạnh sáng."
+          end
+          view.invalidate if changed
+          return
+        end
+
         picked = pick_container(view, x, y)
         if picked != @hover
           @hover = picked
@@ -333,29 +352,44 @@ module TranTuanNoiThat
       end
 
       def onLButtonDown(_flags, x, y, view)
-        entity = pick_container(view, x, y)
-        unless entity
-          UI.beep
-          Sketchup.status_text = 'Không bắt được Group/Component trong ngữ cảnh hiện tại.'
+        if @cam.nil?
+          entity = pick_container(view, x, y)
+          unless entity
+            UI.beep
+            Sketchup.status_text = 'Không bắt được tấm CAM.'
+            return
+          end
+          @cam = entity
+          @pin = nil
+          @hover_contact = nil
+          rebuild_contacts
+          if @contacts.empty?
+            CamChot.notify('Đã chọn tấm CAM nhưng chưa tìm thấy tấm nào tiếp giáp vuông góc trong cùng ngữ cảnh.', 'warn')
+          else
+            Sketchup.status_text = "Đã chọn tấm CAM · tìm thấy #{@contacts.length} cạnh giao · rê lên cạnh sáng và click để tạo."
+          end
+          CamChot.sync_dialog
+          invalidate
           return
         end
 
-        if @cam.nil?
-          @cam = entity
-        elsif @pin.nil?
-          if entity == @cam
-            UI.beep
-            Sketchup.status_text = 'Tấm CHỐT phải khác tấm CAM.'
-            return
-          end
-          @pin = entity
-        else
-          @cam = entity
-          @pin = nil
+        contact = pick_contact(view, x, y)
+        unless contact
+          entity = pick_container(view, x, y)
+          contact = contact_for_entity(entity) if entity && entity != @cam
         end
 
+        unless contact
+          UI.beep
+          Sketchup.status_text = 'Hãy click đúng cạnh giao đang được highlight.'
+          return
+        end
+
+        @pin = contact[:entity]
+        @hover_contact = contact
         CamChot.sync_dialog
         invalidate
+        create_link
       end
 
       def onKeyDown(key, _repeat, _flags, view)
@@ -381,18 +415,32 @@ module TranTuanNoiThat
           (entity.is_a?(Sketchup::Group) || entity.is_a?(Sketchup::ComponentInstance)) && entity.valid?
         end
         objects = objects.select { |entity| active_entities.include?(entity) }
-        if objects.length < 2
-          CamChot.notify('Hãy chọn đúng 2 Group/Component trong cùng ngữ cảnh hiện tại.', 'warn')
+
+        if objects.empty?
+          CamChot.notify('Hãy chọn ít nhất 1 tấm trong cùng ngữ cảnh hiện tại.', 'warn')
           return false
         end
+
         @cam = objects[0]
-        @pin = objects[1]
+        @pin = objects[1] if objects.length > 1
+        rebuild_contacts
+
+        if @pin
+          candidate = contact_for_entity(@pin)
+          unless candidate
+            @pin = nil
+            CamChot.notify('Tấm thứ hai không tiếp giáp vuông góc với tấm CAM. Tool đã giữ tấm CAM và hiện các cạnh giao hợp lệ.', 'warn')
+          end
+        end
+
+        CamChot.sync_dialog
         invalidate
         true
       end
 
       def flip_cam_face
         @flip_cam = !@flip_cam
+        rebuild_contacts if @cam
         CamChot.sync_dialog
         invalidate
         true
@@ -402,6 +450,8 @@ module TranTuanNoiThat
         @cam = nil
         @pin = nil
         @hover = nil
+        @contacts = []
+        @hover_contact = nil
         CamChot.sync_dialog
         invalidate
         true
@@ -411,11 +461,13 @@ module TranTuanNoiThat
         joint = ''
         if @cam && @pin
           begin
-            layout = compute_layout
+            layout = compute_layout(@cam, @pin)
             joint = "#{layout[:cam_points].length} bộ · B#{CamChot.format_number(@settings['b_offset'])}"
           rescue StandardError => error
             joint = error.message
           end
+        elsif @cam
+          joint = "#{@contacts.length} cạnh giao hợp lệ · click cạnh sáng để tạo"
         end
         {
           cam_name: @cam ? display_name(@cam) : nil,
@@ -432,13 +484,38 @@ module TranTuanNoiThat
       end
 
       def draw(view)
-        draw_box(view, @hover, Sketchup::Color.new(120, 120, 120), 1) if @hover
+        draw_box(view, @hover, Sketchup::Color.new(120, 120, 120), 1) if @hover && @hover != @cam
         draw_box(view, @cam, Sketchup::Color.new(240, 122, 36), 3) if @cam
         draw_box(view, @pin, Sketchup::Color.new(22, 119, 210), 3) if @pin
 
-        return unless @cam && @pin
-        layout = compute_layout
+        if @cam && @pin.nil?
+          @contacts.each do |contact|
+            hovered = contact.equal?(@hover_contact)
+            view.line_width = hovered ? 7 : 4
+            view.drawing_color = hovered ? Sketchup::Color.new(255, 210, 40) : Sketchup::Color.new(50, 210, 110)
+            view.draw(GL_LINES, contact[:line])
+            midpoint = Geom::Point3d.linear_combination(0.5, contact[:line][0], 0.5, contact[:line][1])
+            view.draw_points(midpoint, hovered ? 10 : 7, 2, view.drawing_color)
+          end
 
+          if @hover_contact
+            begin
+              layout = compute_layout(@cam, @hover_contact[:entity])
+              draw_layout_preview(view, layout)
+            rescue StandardError
+            end
+          end
+          return
+        end
+
+        return unless @cam && @pin
+        layout = compute_layout(@cam, @pin)
+        draw_layout_preview(view, layout)
+      rescue StandardError => error
+        Sketchup.status_text = "TT CAM-CHỐT: #{error.message}"
+      end
+
+      def draw_layout_preview(view, layout)
         view.line_width = 3
         view.drawing_color = Sketchup::Color.new(240, 122, 36)
         layout[:cam_points].each do |point|
@@ -457,8 +534,6 @@ module TranTuanNoiThat
           view.drawing_color = Sketchup::Color.new(245, 165, 80)
           view.draw(GL_LINES, [cam_point, pin_point])
         end
-      rescue StandardError => error
-        Sketchup.status_text = "TT CAM-CHỐT: #{error.message}"
       end
 
       def create_link
@@ -467,13 +542,13 @@ module TranTuanNoiThat
           return false
         end
 
-        layout = compute_layout
+        layout = compute_layout(@cam, @pin)
         @model.start_operation('TT - Liên kết CAM CHỐT', true)
         started = true
 
         make_unique_if_needed(@cam)
         make_unique_if_needed(@pin)
-        layout = compute_layout
+        layout = compute_layout(@cam, @pin)
 
         # ABF chuẩn: tất cả đường gia công phải nằm trong _ABF_cuttingLines
         # với tag ABF_cuttingLines và attribute ABF/is-cutting-lines=true.
@@ -528,7 +603,7 @@ module TranTuanNoiThat
         started = false
 
         count = layout[:cam_points].length
-        CamChot.notify("Đã tạo #{count} bộ CAM - CHỐT. Tấm CAM đã được đánh dấu ABF board + marker ABF_chotcamNK; _ABF_cuttingLines giữ đường khoan khi nesting. Bấm Kiểm tra ABF CAM để xác nhận. Ctrl+Z hoàn tác một lần.", 'ok')
+        CamChot.notify("Đã tạo #{count} bộ CAM - CHỐT theo cạnh giao. Liên kết nằm trong chính tấm nên đi theo ván khi di chuyển/copy; ABF cuttingLines + CAM marker được giữ. Ctrl+Z hoàn tác một lần.", 'ok')
         reset_picks
         true
       rescue StandardError => error
@@ -537,12 +612,12 @@ module TranTuanNoiThat
         false
       end
 
-      def compute_layout
-        raise 'Tấm CAM không còn hợp lệ.' unless valid_container?(@cam)
-        raise 'Tấm CHỐT không còn hợp lệ.' unless valid_container?(@pin)
+      def compute_layout(cam_entity = @cam, pin_entity = @pin)
+        raise 'Tấm CAM không còn hợp lệ.' unless valid_container?(cam_entity)
+        raise 'Tấm CHỐT không còn hợp lệ.' unless valid_container?(pin_entity)
 
-        cam = board_frame(@cam)
-        pin = board_frame(@pin)
+        cam = board_frame(cam_entity)
+        pin = board_frame(pin_entity)
 
         n_cam = cam[:normal]
         n_pin_raw = pin[:normal]
@@ -574,6 +649,8 @@ module TranTuanNoiThat
 
         cam_edge_candidates = [cam_p[0], cam_p[1]]
         cam_edge = cam_edge_candidates.min_by { |value| (value - pin_surface).abs }
+        contact_gap = (cam_edge - pin_surface).abs
+        raise 'Hai tấm chưa thực sự tiếp giáp.' if contact_gap > mm(2.0)
         inward_sign = (cam_edge - cam_p[0]).abs < (cam_edge - cam_p[1]).abs ? 1.0 : -1.0
         cam_housing_p = cam_edge + inward_sign * mm(@settings['b_offset'])
 
@@ -605,6 +682,112 @@ module TranTuanNoiThat
           pin_face_normal: pin_face_normal,
           pin_inward: pin_inward
         }
+      end
+
+      def rebuild_contacts
+        @contacts = []
+        @hover_contact = nil
+        return @contacts unless valid_container?(@cam)
+
+        active_entities.each do |entity|
+          next unless valid_container?(entity)
+          next if entity == @cam
+          candidate = build_contact_candidate(@cam, entity)
+          @contacts << candidate if candidate
+        end
+        @contacts
+      rescue StandardError => error
+        warn "[TT CamChot contacts] #{error.class}: #{error.message}"
+        @contacts = []
+      end
+
+      def build_contact_candidate(cam_entity, pin_entity)
+        cam = board_frame(cam_entity)
+        pin = board_frame(pin_entity)
+
+        n_cam = cam[:normal]
+        n_pin_raw = pin[:normal]
+        return nil if n_cam.dot(n_pin_raw).abs > 0.25
+
+        direction = n_cam.cross(n_pin_raw)
+        return nil if direction.length < 0.001
+        direction.normalize!
+
+        n_pin = direction.cross(n_cam)
+        n_pin.normalize!
+        n_pin.reverse! if n_pin.dot(n_pin_raw) < 0.0
+
+        cam_d = projection(cam[:corners], direction)
+        pin_d = projection(pin[:corners], direction)
+        overlap_min = [cam_d[0], pin_d[0]].max
+        overlap_max = [cam_d[1], pin_d[1]].min
+        return nil if overlap_max - overlap_min < mm(10.0)
+
+        cam_n = projection(cam[:corners], n_cam)
+        cam_p = projection(cam[:corners], n_pin)
+        pin_p = projection(pin[:corners], n_pin)
+
+        cam_center_p = scalar(cam[:center], n_pin)
+        pin_surface = [pin_p[0], pin_p[1]].min_by { |value| (value - cam_center_p).abs }
+        cam_edge = [cam_p[0], cam_p[1]].min_by { |value| (value - pin_surface).abs }
+        gap = (cam_edge - pin_surface).abs
+        return nil if gap > mm(2.0)
+
+        cam_mid_s = (cam_n[0] + cam_n[1]) / 2.0
+        line = [
+          point_from_basis(direction, overlap_min, n_cam, cam_mid_s, n_pin, pin_surface),
+          point_from_basis(direction, overlap_max, n_cam, cam_mid_s, n_pin, pin_surface)
+        ]
+
+        # Chỉ nhận contact nếu bộ thông số hiện tại thật sự đặt được CAM.
+        compute_layout(cam_entity, pin_entity)
+
+        {
+          entity: pin_entity,
+          line: line,
+          gap: gap
+        }
+      rescue StandardError
+        nil
+      end
+
+      def contact_for_entity(entity)
+        return nil unless entity
+        @contacts.find { |contact| contact[:entity] == entity }
+      end
+
+      def pick_contact(view, x, y)
+        return nil if @contacts.nil? || @contacts.empty?
+        best = nil
+        best_distance = 1.0e9
+
+        @contacts.each do |contact|
+          a = view.screen_coords(contact[:line][0])
+          b = view.screen_coords(contact[:line][1])
+          distance = screen_distance_to_segment(x.to_f, y.to_f, a.x.to_f, a.y.to_f, b.x.to_f, b.y.to_f)
+          if distance < best_distance
+            best_distance = distance
+            best = contact
+          end
+        end
+
+        best_distance <= 14.0 ? best : nil
+      rescue StandardError
+        nil
+      end
+
+      def screen_distance_to_segment(px, py, ax, ay, bx, by)
+        dx = bx - ax
+        dy = by - ay
+        length2 = dx * dx + dy * dy
+        return Math.sqrt((px - ax) ** 2 + (py - ay) ** 2) if length2 <= 0.000001
+
+        t = ((px - ax) * dx + (py - ay) * dy) / length2
+        t = 0.0 if t < 0.0
+        t = 1.0 if t > 1.0
+        cx = ax + t * dx
+        cy = ay + t * dy
+        Math.sqrt((px - cx) ** 2 + (py - cy) ** 2)
       end
 
       def connector_positions(min_value, max_value, end_offset, count)
