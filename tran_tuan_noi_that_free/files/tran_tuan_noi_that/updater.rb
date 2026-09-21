@@ -26,7 +26,9 @@ module TranTuanNoiThat
         latest = manifest.fetch('version')
         local = TranTuanNoiThat.current_version
         comparison = normalize(latest) <=> normalize(local)
-        if comparison < 0 || (comparison == 0 && changed_files(manifest).empty?)
+        pending_changes = changed_files(manifest)
+        pending_removals = removed_files_present(manifest)
+        if comparison < 0 || (comparison == 0 && pending_changes.empty? && pending_removals.empty?)
           UI.messagebox("Đang dùng bản không bản quyền mới nhất: #{local}.") if interactive
           return false
         end
@@ -85,6 +87,13 @@ module TranTuanNoiThat
         path
       end
       raise 'Danh sách tệp bị trùng.' unless paths.uniq.length == paths.length
+
+      remove_paths = Array(data['remove_files']).map do |remove_path|
+        safe_path(remove_path)
+      end
+      raise 'Danh sách tệp cần xóa bị trùng.' unless remove_paths.uniq.length == remove_paths.length
+      raise 'Tệp vừa cập nhật vừa bị yêu cầu xóa.' unless (paths & remove_paths).empty?
+
       %w[TranTuanNoiThat.rb tran_tuan_noi_that/bootstrap.rb tran_tuan_noi_that/settings.rb tran_tuan_noi_that/updater.rb].each do |path|
         raise "Gói cập nhật thiếu #{path}" unless paths.include?(path)
       end
@@ -111,6 +120,12 @@ module TranTuanNoiThat
       manifest.fetch('files').select do |item|
         target = install_path(item.fetch('path'))
         !File.file?(target) || Digest::SHA256.file(target).hexdigest != item.fetch('sha256')
+      end
+    end
+
+    def removed_files_present(manifest)
+      Array(manifest['remove_files']).select do |relative|
+        File.file?(install_path(relative))
       end
     end
 
@@ -143,6 +158,18 @@ module TranTuanNoiThat
           FileUtils.mkdir_p(File.dirname(target))
           FileUtils.cp(File.join(stage, relative), target)
         end
+
+        Array(manifest['remove_files']).each do |relative|
+          relative = safe_path(relative)
+          target = install_path(relative)
+          next unless File.file?(target)
+          backup = File.join(backup_root, relative)
+          FileUtils.mkdir_p(File.dirname(backup))
+          FileUtils.cp(target, backup)
+          backups << [target, backup, true]
+          FileUtils.rm_f(target)
+        end
+
         # Reload bootstrap too: its UI callbacks and version may have changed.
         load(File.join(TranTuanNoiThat::ROOT, 'bootstrap.rb'))
         actual_version = TranTuanNoiThat.current_version.to_s
@@ -152,7 +179,8 @@ module TranTuanNoiThat
         end
         TranTuanNoiThat.save_setting('installed_version', manifest['version'])
         TranTuanNoiThat::Settings.sync if defined?(TranTuanNoiThat::Settings) && TranTuanNoiThat::Settings.instance_variable_get(:@dialog)
-        UI.messagebox("Đã cập nhật #{manifest['version']} từ GitHub.\nKhông yêu cầu kích hoạt bản quyền.")
+        extra = Array(manifest['remove_files']).empty? ? '' : "\nĐã xóa tính năng cũ. Hãy đóng và mở lại SketchUp để toolbar làm sạch hoàn toàn."
+        UI.messagebox("Đã cập nhật #{manifest['version']} từ GitHub.\nKhông yêu cầu kích hoạt bản quyền.#{extra}")
         true
       rescue StandardError, ScriptError => error
         rollback_errors = []
@@ -250,7 +278,7 @@ module TranTuanNoiThat
       raise 'Máy chủ cập nhật không hợp lệ.' unless %w[raw.githubusercontent.com api.github.com].include?(uri.host)
 
       headers = {
-        'User-Agent' => 'TranTuanNoiThat-SketchUp/1.9.116',
+        'User-Agent' => 'TranTuanNoiThat-SketchUp/1.9.117',
         'Cache-Control' => 'no-cache, no-store, max-age=0',
         'Pragma' => 'no-cache'
       }
