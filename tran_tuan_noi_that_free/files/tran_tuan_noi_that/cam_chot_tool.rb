@@ -6,7 +6,7 @@ module TranTuanNoiThat
   module CamChot
     extend self
 
-    VERSION = '1.9.112'.freeze
+    VERSION = '1.9.113'.freeze
     DICT = 'TT_CAM_CHOT'.freeze
 
     DEFAULTS = {
@@ -71,7 +71,7 @@ module TranTuanNoiThat
 
       @dialog = UI::HtmlDialog.new(
         dialog_title: 'TT - LIÊN KẾT CAM - CHỐT',
-        preferences_key: 'TranTuanNoiThat.CamChot.112',
+        preferences_key: 'TranTuanNoiThat.CamChot.113',
         scrollable: true,
         resizable: true,
         width: 610,
@@ -258,7 +258,7 @@ module TranTuanNoiThat
                 const joint=s.joint||'';
                 document.getElementById('state').innerHTML=
                   '<b>Tấm CAM:</b> '+esc(cam)+'<br><b>Tấm CHỐT:</b> '+esc(pin)+
-                  '<br><b>Mặt CAM:</b> '+(s.flip_cam?'Mặt đối diện':'Mặt mặc định')+
+                  '<br><b>Mặt CAM:</b> '+(s.flip_cam?'Mặt đối diện do TAB':'Đúng Face đã click')+
                   (joint?'<br><b>Preview:</b> '+esc(joint):'');
               },
               notice(msg,kind){
@@ -291,6 +291,9 @@ module TranTuanNoiThat
       def initialize
         @model = nil
         @cam = nil
+        @cam_face = nil
+        @cam_face_point_world = nil
+        @cam_face_normal_world = nil
         @pin = nil
         @hover = nil
         @contacts = []
@@ -302,6 +305,9 @@ module TranTuanNoiThat
       def reset_for_model(model, settings)
         if @model != model
           @cam = nil
+          @cam_face = nil
+          @cam_face_point_world = nil
+          @cam_face_normal_world = nil
           @pin = nil
           @hover = nil
           @contacts = []
@@ -347,22 +353,31 @@ module TranTuanNoiThat
           return
         end
 
-        picked = pick_container(view, x, y)
+        target = pick_cam_target(view, x, y)
+        picked = target ? target[:entity] : nil
         if picked != @hover
           @hover = picked
           view.invalidate
+        end
+        if target
+          Sketchup.status_text = 'Click đúng MẶT tấm cần nhận CAM. Biên dạng CAM sẽ chỉ nằm trên mặt này.'
         end
       end
 
       def onLButtonDown(_flags, x, y, view)
         if @cam.nil?
-          entity = pick_container(view, x, y)
-          unless entity
+          target = pick_cam_target(view, x, y)
+          unless target
             UI.beep
-            Sketchup.status_text = 'Không bắt được tấm CAM.'
+            Sketchup.status_text = 'Hãy click trực tiếp vào MẶT lớn của tấm cần nhận CAM.'
             return
           end
-          @cam = entity
+
+          @cam = target[:entity]
+          @cam_face = target[:face]
+          @cam_face_point_world = target[:point_world]
+          @cam_face_normal_world = target[:normal_world]
+          @flip_cam = false
           @pin = nil
           @hover_contact = nil
           rebuild_contacts
@@ -443,6 +458,10 @@ module TranTuanNoiThat
       end
 
       def flip_cam_face
+        unless @cam && @cam_face
+          CamChot.notify('Hãy click đúng Face nhận CAM trước khi đảo mặt.', 'warn')
+          return false
+        end
         @flip_cam = !@flip_cam
         rebuild_contacts if @cam
         CamChot.sync_dialog
@@ -452,6 +471,9 @@ module TranTuanNoiThat
 
       def reset_picks
         @cam = nil
+        @cam_face = nil
+        @cam_face_point_world = nil
+        @cam_face_normal_world = nil
         @pin = nil
         @hover = nil
         @contacts = []
@@ -477,6 +499,7 @@ module TranTuanNoiThat
           cam_name: @cam ? display_name(@cam) : nil,
           pin_name: @pin ? display_name(@pin) : nil,
           flip_cam: @flip_cam,
+          cam_face_selected: !@cam_face.nil?,
           joint: joint,
           settings: @settings
         }
@@ -662,8 +685,24 @@ module TranTuanNoiThat
           raise "B#{CamChot.format_number(@settings['b_offset'])} vượt ra ngoài chiều rộng tấm CAM."
         end
 
-        cam_face_s = @flip_cam ? cam_n[0] : cam_n[1]
-        cam_face_sign = @flip_cam ? -1.0 : 1.0
+        # Mặt CAM lấy đúng từ Face người dùng click.
+        # Chỉ khi bấm TAB mới chuyển sang mặt đối diện.
+        if cam_entity == @cam && @cam_face_point_world && @cam_face_normal_world
+          clicked_s = scalar(@cam_face_point_world, n_cam)
+          clicked_sign = @cam_face_normal_world.dot(n_cam) >= 0.0 ? 1.0 : -1.0
+
+          if @flip_cam
+            cam_face_s = clicked_sign > 0.0 ? cam_n[0] : cam_n[1]
+            cam_face_sign = -clicked_sign
+          else
+            cam_face_s = [cam_n[0], cam_n[1]].min_by { |value| (value - clicked_s).abs }
+            cam_face_sign = clicked_sign
+          end
+        else
+          cam_face_s = cam_n[1]
+          cam_face_sign = 1.0
+        end
+
         cam_mid_s = (cam_n[0] + cam_n[1]) / 2.0
 
         pin_face_sign = (pin_surface - pin_p[1]).abs < (pin_surface - pin_p[0]).abs ? 1.0 : -1.0
@@ -917,35 +956,12 @@ module TranTuanNoiThat
 
       def add_abf_cam_stat_marker(entity, center_world, normal_world, diameter_mm, depth_mm, cam_layer, link_id, index)
         root = abf_cam_stats_root(entity, cam_layer)
-        board_world = full_transform(entity)
-        marker_world = board_world * root.transformation
-        inverse = marker_world.inverse
 
+        # CHỈ METADATA thống kê ABF.
+        # Không tạo Circle/Face/PushPull ở đây để tránh sinh biên dạng CAM lần thứ hai.
         marker = root.entities.add_group
         marker.name = "CHOT_CAM_#{index}"
         marker.layer = cam_layer if cam_layer
-
-        center_local = center_world.transform(inverse)
-        normal_local = normal_world.transform(inverse)
-        normal_local.normalize! if normal_local.length > 0.000001
-
-        # CAM chỉ là BIÊN DẠNG gia công: vòng tròn Edge/Curve, KHÔNG Face, KHÔNG PushPull.
-        # Đặt đúng trên mặt CAM để khi ABF trải/nesting chỉ còn đường biên khoan.
-        circle = marker.entities.add_circle(
-          center_local,
-          normal_local,
-          diameter_mm.to_f.mm / 2.0,
-          32
-        )
-        Array(circle).each do |edge|
-          edge.layer = cam_layer if cam_layer
-          edge.set_attribute('ABF', 'is-cam-outline', true)
-          edge.set_attribute('ABF', 'hardware-type', 'cam')
-          edge.set_attribute('ABF_chotcamNK', 'type', 'cam-outline')
-          edge.set_attribute('ABF_chotcamNK', 'diameter_mm', diameter_mm.to_f)
-          edge.set_attribute('ABF_chotcamNK', 'depth_mm', depth_mm.to_f)
-          edge.set_attribute('ABF_chotcamNK', 'link_id', link_id.to_s)
-        end
 
         marker.set_attribute('ABF', 'is-cam', true)
         marker.set_attribute('ABF', 'is-chot-cam', true)
@@ -961,13 +977,11 @@ module TranTuanNoiThat
         marker.set_attribute('ABF_chotcamNK', 'count', 1)
         marker.set_attribute('ABF_chotcamNK', 'link_id', link_id.to_s)
 
-        # Dynamic Attributes để các bản ABF đọc thuộc tính động vẫn thấy CAM.
         marker.set_attribute('dynamic_attributes', '_name', 'CHOT_CAM')
         marker.set_attribute('dynamic_attributes', 'abf_chotcamnk', 1)
         marker.set_attribute('dynamic_attributes', 'cam_diameter_mm', diameter_mm.to_f)
         marker.set_attribute('dynamic_attributes', 'cam_count', 1)
 
-        # Tóm tắt trên tấm và definition.
         count = entity.get_attribute('ABF_chotcamNK', 'count', 0).to_i + 1
         [entity, entity.definition].each do |target|
           target.set_attribute('ABF_chotcamNK', 'enabled', true)
@@ -1152,6 +1166,50 @@ module TranTuanNoiThat
 
       def active_entities
         @model.active_entities.to_a
+      end
+
+      def pick_cam_target(view, x, y)
+        helper = view.pick_helper
+        helper.do_pick(x, y)
+        path = helper.path_at(0)
+        return nil unless path && !path.empty?
+
+        allowed = active_entities
+        container_index = nil
+        container = nil
+
+        path.each_with_index do |entity, index|
+          if valid_container?(entity) && allowed.include?(entity)
+            container = entity
+            container_index = index
+            break
+          end
+        end
+        return nil unless container
+
+        face = path[(container_index + 1)..-1].to_a.reverse.find { |entity| entity.is_a?(Sketchup::Face) }
+        return nil unless face && face.valid?
+
+        tr = full_transform(container)
+        normal_world = face.normal.transform(tr)
+        return nil if normal_world.length < 0.000001
+        normal_world.normalize!
+
+        # Chỉ nhận hai mặt lớn của tấm (normal gần song song trục chiều dày).
+        board = board_frame(container)
+        return nil if normal_world.dot(board[:normal]).abs < 0.80
+
+        point_world = face.bounds.center.transform(tr)
+
+        {
+          entity: container,
+          face: face,
+          point_world: point_world,
+          normal_world: normal_world
+        }
+      rescue StandardError => error
+        warn "[TT CamChot pick face] #{error.class}: #{error.message}"
+        nil
       end
 
       def pick_container(view, x, y)
