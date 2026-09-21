@@ -21,8 +21,7 @@ module TranTuanNoiThat
   tt_runtime_load.call('layout_stats_v090_technical_dim')
   tt_runtime_load.call('layout_stats_v101_fast_pages')
 
-  remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.101'.freeze
+  # VERSION is owned only by bootstrap.rb. Do not override it here.
 
   module Settings
     extend self

@@ -136,7 +136,11 @@ module TranTuanNoiThat
         end
         # Reload bootstrap too: its UI callbacks and version may have changed.
         load(File.join(TranTuanNoiThat::ROOT, 'bootstrap.rb'))
-        raise 'Phiên bản sau nạp không khớp.' unless TranTuanNoiThat.current_version == manifest['version']
+        actual_version = TranTuanNoiThat.current_version.to_s
+        expected_version = manifest['version'].to_s
+        unless actual_version == expected_version
+          raise "Phiên bản sau nạp không khớp: đang #{actual_version}, cần #{expected_version}."
+        end
         TranTuanNoiThat.save_setting('installed_version', manifest['version'])
         TranTuanNoiThat::Settings.sync if defined?(TranTuanNoiThat::Settings) && TranTuanNoiThat::Settings.instance_variable_get(:@dialog)
         UI.messagebox("Đã cập nhật #{manifest['version']} từ GitHub.\nKhông yêu cầu kích hoạt bản quyền.")
@@ -237,7 +241,7 @@ module TranTuanNoiThat
       raise 'Máy chủ cập nhật không hợp lệ.' unless %w[raw.githubusercontent.com api.github.com].include?(uri.host)
 
       headers = {
-        'User-Agent' => 'TranTuanNoiThat-SketchUp/1.9.101',
+        'User-Agent' => 'TranTuanNoiThat-SketchUp/1.9.103',
         'Cache-Control' => 'no-cache, no-store, max-age=0',
         'Pragma' => 'no-cache'
       }

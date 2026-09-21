@@ -5,7 +5,7 @@ module TranTuanNoiThat
   module TamPro
     extend self
 
-    VERSION = '1.9.102'.freeze
+    VERSION = '1.9.103'.freeze
     EPS = 0.001
 
     def model
