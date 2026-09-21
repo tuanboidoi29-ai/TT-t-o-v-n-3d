@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.102",
+  "version": "1.9.103",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Thêm 3 công cụ Tấm PRO trực tiếp trong TRẦN TUẤN NỘI THẤT: Tìm tấm/Sửa độ dày, Đổi tên tấm/Group/Component, Chuyển đổi Component↔Group và Face→Group. Giữ nguyên các chức năng 1.9.101.",
+  "notes": "Sửa lỗi cập nhật 1.9.102 bị 'Phiên bản sau nạp không khớp': settings.rb không còn ghi đè VERSION. Giữ nguyên 3 công cụ Tấm PRO.",
   "files": [
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -14,7 +14,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "cab6aa46a3e6daf39be83715167651e910f7c91ac767da985ed83ae1ed35c231"
+      "sha256": "e6d43bd31a6d8706381f262b8b8f4c07ba1b25f1ef5f6e6a66a3d88105e5b85d"
     },
     {
       "path": "tran_tuan_noi_that/board_tool.rb",
@@ -24,7 +24,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "8fdf4a983f040fb21f5bdc87081dbf95d0f21260ce43100b46376b28566e0037"
+      "sha256": "2d24144033e0613ed34e005154101599ed8a15fd64b948cb3b400d53b6124c53"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -224,7 +224,7 @@
     {
       "path": "tran_tuan_noi_that/settings.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/settings.rb",
-      "sha256": "9df88cd412c7a67d4a4f0477dfa51a9b91056b4a3403f8c2341164a884704436"
+      "sha256": "d69823bf750f1db13e0e28f4b754b0387f82447159b70421fe45f3f92ca08984"
     },
     {
       "path": "tran_tuan_noi_that/stretch_auto_scan_fix.rb",
@@ -259,12 +259,12 @@
     {
       "path": "tran_tuan_noi_that/updater.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/updater.rb",
-      "sha256": "e6d08afeac469dac28d0d8c21c77574af8926deaa148eda0f6036346bb17989e"
+      "sha256": "463b6dece14560286367d71dddbc6d0bc7a21ff4f8f52e3226440942c5d2d8ec"
     },
     {
       "path": "tran_tuan_noi_that/tam_pro.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/tam_pro.rb",
-      "sha256": "4e28b6d2983b29b9e726a86b14e91d3571eeb2645ca610dea59a937faa57dc59"
+      "sha256": "422f4b8b44bcb94f959174ff8d01ed9f91bd1aaf15a84463e64f0eb07a5a6213"
     },
     {
       "path": "tran_tuan_noi_that/icons/tam_find.svg",
