@@ -11,7 +11,7 @@ module TranTuanNoiThat
   NAME = 'TRẦN TUẤN NỘI THẤT'.freeze unless const_defined?(:NAME, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.116'.freeze
+  VERSION = '1.9.117'.freeze
 
   class << self
     def setting(key, default = nil)
@@ -140,7 +140,6 @@ module TranTuanNoiThat
       install_cabinet_door_ui
       install_rename_ui
       install_tam_pro_ui
-      retire_cam_chot_ui
       install_round_ui
       install_stretch_mode_ui
       install_grain_ui
@@ -188,24 +187,6 @@ module TranTuanNoiThat
     rescue StandardError => error
       puts "[TT UI TamPro] #{error.class}: #{error.message}"
       false
-    end
-
-    def retire_cam_chot_ui
-      # SketchUp không hỗ trợ gỡ item đã thêm khỏi toolbar/menu trong phiên hiện tại.
-      # Vô hiệu hóa command cũ ngay; sau khi mở lại SketchUp nó sẽ biến mất hoàn toàn.
-      if @cam_chot_cmd
-        @cam_chot_cmd.tooltip = 'CAM - CHỐT (ĐÃ BỎ)'
-        @cam_chot_cmd.status_bar_text = 'Chức năng CAM - CHỐT đã được gỡ khỏi TRẦN TUẤN NỘI THẤT.'
-        @cam_chot_cmd.set_validation_proc { MF_GRAYED }
-      end
-
-      begin
-        FileUtils.rm_f(File.join(ROOT, 'cam_chot_tool.rb'))
-        FileUtils.rm_f(File.join(ROOT, 'icons', 'cam_chot.svg'))
-      rescue StandardError => error
-        puts "[TT retire CAM] #{error.class}: #{error.message}"
-      end
-      true
     end
 
     def install_round_ui
