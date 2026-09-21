@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.116",
+  "version": "1.9.117",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Gỡ hoàn toàn chức năng Gán CAM - CHỐT khỏi TRẦN TUẤN NỘI THẤT. Không còn load tool CAM, không còn menu/icon CAM sau khi mở lại SketchUp. Bản đang chạy sẽ vô hiệu hóa command CAM cũ và dọn file CAM cũ.",
+  "notes": "Xóa hoàn toàn chức năng và icon CAM-CHỐT. Bootstrap không còn command/menu/icon CAM. Updater hỗ trợ remove_files và sẽ xóa cam_chot_tool.rb cùng icons/cam_chot.svg cũ trên máy; cần mở lại SketchUp một lần để toolbar hiện tại được dựng lại sạch.",
   "files": [
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -14,7 +14,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "8d4b24e8dba72246dfb718a01056b7a782fd8c7a6968d9d8d50b51239efa734f"
+      "sha256": "5cd814340fd7e4abba45718ed009be541a57280cb0d02316eafdd60f8f0ffcc5"
     },
     {
       "path": "tran_tuan_noi_that/board_tool.rb",
@@ -24,7 +24,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "f7c27b4846cd134d9e0c140b5e56e334f1753667fcf546a3a3b28dd7e4ff2610"
+      "sha256": "6223bbeda82fcc0f8f7b19d0f108e9cc9c952b711007c7d8c01552646fed81fe"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -259,12 +259,12 @@
     {
       "path": "tran_tuan_noi_that/updater.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/updater.rb",
-      "sha256": "4f0ef3c78d9c05a6c4f26001be4ed7c29e8b3497d2652d93e5c6bf3e56449353"
+      "sha256": "5488997b3cba1e2b9e26e75741d7c20120afdb8241f7766a3685b96fb8ef0c0e"
     },
     {
       "path": "tran_tuan_noi_that/tam_pro.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/tam_pro.rb",
-      "sha256": "bf2ffb3f57c9b773ad28e77c86cfd86fe62600f85bdb452759cf1bdfa53974af"
+      "sha256": "69debc42cad514de3293e984809fb09d354ff7e28fe9686b6633832161c78a8e"
     },
     {
       "path": "tran_tuan_noi_that/icons/tam_find.svg",
@@ -282,5 +282,9 @@
       "sha256": "adac3fcab30c9ce057dd8d6e2b1296af858d7c3034d156a822d0fb94639be546"
     }
   ],
-  "stretch_mode_version": "1.0.1"
+  "stretch_mode_version": "1.0.1",
+  "remove_files": [
+    "tran_tuan_noi_that/cam_chot_tool.rb",
+    "tran_tuan_noi_that/icons/cam_chot.svg"
+  ]
 }
