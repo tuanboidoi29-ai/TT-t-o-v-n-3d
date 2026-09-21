@@ -6,7 +6,7 @@ module TranTuanNoiThat
   module CamChot
     extend self
 
-    VERSION = '1.9.108'.freeze
+    VERSION = '1.9.109'.freeze
     DICT = 'TT_CAM_CHOT'.freeze
 
     DEFAULTS = {
@@ -71,7 +71,7 @@ module TranTuanNoiThat
 
       @dialog = UI::HtmlDialog.new(
         dialog_title: 'TT - LIÊN KẾT CAM - CHỐT',
-        preferences_key: 'TranTuanNoiThat.CamChot.108',
+        preferences_key: 'TranTuanNoiThat.CamChot.109',
         scrollable: true,
         resizable: true,
         width: 610,
@@ -126,6 +126,10 @@ module TranTuanNoiThat
         rescue StandardError => error
           notify(error.message, 'error')
         end
+      end
+
+      @dialog.add_action_callback('abf_check') do |_ctx|
+        @tool.abf_check
       end
 
       @dialog.add_action_callback('reset') do |_ctx|
@@ -229,6 +233,7 @@ module TranTuanNoiThat
                 <button onclick="sketchup.use_selection()">Dùng 2 tấm đang chọn</button>
                 <button class="gray" onclick="sketchup.flip()">Đảo mặt CAM (TAB)</button>
                 <button class="gray" onclick="sketchup.reset()">Chọn lại</button>
+                <button class="orange" onclick="sketchup.abf_check()">Kiểm tra ABF CAM</button>
               </div>
               <div class="row">
                 <button class="green" onclick="createLink()">TẠO LIÊN KẾT (ENTER)</button>
@@ -473,7 +478,11 @@ module TranTuanNoiThat
         # ABF chuẩn: tất cả đường gia công phải nằm trong _ABF_cuttingLines
         # với tag ABF_cuttingLines và attribute ABF/is-cutting-lines=true.
         abf_layer = layer('ABF_cuttingLines')
+        cam_stats_layer = layer('ABF_chotcamNK')
         link_id = "TTCC-#{Time.now.to_i}-#{rand(100000)}"
+
+        ensure_abf_board_identity(@cam, layout[:cam_points].first, layout[:cam_face_normal])
+        ensure_abf_board_identity(@pin, layout[:pin_points].first, layout[:pin_face_normal])
 
         layout[:cam_points].each_with_index do |point, index|
           add_marker(
@@ -485,6 +494,16 @@ module TranTuanNoiThat
             @settings['cam_depth'],
             abf_layer,
             'cam',
+            link_id,
+            index + 1
+          )
+          add_abf_cam_stat_marker(
+            @cam,
+            point,
+            layout[:cam_face_normal],
+            @settings['cam_diameter'],
+            @settings['cam_depth'],
+            cam_stats_layer,
             link_id,
             index + 1
           )
@@ -509,7 +528,7 @@ module TranTuanNoiThat
         started = false
 
         count = layout[:cam_points].length
-        CamChot.notify("Đã tạo #{count} bộ CAM - CHỐT theo chuẩn ABF: _ABF_cuttingLines / ABF_cuttingLines. Khi trải/nesting, đường gia công được mang theo cùng tấm. Ctrl+Z hoàn tác một lần.", 'ok')
+        CamChot.notify("Đã tạo #{count} bộ CAM - CHỐT. Tấm CAM đã được đánh dấu ABF board + marker ABF_chotcamNK; _ABF_cuttingLines giữ đường khoan khi nesting. Bấm Kiểm tra ABF CAM để xác nhận. Ctrl+Z hoàn tác một lần.", 'ok')
         reset_picks
         true
       rescue StandardError => error
@@ -605,6 +624,189 @@ module TranTuanNoiThat
 
         step = (end_value - start_value) / (n - 1).to_f
         Array.new(n) { |index| start_value + step * index }
+      end
+
+      def next_abf_board_index
+        max_index = 0
+        stack = [@model.entities]
+        seen = {}
+        until stack.empty?
+          entities = stack.pop
+          entities.each do |entity|
+            next unless valid_container?(entity)
+            key = entity.respond_to?(:persistent_id) ? entity.persistent_id.to_i : entity.entityID.to_i
+            next if seen[key]
+            seen[key] = true
+            value = entity.get_attribute('ABF', 'board-index', 0).to_i
+            max_index = value if value > max_index
+            definition = entity.definition rescue nil
+            stack << definition.entities if definition
+          end
+        end
+        max_index + 1
+      rescue StandardError
+        Time.now.to_i % 1_000_000
+      end
+
+      def ensure_abf_board_identity(entity, near_world, face_normal_world)
+        return false unless valid_container?(entity)
+
+        unless entity.get_attribute('ABF', 'is-board', false) == true
+          entity.set_attribute('ABF', 'is-board', true)
+        end
+        if entity.get_attribute('ABF', 'board-index', nil).nil?
+          entity.set_attribute('ABF', 'board-index', next_abf_board_index)
+        end
+        entity.set_attribute('ABF', 'label-rotation', 0) if entity.get_attribute('ABF', 'label-rotation', nil).nil?
+
+        definition = entity.definition
+        definition.set_attribute('ABF', 'is-board', true)
+        definition.set_attribute('ABF', 'has-cam-link', true)
+
+        mark_labeled_face(entity, near_world, face_normal_world)
+        true
+      rescue StandardError => error
+        warn "[TT CamChot ABF board] #{error.class}: #{error.message}"
+        false
+      end
+
+      def mark_labeled_face(entity, near_world, normal_world)
+        definition = entity.definition
+        tr = full_transform(entity)
+        inverse = tr.inverse
+        target_local = near_world.transform(inverse)
+        normal_local = normal_world.transform(inverse)
+        normal_local.normalize! if normal_local.length > 0.000001
+
+        faces = definition.entities.grep(Sketchup::Face)
+        return false if faces.empty?
+
+        # Ưu tiên mặt lớn có normal cùng trục với mặt CAM/CHỐT và gần điểm gia công.
+        face = faces.min_by do |candidate|
+          align = 1.0 - candidate.normal.dot(normal_local).abs
+          center = candidate.bounds.center
+          distance = center.distance(target_local)
+          (align * 100000.0) + distance
+        end
+        face.set_attribute('ABF', 'is-labeled-face', true) if face
+        !!face
+      rescue StandardError
+        false
+      end
+
+      def abf_cam_stats_root(entity, cam_layer)
+        root = entity.definition.entities
+        group = root.grep(Sketchup::Group).find do |candidate|
+          candidate.valid? &&
+            (candidate.name.to_s == 'CHOT_CAM' ||
+             candidate.get_attribute('ABF', 'is-cam-set', false) == true)
+        end
+
+        unless group
+          group = root.add_group
+          group.name = 'CHOT_CAM'
+        end
+
+        group.layer = cam_layer if cam_layer
+        group.set_attribute('ABF', 'is-cam-set', true)
+        group.set_attribute('ABF', 'hardware-type', 'cam')
+        group.set_attribute('ABF_chotcamNK', 'enabled', true)
+        group.set_attribute(DICT, 'role', 'cam_set')
+        group
+      end
+
+      def add_abf_cam_stat_marker(entity, center_world, normal_world, diameter_mm, depth_mm, cam_layer, link_id, index)
+        root = abf_cam_stats_root(entity, cam_layer)
+        board_world = full_transform(entity)
+        marker_world = board_world * root.transformation
+        inverse = marker_world.inverse
+
+        marker = root.entities.add_group
+        marker.name = "CHOT_CAM_#{index}"
+        marker.layer = cam_layer if cam_layer
+
+        center_local = center_world.transform(inverse)
+        normal_local = normal_world.transform(inverse)
+        normal_local.normalize! if normal_local.length > 0.000001
+
+        # Hình marker theo đúng kiểu bộ CAM cũ: đĩa mỏng riêng, không cắt solid tấm.
+        base = center_local.offset(normal_local.reverse, 0.8.mm)
+        circle = marker.entities.add_circle(base, normal_local, diameter_mm.to_f.mm / 2.0, 32)
+        face = marker.entities.add_face(circle)
+        face.pushpull(1.6.mm) if face
+
+        marker.set_attribute('ABF', 'is-cam', true)
+        marker.set_attribute('ABF', 'is-chot-cam', true)
+        marker.set_attribute('ABF', 'hardware-type', 'cam')
+        marker.set_attribute('ABF', 'diameter-mm', diameter_mm.to_f)
+        marker.set_attribute('ABF', 'depth-mm', depth_mm.to_f)
+        marker.set_attribute('ABF', 'link-id', link_id.to_s)
+        marker.set_attribute('ABF', 'index', index.to_i)
+
+        marker.set_attribute('ABF_chotcamNK', 'type', 'cam')
+        marker.set_attribute('ABF_chotcamNK', 'diameter_mm', diameter_mm.to_f)
+        marker.set_attribute('ABF_chotcamNK', 'depth_mm', depth_mm.to_f)
+        marker.set_attribute('ABF_chotcamNK', 'count', 1)
+        marker.set_attribute('ABF_chotcamNK', 'link_id', link_id.to_s)
+
+        # Dynamic Attributes để các bản ABF đọc thuộc tính động vẫn thấy CAM.
+        marker.set_attribute('dynamic_attributes', '_name', 'CHOT_CAM')
+        marker.set_attribute('dynamic_attributes', 'abf_chotcamnk', 1)
+        marker.set_attribute('dynamic_attributes', 'cam_diameter_mm', diameter_mm.to_f)
+        marker.set_attribute('dynamic_attributes', 'cam_count', 1)
+
+        # Tóm tắt trên tấm và definition.
+        count = entity.get_attribute('ABF_chotcamNK', 'count', 0).to_i + 1
+        [entity, entity.definition].each do |target|
+          target.set_attribute('ABF_chotcamNK', 'enabled', true)
+          target.set_attribute('ABF_chotcamNK', 'count', count)
+          target.set_attribute('ABF_chotcamNK', 'cam_diameter_mm', diameter_mm.to_f)
+          target.set_attribute('ABF', 'has-cam', true)
+          target.set_attribute('ABF', 'cam-count', count)
+          target.set_attribute('ABF', 'cam-diameter-mm', diameter_mm.to_f)
+          target.set_attribute('dynamic_attributes', 'abf_chotcamnk', count)
+          target.set_attribute('dynamic_attributes', 'cam_count', count)
+          target.set_attribute('dynamic_attributes', 'cam_diameter_mm', diameter_mm.to_f)
+        end
+
+        marker
+      end
+
+      def abf_check
+        boards = [@cam, @pin].compact
+        if boards.empty?
+          CamChot.notify('Chưa chọn tấm để kiểm tra ABF.', 'warn')
+          return false
+        end
+
+        lines = boards.map do |entity|
+          definition = entity.definition
+          cutting = definition.entities.grep(Sketchup::Group).count do |group|
+            group.name.to_s == '_ABF_cuttingLines' &&
+              group.get_attribute('ABF', 'is-cutting-lines', false) == true
+          end
+          cams = definition.entities.grep(Sketchup::Group).sum do |group|
+            if group.name.to_s == 'CHOT_CAM' || group.get_attribute('ABF', 'is-cam-set', false) == true
+              group.entities.grep(Sketchup::Group).count do |marker_group|
+                marker_group.get_attribute('ABF', 'is-cam', false) == true ||
+                  marker_group.layer.name.to_s == 'ABF_chotcamNK'
+              end
+            else
+              0
+            end
+          end
+          labeled_faces = definition.entities.grep(Sketchup::Face).count do |face|
+            face.get_attribute('ABF', 'is-labeled-face', false) == true
+          end
+
+          "#{display_name(entity)}: is-board=#{entity.get_attribute('ABF','is-board',false)} · board-index=#{entity.get_attribute('ABF','board-index','?')} · labeled-face=#{labeled_faces} · cuttingLines=#{cutting} · CAM=#{cams} · attrCAM=#{entity.get_attribute('ABF_chotcamNK','count',0)}"
+        end
+
+        CamChot.notify(lines.join("\n"), 'ok')
+        true
+      rescue StandardError => error
+        CamChot.notify("Kiểm tra ABF lỗi: #{error.message}", 'error')
+        false
       end
 
       def abf_cutting_group(entity, abf_layer)
