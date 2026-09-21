@@ -6,7 +6,7 @@ module TranTuanNoiThat
   module CamChot
     extend self
 
-    VERSION = '1.9.111'.freeze
+    VERSION = '1.9.112'.freeze
     DICT = 'TT_CAM_CHOT'.freeze
 
     DEFAULTS = {
@@ -71,7 +71,7 @@ module TranTuanNoiThat
 
       @dialog = UI::HtmlDialog.new(
         dialog_title: 'TT - LIÊN KẾT CAM - CHỐT',
-        preferences_key: 'TranTuanNoiThat.CamChot.111',
+        preferences_key: 'TranTuanNoiThat.CamChot.112',
         scrollable: true,
         resizable: true,
         width: 610,
@@ -239,7 +239,7 @@ module TranTuanNoiThat
                 <button class="green" onclick="createLink()">TẠO LIÊN KẾT (ENTER)</button>
               </div>
               <div class="hint">
-                Cách dùng: click tấm nhận CAM → các cạnh giao/tiếp giáp sẽ sáng trên View → rê vào cạnh cần liên kết → click cạnh đó để tạo CAM–CHỐT ngay. TAB đảo mặt CAM. Liên kết được ghi trong chính tấm và theo tấm khi di chuyển/copy.
+                Cách dùng: click tấm nhận CAM → tool tự hiện ngay preview ở cạnh giao gần nhất và tô tất cả cạnh giao trên View → rê sang cạnh khác để đổi preview → click cạnh để tạo CAM–CHỐT. TAB đảo mặt CAM. Liên kết được ghi trong chính tấm và theo tấm khi di chuyển/copy.
               </div>
             </div>
 
@@ -332,13 +332,16 @@ module TranTuanNoiThat
         if @cam && @pin.nil?
           contact = pick_contact(view, x, y)
           picked = contact ? contact[:entity] : pick_container(view, x, y)
-          changed = contact != @hover_contact || picked != @hover
-          @hover_contact = contact
+          previous_contact = @hover_contact
+          @hover_contact = contact if contact
+          changed = previous_contact != @hover_contact || picked != @hover
           @hover = picked
           if contact
-            Sketchup.status_text = "Cạnh giao với #{display_name(contact[:entity])} · click để tạo CAM-CHỐT."
+            Sketchup.status_text = "Cạnh giao với #{display_name(contact[:entity])} · preview đang hiển thị · click để tạo CAM-CHỐT."
+          elsif @hover_contact
+            Sketchup.status_text = "Preview giữ ở cạnh giao hiện tại · rê lên cạnh xanh khác để đổi · click cạnh để tạo."
           else
-            Sketchup.status_text = "Đã chọn tấm CAM · #{@contacts.length} cạnh giao hợp lệ · rê chuột lên cạnh sáng."
+            Sketchup.status_text = "Đã chọn tấm CAM · #{@contacts.length} cạnh giao hợp lệ."
           end
           view.invalidate if changed
           return
@@ -364,9 +367,10 @@ module TranTuanNoiThat
           @hover_contact = nil
           rebuild_contacts
           if @contacts.empty?
-            CamChot.notify('Đã chọn tấm CAM nhưng chưa tìm thấy tấm nào tiếp giáp vuông góc trong cùng ngữ cảnh.', 'warn')
+            CamChot.notify('Đã chọn tấm CAM nhưng chưa tìm thấy tấm nào giao/tiếp giáp vuông góc trong cùng ngữ cảnh.', 'warn')
           else
-            Sketchup.status_text = "Đã chọn tấm CAM · tìm thấy #{@contacts.length} cạnh giao · rê lên cạnh sáng và click để tạo."
+            @hover_contact = @contacts.min_by { |contact| contact[:gap].to_f }
+            Sketchup.status_text = "Đã chọn tấm CAM · #{@contacts.length} cạnh giao · PREVIEW đang hiện ở cạnh gần nhất; rê sang cạnh khác để đổi."
           end
           CamChot.sync_dialog
           invalidate
@@ -649,8 +653,8 @@ module TranTuanNoiThat
 
         cam_edge_candidates = [cam_p[0], cam_p[1]]
         cam_edge = cam_edge_candidates.min_by { |value| (value - pin_surface).abs }
-        contact_gap = (cam_edge - pin_surface).abs
-        raise 'Hai tấm chưa thực sự tiếp giáp.' if contact_gap > mm(2.0)
+        contact_gap = interval_gap(cam_p, pin_p)
+        raise 'Hai tấm chưa giao/tiếp giáp đủ gần.' if contact_gap > mm(5.0)
         inward_sign = (cam_edge - cam_p[0]).abs < (cam_edge - cam_p[1]).abs ? 1.0 : -1.0
         cam_housing_p = cam_edge + inward_sign * mm(@settings['b_offset'])
 
@@ -725,13 +729,18 @@ module TranTuanNoiThat
 
         cam_n = projection(cam[:corners], n_cam)
         cam_p = projection(cam[:corners], n_pin)
+        pin_n = projection(pin[:corners], n_cam)
         pin_p = projection(pin[:corners], n_pin)
+
+        # Nhận cả trường hợp chạm mép và trường hợp hai tấm giao/ăn vào nhau.
+        gap = interval_gap(cam_p, pin_p)
+        normal_gap = interval_gap(cam_n, pin_n)
+        return nil if gap > mm(5.0)
+        return nil if normal_gap > mm(5.0)
 
         cam_center_p = scalar(cam[:center], n_pin)
         pin_surface = [pin_p[0], pin_p[1]].min_by { |value| (value - cam_center_p).abs }
         cam_edge = [cam_p[0], cam_p[1]].min_by { |value| (value - pin_surface).abs }
-        gap = (cam_edge - pin_surface).abs
-        return nil if gap > mm(2.0)
 
         cam_mid_s = (cam_n[0] + cam_n[1]) / 2.0
         line = [
@@ -774,6 +783,14 @@ module TranTuanNoiThat
         best_distance <= 14.0 ? best : nil
       rescue StandardError
         nil
+      end
+
+      def interval_gap(a, b)
+        a0, a1 = a
+        b0, b1 = b
+        return b0 - a1 if a1 < b0
+        return a0 - b1 if b1 < a0
+        0.0
       end
 
       def screen_distance_to_segment(px, py, ax, ay, bx, by)
