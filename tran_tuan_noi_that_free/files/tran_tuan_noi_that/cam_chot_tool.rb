@@ -6,7 +6,7 @@ module TranTuanNoiThat
   module CamChot
     extend self
 
-    VERSION = '1.9.114'.freeze
+    VERSION = '1.9.115'.freeze
     DICT = 'TT_CAM_CHOT'.freeze
 
     DEFAULTS = {
@@ -71,7 +71,7 @@ module TranTuanNoiThat
 
       @dialog = UI::HtmlDialog.new(
         dialog_title: 'TT - LIÊN KẾT CAM - CHỐT',
-        preferences_key: 'TranTuanNoiThat.CamChot.113',
+        preferences_key: 'TranTuanNoiThat.CamChot.115',
         scrollable: true,
         resizable: true,
         width: 610,
@@ -239,7 +239,7 @@ module TranTuanNoiThat
                 <button class="green" onclick="createLink()">TẠO LIÊN KẾT (ENTER)</button>
               </div>
               <div class="hint">
-                Cách dùng: click tấm nhận CAM → tool tự hiện ngay preview ở cạnh giao gần nhất và tô tất cả cạnh giao trên View → rê sang cạnh khác để đổi preview → click cạnh để tạo CAM–CHỐT. TAB đảo mặt CAM. Liên kết được ghi trong chính tấm và theo tấm khi di chuyển/copy.
+                Cách dùng: rê chuột lên ván → tự nhận diện và mô phỏng CAM ở mọi đầu/cạnh tiếp diện → click đúng Face muốn nhận CAM → rê/chọn cạnh giao → click để tạo CAM–CHỐT. TAB đảo mặt CAM. Liên kết được ghi trong chính tấm và theo tấm khi di chuyển/copy.
               </div>
             </div>
 
@@ -296,6 +296,9 @@ module TranTuanNoiThat
         @cam_face_normal_world = nil
         @pin = nil
         @hover = nil
+        @hover_target = nil
+        @hover_target_key = nil
+        @hover_contacts = []
         @contacts = []
         @hover_contact = nil
         @flip_cam = false
@@ -310,6 +313,9 @@ module TranTuanNoiThat
           @cam_face_normal_world = nil
           @pin = nil
           @hover = nil
+          @hover_target = nil
+          @hover_target_key = nil
+          @hover_contacts = []
           @contacts = []
           @hover_contact = nil
           @flip_cam = false
@@ -321,7 +327,7 @@ module TranTuanNoiThat
       end
 
       def activate
-        Sketchup.status_text = 'TT CAM-CHỐT: click tấm CAM → rê vào cạnh giao sáng → click cạnh để tạo · TAB đảo mặt CAM.'
+        Sketchup.status_text = 'TT CAM-CHỐT: rê chuột nhận ván + CAM preview tự động → click Face → click cạnh giao để tạo · TAB đảo mặt.'
         invalidate
       end
 
@@ -354,13 +360,24 @@ module TranTuanNoiThat
         end
 
         target = pick_cam_target(view, x, y)
-        picked = target ? target[:entity] : nil
-        if picked != @hover
-          @hover = picked
+        key = hover_target_key(target)
+
+        if key != @hover_target_key
+          @hover_target = target
+          @hover_target_key = key
+          @hover = target ? target[:entity] : nil
+          @hover_contacts = target ? contacts_for_target(target) : []
           view.invalidate
         end
+
         if target
-          Sketchup.status_text = 'Click đúng MẶT tấm cần nhận CAM. Biên dạng CAM sẽ chỉ nằm trên mặt này.'
+          if @hover_contacts.empty?
+            Sketchup.status_text = 'Đã nhận diện ván · chưa có đầu/cạnh tiếp diện hợp lệ để gắn CAM.'
+          else
+            Sketchup.status_text = "Đã nhận diện ván · #{@hover_contacts.length} vùng tiếp diện · CAM preview đang mô phỏng. Click đúng Face để chốt tấm."
+          end
+        else
+          Sketchup.status_text = 'Rê chuột lên mặt lớn của tấm để xem CAM preview tự động.'
         end
       end
 
@@ -374,6 +391,9 @@ module TranTuanNoiThat
           end
 
           @cam = target[:entity]
+          @hover_target = nil
+          @hover_target_key = nil
+          @hover_contacts = []
           @cam_face = target[:face]
           @cam_face_point_world = target[:point_world]
           @cam_face_normal_world = target[:normal_world]
@@ -476,6 +496,9 @@ module TranTuanNoiThat
         @cam_face_normal_world = nil
         @pin = nil
         @hover = nil
+        @hover_target = nil
+        @hover_target_key = nil
+        @hover_contacts = []
         @contacts = []
         @hover_contact = nil
         CamChot.sync_dialog
@@ -511,9 +534,15 @@ module TranTuanNoiThat
       end
 
       def draw(view)
-        draw_box(view, @hover, Sketchup::Color.new(120, 120, 120), 1) if @hover && @hover != @cam
+        draw_box(view, @hover, Sketchup::Color.new(120, 120, 120), 2) if @hover && @hover != @cam
         draw_box(view, @cam, Sketchup::Color.new(240, 122, 36), 3) if @cam
         draw_box(view, @pin, Sketchup::Color.new(22, 119, 210), 3) if @pin
+
+        # Chưa click: rê chuột lên tấm là hiện mô phỏng CAM tại mọi đầu/cạnh tiếp diện.
+        if @cam.nil? && @hover_target
+          draw_hover_target_preview(view, @hover_target, @hover_contacts)
+          return
+        end
 
         if @cam && @pin.nil?
           @contacts.each do |contact|
@@ -540,6 +569,41 @@ module TranTuanNoiThat
         draw_layout_preview(view, layout)
       rescue StandardError => error
         Sketchup.status_text = "TT CAM-CHỐT: #{error.message}"
+      end
+
+      def draw_hover_target_preview(view, target, contacts)
+        return if contacts.nil? || contacts.empty?
+
+        contacts.each do |contact|
+          view.line_width = 4
+          view.drawing_color = Sketchup::Color.new(50, 210, 110)
+          view.draw(GL_LINES, contact[:line])
+
+          layout = compute_layout(
+            target[:entity],
+            contact[:entity],
+            target[:point_world],
+            target[:normal_world],
+            false
+          )
+
+          view.line_width = 3
+          view.drawing_color = Sketchup::Color.new(240, 122, 36)
+          layout[:cam_points].each do |point|
+            view.draw(
+              GL_LINE_LOOP,
+              circle_points(
+                point,
+                layout[:cam_face_normal],
+                mm(@settings['cam_diameter']) / 2.0,
+                24
+              )
+            )
+            view.draw_points(point, 8, 2, Sketchup::Color.new(240, 122, 36))
+          end
+        rescue StandardError
+          next
+        end
       end
 
       def draw_layout_preview(view, layout)
@@ -639,7 +703,7 @@ module TranTuanNoiThat
         false
       end
 
-      def compute_layout(cam_entity = @cam, pin_entity = @pin)
+      def compute_layout(cam_entity = @cam, pin_entity = @pin, face_point_world = nil, face_normal_world = nil, flip_face = nil)
         raise 'Tấm CAM không còn hợp lệ.' unless valid_container?(cam_entity)
         raise 'Tấm CHỐT không còn hợp lệ.' unless valid_container?(pin_entity)
 
@@ -685,13 +749,24 @@ module TranTuanNoiThat
           raise "B#{CamChot.format_number(@settings['b_offset'])} vượt ra ngoài chiều rộng tấm CAM."
         end
 
-        # Mặt CAM lấy đúng từ Face người dùng click.
-        # Chỉ khi bấm TAB mới chuyển sang mặt đối diện.
-        if cam_entity == @cam && @cam_face_point_world && @cam_face_normal_world
-          clicked_s = scalar(@cam_face_point_world, n_cam)
-          clicked_sign = @cam_face_normal_world.dot(n_cam) >= 0.0 ? 1.0 : -1.0
+        # Mặt CAM lấy đúng từ Face đang hover/click.
+        # Khi đã click thì TAB mới đảo sang mặt đối diện.
+        source_point = face_point_world
+        source_normal = face_normal_world
+        source_flip = flip_face
 
-          if @flip_cam
+        if source_point.nil? && cam_entity == @cam
+          source_point = @cam_face_point_world
+          source_normal = @cam_face_normal_world
+          source_flip = @flip_cam if source_flip.nil?
+        end
+
+        if source_point && source_normal
+          clicked_s = scalar(source_point, n_cam)
+          clicked_sign = source_normal.dot(n_cam) >= 0.0 ? 1.0 : -1.0
+          source_flip = false if source_flip.nil?
+
+          if source_flip
             cam_face_s = clicked_sign > 0.0 ? cam_n[0] : cam_n[1]
             cam_face_sign = -clicked_sign
           else
@@ -727,6 +802,37 @@ module TranTuanNoiThat
         }
       end
 
+      def hover_target_key(target)
+        return nil unless target
+        entity = target[:entity]
+        face = target[:face]
+        entity_key = entity.respond_to?(:persistent_id) ? entity.persistent_id : entity.entityID
+        face_key = face.respond_to?(:persistent_id) ? face.persistent_id : face.entityID
+        "#{entity_key}:#{face_key}"
+      rescue StandardError
+        nil
+      end
+
+      def contacts_for_target(target)
+        return [] unless target && valid_container?(target[:entity])
+
+        active_entities.each_with_object([]) do |entity, result|
+          next unless valid_container?(entity)
+          next if entity == target[:entity]
+
+          candidate = build_contact_candidate(
+            target[:entity],
+            entity,
+            target[:point_world],
+            target[:normal_world]
+          )
+          result << candidate if candidate
+        end
+      rescue StandardError => error
+        warn "[TT CamChot hover contacts] #{error.class}: #{error.message}"
+        []
+      end
+
       def rebuild_contacts
         @contacts = []
         @hover_contact = nil
@@ -744,7 +850,7 @@ module TranTuanNoiThat
         @contacts = []
       end
 
-      def build_contact_candidate(cam_entity, pin_entity)
+      def build_contact_candidate(cam_entity, pin_entity, face_point_world = nil, face_normal_world = nil)
         cam = board_frame(cam_entity)
         pin = board_frame(pin_entity)
 
@@ -788,7 +894,7 @@ module TranTuanNoiThat
         ]
 
         # Chỉ nhận contact nếu bộ thông số hiện tại thật sự đặt được CAM.
-        compute_layout(cam_entity, pin_entity)
+        compute_layout(cam_entity, pin_entity, face_point_world, face_normal_world, false)
 
         {
           entity: pin_entity,
