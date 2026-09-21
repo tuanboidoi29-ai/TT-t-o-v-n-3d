@@ -6,7 +6,7 @@ module TranTuanNoiThat
   module CamChot
     extend self
 
-    VERSION = '1.9.107'.freeze
+    VERSION = '1.9.108'.freeze
     DICT = 'TT_CAM_CHOT'.freeze
 
     DEFAULTS = {
@@ -71,7 +71,7 @@ module TranTuanNoiThat
 
       @dialog = UI::HtmlDialog.new(
         dialog_title: 'TT - LIÊN KẾT CAM - CHỐT',
-        preferences_key: 'TranTuanNoiThat.CamChot.107',
+        preferences_key: 'TranTuanNoiThat.CamChot.108',
         scrollable: true,
         resizable: true,
         width: 610,
@@ -235,7 +235,7 @@ module TranTuanNoiThat
               </div>
               <div class="hint">
                 Cách dùng: click tấm nhận CAM → click tấm nhận CHỐT. Hai tấm cần vuông góc và nằm trong cùng ngữ cảnh đang mở.
-                TAB đổi mặt đặt CAM. Preview cam màu cam, chốt màu xanh.
+                TAB đổi mặt đặt CAM. Preview cam màu cam, chốt màu xanh. Khi tạo thật, đường khoan được ghi vào _ABF_cuttingLines để ABF nhận khi trải/nesting.
               </div>
             </div>
 
@@ -470,8 +470,9 @@ module TranTuanNoiThat
         make_unique_if_needed(@pin)
         layout = compute_layout
 
-        cam_tag = layer("TT_CAM_D#{CamChot.format_number(@settings['cam_diameter'])}_B#{CamChot.format_number(@settings['b_offset'])}")
-        pin_tag = layer("TT_CHOT_D#{CamChot.format_number(@settings['pin_diameter'])}")
+        # ABF chuẩn: tất cả đường gia công phải nằm trong _ABF_cuttingLines
+        # với tag ABF_cuttingLines và attribute ABF/is-cutting-lines=true.
+        abf_layer = layer('ABF_cuttingLines')
         link_id = "TTCC-#{Time.now.to_i}-#{rand(100000)}"
 
         layout[:cam_points].each_with_index do |point, index|
@@ -482,7 +483,7 @@ module TranTuanNoiThat
             layout[:cam_inward],
             @settings['cam_diameter'],
             @settings['cam_depth'],
-            cam_tag,
+            abf_layer,
             'cam',
             link_id,
             index + 1
@@ -497,7 +498,7 @@ module TranTuanNoiThat
             layout[:pin_inward],
             @settings['pin_diameter'],
             @settings['pin_depth'],
-            pin_tag,
+            abf_layer,
             'chot',
             link_id,
             index + 1
@@ -508,7 +509,7 @@ module TranTuanNoiThat
         started = false
 
         count = layout[:cam_points].length
-        CamChot.notify("Đã tạo #{count} bộ CAM - CHỐT. Đường tròn và trục khoan là hình học thật trong tấm. Ctrl+Z hoàn tác một lần.", 'ok')
+        CamChot.notify("Đã tạo #{count} bộ CAM - CHỐT theo chuẩn ABF: _ABF_cuttingLines / ABF_cuttingLines. Khi trải/nesting, đường gia công được mang theo cùng tấm. Ctrl+Z hoàn tác một lần.", 'ok')
         reset_picks
         true
       rescue StandardError => error
@@ -606,46 +607,93 @@ module TranTuanNoiThat
         Array.new(n) { |index| start_value + step * index }
       end
 
-      def add_marker(entity, center_world, normal_world, inward_world, diameter_mm, depth_mm, tag, kind, link_id, index)
-        tr = full_transform(entity)
-        inverse = tr.inverse
-        points_world = circle_points(center_world, normal_world, mm(diameter_mm) / 2.0, 24)
-        points_local = points_world.map { |point| point.transform(inverse) }
-        entities = entity.definition.entities
+      def abf_cutting_group(entity, abf_layer)
+        root = entity.definition.entities
+        group = root.grep(Sketchup::Group).find do |candidate|
+          next false unless candidate.valid?
+          candidate.name.to_s == '_ABF_cuttingLines' ||
+            candidate.get_attribute('ABF', 'is-cutting-lines', false) == true
+        end
 
+        unless group
+          group = root.add_group
+          group.name = '_ABF_cuttingLines'
+        end
+
+        group.layer = abf_layer if abf_layer
+        group.set_attribute('ABF', 'is-cutting-lines', true)
+        group.set_attribute(DICT, 'abf_bridge', true)
+        group
+      end
+
+      def add_marker(entity, center_world, normal_world, inward_world, diameter_mm, depth_mm, tag, kind, link_id, index)
+        abf_group = abf_cutting_group(entity, tag)
+
+        # Chuyển world -> local của _ABF_cuttingLines, kể cả khi group ABF có transform.
+        board_world = full_transform(entity)
+        group_world = board_world * abf_group.transformation
+        inverse = group_world.inverse
+        entities = abf_group.entities
+
+        points_world = circle_points(center_world, normal_world, mm(diameter_mm) / 2.0, 32)
+        points_local = points_world.map { |point| point.transform(inverse) }
+
+        # Vòng khoan thật: ABF mang theo khi flatten/nesting.
         edges = entities.add_edges(*(points_local + [points_local.first]))
+
+        # Trục sâu khoan thật.
         axis_end_world = center_world + scaled(inward_world, mm(depth_mm))
         axis = entities.add_line(center_world.transform(inverse), axis_end_world.transform(inverse))
+
         all_edges = Array(edges)
         all_edges << axis if axis
 
+        # Dấu tâm giúp nhìn thấy vị trí sau khi trải.
         u, v = plane_axes(normal_world)
         cross_size = [mm(diameter_mm) * 0.22, mm(2.5)].min
-        cross_world = [
+        [
           [center_world + scaled(u, -cross_size), center_world + scaled(u, cross_size)],
           [center_world + scaled(v, -cross_size), center_world + scaled(v, cross_size)]
-        ]
-        cross_world.each do |a, b|
+        ].each do |a, b|
           edge = entities.add_line(a.transform(inverse), b.transform(inverse))
           all_edges << edge if edge
         end
 
         all_edges.compact.each do |edge|
-          edge.layer = tag
+          edge.layer = tag if tag
+
+          # Metadata TT để biết đây là CAM hay CHỐT.
           edge.set_attribute(DICT, 'kind', kind)
           edge.set_attribute(DICT, 'link_id', link_id)
           edge.set_attribute(DICT, 'index', index)
           edge.set_attribute(DICT, 'diameter_mm', diameter_mm.to_f)
           edge.set_attribute(DICT, 'depth_mm', depth_mm.to_f)
           edge.set_attribute(DICT, 'b_offset_mm', @settings['b_offset'].to_f)
+
+          # Metadata nằm trong dictionary ABF nhưng dùng namespace TT-* để
+          # không đụng khóa nội bộ của ABF. ABF vẫn nhận nhóm cutting-lines chuẩn.
+          edge.set_attribute('ABF', 'tt-machining', true)
+          edge.set_attribute('ABF', 'tt-machining-kind', kind.to_s)
+          edge.set_attribute('ABF', 'tt-diameter-mm', diameter_mm.to_f)
+          edge.set_attribute('ABF', 'tt-depth-mm', depth_mm.to_f)
+          edge.set_attribute('ABF', 'tt-link-id', link_id.to_s)
         end
+
+        abf_group.set_attribute(DICT, "link_#{link_id}_#{kind}_#{index}", {
+          'diameter_mm' => diameter_mm.to_f,
+          'depth_mm' => depth_mm.to_f,
+          'b_offset_mm' => @settings['b_offset'].to_f
+        }.to_json)
 
         entity.set_attribute(DICT, "link_#{link_id}_#{kind}", {
           'count' => @settings['count'].to_i,
           'diameter_mm' => diameter_mm.to_f,
           'depth_mm' => depth_mm.to_f,
-          'b_offset_mm' => @settings['b_offset'].to_f
+          'b_offset_mm' => @settings['b_offset'].to_f,
+          'abf_cutting_lines' => true
         }.to_json)
+
+        true
       end
 
       def layer(name)
