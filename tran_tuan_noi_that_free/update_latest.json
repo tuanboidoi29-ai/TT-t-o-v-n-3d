@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.106",
+  "version": "1.9.107",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Thay 3 icon mới cho Tấm PRO: Tìm/Sửa độ dày, Đổi tên, Chuyển đổi. Icon màu riêng, nét rõ hơn trên toolbar; giữ nguyên chức năng 1.9.105.",
+  "notes": "Thêm Liên kết CAM - CHỐT: click tấm CAM rồi tấm CHỐT, preview trực tiếp, TAB đảo mặt CAM, ENTER tạo. Mặc định CAM Ø15 sâu 13.5 B34, CHỐT Ø8 sâu 12, cách đầu 37, 2 bộ. Tạo đường tròn/trục khoan thật trong tấm, không tạo group rác.",
   "files": [
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -14,7 +14,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "e3976ba3285b17c231d25fd2d1a582985a3e03c0b5f747e4d1268195f2561fc2"
+      "sha256": "e579c3f5565420970ac238bdf7e2344f26fd7b334bd7d4958b5674d76c0a79f2"
     },
     {
       "path": "tran_tuan_noi_that/board_tool.rb",
@@ -24,7 +24,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "8f22120fcbc57b298b2e4622a6f4760ea4f277be436853105d9ab2ff8e6c627c"
+      "sha256": "e57b833a87d04d7f7e7336ef2c7768ef2c0eb1f1ed92778312b33ae8d56b0c33"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -259,12 +259,12 @@
     {
       "path": "tran_tuan_noi_that/updater.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/updater.rb",
-      "sha256": "aea78a133f8e45182155c2ccccbd04225ad50673f17cb88bee4292cc31446e0c"
+      "sha256": "07d12fe542d25ede656f32f8caa415759724a9dee252a0b6b050aac01bb4feec"
     },
     {
       "path": "tran_tuan_noi_that/tam_pro.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/tam_pro.rb",
-      "sha256": "28f1640359fbfa0b0244db16556ca251b4d2a694085308b17698ea3c3cb0d8b7"
+      "sha256": "61e6aadd9a5adbeb5e857e4a5f57d88d3e1beffced61f7af2695f1387ac82059"
     },
     {
       "path": "tran_tuan_noi_that/icons/tam_find.svg",
@@ -280,6 +280,16 @@
       "path": "tran_tuan_noi_that/icons/tam_convert.svg",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/icons/tam_convert.svg",
       "sha256": "adac3fcab30c9ce057dd8d6e2b1296af858d7c3034d156a822d0fb94639be546"
+    },
+    {
+      "path": "tran_tuan_noi_that/cam_chot_tool.rb",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/cam_chot_tool.rb",
+      "sha256": "55121bfc016aade3ab45ce2a151daf1b50c334cc426da1219968b390060142ca"
+    },
+    {
+      "path": "tran_tuan_noi_that/icons/cam_chot.svg",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/icons/cam_chot.svg",
+      "sha256": "4d6ba8963e4d7e3dffcb54c63e01c07d982d3f152752243e5a722ff1ef984a72"
     }
   ],
   "stretch_mode_version": "1.0.1"
