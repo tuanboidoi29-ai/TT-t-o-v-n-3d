@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.113",
+  "version": "1.9.114",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "CAM theo đúng Face được click: click mặt lớn nào của tấm thì preview và biên dạng CAM chỉ nằm trên mặt đó; không sinh CAM ở mặt đối diện. TAB chỉ đảo sang mặt đối diện khi người dùng chủ động. Bỏ biên dạng CAM thứ hai trong marker thống kê ABF, chỉ còn một vòng CAM thật.",
+  "notes": "Sửa kênh cập nhật bị kẹt cache: updater luôn đọc cả RAW và GitHub API rồi chọn manifest có version cao nhất. Giữ sửa CAM 1 mặt theo đúng Face được click và một biên dạng CAM duy nhất.",
   "files": [
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -14,7 +14,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "275e3fb49fe6ff604b884c568a35c91da0ff08b43e696b56e09ba8752059e554"
+      "sha256": "0f2659c976323b7b6ad86dcab9bf0c1cef3a928fabc157833c0ea34e44d331e0"
     },
     {
       "path": "tran_tuan_noi_that/board_tool.rb",
@@ -24,7 +24,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "7690292a4d8e6b8f727dc9ab6bc297d8075fd93ff511341ecde71a6a5e05fd0d"
+      "sha256": "baa759a981767392c581abbf44d5f821bf03bc468f7bba1a802a056d98d945b1"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -259,12 +259,12 @@
     {
       "path": "tran_tuan_noi_that/updater.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/updater.rb",
-      "sha256": "c1a26df6b3db3d37b60407f286a57e0b4b1fbc03e018eeee5a76cdec96a7a787"
+      "sha256": "9f1224dca2b4107790ca3a43841de51b21d9afe429c555c11dceb882054d8ea7"
     },
     {
       "path": "tran_tuan_noi_that/tam_pro.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/tam_pro.rb",
-      "sha256": "d87f1e8211a0f880b181166934f451d9da5df836b3f7014a7b9cba6dd12f0ef2"
+      "sha256": "e8c2caa464a35e2c9b1a4616056cba81e8cd48ff711b888d57aff214a60b0241"
     },
     {
       "path": "tran_tuan_noi_that/icons/tam_find.svg",
@@ -284,7 +284,7 @@
     {
       "path": "tran_tuan_noi_that/cam_chot_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/cam_chot_tool.rb",
-      "sha256": "bc382f91a52318512bfa7ff9febf622fcf0af0795fe3a35670072ae8e2a033e5"
+      "sha256": "8d32d2dfa292c97f7853aad26efbc7e1c0e7126744589456c518e5d63a1bf6be"
     },
     {
       "path": "tran_tuan_noi_that/icons/cam_chot.svg",
