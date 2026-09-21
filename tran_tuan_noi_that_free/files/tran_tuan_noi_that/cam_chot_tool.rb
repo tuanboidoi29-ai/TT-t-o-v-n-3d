@@ -6,7 +6,7 @@ module TranTuanNoiThat
   module CamChot
     extend self
 
-    VERSION = '1.9.113'.freeze
+    VERSION = '1.9.114'.freeze
     DICT = 'TT_CAM_CHOT'.freeze
 
     DEFAULTS = {
