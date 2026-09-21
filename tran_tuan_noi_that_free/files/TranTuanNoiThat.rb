@@ -8,7 +8,7 @@ module TranTuanNoiThat
 
     ext = SketchupExtension.new('TRẦN TUẤN NỘI THẤT', "#{runtime_folder}/bootstrap")
     ext.description = 'Bộ công cụ nội thất dùng trực tiếp, không yêu cầu kích hoạt bản quyền.'
-    ext.version = '1.9.115'
+    ext.version = '1.9.116'
     ext.creator = 'TRẦN TUẤN'
     ext.copyright = '2026 TRẦN TUẤN'
     Sketchup.register_extension(ext, true)
