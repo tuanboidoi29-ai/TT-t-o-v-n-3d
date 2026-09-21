@@ -87,6 +87,7 @@ module TranTuanNoiThat
         cabinet_door_tool
         rename_ui
         rename_tool
+        tam_pro
         box_tool
         drawer_tool
         round_tool
@@ -138,6 +139,7 @@ module TranTuanNoiThat
       install_drawer_ui
       install_cabinet_door_ui
       install_rename_ui
+      install_tam_pro_ui
       install_round_ui
       install_stretch_mode_ui
       install_grain_ui
@@ -175,6 +177,16 @@ module TranTuanNoiThat
       return unless defined?(TranTuanNoiThat::RenameTool)
       @rename_cmd ||= command('Đổi Tên + Thống Kê', 'rename.svg', 'Quét Group/Component, biên dạng 3D, đổi tên và thống kê độ dày') { RenameTool.show }
       add_feature_command_once(@rename_cmd, :rename_menu_installed)
+    end
+
+    def install_tam_pro_ui
+      return false unless defined?(TranTuanNoiThat::TamPro)
+      TamPro.add_menu_items(@main_menu)
+      TamPro.add_toolbar_items(@toolbar)
+      true
+    rescue StandardError => error
+      puts "[TT UI TamPro] #{error.class}: #{error.message}"
+      false
     end
 
     def install_round_ui
