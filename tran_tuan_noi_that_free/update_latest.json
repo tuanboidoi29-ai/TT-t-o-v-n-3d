@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.104",
+  "version": "1.9.105",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Sửa toàn bộ 3 công cụ Tấm PRO: sửa nhận diện mm, đổi sang bảng modeless để Ctrl chọn trực tiếp trong SketchUp, sửa Component→Group không còn dùng IDENTITY, giữ Undo một lần.",
+  "notes": "Sửa lỗi cú pháp tam_pro.rb dòng tạo nút tên nhanh khiến 3 chức năng không nạp. Giữ bảng modeless, Ctrl chọn trực tiếp, sửa nhận diện độ dày và chuyển đổi Group/Component/Face.",
   "files": [
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -14,7 +14,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "3d19e667f01527d0ed4a893cbda8b264b4677ce5965a1b729385e0ecb892c319"
+      "sha256": "86dfde0ebc4e89648d1591ed3d5db5d962bb9666049e6ee6a073acafb0628ea8"
     },
     {
       "path": "tran_tuan_noi_that/board_tool.rb",
@@ -24,7 +24,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "fb2e9cab4484005a9feb0ca7ff7bde90ea841be4a9c242bac689cb096937ceb6"
+      "sha256": "d60439efb730b5a96af69c44eda99b858e99ae13be661242eb9cf639ba64f8a6"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -259,12 +259,12 @@
     {
       "path": "tran_tuan_noi_that/updater.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/updater.rb",
-      "sha256": "772d9750bc22a59598dc0ef42b83ccda8fd2b0920e48a7560d294c4fedb8e57b"
+      "sha256": "e541bf95ab4d81f88832bb59848ecf5055a027ce239388f82ca03f3876b19515"
     },
     {
       "path": "tran_tuan_noi_that/tam_pro.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/tam_pro.rb",
-      "sha256": "fc0cac8f822403bbc8bcd108fbff23205a33289adfc47c6038ed45b657f11862"
+      "sha256": "777274e64a4c5764d3ead803209902949e20f5217374e3ea9801c8c31de190b0"
     },
     {
       "path": "tran_tuan_noi_that/icons/tam_find.svg",

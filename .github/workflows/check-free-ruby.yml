@@ -1,0 +1,24 @@
+name: Check Free Ruby Syntax
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ruby-syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Ruby syntax check - free edition
+        shell: bash
+        run: |
+          set -euo pipefail
+          find tran_tuan_noi_that_free/files -name '*.rb' -print0 | xargs -0 -n1 ruby -c
+          ruby -c tran_tuan_noi_that_free/files/tran_tuan_noi_that/tam_pro.rb
+          grep -Fq "VERSION = '1.9.105'" tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb
+          grep -Fq "VERSION = '1.9.105'" tran_tuan_noi_that_free/files/tran_tuan_noi_that/tam_pro.rb
+          grep -Fq "ext.version = '1.9.105'" tran_tuan_noi_that_free/files/TranTuanNoiThat.rb
