@@ -19,7 +19,6 @@ jobs:
           set -euo pipefail
           find tran_tuan_noi_that_free/files -name '*.rb' -print0 | xargs -0 -n1 ruby -c
           ruby -c tran_tuan_noi_that_free/files/tran_tuan_noi_that/tam_pro.rb
-          ruby -c tran_tuan_noi_that_free/files/tran_tuan_noi_that/cam_chot_tool.rb
-          grep -Fq "VERSION = '1.9.115'" tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb
-          grep -Fq "VERSION = '1.9.115'" tran_tuan_noi_that_free/files/tran_tuan_noi_that/tam_pro.rb
-          grep -Fq "ext.version = '1.9.115'" tran_tuan_noi_that_free/files/TranTuanNoiThat.rb
+grep -Fq "VERSION = '1.9.116'" tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb
+          grep -Fq "VERSION = '1.9.116'" tran_tuan_noi_that_free/files/tran_tuan_noi_that/tam_pro.rb
+          grep -Fq "ext.version = '1.9.116'" tran_tuan_noi_that_free/files/TranTuanNoiThat.rb
