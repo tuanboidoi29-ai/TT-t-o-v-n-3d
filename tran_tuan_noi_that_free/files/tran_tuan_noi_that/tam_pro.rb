@@ -590,7 +590,7 @@ module TranTuanNoiThat
     def rename_html
       css = common_css
       js = common_js
-      quick = QUICK_NAMES.map { |name| "<button onclick="quick('#{name}')">#{name}</button>" }.join
+      quick = QUICK_NAMES.map { |name| %(<button onclick="quick('#{name}')">#{name}</button>) }.join
       <<~HTML
         <!doctype html><html><head><meta charset="UTF-8"><style>#{css}</style></head>
         <body>
