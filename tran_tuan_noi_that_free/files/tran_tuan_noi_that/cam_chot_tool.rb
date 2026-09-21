@@ -6,7 +6,7 @@ module TranTuanNoiThat
   module CamChot
     extend self
 
-    VERSION = '1.9.110'.freeze
+    VERSION = '1.9.111'.freeze
     DICT = 'TT_CAM_CHOT'.freeze
 
     DEFAULTS = {
@@ -71,7 +71,7 @@ module TranTuanNoiThat
 
       @dialog = UI::HtmlDialog.new(
         dialog_title: 'TT - LIÊN KẾT CAM - CHỐT',
-        preferences_key: 'TranTuanNoiThat.CamChot.110',
+        preferences_key: 'TranTuanNoiThat.CamChot.111',
         scrollable: true,
         resizable: true,
         width: 610,
@@ -912,11 +912,23 @@ module TranTuanNoiThat
         normal_local = normal_world.transform(inverse)
         normal_local.normalize! if normal_local.length > 0.000001
 
-        # Hình marker theo đúng kiểu bộ CAM cũ: đĩa mỏng riêng, không cắt solid tấm.
-        base = center_local.offset(normal_local.reverse, 0.8.mm)
-        circle = marker.entities.add_circle(base, normal_local, diameter_mm.to_f.mm / 2.0, 32)
-        face = marker.entities.add_face(circle)
-        face.pushpull(1.6.mm) if face
+        # CAM chỉ là BIÊN DẠNG gia công: vòng tròn Edge/Curve, KHÔNG Face, KHÔNG PushPull.
+        # Đặt đúng trên mặt CAM để khi ABF trải/nesting chỉ còn đường biên khoan.
+        circle = marker.entities.add_circle(
+          center_local,
+          normal_local,
+          diameter_mm.to_f.mm / 2.0,
+          32
+        )
+        Array(circle).each do |edge|
+          edge.layer = cam_layer if cam_layer
+          edge.set_attribute('ABF', 'is-cam-outline', true)
+          edge.set_attribute('ABF', 'hardware-type', 'cam')
+          edge.set_attribute('ABF_chotcamNK', 'type', 'cam-outline')
+          edge.set_attribute('ABF_chotcamNK', 'diameter_mm', diameter_mm.to_f)
+          edge.set_attribute('ABF_chotcamNK', 'depth_mm', depth_mm.to_f)
+          edge.set_attribute('ABF_chotcamNK', 'link_id', link_id.to_s)
+        end
 
         marker.set_attribute('ABF', 'is-cam', true)
         marker.set_attribute('ABF', 'is-chot-cam', true)
