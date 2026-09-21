@@ -1,379 +1,369 @@
 # encoding: UTF-8
-# ============================================================
-# TRáº¦N TUáº¤N Ná»˜I THáº¤T - MODULE Táº¤M PRO
-# Version tÃ­ch há»£p: 1.9.102
-# SketchUp 2021â€“2025
-#
-# 3 CHá»¨C NÄ‚NG TÃCH RIÃŠNG:
-# 1) TÃŒM Táº¤M / Sá»¬A Äá»˜ DÃ€Y
-# 2) Äá»”I TÃŠN GROUP / COMPONENT
-# 3) CHUYá»‚N Äá»”I: COMPONENT -> GROUP, FACE -> GROUP, GROUP -> COMPONENT
-#
-# NguyÃªn táº¯c:
-# - KhÃ´ng tá»± má»Ÿ khi khá»Ÿi Ä‘á»™ng SketchUp.
-# - Giao diá»‡n tiáº¿ng Viá»‡t.
-# - Má»—i láº§n sá»­a dÃ¹ng má»™t operation Ä‘á»ƒ Ctrl+Z hoÃ n tÃ¡c.
-# - KhÃ´ng táº¡o toolbar/icon trÃ¹ng khi reload file.
-# ============================================================
-
 require 'sketchup.rb'
-require 'extensions.rb'
-require 'json'
 
 module TranTuanNoiThat
   module TamPro
+    extend self
 
     VERSION = '1.9.102'.freeze
-    PLUGIN_NAME = 'TRáº¦N TUáº¤N Ná»˜I THáº¤T - Táº¥m'.freeze
+    EPS = 0.001
 
-    @dialog_thickness = nil
-    @dialog_rename = nil
-    @dialog_convert = nil
-    @pick_tool = nil
-
-    # ------------------------------------------------------------
-    # Helpers
-    # ------------------------------------------------------------
-
-    def self.model
+    def model
       Sketchup.active_model
     end
 
-    def self.valid_object?(e)
-      e && e.valid? &&
-        (e.is_a?(Sketchup::Group) || e.is_a?(Sketchup::ComponentInstance))
+    def valid_object?(entity)
+      entity && entity.valid? &&
+        (entity.is_a?(Sketchup::Group) || entity.is_a?(Sketchup::ComponentInstance))
+    rescue StandardError
+      false
     end
 
-    def self.object_type(e)
-      return 'Group' if e.is_a?(Sketchup::Group)
-      return 'Component' if e.is_a?(SketchUp::ComponentInstance)
-      e.class.to_s
-    end
-
-    def self.object_name(e)
-      n = e.name.to_s.strip
-      if n.empty? && e.is_a?(Sketchup::ComponentInstance)
-        n = e.definition.name.to_s.strip
+    def entity_name(entity)
+      name = entity.respond_to?(:name) ? entity.name.to_s.strip : ''
+      if name.empty? && entity.is_a?(Sketchup::ComponentInstance)
+        name = entity.definition.name.to_s.strip
       end
-      n.empty? ? '(ChÆ°a Ä‘áº·t tÃªn)' : n
+      name.empty? ? '(ChÆ°a Ä‘áº·t tÃªn)' : name
+    rescue StandardError
+      '(ChÆ°a Ä‘áº·t tÃªn)'
     end
 
-    def self.definition_bounds(e)
-      if e.respond_to?(:definition) && e.definition
-        e.definition.bounds
-      else
-        nil
-      end
-    end
-
-    # Tráº£ vá» kÃ­ch thÆ°á»›c thá»±c theo 3 trá»¥c local cá»§a Group/Component.
-    # CÃ³ tÃ­nh scale hiá»‡n táº¡i cá»§a instance.
-    def self.local_dimensions_mm(e)
-      bb = definition_bounds(e)
-      return nil unless bb && bb.valid?
-
-      dims = [bb.width, bb.height, bb.depth]
-      tr = e.transformation
-      scales = [tr.xaxis.length, tr.yaxis.length, tr.zaxis.length]
-
-      dims.each_with_index.map do |len, i|
-        (len.to_f * scales[i].to_f).to_mm
-      end
-    rescue
+    def definition_bounds(entity)
+      entity.definition.bounds
+    rescue StandardError
       nil
     end
 
-    def self.thickness_info(e)
-      dims = local_dimensions_mm(e)
-      return nil unless dims && dims.all? { |v| v.finite? && v > 0.001 }
-
-      axis = dims.each_with_index.min_by { |v, _i| v }[1]
-      {
-        axis: axis,
-        thickness: dims[axis],
-        dims: dims
-      }
+    def local_dimensions_mm(entity)
+      bounds = definition_bounds(entity)
+      return nil unless bounds && bounds.valid?
+      tr = entity.transformation
+      scale = [tr.xaxis.length, tr.yaxis.length, tr.zaxis.length]
+      [bounds.width, bounds.height, bounds.depth].each_with_index.map do |len, index|
+        (len.to_f * scale[index].to_f).to_mm
+      end
+    rescue StandardError
+      nil
     end
 
-    def self.format_mm(v)
-      s = format('%.2f', v.to_f)
-      s.sub(/\.00$/, '').sub(/(\.\d)0$/, '\1')
+    def thickness_info(entity)
+      dims = local_dimensions_mm(entity)
+      return nil unless dims && dims.all? { |v| v.finite? && v > EPS }
+      axis = (0..2).min_by { |i| dims[i] }
+      { axis: axis, thickness: dims[axis], dims: dims }
     end
 
-    # Duyá»‡t toÃ n bá»™ model, ká»ƒ cáº£ group/component lá»“ng nhau.
-    # Chá»‘ng láº·p definition gÃ¢y vÃ²ng láº·p.
-    def self.scan_objects
+    def scan_objects
       result = []
-      seen_instances = {}
-      stack = [[model.entities, []]]
+      seen_entities = {}
+      seen_definitions = {}
+      stack = [model.entities]
 
       until stack.empty?
-        entities, def_path = stack.pop
+        entities = stack.pop
+        entities.each do |entity|
+          next unless valid_object?(entity)
+          key = entity.respond_to?(:persistent_id) ? entity.persistent_id.to_i : entity.entityID.to_i
+          next if seen_entities[key]
+          seen_entities[key] = true
+          result << entity
 
-        entities.each do |e|
-          next unless valid_object?(e)
-          next if e.deleted?
-
-          key = e.entityID
-          next if seen_instances[key]
-          seen_instances[key] = true
-          result << e
-
-          begin
-            d = e.definition
-            next unless d
-            # TrÃ¡nh Ä‘á»‡ quy definition tá»± tham chiáº¿u.
-            next if def_path.include?(d.object_id)
-            stack << [d.entities, def_path + [d.object_id]]
-          rescue
-          end
+          definition = entity.definition rescue nil
+          next unless definition
+          dkey = definition.object_id
+          next if seen_definitions[dkey]
+          seen_definitions[dkey] = true
+          stack << definition.entities
         end
       end
-
       result
     end
 
-    def self.entity_by_pid(pid)
-      return nil if pid.to_s.empty?
-      if model.respond_to?(:find_entity_by_persistent_id)
-        e = model.find_entity_by_persistent_id(pid.to_i)
-        return e if e && e.valid?
-      end
-
-      # Fallback cho trÆ°á»ng há»£p persistent id khÃ´ng kháº£ dá»¥ng.
-      scan_objects.find { |obj| obj.entityID.to_i == pid.to_i }
-    rescue
-      nil
-    end
-
-    def self.entity_key(e)
-      if e.respond_to?(:persistent_id)
-        e.persistent_id.to_i
-      else
-        e.entityID.to_i
-      end
-    end
-
-    def self.selection_objects
+    def selected_objects
       model.selection.to_a.select { |e| valid_object?(e) }
     end
 
-    def self.activate_pick_tool(mode = :rename)
-      @pick_tool ||= DirectPickTool.new
-      @pick_tool.mode = mode
-      model.select_tool(@pick_tool)
-      UI.set_status_text(
-        'TT - Chá»n Group/Component trá»±c tiáº¿p. Giá»¯ Ctrl Ä‘á»ƒ chá»n/bá» chá»n nhiá»u Ä‘á»‘i tÆ°á»£ng. ESC Ä‘á»ƒ thoÃ¡t.',
-        SB_PROMPT
-      )
+    def format_mm(value)
+      format('%.2f', value.to_f).sub(/\.00\z/, '').sub(/(\.\d)0\z/, '\\1')
     end
 
-    # ------------------------------------------------------------
-    # 1) TÃŒM Táº¤M / Sá»¬A Äá»˜ DÃ€Y
-    # ------------------------------------------------------------
-
-    def self.thickness_rows
-      scan_objects.map do |e|
-        info = thickness_info(e)
-        next unless info
-
-        {
-          id: entity_key(e),
-          name: object_name(e),
-          type: object_type(e),
-          thickness: info[:thickness],
-          d1: info[:dims][0],
-          d2: info[:dims][1],
-          d3: info[:dims][2]
-        }
-      end.compact
-    end
-
-    def self.open_thickness_dialog
-      rows = thickness_rows
-
-      if @dialog_thickness && @dialog_thickness.visible?
-        @dialog_thickness.bring_to_front
-        send_thickness_data(rows)
+    def find_and_edit_thickness
+      all = scan_objects
+      rows = all.map { |e| [e, thickness_info(e)] }.select { |_e, info| info }
+      if rows.empty?
+        UI.messagebox('KhÃ´ng tÃ¬m tháº¥y Group/Component cÃ³ kÃ­ch thÆ°á»›c há»£p lá»‡ trong model.')
         return
       end
 
-      @dialog_thickness = UI::HtmlDialog.new(
-        dialog_title: 'TT - TÃ¬m táº¥m / Sá»­a Ä‘á»™ dÃ y',
-        preferences_key: 'TranTuanNoiThat_TamPro_Thickness',
-        scrollable: true,
-        resizable: true,
-        width: 820,
-        height: 650,
-        style: UI::HtmlDialog::STYLE_DIALOG
-      )
+      selected = selected_objects
+      source_default = selected.empty? ? 'ToÃ n model' : 'Äang chá»n'
+      values = rows.map { |_e, info| (info[:thickness] * 10.0).round / 10.0 }.uniq.sort
+      default_thickness = values.include?(17.5) ? 17.5 : values.first
+      list_thickness = values.map { |v| format_mm(v) }.join('|')
 
-      @dialog_thickness.set_html(thickness_html)
+      prompts = ['Pháº¡m vi', 'Äá»™ dÃ y cáº§n tÃ¬m (mm)', 'Äá»™ dÃ y má»›i (mm, 0 = chá»‰ tÃ¬m)', 'Sai sá»‘ nháº­n diá»‡n (mm)']
+      defaults = [source_default, default_thickness, 0.0, 0.15]
+      lists = ['Äang chá»n|ToÃ n model', list_thickness, '', '']
+      answer = UI.inputbox(prompts, defaults, lists, 'TT - TÃ¬m táº¥m / Sá»­a Ä‘á»™ dÃ y')
+      return unless answer
 
-      @dialog_thickness.add_action_callback('ready') do |_ctx|
-        send_thickness_data(thickness_rows)
+      scope, target_mm, new_mm, tolerance = answer
+      target_mm = target_mm.to_f
+      new_mm = new_mm.to_f
+      tolerance = [tolerance.to_f.abs, 0.01].max
+      pool = scope.to_s == 'Äang chá»n' ? selected_objects : all
+
+      matches = pool.select do |entity|
+        info = thickness_info(entity)
+        info && (info[:thickness] - target_mm).abs <= tolerance
       end
 
-      @dialog_thickness.add_action_callback('rescan') do |_ctx|
-        send_thickness_data(thickness_rows)
+      if matches.empty?
+        UI.messagebox("KhÃ´ng tÃ¬m tháº¥y táº¥m dÃ y #{format_mm(target_mm)} mm trong pháº¡m vi Ä‘Ã£ chá»n.")
+        return
       end
 
-      @dialog_thickness.add_action_callback('select_in_model') do |_ctx, json_ids|
-        ids = JSON.parse(json_ids.to_s) rescue []
-        select_entities_by_ids(ids)
+      highlight_entities(matches)
+
+      if new_mm > EPS
+        changed = change_thickness(matches, new_mm)
+        UI.messagebox("ÄÃ£ Ä‘á»•i Ä‘á»™ dÃ y #{changed}/#{matches.length} táº¥m sang #{format_mm(new_mm)} mm.\nCÃ³ thá»ƒ Ctrl+Z Ä‘á»ƒ hoÃ n tÃ¡c.")
+      else
+        UI.messagebox("ÄÃ£ tÃ¬m tháº¥y #{matches.length} táº¥m dÃ y #{format_mm(target_mm)} mm.\nCÃ¡c Ä‘á»‘i tÆ°á»£ng chá»n Ä‘Æ°á»£c Ä‘Ã£ Ä‘Æ°á»£c highlight trong SketchUp.")
+      end
+    rescue StandardError => error
+      UI.messagebox("Lá»—i TÃ¬m táº¥m / Sá»­a Ä‘á»™ dÃ y:\n#{error.message}")
+    end
+
+    def highlight_entities(entities)
+      selection = model.selection
+      selection.clear
+      entities.each do |entity|
+        begin
+          selection.add(entity)
+        rescue StandardError
+        end
+      end
+      model.active_view.zoom(selection) unless selection.empty?
+      true
+    rescue StandardError
+      false
+    end
+
+    def change_thickness(entities, new_mm)
+      model.start_operation('TT - Äá»•i Ä‘á»™ dÃ y táº¥m', true)
+      changed = 0
+      entities.each do |entity|
+        info = thickness_info(entity)
+        next unless info
+        current = info[:thickness].to_f
+        next if current <= EPS
+        ratio = new_mm.to_f / current
+        next unless ratio.finite? && ratio > EPS
+
+        bounds = definition_bounds(entity)
+        next unless bounds
+        axis = info[:axis]
+        sx = axis == 0 ? ratio : 1.0
+        sy = axis == 1 ? ratio : 1.0
+        sz = axis == 2 ? ratio : 1.0
+        local_scale = Geom::Transformation.scaling(bounds.min, sx, sy, sz)
+        entity.transformation = entity.transformation * local_scale
+        changed += 1
+      end
+      model.commit_operation
+      changed
+    rescue StandardError
+      model.abort_operation rescue nil
+      raise
+    end
+
+    def rename_objects
+      targets = selected_objects
+      if targets.empty?
+        UI.messagebox('HÃ£y chá»n má»™t hoáº·c nhiá»u Group/Component. Giá»¯ Ctrl trong SketchUp Ä‘á»ƒ chá»n nhiá»u Ä‘á»‘i tÆ°á»£ng.')
+        return
       end
 
-      @dialog_thickness.add_action_callback('zoom_selected') do |_ctx, json_ids|
-        ids = JSON.parse(json_ids.to_s) rescue []
-        select_entities_by_ids(ids)
-        model.active_view.zoom(model.selection) unless model.selection.empty?
-      rescue
+      prompts = ['TÃªn má»›i', 'Tiá»n tá»‘', 'Háº­u tá»‘', 'ÄÃ¡nh sá»‘ khi chá»n nhiá»u']
+      defaults = [targets.length == 1 ? entity_name(targets.first) : '', '', '', 'CÃ³']
+      lists = ['', '', '', 'CÃ³|KhÃ´ng']
+      answer = UI.inputbox(prompts, defaults, lists, 'TT - Äá»•i tÃªn táº¥m / Group / Component')
+      return unless answer
+
+      base, prefix, suffix, numbering = answer
+      base = base.to_s.strip
+      prefix = prefix.to_s
+      suffix = suffix.to_s
+      use_number = numbering.to_s == 'CÃ³' && targets.length > 1
+
+      model.start_operation('TT - Äá»•i tÃªn táº¥m', true)
+      targets.each_with_index do |entity, index|
+        core = base.empty? ? entity_name(entity) : base
+        core = '' if core == '(ChÆ°a Ä‘áº·t tÃªn)'
+        serial = use_number ? format('_%02d', index + 1) : ''
+        name = "#{prefix}#{core}#{serial}#{suffix}".strip
+        name = "Äá»‘i tÆ°á»£ng#{serial}" if name.empty?
+        entity.name = name
+      end
+      model.commit_operation
+      UI.messagebox("ÄÃ£ Ä‘á»•i tÃªn #{targets.length} Ä‘á»‘i tÆ°á»£ng. CÃ³ thá»ƒ Ctrl+Z Ä‘á»ƒ hoÃ n tÃ¡c.")
+    rescue StandardError => error
+      model.abort_operation rescue nil
+      UI.messagebox("Lá»—i Ä‘á»•i tÃªn:\n#{error.message}")
+    end
+
+    def parent_entities(entity)
+      parent = entity.parent
+      return parent.entities if parent.respond_to?(:entities)
+      model.active_entities
+    rescue StandardError
+      model.active_entities
+    end
+
+    def copy_instance_properties(source, target)
+      target.name = source.name if target.respond_to?(:name=) && source.respond_to?(:name)
+      target.layer = source.layer if target.respond_to?(:layer=) && source.respond_to?(:layer)
+      target.material = source.material if target.respond_to?(:material=) && source.respond_to?(:material)
+      target.hidden = source.hidden? if target.respond_to?(:hidden=) && source.respond_to?(:hidden?)
+      if source.respond_to?(:attribute_dictionaries) && source.attribute_dictionaries
+        source.attribute_dictionaries.each do |dict|
+          dict.each_pair { |key, value| target.set_attribute(dict.name, key, value) }
+        end
+      end
+      target
+    rescue StandardError
+      target
+    end
+
+    def component_to_group(instance)
+      entities = parent_entities(instance)
+      group = entities.add_group
+      inner = group.entities.add_instance(instance.definition, IDENTITY)
+      inner.explode
+      group.transformation = instance.transformation
+      copy_instance_properties(instance, group)
+      instance.erase!
+      group
+    end
+
+    def convert_objects
+      selection = model.selection.to_a
+      counts = {
+        component: selection.count { |e| e.is_a?(Sketchup::ComponentInstance) },
+        group: selection.count { |e| e.is_a?(Sketchup::Group) },
+        face: selection.count { |e| e.is_a?(Sketchup::Face) }
+      }
+      if counts.values.sum.zero?
+        UI.messagebox('HÃ£y chá»n Component, Group hoáº·c Face cáº§n chuyá»ƒn Ä‘á»•i.')
+        return
       end
 
-      @dialog_thickness.add_action_callback('pick_direct') do |_ctx|
-        activate_pick_tool(:thickness)
+      actions = 'Component â†’ Group|Group â†’ Component|Face â†’ Group'
+      message = "Äang chá»n: #{counts[:component]} Component Â· #{counts[:group]} Group Â· #{counts[:face]} Face"
+      answer = UI.inputbox(['Kiá»ƒu chuyá»ƒn Ä‘á»•i', 'ThÃ´ng tin'], ['Component â†’ Group', message], [actions, ''], 'TT - Chuyá»ƒn Ä‘á»•i Ä‘á»‘i tÆ°á»£ng')
+      return unless answer
+      action = answer[0].to_s
+
+      model.start_operation("TT - #{action}", true)
+      created = []
+
+      case action
+      when 'Component â†’ Group'
+        selection.select { |e| e.is_a?(Sketchup::ComponentInstance) && e.valid? }.each do |instance|
+          created << component_to_group(instance)
+        end
+      when 'Group â†’ Component'
+        selection.select { |e| e.is_a?(Sketchup::Group) && e.valid? }.each do |group|
+          old_name = group.name.to_s
+          instance = group.to_component
+          instance.name = old_name unless old_name.empty?
+          created << instance
+        end
+      when 'Face â†’ Group'
+        faces = selection.select { |e| e.is_a?(Sketchup::Face) && e.valid? }
+        active = model.active_entities
+        faces = faces.select { |face| face.parent == active }
+        unless faces.empty?
+          items = faces.flat_map { |face| [face] + face.edges }.uniq
+          group = active.add_group(items)
+          group.name = 'Face Group'
+          created << group
+        end
       end
 
-      @dialog_thickness.add_action_callback('apply_thickness') do |_ctx, json_ids, new_value|
-        ids = JSON.parse(json_ids.to\ÊH™\ØİYH×Bˆ˜[YHH™]×İ˜[YK×Ù‚ˆYˆYË™[\OÂˆRK›Y\ÜØYÙX›Ş
-	ĞÚ1¬HÚ8nã[ˆ8n©[Høn©Ûˆ1$xnåZH1$xnæH0èK‰ÊBˆ™^ˆ[™ˆYˆ˜[YHHŒˆRK›Y\ÜØYÙX›Ş
-	ñ$8næH0èHxnæÚH8n¨ÚH8næÛˆ1¨[ˆ[K‰ÊBˆ™^ˆ[™‚ˆÚ[™ÙYHÚ[™ÙWİXÚÛ™\ÜÊYË˜[YJBˆRK›Y\ÜØYÙX›Ş
-±$0èÈ1$xnåZH1$xnæH0èHŞØÚ[™ÙYH1$xnäZH1¬8nèÛ™È0èšŞÙ›Ü›X]Û[J˜[YJ_H[KˆŠHYˆÚ[™ÙYˆˆÙ[™İXÚÛ™\Ü×Ù]JXÚÛ™\Ü×Ü›İÜÊBˆ[™‚ˆX[Ù×İXÚÛ™\ÜËœÙ]ÛÛ—ØÛÜÙYÈX[Ù×İXÚÛ™\ÜÈHš[BˆX[Ù×İXÚÛ™\ÜËœÚİÂˆ[™‚ˆYˆÙ[‹œÙ[XİÙ[]Y\×ØWÚYÊYÊBˆÙ[H[Ù[œÙ[Xİ[Û‚ˆÙ[˜ÛX\‚ˆYË™XXÚÈYˆHH[]WØWÜY
-Y
-BˆÙ[˜Y
-JHYˆH	‰ˆ˜[YÛØš™XİÊJBˆ[™ˆYBˆ[™‚ˆYˆÙ[‹˜Ú[™ÙWİXÚÛ™\ÜÊYË™]×Û[JBˆ[ÈHYË›X\ÈY[]WØWÜY
-Y
-HK˜ÛÛ\XİœÙ[XİÈ_˜[YÛØš™XİÊJHBˆ™]\›ˆYˆ[Ë™[\OÂ‚ˆ[Ù[œİ\ÛÜ\˜][ÛŠ	ÕH1$8nåZH1$xnæH0èH8n©[IËYJBˆÚ[™ÙYH‚ˆ[Ë™XXÚÈ_ˆ[™›ÈHXÚÛ™\Ü×Ú[™›ÊJBˆ™^[›\ÜÈ[™›Â‚ˆİ\œ™[H[™›ÖÎXÚÛ™\Ü×K×Ù‚ˆ™^Yˆİ\œ™[HŒB‚ˆ˜][ÈH™]×Û[K×ÙˆÈİ\œ™[ˆ™^[›\ÜÈ˜][Ë™š[š]OÈ	‰ˆ˜][ÈˆŒ‚ˆ˜ˆHYš[š][Û—Ø›İ[™ÊJBˆ™^[›\ÜÈ˜‚‚ˆ^\ÈH[™›ÖÎ˜^\×BˆÜšYÚ[ˆH˜‹›Z[‚ˆŞHŞHHŞˆHKŒˆŞH˜][ÈYˆ^\ÈOHˆŞHH˜][ÈYˆ^\ÈOHBˆŞˆH˜][ÈYˆ^\ÈOH‚‚ˆØØ[ÜØØ[HHÙ[ÛN•˜[œÙ›Ü›X][Û‹œØØ[[™ÊÜšYÚ[‹ŞŞKŞŠBˆK˜[œÙ›Ü›X][ÛˆHK˜[œÙ›Ü›X][Ûˆ
-ˆØØ[ÜØØ[B‚ˆÈ8nìHøn«\š8n«]0ê›ˆ¸n¯İH0ê›ˆ1$X[™È[ÈxnªİH•°è[ˆ‹‹ˆ‹‚ˆÛÛ˜[YHHK›˜[YK×ÜÂˆYˆÛÛ˜[YH_ˆ×U°è[—‹ÚHÛÛ˜[YH_ˆ×U˜[—‹ÚBˆHØØ[Ù[Y[œÚ[Ûœ×Û[JJBˆYˆˆK›˜[YHH•°è[ˆŞÙ›Ü›X]Û[JÌJ_^ŞÙ›Ü›X]Û[JÌWJ_^ŞÙ›Ü›X]Û[JÌ—J_H‚ˆ[™ˆ[™‚ˆÚ[™ÙY
-ÏHBˆ[™‚ˆ[Ù[˜ÛÛ[Z]ÛÜ\˜][Û‚ˆÚ[™ÙYˆ™\ØİYHOˆ^ˆ[Ù[˜X›ÜÛÜ\˜][Ûˆ™\ØİYHš[ˆRK›Y\ÜØYÙX›Ş
-“8nåÚH1$xnåZH1$xnæH0èN—ˆŞÙ^›Y\ÜØYÙ_HŠBˆˆ[™‚ˆYˆÙ[‹œÙ[™İXÚÛ™\Ü×Ù]J›İÜÊBˆ™]\›ˆ[›\ÜÈX[Ù×İXÚÛ™\ÜÂ‚ˆ]HH›İÜË›X\ÈŸˆÂˆYˆ–ÎšYKˆ˜[YNˆ–Î›˜[YWKˆ\Nˆ–Î\WKˆXÚÛ™\ÜÎˆ›Ü›X]Û[J–ÎXÚÛ™\Ü×JKˆ[\ÎˆˆŞÙ›Ü›X]Û[J–Î™WJ_H0åÈŞÙ›Ü›X]Û[J–Î™—J_H0åÈŞÙ›Ü›X]Û[J–Î™×J_H‚ˆBˆ[™‚ˆX[Ù×İXÚÛ™\ÜË™^Xİ]WÜØÜš\
-•œÙ]›İÜÊŞÒ”ÓÓ‹™Ù[™\˜]J]J_JNÈŠBˆ™\ØİYHOˆ^ˆ]È–Õ˜[•X[“›ÚU]•[T›×HÙ[™İXÚÛ™\Ü×Ù]NˆŞÙ^›Y\ÜØYÙ_H‚ˆ[™‚ˆYˆÙ[‹XÚÛ™\Ü×Ú[ˆ’SˆYØİ\H[‚ˆ[‚ˆXY‚ˆY]HÚ\œÙ]H•U‹N‚ˆİ[O‚ˆ›Ù^Ù›ÛY˜[Z[N\šX[Ø[œË\Ù\šYÛX\™Ú[ŒØ˜XÚÙÜ›İ[™ˆÙYÎØÛÛÜˆÌŒŒŸBˆÜÜY[™ÎŒLœØ˜XÚÙÜ›İ[™ˆÙ™™™™™Ø›Ü™\‹X›İÛNŒ\ÛÛYÙÜÜÚ][ÛœİXÚŞNİÜŒŞ‹Z[™^_BˆÛX\™Ú[ŒLÙ›Û\Ú^™NŒNBˆœ›İŞÙ\Ü^N™›^ÙØ\Ø[YÛ‹Z][\Î˜Ù[\Ù›^]Ü˜\Ü˜\Bˆ]ÛØ›Ü™\ŒØ›Ü™\‹\˜Y]\ÎœÜY[™ÎLœØİ\œÛÜœÚ[\Ø˜XÚÙÜ›İ[™ˆÌ™˜ÙØÛÛÜˆÙ™™ŸBˆ]Û‹™Ü˜^^Ø˜XÚÙÜ›İ[™ˆÍŸBˆ]Û‹™Ü™Y[Ø˜XÚÙÜ›İ[™ˆÌMÎMŸBˆ]Û‹œ™YØ˜XÚÙÜ›İ[™ˆØŒÌßBˆ[œ]Ù[XİÜY[™ÎÜØ›Ü™\Œ\ÛÛYØ˜˜Ø›Ü™\‹\˜Y]\Î\Bˆ[œ]İ\O[[X™\—^İÚYŒLBˆÜ˜\ÜY[™ÎŒLBˆX›^İÚYŒL	NØ›Ü™\‹XÛÛ\ÙN˜ÛÛ\ÙNØ˜XÚÙÜ›İ[™ˆÙ™™ŸBˆØ›Ü™\‹X›İÛNŒ\ÛÛYÙMYMYMNÜY[™ÎÜİ^X[YÛ›YÙ›Û\Ú^™NŒLÜBˆØ˜XÚÙÜ›İ[™ˆÙŒŒ™NÜÜÚ][ÛœİXÚŞNİÜMœBˆšİ™\Ø˜XÚÙÜ›İ[™ˆÙ™™M_Bˆ›]]YÙ›Û\Ú^™NŒLœØÛÛÜˆÍŸBˆ˜Ûİ[Ù›Û]ÙZYÚ˜›ÛBˆÜİ[O‚ˆÚXY‚ˆ›ÙO‚ˆ]ˆÛ\ÜÏHÜ‚ˆ•H0ëH8n©[HÈønëXH1$xnæH0èOÚ‚ˆ]ˆÛ\ÜÏHœ›İÈ‚ˆ]ÛˆÛ˜ÛXÚÏHœÚÙ]Ú\œ™\ØØ[Š
-H”]pê]8n¨ZH[Ù[Ø]Û‚ˆ]ÛˆÛ\ÜÏH™Ü˜^HˆÛ˜ÛXÚÏHœÙ[Xİ[
-YJHÚ8nã[ˆ8n©]øn¨ÏØ]Û‚ˆ]ÛˆÛ\ÜÏH™Ü˜^HˆÛ˜ÛXÚÏHœÙ[Xİ[
-˜[ÙJH¸nãÈÚ8nã[ˆ8n©]øn¨ÏØ]Û‚ˆ]ÛˆÛ\ÜÏH™Ü™Y[ˆˆÛ˜ÛXÚÏHœÙ[™Ù[Xİ
+      model.selection.clear
+      created.each { |entity| model.selection.add(entity) if entity && entity.valid? rescue nil }
+      model.commit_operation
+      UI.messagebox("ÄÃ£ chuyá»ƒn Ä‘á»•i #{created.length} Ä‘á»‘i tÆ°á»£ng. CÃ³ thá»ƒ Ctrl+Z Ä‘á»ƒ hoÃ n tÃ¡c.")
+    rescue StandardError => error
+      model.abort_operation rescue nil
+      UI.messagebox("Lá»—i chuyá»ƒn Ä‘á»•i:\n#{error.message}")
+    end
 
-HÚ8nã[ˆ›Û™ÈÚÙ]Ú\Ø]Û‚ˆ]ÛˆÛ\ÜÏH™Ü™Y[ˆˆÛ˜ÛXÚÏH›ÛÛTÙ[
+    def icon_path(name)
+      File.join(__dir__, 'icons', "#{name}.svg")
+    end
 
-H–›ÛÛHøn«[Ø]Û‚ˆ]ÛˆÛ˜ÛXÚÏHœÚÙ]Ú\œXÚ×Ù\™Xİ
+    def commands
+      return @commands if @commands
 
-HÚ8nã[ˆ¸nìXÈxn¯Ü
-İ›
-OØ]Û‚ˆÙ]‚ˆ]ˆÛ\ÜÏHœ›İÈˆİ[OH›X\™Ú[‹]Ü‚ˆX™[“8nãXÈ1$xnæH0èNÛX™[‚ˆÙ[XİYH™š[\ˆˆÛ˜Ú[™ÙOHœ™[™\Š
-HÜ[Ûˆ˜[YOHˆ•8n©]øn¨ÏÛÜ[ÛÜÙ[Xİ‚ˆX™[±$8næH0èHxnæÚNÛX™[‚ˆ[œ]YH›™]Õˆ\OH›[X™\ˆˆZ[HŒŒHˆİ\HŒŒHˆ˜[YOHŒMËH‚ˆ]ÛˆÛ\ÜÏHœ™YˆÛ˜ÛXÚÏH˜\U
+      find_cmd = UI::Command.new('TÃ¬m táº¥m / Sá»­a Ä‘á»™ dÃ y') { find_and_edit_thickness }
+      find_cmd.tooltip = 'TÃ¬m táº¥m / Sá»­a Ä‘á»™ dÃ y'
+      find_cmd.status_bar_text = 'QuÃ©t Group/Component, tÃ¬m theo Ä‘á»™ dÃ y vÃ  Ä‘á»•i Ä‘á»™ dÃ y hÃ ng loáº¡t.'
 
-H±$8nåZH1$xnæH0èH0è™Èøn¨]Ø]Û‚ˆÜ[ˆÛ\ÜÏH˜Ûİ[ˆYH˜Ûİ[ÜÜ[‚ˆÙ]‚ˆ]ˆÛ\ÜÏH›]]YğìÈ8nàÈ0ëXÚØ¸nãÈ0ëXÚ8nêÛ™È8n©[Kˆ1$8næH0èH1$q¬8nèØÈš8n«[ˆ8nìH1$xnæ[™È[Èøn¨[šš8nãÈš8n©]ønéØH1$xnäZH1¬8nèÛ™ËÙ]‚ˆÙ]‚ˆ]ˆÛ\ÜÏHÜ˜\‚ˆX›O‚ˆXY‚ˆÚ8nã[İ•0ê›İ“øn¨ZOİ±$8næH0èOİ’ğëXÚ1¬8næØÈ8nìXÈ
-[JOİİ‚ˆİXY‚ˆ›ÙHYH›ÙHİ›ÙO‚ˆİX›O‚ˆÙ]‚ˆØÜš\‚ˆÛÛœİHÂˆ›İÜÎˆ×KˆÚXÚÙYˆ™]ÈÙ]
+      rename_cmd = UI::Command.new('Äá»•i tÃªn táº¥m / Group') { rename_objects }
+      rename_cmd.tooltip = 'Äá»•i tÃªn táº¥m / Group'
+      rename_cmd.status_bar_text = 'Äá»•i tÃªn má»™t hoáº·c nhiá»u Group/Component, há»— trá»£ tiá»n tá»‘/háº­u tá»‘/Ä‘Ã¡nh sá»‘.'
 
-KˆÙ]›İÜÊ›İÜÊ^Âˆ\Ëœ›İÜÈH›İÜÈ×NÂˆÛÛœİÛH™]ÈÙ]
-\Ë˜ÚXÚÙY
-NÂˆ\Ë˜ÚXÚÙYH™]ÈÙ]
-\Ëœ›İÜË™š[\ŠO›Ûš\Êİš[™Ê‹šY
-JJK›X\
-O”İš[™Ê‹šY
-JJNÂˆZ[š[\Š
-NÂˆ™[™\Š
-NÂˆBˆNÂ‚ˆ[˜İ[ÛˆZ[š[\Š
-^ÂˆÛÛœİˆHØİ[Y[™Ù][[Y[RY
-	Ùš[\‰ÊNÂˆÛÛœİİ\ˆH‹˜[YNÂˆÛÛœİ˜[Y\ÈHË‹‹›™]ÈÙ]
-œ›İÜË›X\
-O”İš[™Ê‹XÚÛ™\ÜÊJJWKœÛÜ
+      convert_cmd = UI::Command.new('Chuyá»ƒn Ä‘á»•i Group / Component') { convert_objects }
+      convert_cmd.tooltip = 'Chuyá»ƒn Ä‘á»•i Group / Component'
+      convert_cmd.status_bar_text = 'Component â†’ Group, Group â†’ Component, Face â†’ Group.'
 
-KŠOOœ\œÙQ›Ø]
-JK\\œÙQ›Ø]
-ŠJNÂˆ‹š[›™\’SH	ÏÜ[Ûˆ˜[YOHˆ•8n©]øn¨ÏÛÜ[Û‰È
-È˜[Y\Ë›X\
-O˜Ü[Ûˆ˜[YOH‰İŸH‰İŸH[OÛÜ[Û˜
-Kš›Ú[Š	ÉÊNÂˆYŠ˜[Y\Ëš[˜ÛY\Êİ\ŠJH‹˜[YHHİ\ÂˆB‚ˆ[˜İ[Ûˆš\ÚX›T›İÜÊ
-^ÂˆÛÛœİˆHØİ[Y[™Ù][[Y[RY
-	Ùš[\‰ÊK˜[YNÂˆ™]\›ˆœ›İÜË™š[\ŠOˆ]ˆİš[™Ê‹XÚÛ™\ÜÊOOO]ŠNÂˆB‚ˆ[˜İ[Ûˆ™[™\Š
-^ÂˆÛÛœİ›ÙHHØİ[Y[™Ù][[Y[RY
-	İ›ÙIÊNÂˆÛÛœİ›İÜÈHš\ÚX›T›İÜÊ
-NÂˆ›ÙKš[›™\’SH›İÜË›X\
-OÂˆÛÛœİYHİš[™Ê‹šY
-NÂˆÛÛœİÈH˜ÚXÚÙYš\ÊY
-HÈ	ØÚXÚÙY	Èˆ	ÉÎÂˆ™]\›ˆ‚ˆ[œ]\OH˜ÚXÚØ›Şˆ	ØßHÛ˜Ú[™ÙOHÙÙÛJ	ÉÚYIË\Ë˜ÚXÚÙY
-Hİ‚ˆ‰Ù\ØÊ‹›˜[YJ_Oİ‰Ù\ØÊ‹\J_Oİ‚ˆ‰Ù\ØÊ‹XÚÛ™\ÜÊ_H[OØİ‰Ù\ØÊ‹™[\Ê_Oİ‚ˆİ˜ÂˆJKš›Ú[Š	ÉÊNÂˆØİ[Y[™Ù][[Y[RY
-	ØÛİ[	ÊK^ÛÛ[H1$0èÈÚ8nã[ˆ	Õ˜ÚXÚÙYœÚ^™_XÂˆB‚ˆ[˜İ[ÛˆÙÙÛJYŠ^ÈÕ˜ÚXÚÙY˜Y
-İš[™ÊY
-JN•˜ÚXÚÙY™[]Jİš[™ÊY
-JNÈ™[™\Š
-NÈBˆ[˜İ[ÛˆÙ[Xİ[
-Š^Èš\ÚX›T›İÜÊ
-K™›Ü‘XXÚ
-OÕ˜ÚXÚÙY˜Y
-İš[™Ê‹šY
-JN•˜ÚXÚÙY™[]Jİš[™Ê‹šY
-JJNÈ™[™\Š
-NÈBˆ[˜İ[ÛˆYÊ
-^È™]\›ˆË‹‹•˜ÚXÚÙYNÈBˆ[˜İ[ÛˆÙ[™Ù[Xİ
+      {
+        find: ['tam_find', find_cmd],
+        rename: ['tam_rename', rename_cmd],
+        convert: ['tam_convert', convert_cmd]
+      }.each_value do |icon_name, command|
+        icon = icon_path(icon_name)
+        if File.file?(icon)
+          command.small_icon = icon
+          command.large_icon = icon
+        end
+      end
 
-^ÈÚÙ]Ú\œÙ[XİÚ[—Û[Ù[
-”ÓÓ‹œİš[™ÚYJYÊ
-JJNÈBˆ[˜İ[Ûˆ›ÛÛTÙ[
+      @commands = { find: find_cmd, rename: rename_cmd, convert: convert_cmd }
+    end
 
-^ÈÚÙ]Ú\›ÛÛWÜÙ[XİY
-”ÓÓ‹œİš[™ÚYJYÊ
-JJNÈBˆ[˜İ[Ûˆ\U
+    def add_menu_items(menu)
+      return true if @menu_installed
+      return false unless menu
+      menu.add_separator rescue nil
+      commands.each_value { |command| menu.add_item(command) }
+      @menu_installed = true
+      true
+    rescue StandardError => error
+      warn "[TranTuanNoiThat::TamPro] menu: #{error.class}: #{error.message}"
+      false
+    end
 
-^ÂˆÛÛœİˆH\œÙQ›Ø]
-Øİ[Y[™Ù][[Y[RY
-	Û™]Õ	ÊK˜[YJNÂˆYŠ]ˆL
-^È[\
-	Óš8n«\1$xnæH0èHxnæÚH8næÛˆ1¨[ˆ[K‰ÊNÈ™]\›ÈBˆÚÙ]Ú\˜\WİXÚÛ™\ÜÊ”ÓÓ‹œİš[™ÚYJYÊ
-JKİš[™ÊŠJNÂˆBˆ[˜İ[Ûˆ\ØÊÊ^È™]\›ˆİš[™ÊÏÏÉÉÊKœ™\XÙJÖÉˆ‰×KÙËOOŠÉÉ‰Î‰É˜[\ÉË	Ï	Î‰É›ÉË	Ï‰Î‰É™İÉË	È‰Î‰Éœ][İÉË‰È‰ÉˆÌÎNÉßVÛWJJNÈBˆÚ[™İË˜Y]™[\İ[™\Š	ÛØY	Ë
+    def add_toolbar_items(toolbar)
+      return true if @toolbar_installed
+      return false unless toolbar
+      toolbar.add_separator rescue nil
+      commands.each_value { |command| toolbar.add_item(command) }
+      @toolbar_installed = true
+      true
+    rescue StandardError => error
+      warn "[TranTuanNoiThat::TamPro] toolbar: #{error.class}: #{error.message}"
+      false
+    end
 
-OOœÚÙ]Ú\œ™XYJ
-JNÂˆÜØÜš\‚ˆØ›ÙO‚ˆÚ[‚ˆSˆ[™‚ˆÈKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKBˆÈŠH1$8nåH0â“‚ˆÈKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKB‚ˆYˆÙ[‹›Ü[—Ü™[˜[YWÙX[ÙÂˆYˆX[Ù×Ü™[˜[YH	‰ˆX[Ù×Ü™[˜[YKš\ÚX›OÂˆX[Ù×Ü™[˜[YK˜œš[™×İ×Ùœ›ÛˆÙ[™Ü™[˜[YWÜÙ[Xİ[Û‚ˆ™]\›‚ˆ[™‚ˆX[Ù×Ü™[˜[YHHRN’[X[ÙË›™]ÊˆX[Ù×İ]Nˆ	ÕH1$8nåZH0ê›ˆÜ›İ\ÈÛÛ\Û™[	Ëˆ™Y™\™[˜Ù\×ÚÙ^Nˆ	Õ˜[•X[“›ÚU]Õ[T›×Ô™[˜[YIËˆØÜ›ÛX›NˆYKˆ™\Ú^˜X›NˆYKˆÚYˆˆZYÚˆMŒˆİ[NˆRN’[X[ÙÎ”ÕSWÑPSÑÂˆ
-B‚ˆX[Ù×Ü™[˜[YKœÙ]Ú[
-™[˜[YWÚ[
-B‚ˆX[Ù×Ü™[˜[YK˜YØXİ[Û—ØØ[˜XÚÊ	Ü™XYIÊHÈØİÙ[™Ü™[˜[YWÜÙ[Xİ[ÛˆBˆX[Ù×Ü™[˜[YK˜YØXİ[Û—ØØ[˜XÚÊ	Ü™Yœ™\Ú	ÊHÈØİÙ[™Ü™[˜[YWÜÙ[Xİ[ÛˆBˆX[Ù×Ü™[˜[YK˜YØXİ[Û—ØØ[˜XÚÊ	ÜXÚ×Ù\™Xİ	ÊHÈØİXİ]˜]WÜXÚ×İÛÛ
-œ™[˜[YJHB‚ˆX[Ù×Ü™[˜[YK˜YØXİ[Û—ØØ[˜XÚÊ	Ø\WÜ™[˜[YIÊHÈØİ˜\ÙK™Yš^İY™š^[X™\š[™ßˆ\™Ù]ÈHÙ[Xİ[Û—ÛØš™XİÂˆYˆ\™Ù]Ë™[\OÂˆRK›Y\ÜØYÙX›Ş
-	Ò0èŞHÚ8nã[ˆ0ë]š8n©]HÜ›İ\øn­ØÈÛÛ\Û™[‰ÊBˆ™^ˆ[™ˆ˜\ÙHH˜\ÙK×ÜËœİš\ˆ™Yš^H™Yš^×ÜÂˆİY™š^HİY™š^×ÜÂˆ\ÙWÛ[X™\ˆH[X™\š[™Ë×ÜÈOH	İYIÂ‚ˆ™[˜[YWİ\™Ù]Ê\™Ù]Ë˜\ÙK™Yš^İY™š^\ÙWÛ[X™\ŠBˆÙ[™Ü™[˜[YWÜÙ[Xİ[Û‚ˆ[™‚ˆX[Ù×Ü™[˜[YK˜YØXİ[Û—ØØ[˜XÚÊ	Ü™[˜[YWÜ›İÜÉÊHÈØİ^[ØYˆ›İÜÈH”ÓÓ‹œ\œÙJ^[ØY×ÜÊH™\ØİYH×Bˆ™[˜[YWÚ[™]šYX[Ü›İÜÊ›İÜÊBˆÙ[™Ü™[˜[YWÜÙ[Xİ[Û‚ˆ[™‚ˆX[Ù×Ü™[˜[YKœÙ]ÛÛ—ØÛÜÙYÈX[Ù×Ü™[˜[YHHš[BˆX[Ù×Ü™[˜[YKœÚİÂˆ[™‚ˆYˆÙ[‹œ™[˜[YWİ\™Ù]Ê\™Ù]Ë˜\ÙK™Yš^İY™š^\ÙWÛ[X™\ŠBˆ[Ù[œİ\ÛÜ\˜][ÛŠ	ÕH1$8nåZH0ê›‰ËYJBˆİ[H\™Ù]Ë›[™İ‚ˆ\™Ù]Ë™XXÚİÚ]Ú[™^ÈK_ˆÛÜ™HH˜\ÙK™[\OÈÈØš™XİÛ˜[YJJHˆ˜\ÙBˆÛÜ™HH	ÉÈYˆÛÜ™HOH	ÊÚ1¬H1$xn­İ0ê›ŠIÂˆÙ\HH\ÙWÛ[X™\ˆ	‰ˆİ[ˆHÈ›Ü›X]
-	×ÉL™	ËH
-ÈJHˆ	ÉÂˆ™]×Û˜[YHHˆŞÜ™Yš^HŞØÛÜ™_HŞÜÙ\_HŞÜİY™š^H‹œİš\ˆ™]×Û˜[YHH±$8näZH1¬8nèÛ™ÈŞÜÙ\_HˆYˆ™]×Û˜[YK™[\OÂˆK›˜[YHH™]×Û˜[YBˆ[™‚ˆ[Ù[˜ÛÛ[Z]ÛÜ\˜][Û‚ˆ™\ØİYHOˆ^ˆ[Ù[˜X›ÜÛÜ\˜][Ûˆ™\ØİYHš[ˆRK›Y\ÜØYÙX›Ş
-“8nåÚH1$xnåZH0ê›—ˆŞÙ^›Y\ÜØYÙ_HŠBˆ[™‚ˆYˆÙ[‹œ™[˜[YWÚ[™]šYX[Ü›İÜÊ›İÜÊBˆ[Ù[œİ\ÛÜ\˜][ÛŠ	ÕH1$8nåZH0ê›ˆ8nêÛ™È1$xnäZH1¬8nèÛ™ÉËYJBˆ›İÜË™XXÚÈ›İßˆHH[]WØWÜY
-›İÖÉÚY	×JBˆ™^[›\ÜÈ˜[YÛØš™XİÊJBˆ˜[YHH›İÖÉÛ˜[YI×K×ÜËœİš\ˆK›˜[YHH˜[YH[›\ÜÈ˜[YK™[\OÂˆ[™ˆ[Ù[˜ÛÛ[Z]ÛÜ\˜][Û‚ˆ™\ØİYHOˆ^ˆ[Ù[˜X›ÜÛÜ\˜][Ûˆ™\ØİYHš[ˆRK›Y\ÜØYÙX›Ş
-“8nåÚH1$xnåZH0ê›—ˆŞÙ^›Y\ÜØYÙ_HŠBˆ[™‚ˆYˆÙ[‹œÙ[™Ü™[˜[YWÜÙ[Xİ[Û‚ˆ™]\›ˆ[›\ÜÈX[Ù×Ü™[˜[YBˆ›İÜÈHÙ[Xİ[Û—ÛØš™XİË›X\È_ˆÈYˆ[]WÚÙ^JJK˜[YNˆØš™XİÛ˜[YJJK\NˆØš™Xİİ\JJHBˆ[™ˆX[Ù×Ü™[˜[YK™^Xİ]WÜØÜš\
-•œÙ]›İÜÊŞÒ”ÓÓ‹™Ù[™\˜]J›İÜÊ_JNÈŠBˆ™\ØİYHOˆ^ˆ]È–Õ˜[•X[“›ÚU]•[T›×HÙ[™Ü™[˜[YWÜÙ[Xİ[ÛˆŞÙ^›Y\ÜØYÙ_H‚ˆ[™‚ˆYˆÙ[‹œ™[˜[YWÚ[ˆ’SˆYØİ\H[‚ˆ[‚ˆXY‚ˆY]HÚ\œÙ]H•U‹N‚ˆİ[O‚ˆ›Ù^Ù›ÛY˜[Z[N\šX[ÛX\™Ú[ŒØ˜XÚÙÜ›İ[™ˆÙYÎØÛÛÜˆÌŒŒŸBˆÜÜY[™ÎŒLœØ˜XÚÙÜ›İ[™ˆÙ™™Ø›Ü™\‹X›İÛNŒ\ÛÛYÙBˆÙ›Û\Ú^™NŒNÛX\™Ú[ŒLBˆœ›İŞÙ\Ü^N™›^ÙØ\Ø[YÛ‹Z][\Î˜Ù[\Ù›^]Ü˜\Ü˜\ÛX\™Ú[ÜBˆ[œ]İ\O]^^ÜY[™ÎÜØ›Ü™\Œ\ÛÛYØ˜˜Ø›Ü™\‹\˜Y]\Î\BˆØ˜\Ù^İÚYŒNKœÛ^İÚYŒLŒBˆ]ÛØ›Ü™\ŒØ›Ü™\‹\˜Y]\ÎœÜY[™ÎLœØİ\œÛÜœÚ[\Ø˜XÚÙÜ›İ[™ˆÌ™˜ÙØÛÛÜÚ]_Bˆ]Û‹™Ü˜^^Ø˜XÚÙÜ›İ[™ˆÍŸH]Û‹™Ü™Y[Ø˜XÚÙÜ›İ[™ˆÌMÎMŸBˆÜ˜\ÜY[™ÎŒLBˆX›^İÚYŒL	NØ›Ü™\‹XÛÛ\ÙN˜ÛÛ\ÙNØ˜XÚÙÜ›İ[™Ú]_BˆØ›Ü™\‹X›İÛNŒ\ÛÛYÙMYMYMNÜY[™ÎÜÙ›Û\Ú^™NŒLÜİ^X[YÛ›YBˆ[œ]İÚYMINÜY[™Î\Ø›Ü™\Œ\ÛÛYØØØßBˆš[Ù›Û\Ú^™NŒLœØÛÛÜˆÍŸBˆÜİ[O‚ˆÚXY‚ˆ›ÙO‚ˆ]ˆÛ\ÜÏHÜ‚ˆ•H1$8nåZH0ê›ˆÜ›İ\ÈÛÛ\Û™[Ú‚ˆ]ˆÛ\ÜÏHœ›İÈ‚ˆ]ÛˆÛ˜ÛXÚÏHœÚÙ]Ú\œXÚ×Ù\™Xİ
-
-HÚ8nã[ˆ¸nìXÈxn¯Ü
-İ›
-OØ]Û‚ˆ]ÛˆÛ\ÜÏH™Ü˜^HˆÛ˜ÛXÚÏHœÚÙ]Ú\œ™Yœ™\Ú
-
-H“8n©^HÙ[Xİ[ÛˆxnáÛˆ8n¨ZOØ]Û‚ˆÙ]‚ˆ]ˆÛ\ÜÏHœ›İÈ‚ˆX™[•xnà[ˆ8näNÛX™[[œ]YHœ™Yš^ˆÛ\ÜÏHœÛHˆ\OH^ˆXÙZÛ\H•‘ˆ¸n¯”È‚ˆX™[•0ê›ˆxnæÚNÛX™[[œ]YH˜˜\ÙHˆ\OH^ˆXÙZÛ\H•‘ˆ8näÚH°èZH‚ˆX™[’8n«]H8näNÛX™[[œ]YHœİY™š^ˆÛ\ÜÏHœÛHˆ\OH^ˆXÙZÛ\H—Õ°àRH‚ˆÙ]‚ˆ]ˆÛ\ÜÏHœ›İÈ‚ˆX™[[œ]YH›[Hˆ\OH˜ÚXÚØ›ŞˆÚXÚÙYˆ8nìH1$pè[šønäHÚHÚ8nã[ˆšxnà]OÛX™[‚ˆ]ÛˆÛ\ÜÏH™Ü™Y[ˆˆÛ˜ÛXÚÏH˜\P[Ê
-H±$8nåZH0ê›ˆ0è™Èøn¨]Ø]Û‚ˆ]ÛˆÛ˜ÛXÚÏHœØ]™T›İÜÊ
-H“1¬H0ê›ˆ8nêÛ™È0ì›™ÏØ]Û‚ˆÙ]‚ˆ]ˆÛ\ÜÏHš[ğìÈ8nàÈ1$xn­İ0ê›ˆ8nìHÎˆ°èZHÈ8n¨ÚHÈ°ê›ˆÈ1¬8næÚHÈ±¬8næØÈÈØ]Høn­ØÈ0ê›Hxnà[ˆ8näHH8n«]H8näKÙ]‚ˆÙ]‚ˆ]ˆÛ\ÜÏHÜ˜\‚ˆX›OXY“øn¨ZOİ•0ê›ˆxnáÛˆ8n¨ZHÈ0ê›ˆxnæÚOİİİXY›ÙHYH›ÙHİ›ÙOİX›O‚ˆÙ]‚ˆØÜš\‚ˆÛÛœİ^Ü›İÜÎ–×KÙ]›İÜÊ›İÜÊ^İ\Ëœ›İÜÏ\›İÜß×NÜ™[™\Š
-Nß_NÂˆ[˜İ[Ûˆ™[™\Š
-^ÂˆØİ[Y[™Ù][[Y[RY
-	İ›ÙIÊKš[›™\’SHœ›İÜË›X\
-O˜ˆ‰Ù\ØÊ‹\J_Oİ‚ˆ[œ]]KZYH‰Ü‹šYHˆ˜[YOH‰Ù\ØĞ]Š‹›˜[YOOOIÊÚ1¬H1$xn­İ0ê›ŠIÏÉÉÎœ‹›˜[YJ_Hİİ˜
-Kš›Ú[Š	ÉÊNÂˆBˆ[˜İ[Ûˆ\P[Ê
-^ÂˆÚÙ]Ú\˜\WÜ™[˜[YJˆØİ[Y[™Ù][[Y[RY
-	Ø˜\ÙIÊK˜[YKˆØİ[Y[™Ù][[Y[RY
-	Ü™Yš^	ÊK˜[YKˆØİ[Y[™Ù][[Y[RY
-	ÜİY™š^	ÊK˜[YKˆØİ[Y[™Ù][[Y[RY
-	Û[IÊK˜ÚXÚÙYÈ	İYIÎ‰Ù˜[ÙIÂˆ
-NÂˆBˆ[˜İ[ÛˆØ]™T›İÜÊ
-^ÂˆÛÛœİ›İÜÏVË‹‹™Øİ[Y[œ]Y\TÙ[XİÜ[
-	İ›ÙH[œ]	ÊWK›X\
-OOŠÚYšK™]\Ù]šY˜[YNšK˜[Y_JJNÂˆÚÙ]Ú\œ™[˜[YWÜ›İÜÊ”ÓÓ‹œİš[™ÚYJ›İÜÊJNÂˆBˆ[˜İ[Ûˆ\ØÊÊ^Ü™]\›ˆİš[™ÊÏÏÉÉÊKœ™\XÙJÖÉˆ‰×KÙËOOŠÉÉ‰Î‰É˜[\ÉË	Ï	Î‰É›ÉË	Ï‰Î‰É™İÉË	È‰Î‰Éœ][İÉË‰È‰ÉˆÌÎNÉßVÛWJJNßBˆ[˜İ[Ûˆ\ØĞ]ŠÊ^Ü™]\›ˆ\ØÊÊNßBˆÚ[™İË˜Y]™[\İ[™\Š	ÛØY	Ë
-
-OOœÚÙ]Ú\œ™XYJ
-JNÂˆÜØÜš\‚ˆØ›ÙO‚ˆÚ[‚ˆSˆ[™‚ˆÈKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKBˆÈÊHÒVxnà“ˆ1$8nåBˆÈKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKB‚ˆYˆÙ[‹›Ü[—ØÛÛ™\ÙX[ÙÂˆYˆX[Ù×ØÛÛ™\	‰ˆX[Ù×ØÛÛ™\š\ÚX›OÂˆX[Ù×ØÛÛ™\˜œš[™×İ×Ùœ›ÛˆÙ[™ØÛÛ™\ÜÙ[Xİ[Û‚ˆ™]\›‚ˆ[™‚ˆX[Ù×ØÛÛ™\HRN’[X[ÙË›™]ÊˆX[Ù×İ]Nˆ	ÕHÚ^xnàÛˆ1$xnåZH1$xnäZH1¬8nèÛ™ÉËˆ™Y™\™[˜Ù\×ÚÙ^Nˆ	Õ˜[•X[“›ÚU]Õ[T›×ĞÛÛ™\	ËˆØÜ›ÛX›NˆYKˆ™\Ú^˜X›NˆYKˆÚYˆLŒˆZYÚˆŒˆİ[NˆRN’[X[ÙÎ”ÕSWÑPSÑÂˆ
-B‚ˆX[Ù×ØÛÛ™\œÙ]Ú[
-ÛÛ™\Ú[
-B‚ˆX[Ù×ØÛÛ™\˜YØXİ[Û—ØØ[˜XÚÊ	Ü™XYIÊHÈØİÙ[™ØÛÛ™\ÜÙ[Xİ[ÛˆBˆX[Ù×ØÛÛ™\˜YØXİ[Û—ØØ[˜XÚÊ	Ü™Yœ™\Ú	ÊHÈØİÙ[™ØÛÛ™\ÜÙ[Xİ[ÛˆBˆX[Ù×ØÛÛ™\˜YØXİ[Û—ØØ[˜XÚÊ	ÜXÚ×Ù\™Xİ	ÊHÈØİXİ]˜]WÜXÚ×İÛÛ
-˜ÛÛ™\
-HB‚ˆX[Ù×ØÛÛ™\˜YØXİ[Û—ØØ[˜XÚÊ	ØÛÛ\Û™[İ×ÙÜ›İ\	ÊHÈØİˆÛÛ™\ØÛÛ\Û™[×İ×ÙÜ›İ\ÂˆÙ[™ØÛÛ™\ÜÙ[Xİ[Û‚ˆ[™‚ˆX[Ù×ØÛÛ™\˜YØXİ[Û—ØØ[˜XÚÊ	ÙÜ›İ\İ×ØÛÛ\Û™[	ÊHÈØİˆÛÛ™\ÙÜ›İ\×İ×ØÛÛ\Û™[ÂˆÙ[™ØÛÛ™\ÜÙ[Xİ[Û‚ˆ[™‚ˆX[Ù×ØÛÛ™\˜YØXİ[Û—ØØ[˜XÚÊ	Ù˜XÙWİ×ÙÜ›İ\	ÊHÈØİˆÛÛ™\Ù˜XÙ\×İ×ÙÜ›İ\ˆÙ[™ØÛÛ™\ÜÙ[Xİ[Û‚ˆ[™‚ˆX[Ù×ØÛÛ™\œÙ]ÛÛ—ØÛÜÙYÈX[Ù×ØÛÛ™\Hš[BˆX[Ù×ØÛÛ™\œÚİÂˆ[™‚ˆYˆÙ[‹œ\™[Ù[]Y\×ÛÙŠJBˆHKœ\™[ˆYˆš\×ØOÊÚÙ]Ú\ÛÛ\Û™[Yš[š][ÛŠBˆ™[]Y\Âˆ[ÚYˆš\×ØOÊÚÙ]Ú\“[Ù[
-Bˆ™[]Y\Âˆ[ÚYˆœ™\ÜÛ™İÏÊ™[]Y\ÊBˆ™[]Y\Âˆ[ÙBˆ[Ù[˜Xİ]™WÙ[]Y\Âˆ[™ˆ™\ØİYBˆ[Ù[˜Xİ]™WÙ[]Y\Âˆ[™‚ˆYˆÙ[‹˜ÛÜWØ˜\ÚX×Ü›Ü\Y\ÊÜ˜Ëİ
-Bˆİ›˜[YHHÜ˜Ë›˜[YHYˆİœ™\ÜÛ™İÏÊ›˜[YOJH	‰ˆÜ˜Ëœ™\ÜÛ™İÏÊ›˜[YJBˆİ›^Y\ˆHÜ˜Ë›^Y\ˆYˆİœ™\ÜÛ™İÏÊ›^Y\JH	‰ˆÜ˜Ëœ™\ÜÛ™İÏÊ›^Y\ŠBˆİ›X]\šX[HÜ˜Ë›X]\šX[Yˆİœ™\ÜÛ™İÏÊ›X]\šX[JH	‰ˆÜ˜Ëœ™\ÜÛ™İÏÊ›X]\šX[
-BˆİšY[ˆHÜ˜ËšY[ÈYˆİœ™\ÜÛ™İÏÊšY[JH	‰ˆÜ˜Ëœ™\ÜÛ™İÏÊšY[ÊBˆİˆ™\ØİYBˆİˆ[™‚ˆÈÛÛ\Û™[OˆÜ›İ\¸n¬[™ÈğèXÚš0è›ˆYš[š][Ûˆ°èÈÜ›İ\xnæÚKˆÈØ]H1$pìÈ^ÙH[œİ[˜ÙH°ê›ˆ›Û™ÈÜ›İ\ˆÚ0í™È0èHYš[š][ÛˆønäXË‚ˆYˆÙ[‹˜ÛÛ\Û™[Ú[œİ[˜ÙWİ×ÙÜ›İ\
-[œİ
-Bˆ[ÈH\™[Ù[]Y\×ÛÙŠ[œİ
-BˆˆH[œİ˜[œÙ›Ü›X][Û‚ˆ˜[YHH[œİ›˜[YK×ÜÂˆ^Y\ˆH[œİ›^Y\ˆ™\ØİYHš[ˆX]H[œİ›X]\šX[™\ØİYHš[ˆY[ˆH[œİšY[È™\ØİYH˜[ÙB‚ˆÈH[Ë˜YÙÜ›İ\ˆ[›™\ˆHË™[]Y\Ë˜YÚ[œİ[˜ÙJ[œİ™Yš[š][Û‹QS•UJBˆ[›™\‹™^ÙBˆË˜[œÙ›Ü›X][ÛˆH‚ˆË›˜[YHH˜[YH[›\ÜÈ˜[YK™[\OÂˆË›^Y\ˆH^Y\ˆYˆ^Y\‚ˆË›X]\šX[HX]YˆX]ˆËšY[ˆHY[‚ˆ[œİ™\˜\ÙHBˆÂˆ[™‚ˆYˆÙ[‹˜ÛÛ™\ØÛÛ\Û™[×İ×ÙÜ›İ\Âˆ\™Ù]ÈH[Ù[œÙ[Xİ[Û‹×ØKœÙ[XİÈ_Kš\×ØOÊÚÙ]Ú\ÛÛ\Û™[[œİ[˜ÙJHBˆYˆ\™Ù]Ë™[\OÂˆRK›Y\ÜØYÙX›Ş
-	Ò0èŞHÚ8nã[ˆ0ë]š8n©]HÛÛ\Û™[‰ÊBˆ™]\›‚ˆ[™‚ˆ[Ù[œİ\ÛÜ\˜][ÛŠ	ÕHÛÛ\Û™[Ø[™ÈÜ›İ\	ËYJBˆ™]×Ú][\ÈH\™Ù]Ë›X\È_ÛÛ\Û™[Ú[œİ[˜ÙWİ×ÙÜ›İ\
-JHK˜ÛÛ\Xİˆ[Ù[œÙ[Xİ[Û‹˜ÛX\‚ˆ[Ù[œÙ[Xİ[Û‹˜Y
-™]×Ú][\ÊBˆ[Ù[˜ÛÛ[Z]ÛÜ\˜][Û‚ˆ™\ØİYHOˆ^ˆ[Ù[˜X›ÜÛÜ\˜][Ûˆ™\ØİYHš[ˆRK›Y\ÜØYÙX›Ş
-“8nåÚHÛÛ\Û™[8¡¤ˆÜ›İ\—ˆŞÙ^›Y\ÜØYÙ_HŠBˆ[™‚ˆYˆÙ[‹˜ÛÛ™\ÙÜ›İ\×İ×ØÛÛ\Û™[Âˆ\™Ù]ÈH[Ù[œÙ[Xİ[Û‹×ØKœÙ[XİÈ_Kš\×ØOÊÚÙ]Ú\‘Ü›İ\
-HBˆYˆ\™Ù]Ë™[\OÂˆRK›Y\ÜØYÙX›Ş
-	Ò0èŞHÚ8nã[ˆ0ë]š8n©]HÜ›İ\‰ÊBˆ™]\›‚ˆ[™‚ˆ[Ù[œİ\ÛÜ\˜][ÛŠ	ÕHÜ›İ\Ø[™ÈÛÛ\Û™[	ËYJBˆ™]×Ú][\ÈH\™Ù]Ë›X\Èßˆ˜[YHHË›˜[YK×0¢2ÒrçFõö6ö×öæVç@¢2ææÖRÒæÖRVæÆW72æÖRæV×G“ğ¢0¢VæBæ6ö×7@¢ÖöFVÂç6VÆV7F–öâæ6ÆV ¢ÖöFVÂç6VÆV7F–öâæFB†æWuö—FV×2¢ÖöFVÂæ6öÖÖ—Eö÷W&F–öà¢&W67VRÓâW€¢ÖöFVÂæ&÷'Eö÷W&F–öâ&W67VRæ–À¢T’æÖW76vV&÷‚‚$Î¹v’w&÷W(i"6ö×öæVçC¥Æâ7¶W‚æÖW76vWÒ"¢Væ@ ¢FVb6VÆbæ6öçfW'Eöf6W5÷Fõöw&÷W ¢6VÆV7FVBÒÖöFVÂç6VÆV7F–öâçFõö¢f6W2Ò6VÆV7FVBç6VÆV7B²ÆWÂRæ—5öò…6¶WF6‡W£¤f6R’Ğ ¢–bf6W2æV×G“ğ¢T’æÖW76vV&÷‚‚tŒ:7’6¸ÖâŞ¹—B†ş«v2æ†¸Rf6RG&öær<;–æræ~ºò>ª6æ‚6¸–æ‚>ºÖâr¢&WGW&à¢Væ@ ¢VçG2ÒÖöFVÂæ7F—fUöVçF—F–W0¢VæÆW72f6W2æÆÃò²ÆgÂbç&VçBÓÒVçG2Ğ¢T’æÖW76vV&÷‚‚t<:2f6Rª6’î«ÒG&öæræ~ºò>ª6æ‚IærŞ¹ò„7F—fR6öçFW‡B’âr¢&WGW&à¢Væ@ ¢2FŒ:¦Ò<:2>ªæ‚&œ:¦â>ºvRŞ«wBI¸2w&÷W¶Œ;Fær.¸²F†«÷RŒ:Ææ‚¸Ö2à¢—FV×2Òf6W2æfÆEöÖ²ÆgÂ¶eÒ²bæVFvW2ÒçVæ— ¢ÖöFVÂç7F'Eö÷W&F–öâ‚uEBÒf6R6ærw&÷WrÂG'VR¢rÒVçG2æFEöw&÷W†—FV×2¢rææÖRÒtf6Rw&÷Wp¢ÖöFVÂç6VÆV7F–öâæ6ÆV ¢ÖöFVÂç6VÆV7F–öâæFB†r¢ÖöFVÂæ6öÖÖ—Eö÷W&F–öà¢&W67VRÓâW€¢ÖöFVÂæ&÷'Eö÷W&F–öâ&W67VRæ–À¢T’æÖW76vV&÷‚‚$Î¹v’f6R(i"w&÷W¥Æâ7¶W‚æÖW76vWÒ"¢Væ@ ¢FVb6VÆbç6VæEö6öçfW'E÷6VÆV7F–öà¢&WGW&âVæÆW72F–Æöuö6öçfW'@¢6VÂÒÖöFVÂç6VÆV7F–öâçFõö¢FFÒ°¢w&÷W¢6VÂæ6÷VçB²ÆWÂRæ—5öò…6¶WF6‡W£¤w&÷W’ÒÀ¢6ö×öæVçC¢6VÂæ6÷VçB²ÆWÂRæ—5öò…6¶WF6‡W£¤6ö×öæVçD–ç7Fæ6R’ÒÀ¢f6S¢6VÂæ6÷VçB²ÆWÂRæ—5öò…6¶WF6‡W£¤f6R’Ğ¢Ğ¢F–Æöuö6öçfW'BæW†V7WFU÷67&—B‚%EBç6WD–æfò‚7´¥4ôâævVæW&FR†FF—Ò“²"¢&W67VP¢Væ@ ¢FVb6VÆbæ6öçfW'Eö‡FÖÀ¢ÃÇä…DÔÀ¢ÂFö7G—R‡FÖÃà¢Æ‡FÖÃà¢Æ†VCà¢ÆÖWF6†'6WCÒ%UDbÓ‚#à¢Ç7G–ÆSà¢&öG—¶föçBÖfÖ–Ç“¤&–Ã¶Ö&v–ã£¶&6¶w&÷VæC¢6cFcVcs¶6öÆ÷#¢3##'Ğ¢æ&÷‡·FF–æs£G‡Ğ¢ƒ'¶föçB×6—¦S£‡ƒ¶Ö&v–ã£'‡Ğ¢æ–æf÷¶&6¶w&÷VæC§v†—FS¶&÷&FW"×&F—W3£wƒ·FF–æs£ƒ¶Ö&v–âÖ&÷GFöÓ£'ƒ¶&÷&FW#£‚6öÆ–B6FFGĞ¢'WGFöç·v–GFƒ£S¶Ö&v–ã£W‚·FF–æs£ƒ¶&÷&FW#£¶&÷&FW"×&F—W3£wƒ¶&6¶w&÷VæC¢3&Cf6Fc¶6öÆ÷#§v†—FS¶7W'6÷#§ö–çFW#¶föçB×6—¦S£G‡Ğ¢'WGFöâæw&VVç¶&6¶w&÷VæC¢3s†F'Ò'WGFöâæ÷&ævW¶&6¶w&÷VæC¢63#fÒ'WGFöâæw&—¶&6¶w&÷VæC¢3ccgĞ¢æ†–çG¶föçB×6—¦S£'ƒ¶6öÆ÷#¢3ccc¶Ö&v–â×F÷£ƒ¶Æ–æRÖ†V–v‡C£ãWĞ¢Â÷7G–ÆSà¢Âö†VCà¢Æ&öG“à¢ÆF—b6Æ73Ò&&÷‚#à¢Æƒ#åEBÒ6‡W¸6âI¹V’I¹’Lkº6æsÂöƒ#à¢ÆF—b6Æ73Ò&–æfò"–CÒ&–æfò#ìIærI¸Ö26VÆV7F–öâââãÂöF—cà¢Æ'WGFöâ6Æ73Ò&w&’"öæ6Æ–6³Ò'6¶WF6‡Wç–6µöF—&V7B‚’#ä6¸Öâw&÷Wô6ö×öæVçBG.»2F«÷„7G&Â“Âö'WGFöãà¢Æ'WGFöâ6Æ73Ò&w&’"öæ6Æ–6³Ò'6¶WF6‡Wç&Vg&W6‚‚’#ä>ª×æª×B6VÆV7F–öãÂö'WGFöãà¢Æ'WGFöâöæ6Æ–6³Ò'6¶WF6‡Wæ6ö×öæVçE÷Fõöw&÷W‚’#ä6ö×öæVçB(i"w&÷WÂö'WGFöãà¢Æ'WGFöâ6Æ73Ò&w&VVâ"öæ6Æ–6³Ò'6¶WF6‡Wæw&÷W÷Fõö6ö×öæVçB‚’#äw&÷W(i"6ö×öæVçCÂö'WGFöãà¢Æ'WGFöâ6Æ73Ò&÷&ævR"öæ6Æ–6³Ò'6¶WF6‡Wæf6U÷Fõöw&÷W‚’#äf6R(i"w&÷WÂö'WGFöãà¢ÆF—b6Æ73Ò&†–çB#à¢f6R(i"w&÷WL;–ær<:2f6RIær6¸ÖâG&öær7F—fR6öçFW‡BãÆ'#à¢Ş¹v’Î¸væ‚Ikº62|;6’G&öærŞ¹—BVæFòà¢ÂöF—cà¢ÂöF—cà¢Ç67&—Cà¢6öç7BEC×·6WD–æfò†B—°¢Fö7VÖVçBævWDVÆVÖVçD'”–B‚v–æfòr’æ–ææW$…DÔÂĞ¢Æ#ìIær6¸Öã£Âö#âG¶Bæw&÷WÒw&÷Wfæ'7²Âfæ'7²G¶Bæ6ö×öæVçGÒ6ö×öæVçBfæ'7²Âfæ'7²G¶Bæf6WÒf6V°¢×Ó°¢v–æF÷ræFDWfVçDÆ—7FVæW"‚vÆöBrÂ‚“Óç6¶WF6‡Wç&VG’‚’“°¢Â÷67&—Cà¢Âö&öG“à¢Âö‡FÖÃà¢…DÔÀ¢Væ@ ¢2ÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒĞ¢2FööÂ6¸ÖâG.»2F«÷.«ær6‡^¹—B²7G&À¢2ÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒĞ ¢6Æ72F—&V7E–6µFööÀ¢GG%ö66W76÷"¦ÖöFP ¢FVb–æ—F–Æ—¦P¢ÖöFRÒ§&VæÖP¢Væ@ ¢FVb7F—fFP¢6¶WF6‡Wæ7F—fUöÖöFVÂæ7F—fU÷f–Wræ–çfÆ–FFP¢Væ@ ¢FVbFV7F—fFR‡f–Wr¢f–Wræ–çfÆ–FFR–bf–Wp¢Væ@ ¢FVböä6æ6VÂ…÷&V6öâÂf–Wr¢6¶WF6‡Wæ7F—fUöÖöFVÂç6VÆV7E÷FööÂ†æ–Â¢f–Wræ–çfÆ–FFR–bf–Wp¢Væ@ ¢FVböäÄ'WGFöäF÷vâ†fÆw2Â‚Â’Âf–Wr¢‚Òf–Wrç–6µö†VÇW ¢‚æFõ÷–6²‡‚Â’ ¢–6¶VBÒæ–À ¢2j÷RFœ:¦â–ç7Fæ6Röw&÷W~ªvâI¸6Ò6Æ–6²G&öær–6²F‚à¢&Vv–à¢–b‚æ6÷VçBâ ¢ƒââç‚æ6÷VçB’æV6‚FòÆ—À¢F‚Ò‚çF…öB†’¢æW‡BVæÆW72F€¢6æF–FFRÒF‚ç&WfW'6Ræf–æBFòÆö&§À¢ö&¢æ—5öò…6¶WF6‡W£¤w&÷W’ÇÂö&¢æ—5öò…6¶WF6‡W£¤6ö×öæVçD–ç7Fæ6R¢Væ@¢–b6æF–FFP¢–6¶VBÒ6æF–FFP¢'&V°¢Væ@¢Væ@¢Væ@¢&W67VP¢Væ@ ¢–6¶VBÇÃÒ‚æ&W7E÷–6¶V@¢VæÆW72–6¶VBb`¢‡–6¶VBæ—5öò…6¶WF6‡W£¤w&÷W’ÇÂ–6¶VBæ—5öò…6¶WF6‡W£¤6ö×öæVçD–ç7Fæ6R’¢T’æ&VW ¢&WGW&à¢Væ@ ¢6VÂÒ6¶WF6‡Wæ7F—fUöÖöFVÂç6VÆV7F–öà¢7G&ÂÒ†fÆw2b4õ•ôÔôD”d”U%ôÔ4²’Ò&W67VRfÇ6P ¢–b7G&À¢–b6VÂæ–æ6ÇVFSò‡–6¶VB¢6VÂç&VÖ÷fR‡–6¶VB¢VÇ6P¢6VÂæFB‡–6¶VB¢Væ@¢VÇ6P¢6VÂæ6ÆV ¢6VÂæFB‡–6¶VB¢Væ@ ¢G&åGVäæö•F†C£¥FÕ&òç6VæE÷&VæÖU÷6VÆV7F–öâ–bÖöFRÓÒ§&VæÖP¢G&åGVäæö•F†C£¥FÕ&òç6VæEö6öçfW'E÷6VÆV7F–öâ–bÖöFRÓÒ¦6öçfW'@ ¢–bÖöFRÓÒ§F†–6¶æW70¢–G2Ò6VÂçFõöç6VÆV7B²ÆWÀ¢Ræ—5öò…6¶WF6‡W£¤w&÷W’ÇÂRæ—5öò…6¶WF6‡W£¤6ö×öæVçD–ç7Fæ6R¢ÒæÖ²ÆWÂG&åGVäæö•F†C£¥FÕ&òæVçF—G•ö¶W’†R’Ğ¢–bG&åGVäæö•F†C£¥FÕ&òæ–ç7Fæ6U÷f&–&ÆUövWBƒ¤F–Æöu÷F†–6¶æW72¢§2Ò%EBæ6†V6¶VCÖæWr6WB‚7´¥4ôâævVæW&FR†–G2æÖ‚c§Fõ÷2’—Ò“·&VæFW"‚“² ¢G&åGVäæö•F†C£¥FÕ&òæ–ç7Fæ6U÷f&–&ÆUövWBƒ¤F–Æöu÷F†–6¶æW72’æW†V7WFU÷67&—B†§2’&W67VRæ–À¢Væ@¢Væ@ ¢f–Wræ–çfÆ–FFP¢Væ@ ¢FVbvWDÖVçR†ÖVçR¢ÖVçRæFEö—FVÒ‚uF†ü:B6«òI¹’6¸ÖâEBr’°¢6¶WF6‡Wæ7F—fUöÖöFVÂç6VÆV7E÷FööÂ†æ–Â¢Ğ¢Væ@¢Væ@ ¢2ÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒĞ¢2L8Ô4‚º%l8òÔTåRòDôôÄ$"E.ªdâE^ªDâî¹„’DªE@¢2ÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒÒĞ ¢FVb6VÆbæ–6öå÷F‚†æÖRÂ6—¦R¢f–ÆRæ¦ö–â…õöF—%õòÂv–6öç2rÂ"7¶æÖWÒç7fr"¢Væ@ ¢FVb6VÆbæ'V–ÆEö6öÖÖæG0¢&WGW&â6öÖÖæG2–b6öÖÖæG0 ¢6ÖE÷F†–6¶æW72ÒT“£¤6öÖÖæBææWr‚uL:ÆÒNªVÒò>ºÖI¹’L:’r’Fğ¢÷Vå÷F†–6¶æW75öF–Æöp¢Væ@¢6ÖE÷F†–6¶æW72çFööÇF—ÒuL:ÆÒNªVÒò>ºÖI¹’L:’p¢6ÖE÷F†–6¶æW72ç7FGW5ö&%÷FW‡BÒu\:—BNªVÒÂ6¸ÖâŞ¹—B†ş«v2æ†¸RNªVÒl:I¹V’I¹’L:’âp ¢6ÖE÷&VæÖRÒT“£¤6öÖÖæBææWr‚|I¹V’L:¦âNªVÒòw&÷Wr’Fğ¢÷Vå÷&VæÖUöF–Æöp¢Væ@¢6ÖE÷&VæÖRçFööÇF—Ò|I¹V’L:¦âNªVÒòw&÷Wò6ö×öæVçBp¢6ÖE÷&VæÖRç7FGW5ö&%÷FW‡BÒ|I¹V’L:¦âN»FòÂF¸âN¹Âª×RN¹l:I¹V’L:¦âŒ:ærÆşªBâp ¢6ÖEö6öçfW'BÒT“£¤6öÖÖæBææWr‚t6‡W¸6âI¹V’w&÷Wò6ö×öæVçBr’Fğ¢÷Våö6öçfW'EöF–Æöp¢Væ@¢6ÖEö6öçfW'BçFööÇF—Òt6‡W¸6âI¹V’w&÷Wò6ö×öæVçBòf6Rp¢6ÖEö6öçfW'Bç7FGW5ö&%÷FW‡BÒt6ö×öæVçB(i"w&÷WÂw&÷W(i"6ö×öæVçBÂf6R(i"w&÷Wâp ¢°¢F†–6¶æW73¢²wFÕöf–æBrÂ6ÖE÷F†–6¶æW75ÒÀ¢&VæÖS¢²wFÕ÷&VæÖRrÂ6ÖE÷&VæÖUÒÀ¢6öçfW'C¢²wFÕö6öçfW'BrÂ6ÖEö6öçfW'EĞ¢ÒæV6…÷fÇVRFòÆ–6öåöæÖRÂ6ÖGÀ¢–6öâÒ–6öå÷F‚†–6öåöæÖRÂæ–Â¢6ÖBç6ÖÆÅö–6öâÒ–6öâ–bf–ÆRæf–ÆSò†–6öâ¢6ÖBæÆ&vUö–6öâÒ–6öâ–bf–ÆRæf–ÆSò†–6öâ¢Væ@ ¢6öÖÖæG2Ò°¢F†–6¶æW73¢6ÖE÷F†–6¶æW72À¢&VæÖS¢6ÖE÷&VæÖRÀ¢6öçfW'C¢6ÖEö6öçfW'@¢Ğ¢Væ@ ¢FVb6VÆbæFEöÖVçUö—FV×2†ÖVçR¢&WGW&âfÇ6RVæÆW72ÖVçP¢&WGW&âG'VR–bÖVçUö–ç7FÆÆV@ ¢6öÖÖæG2Ò'V–ÆEö6öÖÖæG0¢&Vv–à¢ÖVçRæFE÷6W&F÷ ¢&W67VP¢Væ@¢ÖVçRæFEö—FVÒ†6öÖÖæG5³§F†–6¶æW75Ò¢ÖVçRæFEö—FVÒ†6öÖÖæG5³§&VæÖUÒ¢ÖVçRæFEö—FVÒ†6öÖÖæG5³¦6öçfW'EÒ¢ÖVçUö–ç7FÆÆVBÒG'VP¢G'VP¢&W67VRÓâW€¢v&â%µG&åGVäæö•F†C£¥FÕ&õÒFEöÖVçUö—FV×3¢7¶W‚æ6Æ77Ó¢7¶W‚æÖW76vWÒ ¢fÇ6P¢Væ@ ¢FVb6VÆbæFE÷FööÆ&%ö—FV×2‡FööÆ&"¢&WGW&âfÇ6RVæÆW72FööÆ& ¢&WGW&âG'VR–bFööÆ&%ö–ç7FÆÆV@ ¢6öÖÖæG2Ò'V–ÆEö6öÖÖæG0¢&Vv–à¢FööÆ&"æFE÷6W&F÷ ¢&W67VP¢Væ@¢FööÆ&"æFEö—FVÒ†6öÖÖæG5³§F†–6¶æW75Ò¢FööÆ&"æFEö—FVÒ†6öÖÖæG5³§&VæÖUÒ¢FööÆ&"æFEö—FVÒ†6öÖÖæG5³¦6öçfW'EÒ¢FööÆ&%ö–ç7FÆÆVBÒG'VP¢G'VP¢&W67VRÓâW€¢v&â%µG&åGVäæö•F†C£¥FÕ&õÒFE÷FööÆ&%ö—FV×3¢7¶W‚æ6Æ77Ó¢7¶W‚æÖW76vWÒ ¢fÇ6P¢Væ@ ¢FVb6VÆbç&W6WE÷V•öfÆw2¢ÖVçUö–ç7FÆÆVBÒfÇ6P¢FööÆ&%ö–ç7FÆÆVBÒfÇ6P¢G'VP¢Væ@ ¢Væ@¦Væ@ 
+    def reset_ui_flags!
+      @menu_installed = false
+      @toolbar_installed = false
+      true
+    end
+  end
+end

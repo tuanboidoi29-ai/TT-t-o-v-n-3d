@@ -1,0 +1,15 @@
+TRẦN TUẤN NỘI THẤT 1.9.102 — THÊM 3 CÔNG CỤ TẤM PRO
+
+Bản này giữ nguyên các chức năng của 1.9.101 và thêm 3 chức năng độc lập vào cùng menu/toolbar TRẦN TUẤN NỘI THẤT:
+1. Tìm tấm / Sửa độ dày: quét Group/Component trong model, tìm theo độ dày, chọn/zoom và đổi độ dày hàng loạt.
+2. Đổi tên tấm / Group / Component: đổi tên tự do, tiền tố/hậu tố, hỗ trợ nhiều đối tượng và đánh số.
+3. Chuyển đổi Group / Component / Face: Component → Group, Group → Component, Face → Group.
+
+Các thao tác sửa hình học được gói trong operation để Ctrl+Z hoàn tác. Công cụ không tự chạy khi mở SketchUp.
+
+CẬP NHẬT
+Mở Extensions > TRẦN TUẤN NỘI THẤT > Kiểm Tra Cập Nhật. Bản 1.9.101 sẽ nhận 1.9.102 từ update_latest.json.
+
+LƯU Ý
+- Độ dày được nhận theo kích thước nhỏ nhất của Group/Component.
+- Nên thử trên bản sao model trước khi áp dụng hàng loạt cho file công trình quan trọng.
