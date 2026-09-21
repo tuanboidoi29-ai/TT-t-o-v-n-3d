@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.101",
+  "version": "1.9.102",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Mỗi mặt một trang A3 (12 trang hình chiếu), xuất trực tiếp không bắt xem trước, một hộp chọn nơi lưu, một save_copy SKP. Ưu tiên Raster/Medium. LayOut giữ thư mục SKP đi kèm. Chưa đo tốc độ trên SketchUp Windows.",
+  "notes": "Thêm 3 công cụ Tấm PRO trực tiếp trong TRẦN TUẤN NỘI THẤT: Tìm tấm/Sửa độ dày, Đổi tên tấm/Group/Component, Chuyển đổi Component↔Group và Face→Group. Giữ nguyên các chức năng 1.9.101.",
   "files": [
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -14,7 +14,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "86a9d42d14872df83caaaa41cd8d2269d4f555b53da0b3264d1ba19d4fe5d9f2"
+      "sha256": "cab6aa46a3e6daf39be83715167651e910f7c91ac767da985ed83ae1ed35c231"
     },
     {
       "path": "tran_tuan_noi_that/board_tool.rb",
@@ -24,7 +24,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "6a8918e2d00422d22512084665870ee43f6181cac77e08430b1b79b56135b0f7"
+      "sha256": "8fdf4a983f040fb21f5bdc87081dbf95d0f21260ce43100b46376b28566e0037"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -260,6 +260,26 @@
       "path": "tran_tuan_noi_that/updater.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/updater.rb",
       "sha256": "e6d08afeac469dac28d0d8c21c77574af8926deaa148eda0f6036346bb17989e"
+    },
+    {
+      "path": "tran_tuan_noi_that/tam_pro.rb",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/tam_pro.rb",
+      "sha256": "4e28b6d2983b29b9e726a86b14e91d3571eeb2645ca610dea59a937faa57dc59"
+    },
+    {
+      "path": "tran_tuan_noi_that/icons/tam_find.svg",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/icons/tam_find.svg",
+      "sha256": "a37abe62b02e9a7016fe9802ef81a5ed66d4752a6458df54e708960569bc5008"
+    },
+    {
+      "path": "tran_tuan_noi_that/icons/tam_rename.svg",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/icons/tam_rename.svg",
+      "sha256": "b7d7d0867b59334c57b8868a2b14ee2201d0c316e94a45a127389379f20adc99"
+    },
+    {
+      "path": "tran_tuan_noi_that/icons/tam_convert.svg",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/icons/tam_convert.svg",
+      "sha256": "8623f81fd61acdeb5b5278cc8fc4445991e7ff8ae863349c4122893db74d3e43"
     }
   ],
   "stretch_mode_version": "1.0.1"
