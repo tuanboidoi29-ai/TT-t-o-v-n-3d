@@ -49,15 +49,24 @@ module TranTuanNoiThat
 
     def fetch_manifest
       errors = []
+      candidates = []
+
       [RAW_MANIFEST_URL, API_MANIFEST_URL].each do |url|
         begin
           data = decode_json_payload(get(fresh_url(url)))
           validate_manifest(data)
-          return data
+          candidates << data
         rescue StandardError => error
-          errors << friendly_error(error)
+          errors << "#{url.include?('api.github.com') ? 'API' : 'RAW'}: #{friendly_error(error)}"
         end
       end
+
+      unless candidates.empty?
+        # Không tin nguồn trả về đầu tiên: RAW/proxy có thể đang giữ manifest cũ.
+        # Luôn chọn version cao nhất giữa RAW và GitHub API.
+        return candidates.max_by { |data| normalize(data.fetch('version')) }
+      end
+
       raise "Không lấy được cập nhật GitHub.\n#{errors.join("\n")}"
     end
 
@@ -241,7 +250,7 @@ module TranTuanNoiThat
       raise 'Máy chủ cập nhật không hợp lệ.' unless %w[raw.githubusercontent.com api.github.com].include?(uri.host)
 
       headers = {
-        'User-Agent' => 'TranTuanNoiThat-SketchUp/1.9.113',
+        'User-Agent' => 'TranTuanNoiThat-SketchUp/1.9.114',
         'Cache-Control' => 'no-cache, no-store, max-age=0',
         'Pragma' => 'no-cache'
       }
