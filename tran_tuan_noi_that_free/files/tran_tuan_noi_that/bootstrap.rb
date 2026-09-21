@@ -11,7 +11,7 @@ module TranTuanNoiThat
   NAME = 'TRẦN TUẤN NỘI THẤT'.freeze unless const_defined?(:NAME, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.115'.freeze
+  VERSION = '1.9.116'.freeze
 
   class << self
     def setting(key, default = nil)
@@ -88,7 +88,6 @@ module TranTuanNoiThat
         rename_ui
         rename_tool
         tam_pro
-        cam_chot_tool
         box_tool
         drawer_tool
         round_tool
@@ -141,7 +140,7 @@ module TranTuanNoiThat
       install_cabinet_door_ui
       install_rename_ui
       install_tam_pro_ui
-      install_cam_chot_ui
+      retire_cam_chot_ui
       install_round_ui
       install_stretch_mode_ui
       install_grain_ui
@@ -191,18 +190,22 @@ module TranTuanNoiThat
       false
     end
 
-    def install_cam_chot_ui
-      return false unless defined?(TranTuanNoiThat::CamChot)
-      @cam_chot_cmd ||= command(
-        'Liên Kết CAM - CHỐT',
-        'cam_chot.svg',
-        'Click tấm CAM · tự hiện cạnh giao · click cạnh để tạo · CAM Ø15 / B34 · TAB đảo mặt'
-      ) { CamChot.show }
-      add_feature_command_once(@cam_chot_cmd, :cam_chot_menu_installed)
+    def retire_cam_chot_ui
+      # SketchUp không hỗ trợ gỡ item đã thêm khỏi toolbar/menu trong phiên hiện tại.
+      # Vô hiệu hóa command cũ ngay; sau khi mở lại SketchUp nó sẽ biến mất hoàn toàn.
+      if @cam_chot_cmd
+        @cam_chot_cmd.tooltip = 'CAM - CHỐT (ĐÃ BỎ)'
+        @cam_chot_cmd.status_bar_text = 'Chức năng CAM - CHỐT đã được gỡ khỏi TRẦN TUẤN NỘI THẤT.'
+        @cam_chot_cmd.set_validation_proc { MF_GRAYED }
+      end
+
+      begin
+        FileUtils.rm_f(File.join(ROOT, 'cam_chot_tool.rb'))
+        FileUtils.rm_f(File.join(ROOT, 'icons', 'cam_chot.svg'))
+      rescue StandardError => error
+        puts "[TT retire CAM] #{error.class}: #{error.message}"
+      end
       true
-    rescue StandardError => error
-      puts "[TT UI CamChot] #{error.class}: #{error.message}"
-      false
     end
 
     def install_round_ui
