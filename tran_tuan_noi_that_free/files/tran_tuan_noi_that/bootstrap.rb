@@ -11,7 +11,7 @@ module TranTuanNoiThat
   NAME = 'TRẦN TUẤN NỘI THẤT'.freeze unless const_defined?(:NAME, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.109'.freeze
+  VERSION = '1.9.110'.freeze
 
   class << self
     def setting(key, default = nil)
@@ -196,7 +196,7 @@ module TranTuanNoiThat
       @cam_chot_cmd ||= command(
         'Liên Kết CAM - CHỐT',
         'cam_chot.svg',
-        'Bắt 2 tấm vuông góc · CAM Ø15 / B34 · TAB đảo mặt CAM · ENTER tạo'
+        'Click tấm CAM · tự hiện cạnh giao · click cạnh để tạo · CAM Ø15 / B34 · TAB đảo mặt'
       ) { CamChot.show }
       add_feature_command_once(@cam_chot_cmd, :cam_chot_menu_installed)
       true
