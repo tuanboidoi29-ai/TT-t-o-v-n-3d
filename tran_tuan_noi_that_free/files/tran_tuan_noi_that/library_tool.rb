@@ -524,7 +524,7 @@ module TranTuanNoiThat
           remote_items.each do |item|
             validated = validate_remote_item(item, source_name)
             old = items[validated['id']]
-            if old.nil? || version_tuple(validated['version']) > version_tuple(old['version'])
+            if old.nil? || (version_tuple(validated['version']) <=> version_tuple(old['version'])) > 0
               items[validated['id']] = validated
             end
           end
@@ -822,7 +822,9 @@ module TranTuanNoiThat
         model = Sketchup.active_model
         model.start_operation('TT - Đặt mẫu thư viện ngoài', true)
         started = true
-        instance = model.active_entities.add_instance(@definition, Geom::Transformation.translation(@point))
+        min = @definition.bounds.min
+        anchor = Geom::Vector3d.new(@point.x - min.x, @point.y - min.y, @point.z - min.z)
+        instance = model.active_entities.add_instance(@definition, Geom::Transformation.translation(anchor))
         instance.set_attribute(DICT, 'source', @definition.get_attribute(DICT, 'source', 'external'))
         instance.set_attribute(DICT, 'remote_id', @definition.get_attribute(DICT, 'remote_id', nil))
         instance.set_attribute(DICT, 'remote_version', @definition.get_attribute(DICT, 'remote_version', nil))
