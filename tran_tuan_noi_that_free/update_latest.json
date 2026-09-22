@@ -4,7 +4,7 @@
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Thay toàn bộ VẼ CÁNH TỦ cũ bằng TẠO CÁNH CHUẨN: rê chuột tự nhận Face/khoang, tự bắt 2 mép ngoài + 1 trung điểm làm tâm chia, preview 3D liên tục theo chuột, click tạo cánh thật và tiếp tục bắt khoang kế tiếp; chia 1–8 cánh Dọc/Ngang; TAB mở đầy đủ thông số, SHIFT đảo hướng dày. Đổi 'Đổi Tên + Thống Kê' thành 'THỐNG KÊ VÁN'. Thiết kế lại toàn bộ icon toolbar theo một bộ nhận diện thống nhất. Xóa source/icon/test của Vẽ Cánh Tủ cũ.",
+  "notes": "Thay toàn bộ VẼ CÁNH TỦ cũ bằng TẠO CÁNH CHUẨN: rê chuột tự nhận Face/khoang, tự bắt 2 mép ngoài + 1 trung điểm làm tâm chia, preview 3D liên tục theo chuột, click tạo cánh thật và tiếp tục bắt khoang kế tiếp; chia 1–8 cánh Dọc/Ngang; TAB mở đầy đủ thông số, SHIFT đảo hướng dày. Đổi 'Đổi Tên + Thống Kê' thành 'THỐNG KÊ VÁN'. Thiết kế lại toàn bộ icon toolbar theo một bộ nhận diện thống nhất. Xóa source/icon/test của Vẽ Cánh Tủ cũ. Sửa kênh cập nhật: bỏ remove_files/remove_dirs để tương thích tối đa với updater cũ; bootstrap 1.9.129 tự dọn tính năng cũ khi nạp.",
   "files": [
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -308,18 +308,5 @@
     }
   ],
   "stretch_mode_version": "1.0.1",
-  "remove_files": [
-    [
-      "tran_tuan_noi_that/cam_chot_tool.rb",
-      "tran_tuan_noi_that/icons/cam_chot.svg",
-      "tran_tuan_noi_that/library_tool.rb",
-      "tran_tuan_noi_that/icons/library.svg",
-      "tran_tuan_noi_that/cabinet_door_tool.rb",
-      "tran_tuan_noi_that/icons/cabinet_door.svg",
-      "tran_tuan_noi_that/icons/rename.svg"
-    ]
-  ],
-  "remove_dirs": [
-    "tran_tuan_noi_that/library_cache"
-  ]
+  "remove_files": []
 }
