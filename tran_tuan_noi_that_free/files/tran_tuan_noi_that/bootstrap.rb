@@ -11,7 +11,7 @@ module TranTuanNoiThat
   NAME = 'TRẦN TUẤN NỘI THẤT'.freeze unless const_defined?(:NAME, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.124'.freeze
+  VERSION = '1.9.125'.freeze
 
   class << self
     def setting(key, default = nil)
@@ -225,9 +225,9 @@ module TranTuanNoiThat
     def install_scale_corner_lock_ui
       return false unless defined?(TranTuanNoiThat::ScaleCornerLock)
       @scale_corner_lock_cmd ||= command(
-        'Khóa Scale 4 Cạnh',
+        'Scale 4 Cạnh',
         'scale_corner_lock.svg',
-        'Hiện 4 cạnh Trái/Phải/Trên/Dưới · khóa 1 cạnh và kéo cạnh đối diện để Scale 1 trục'
+        'Hiện 4 cạnh Trái/Phải/Trên/Dưới · kéo trực tiếp 1 cạnh, cạnh đối diện tự khóa'
       ) { ScaleCornerLock.activate }
       add_feature_command_once(@scale_corner_lock_cmd, :scale_corner_lock_menu_installed)
       true
