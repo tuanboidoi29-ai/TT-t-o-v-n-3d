@@ -1,0 +1,28 @@
+{
+  "name": "TRẦN TUẤN - Registry Thư Viện Nội Thất",
+  "version": "1.0.0",
+  "updated_at": "2026-09-22",
+  "sources": [],
+  "platforms": [
+    {
+      "name": "3D Warehouse",
+      "status": "adapter_required",
+      "note": "Cần nguồn/API hoặc link tải hợp lệ; không tự vượt đăng nhập."
+    },
+    {
+      "name": "Sketchfab",
+      "status": "adapter_required",
+      "note": "Cần API/token hoặc link tải mà người dùng có quyền truy cập."
+    },
+    {
+      "name": "BIMobject",
+      "status": "adapter_required",
+      "note": "Chỉ nhập từ link/API được nền tảng cho phép."
+    },
+    {
+      "name": "Thư viện SKP riêng",
+      "status": "supported",
+      "note": "Có thể đăng ký manifest HTTPS trực tiếp vào registry."
+    }
+  ]
+}
