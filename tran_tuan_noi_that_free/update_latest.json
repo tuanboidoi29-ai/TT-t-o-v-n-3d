@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.127",
+  "version": "1.9.128",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Bổ sung Explode vào CHUYỂN ĐỔI: thêm EXPLODE GROUP và EXPLODE COMPONENT, hỗ trợ Ctrl chọn nhiều đối tượng và xử lý hàng loạt trong 1 operation/1 Undo. Sau Explode tự chọn lại các entity vừa bung ra. Giữ nguyên Component→Group, Group→Component, Face→Group và Scale 4 Cạnh kéo bằng trung điểm.",
+  "notes": "Thêm chức năng mới BẢNG BÁO GIÁ, tích hợp từ file baogia.rb người dùng cung cấp. Giữ nguyên công thức tính nguồn; hỗ trợ thêm/xóa hạng mục, lưu/mở JSON, chiết khấu, VAT, thông tin ngân hàng/ĐVT, QR VietQR, xuất PDF bằng Edge/Chrome headless và chia sẻ PDF qua Zalo. Có icon/menu riêng trong TRẦN TUẤN NỘI THẤT và không tự mở lúc khởi động.",
   "files": [
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -14,7 +14,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "eb19a487f88bb56a3c0c3bf9ffee7f08610a1bc536caadbf935fc888476f70b3"
+      "sha256": "0f97d845f2624fd048f4ac967a6973876426a41cb90686b439efc7766474768d"
     },
     {
       "path": "tran_tuan_noi_that/board_tool.rb",
@@ -24,7 +24,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "4ba55b1ff6ee80b357b6f51602a1a401859da702c5cf472bc2ea18ace8da8d09"
+      "sha256": "4c8afd6380622e16a65a2632043128644cc01f216ee6f726b66b7c8e77c46978"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -259,12 +259,12 @@
     {
       "path": "tran_tuan_noi_that/updater.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/updater.rb",
-      "sha256": "d2573b0d7e58f389485a50df030b9f95bc4cac0e9d71527808861bfc37e83316"
+      "sha256": "ebc482ce9b08c39c4901a74c91ea77c38a857f2d420a21da22949d6b6ce445cc"
     },
     {
       "path": "tran_tuan_noi_that/tam_pro.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/tam_pro.rb",
-      "sha256": "a680a3fe8d92091328f52c434b73387417a5d213e11348a6f98e5981563a41a5"
+      "sha256": "c81f96a9762203068821c347c60037eb287aeac833b472bb974dd75fa819eb02"
     },
     {
       "path": "tran_tuan_noi_that/icons/tam_find.svg",
@@ -284,12 +284,22 @@
     {
       "path": "tran_tuan_noi_that/scale_corner_lock.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/scale_corner_lock.rb",
-      "sha256": "f5d7ecaaaacf5e75ab0ff9d0c88a190dd4a4535bf5dcb05ea5942e4a4140d67a"
+      "sha256": "b683109b3199c617fd484d18f5c45552c141543531ef4c0f75be3218d9753f8e"
     },
     {
       "path": "tran_tuan_noi_that/icons/scale_corner_lock.svg",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/icons/scale_corner_lock.svg",
       "sha256": "6157e424f2f80e86ec61429ce8105611ca1d7cf6962e621f8848fb2cd53f4795"
+    },
+    {
+      "path": "tran_tuan_noi_that/bao_gia_tool.rb",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bao_gia_tool.rb",
+      "sha256": "374c61aca1f251973ce20d324cc0d6acea413f3aa85778ebe417b986489cab74"
+    },
+    {
+      "path": "tran_tuan_noi_that/icons/bao_gia.svg",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/icons/bao_gia.svg",
+      "sha256": "5dab97a9aa50d3a076eed08134f1f9e171a1e3f3045cade00792175d14bad449"
     }
   ],
   "stretch_mode_version": "1.0.1",
