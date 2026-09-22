@@ -1,28 +1,39 @@
 {
   "name": "TRẦN TUẤN - Registry Thư Viện Nội Thất",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "updated_at": "2026-09-22",
   "sources": [],
   "platforms": [
     {
-      "name": "3D Warehouse",
-      "status": "adapter_required",
-      "note": "Cần nguồn/API hoặc link tải hợp lệ; không tự vượt đăng nhập."
-    },
-    {
-      "name": "Sketchfab",
-      "status": "adapter_required",
-      "note": "Cần API/token hoặc link tải mà người dùng có quyền truy cập."
-    },
-    {
-      "name": "BIMobject",
-      "status": "adapter_required",
-      "note": "Chỉ nhập từ link/API được nền tảng cho phép."
-    },
-    {
-      "name": "Thư viện SKP riêng",
+      "id": "tt_manifest",
+      "name": "Nguồn Manifest SKP",
       "status": "supported",
-      "note": "Có thể đăng ký manifest HTTPS trực tiếp vào registry."
+      "mode": "direct_sync",
+      "note": "Đồng bộ trực tiếp toàn bộ model SKP từ manifest HTTPS có version + SHA256."
+    },
+    {
+      "id": "3dwarehouse",
+      "name": "3D Warehouse",
+      "status": "login_required",
+      "mode": "download_folder",
+      "home_url": "https://3dwarehouse.sketchup.com/",
+      "note": "Đăng nhập Trimble và tải SKP; TT tự quét thư mục Downloads để đưa model vào thư viện."
+    },
+    {
+      "id": "sketchfab",
+      "name": "Sketchfab",
+      "status": "oauth_required",
+      "mode": "external_auth",
+      "home_url": "https://sketchfab.com/3d-models",
+      "note": "Download API yêu cầu OAuth người dùng; file API là glTF/GLB/USDZ, cần bộ chuyển đổi trước khi đưa vào SketchUp."
+    },
+    {
+      "id": "bimobject",
+      "name": "BIMobject",
+      "status": "api_required",
+      "mode": "external_auth",
+      "home_url": "https://www.bimobject.com/",
+      "note": "Cần quyền Developer API hoặc tải file bằng tài khoản người dùng."
     }
   ]
 }
