@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.126",
+  "version": "1.9.127",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Scale 4 Cạnh sửa thao tác: không kéo cả cạnh nữa. Chỉ hiện và bắt chuột tại 4 tay nắm TRUNG ĐIỂM Trái/Phải/Trên/Dưới. Nhấn giữ đúng trung điểm rồi kéo; trung điểm/cạnh phía đối diện tự làm mốc khóa. Không bắt chuột trên toàn bộ cạnh. Preview chỉ nhấn mạnh điểm khóa đỏ + điểm kéo xanh; khung hồng chỉ để quan sát.",
+  "notes": "Bổ sung Explode vào CHUYỂN ĐỔI: thêm EXPLODE GROUP và EXPLODE COMPONENT, hỗ trợ Ctrl chọn nhiều đối tượng và xử lý hàng loạt trong 1 operation/1 Undo. Sau Explode tự chọn lại các entity vừa bung ra. Giữ nguyên Component→Group, Group→Component, Face→Group và Scale 4 Cạnh kéo bằng trung điểm.",
   "files": [
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -14,7 +14,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "71ad54befa10f748bc360005f4fa208e3a603ca2e5a492b3f784d80c76c5cddb"
+      "sha256": "eb19a487f88bb56a3c0c3bf9ffee7f08610a1bc536caadbf935fc888476f70b3"
     },
     {
       "path": "tran_tuan_noi_that/board_tool.rb",
@@ -24,7 +24,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "ed46cb238192a29876741f7d5cf0d6cf9b4cc68ca778df1ce66bcbbb7d21f533"
+      "sha256": "4ba55b1ff6ee80b357b6f51602a1a401859da702c5cf472bc2ea18ace8da8d09"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -259,12 +259,12 @@
     {
       "path": "tran_tuan_noi_that/updater.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/updater.rb",
-      "sha256": "a9bde1d4544fa3cb50cfeeea0ade89d7612264daa4a6545878e42ffaded85b09"
+      "sha256": "d2573b0d7e58f389485a50df030b9f95bc4cac0e9d71527808861bfc37e83316"
     },
     {
       "path": "tran_tuan_noi_that/tam_pro.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/tam_pro.rb",
-      "sha256": "f38e691b6736567ded66f4f308b2f569cc61a1d4c7ee252ff6e5d6a79ca6700a"
+      "sha256": "a680a3fe8d92091328f52c434b73387417a5d213e11348a6f98e5981563a41a5"
     },
     {
       "path": "tran_tuan_noi_that/icons/tam_find.svg",
@@ -284,7 +284,7 @@
     {
       "path": "tran_tuan_noi_that/scale_corner_lock.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/scale_corner_lock.rb",
-      "sha256": "49c31d3bcdb29eb0b49d53c835827bbabcab4d367522c81928892560215ee5ff"
+      "sha256": "f5d7ecaaaacf5e75ab0ff9d0c88a190dd4a4535bf5dcb05ea5942e4a4140d67a"
     },
     {
       "path": "tran_tuan_noi_that/icons/scale_corner_lock.svg",
