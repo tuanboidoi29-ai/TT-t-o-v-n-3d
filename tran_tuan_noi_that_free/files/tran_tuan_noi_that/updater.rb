@@ -313,7 +313,7 @@ module TranTuanNoiThat
       raise 'Máy chủ cập nhật không hợp lệ.' unless %w[raw.githubusercontent.com api.github.com].include?(uri.host)
 
       headers = {
-        'User-Agent' => 'TranTuanNoiThat-SketchUp/1.9.126',
+        'User-Agent' => 'TranTuanNoiThat-SketchUp/1.9.127',
         'Cache-Control' => 'no-cache, no-store, max-age=0',
         'Pragma' => 'no-cache'
       }
