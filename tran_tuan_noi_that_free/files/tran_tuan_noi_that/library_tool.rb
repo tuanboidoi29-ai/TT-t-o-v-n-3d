@@ -10,13 +10,14 @@ module TranTuanNoiThat
   module LibraryTool
     extend self
 
-    VERSION = '1.9.120'.freeze
+    VERSION = '1.9.121'.freeze
     DICT = 'TT_LIBRARY'.freeze
     SOURCE_KEY = 'library_sources_json'.freeze
     AUTO_SYNC_KEY = 'library_auto_sync'.freeze
     LOCAL_FOLDERS_KEY = 'library_local_folders_json'.freeze
     CACHE_ROOT = File.join(TranTuanNoiThat::ROOT, 'library_cache').freeze
     MAX_SOURCE_DEPTH = 3
+    REGISTRY_URL = 'https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/library_registry.json'.freeze
 
     CATEGORY_RULES = [
       ['Tủ bếp', /(tủ\s*bếp|tu\s*bep|kitchen|base\s*cabinet|wall\s*cabinet|upper\s*cabinet)/i],
@@ -95,7 +96,7 @@ module TranTuanNoiThat
 
       @dialog = UI::HtmlDialog.new(
         dialog_title: 'TT - THƯ VIỆN NỘI THẤT',
-        preferences_key: 'TranTuanNoiThat.Library.120',
+        preferences_key: 'TranTuanNoiThat.Library.121',
         scrollable: true,
         resizable: true,
         width: 900,
@@ -171,6 +172,10 @@ module TranTuanNoiThat
         sync_sources(true)
       end
 
+      @dialog.add_action_callback('discover_registry') do |_ctx|
+        discover_registry_sources(true)
+      end
+
       @dialog.add_action_callback('set_auto_sync') do |_ctx, enabled|
         Sketchup.write_default(TranTuanNoiThat::NAME, AUTO_SYNC_KEY, enabled == true || enabled.to_s == 'true')
         sync_ui
@@ -193,7 +198,10 @@ module TranTuanNoiThat
     def schedule_auto_sync
       return unless auto_sync?
       return if sources.empty?
-      UI.start_timer(0.2, false) { sync_sources(false) }
+      UI.start_timer(0.2, false) do
+        discover_registry_sources(false)
+        sync_sources(false)
+      end
     rescue StandardError
     end
 
@@ -315,6 +323,16 @@ module TranTuanNoiThat
       end
     end
 
+    def combined_categories
+      items = []
+      builtin_payload.each { |item| items << item[:category].to_s }
+      scan_local_items.each { |item| items << item['category'].to_s }
+      Array(@remote_items).each { |item| items << item['category'].to_s }
+      items.reject(&:empty?).uniq.sort
+    rescue StandardError
+      []
+    end
+
     def sync_ui
       return unless @dialog && @dialog.visible?
       payload = {
@@ -323,6 +341,8 @@ module TranTuanNoiThat
         local_folders: local_folders,
         local_items: scan_local_items,
         auto_sync: auto_sync?,
+        registry: @registry_state || {},
+        categories: combined_categories,
         remote_items: Array(@remote_items).map do |item|
           {
             id: item['id'],
@@ -615,6 +635,47 @@ module TranTuanNoiThat
       'Khác'
     end
 
+    def discover_registry_sources(interactive = true)
+      registry = fetch_json(REGISTRY_URL)
+      registry_sources = Array(registry['sources'])
+      urls = registry_sources.map do |entry|
+        entry.is_a?(Hash) ? entry['url'].to_s : entry.to_s
+      end.map(&:strip).reject(&:empty?)
+
+      valid_urls = []
+      urls.each do |url|
+        begin
+          uri = URI.parse(url)
+          valid_urls << uri.to_s if uri.is_a?(URI::HTTPS)
+        rescue URI::InvalidURIError
+        end
+      end
+
+      old = sources
+      merged = (old + valid_urls).uniq
+      save_sources(merged)
+
+      @registry_state = {
+        'name' => registry['name'].to_s,
+        'version' => registry['version'].to_s,
+        'source_count' => valid_urls.length,
+        'platforms' => Array(registry['platforms'])
+      }
+
+      if valid_urls.empty?
+        sync_ui
+        notify('Registry TRẦN TUẤN hiện chưa có nguồn model công khai hợp lệ. Bạn vẫn có thể thêm URL nguồn hoặc thư mục SKP.', 'warn') if interactive
+        return false
+      end
+
+      added = merged.length - old.length
+      notify("Đã tìm thấy #{valid_urls.length} nguồn trong registry · thêm mới #{added}. Đang đồng bộ model...", 'ok') if interactive
+      sync_sources(interactive)
+    rescue StandardError => error
+      notify("Không đọc được registry nguồn: #{error.message}", 'error') if interactive
+      false
+    end
+
     def discover_source_manifests(seed_urls)
       queue = Array(seed_urls).map { |url| [url.to_s, 0] }
       seen = {}
@@ -801,7 +862,7 @@ module TranTuanNoiThat
       uri = URI.parse(url)
       raise 'Chỉ cho phép HTTPS.' unless uri.is_a?(URI::HTTPS)
       request = Net::HTTP::Get.new(uri.request_uri)
-      request['User-Agent'] = 'TranTuanNoiThat-Library/1.9.120'
+      request['User-Agent'] = 'TranTuanNoiThat-Library/1.9.121'
 
       http = Net::HTTP.new(uri.host, uri.port)
       http.use_ssl = true
@@ -866,6 +927,8 @@ module TranTuanNoiThat
             .categoryCount{font-size:11px;background:#cdd9e7;padding:2px 7px;border-radius:10px}
             .categoryBody{padding:0 9px}
             .searchBox{margin-top:9px}
+            .chip{background:#dbe5f1;color:#26354b;padding:6px 10px;border-radius:14px;font-size:12px}
+            .chip.active{background:#176fd1;color:#fff}
             .libraryWork{display:grid;grid-template-columns:minmax(300px,1fr) 360px;gap:12px;align-items:start}
             .preview3d{background:#0f172a;border-radius:9px;padding:10px;color:#fff;position:sticky;top:68px}
             .preview3d canvas{display:block;width:100%;height:330px;background:linear-gradient(#172033,#0b1220);border-radius:7px;cursor:grab}
@@ -919,6 +982,10 @@ module TranTuanNoiThat
                 <div class="hint">Hệ thống tự quét toàn bộ file .skp trong thư mục và các thư mục con. Không nạp tất cả vào RAM; chỉ load model khi bấm Đặt.</div>
               </div>
               <div class="editor">
+                <b>Danh mục model</b>
+                <div id="categoryBar" class="row"></div>
+              </div>
+              <div class="editor">
                 <b>Model từ thư mục</b>
                 <input id="modelSearch" class="searchBox" placeholder="Tìm model theo tên hoặc danh mục..." oninput="renderLocal();renderRemote()">
                 <div id="localItems"></div>
@@ -928,12 +995,14 @@ module TranTuanNoiThat
                 <div class="row">
                   <input id="sourceUrl" placeholder="https://.../library.json" style="flex:1;min-width:420px">
                   <button onclick="addSource()">Thêm nguồn</button>
+                  <button class="orange" onclick="sketchup.discover_registry()">TỰ TÌM NGUỒN</button>
                   <button class="green" onclick="sketchup.sync_sources()">Quét nguồn + đồng bộ model</button>
                 </div>
                 <div class="row">
                   <label><input id="autoSync" type="checkbox" style="width:auto" onchange="sketchup.set_auto_sync(this.checked)"> Tự đồng bộ khi mở Thư viện</label>
                 </div>
-                <div class="hint">Hệ thống tự quét nguồn đã thêm và các nguồn con khai báo trong <b>sources[]</b> (tối đa 3 tầng), sau đó đồng bộ toàn bộ model. Model được tự xếp theo danh mục. Manifest item cần id, name, version x.y.z, url HTTPS tới SKP và sha256; category có thể bỏ trống để hệ thống tự nhận theo tên.</div>
+                <div class="hint">Hệ thống tự quét registry TRẦN TUẤN, nguồn đã thêm và các nguồn con khai báo trong <b>sources[]</b> (tối đa 3 tầng), sau đó đồng bộ toàn bộ model. Model được tự xếp theo danh mục. Manifest item cần id, name, version x.y.z, url HTTPS tới SKP và sha256; category có thể bỏ trống để hệ thống tự nhận theo tên.</div>
+                <div id="registryStatus" class="hint"></div>
                 <div id="sources" style="margin-top:10px"></div>
               </div>
               <div class="editor">
@@ -945,14 +1014,14 @@ module TranTuanNoiThat
           </div>
 
           <script>
-            const TT={state:{builtins:[],sources:[],local_folders:[],local_items:[],remote_items:[],auto_sync:true},selected:null,
+            const TT={state:{builtins:[],sources:[],local_folders:[],local_items:[],remote_items:[],categories:[],registry:{},auto_sync:true},selected:null,activeCategory:'Tất cả',
               setState(s){this.state=s||this.state;renderAll();},
               notice(msg,kind){const e=document.getElementById('notice');e.className='notice '+(kind||'ok');e.textContent=msg||'';},
               loadSelected(data){openTab('builtin');selectCard(data.template_id);for(const [k,v] of Object.entries(data.params||{})){const el=document.getElementById('f_'+k);if(el)el.value=v;}this.notice('Đã lấy thông số component đang chọn.','ok');}
             };
             function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
             function openTab(id){for(const x of ['builtin','remote'])document.getElementById(x).classList.toggle('active',x===id);document.getElementById('tabBuiltin').classList.toggle('active',id==='builtin');document.getElementById('tabRemote').classList.toggle('active',id==='remote');}
-            function renderAll(){renderCards();renderSources();renderLocal();renderRemote();document.getElementById('autoSync').checked=!!TT.state.auto_sync;if(!TT.selected&&TT.state.builtins.length)selectCard(TT.state.builtins[0].id);render3D();}
+            function renderAll(){renderCards();renderSources();renderCategories();renderLocal();renderRemote();document.getElementById('autoSync').checked=!!TT.state.auto_sync;if(!TT.selected&&TT.state.builtins.length)selectCard(TT.state.builtins[0].id);render3D();const r=TT.state.registry||{};document.getElementById('registryStatus').textContent=r.name?('Registry: '+r.name+' · v'+(r.version||'?')+' · '+(r.source_count||0)+' nguồn công khai'):'Registry chưa được quét';}
             function renderCards(){const items=TT.state.builtins||[],groups=groupByCategory(items);document.getElementById('cards').innerHTML=Object.keys(groups).sort().map(cat=>'<div class="categoryGroup"><div class="categoryHead"><span>'+esc(cat)+'</span><span class="categoryCount">'+groups[cat].length+'</span></div><div class="categoryBody"><div class="cards">'+groups[cat].map(x=>'<div class="card '+(TT.selected===x.id?'selected':'')+'" onclick="selectCard(\''+x.id+'\')"><h3>'+esc(x.name)+'</h3><div class="cat">'+esc(x.category)+'</div></div>').join('')+'</div></div></div>').join('');}
             function selectCard(id){TT.selected=id;const x=(TT.state.builtins||[]).find(a=>a.id===id);if(!x)return;document.getElementById('editorTitle').textContent=x.name;document.getElementById('fields').innerHTML=x.fields.map(f=>'<label>'+esc(f.label)+'</label><input id="f_'+f.key+'" type="number" step="'+(f.key==='shelves'?'1':'0.5')+'" value="'+esc(x.defaults[f.key])+'" oninput="render3D()"><span>'+esc(f.unit)+'</span>').join('');renderCards();render3D();}
             function values(){const x=(TT.state.builtins||[]).find(a=>a.id===TT.selected);const o={};for(const f of (x?.fields||[]))o[f.key]=Number(document.getElementById('f_'+f.key).value);return o;}
@@ -960,9 +1029,10 @@ module TranTuanNoiThat
             function updateSelected(){if(TT.selected)sketchup.update_selected(TT.selected,JSON.stringify(values()));}
             function addSource(){const e=document.getElementById('sourceUrl');if(e.value.trim()){sketchup.add_source(e.value.trim());e.value='';}}
             function renderSources(){document.getElementById('sources').innerHTML=(TT.state.sources||[]).map(url=>'<div class="source"><code>'+esc(url)+'</code><button class="gray" onclick="sketchup.remove_source(\''+String(url).replace(/'/g,"\\'")+'\')">Xóa</button></div>').join('');}
+            function renderCategories(){const cats=['Tất cả',...(TT.state.categories||[])];document.getElementById('categoryBar').innerHTML=cats.map(c=>'<button class="chip '+(TT.activeCategory===c?'active':'')+'" onclick="TT.activeCategory=\''+String(c).replace(/'/g,"\\'")+'\';renderCategories();renderLocal();renderRemote()">'+esc(c)+'</button>').join('');}
             function searchText(){const e=document.getElementById('modelSearch');return (e?e.value:'').trim().toLowerCase();}
             function groupByCategory(items){const groups={};for(const x of (items||[])){const cat=x.category||'Khác';(groups[cat]||(groups[cat]=[])).push(x);}return groups;}
-            function groupedHtml(items,buttonFn,metaFn){const q=searchText(),filtered=(items||[]).filter(x=>!q||((x.name||'')+' '+(x.category||'')).toLowerCase().includes(q)),groups=groupByCategory(filtered);return Object.keys(groups).sort().map(cat=>'<div class="categoryGroup"><div class="categoryHead"><span>'+esc(cat)+'</span><span class="categoryCount">'+groups[cat].length+'</span></div><div class="categoryBody">'+groups[cat].map(x=>'<div class="remoteItem"><div><b>'+esc(x.name)+'</b><br><span class="cat">'+esc(metaFn(x))+'</span></div><button onclick="'+buttonFn(x)+'">Đặt</button></div>').join('')+'</div></div>').join('');}
+            function groupedHtml(items,buttonFn,metaFn){const q=searchText(),filtered=(items||[]).filter(x=>(TT.activeCategory==='Tất cả'||x.category===TT.activeCategory)&&(!q||((x.name||'')+' '+(x.category||'')).toLowerCase().includes(q))),groups=groupByCategory(filtered);return Object.keys(groups).sort().map(cat=>'<div class="categoryGroup"><div class="categoryHead"><span>'+esc(cat)+'</span><span class="categoryCount">'+groups[cat].length+'</span></div><div class="categoryBody">'+groups[cat].map(x=>'<div class="remoteItem"><div><b>'+esc(x.name)+'</b><br><span class="cat">'+esc(metaFn(x))+'</span></div><button onclick="'+buttonFn(x)+'">Đặt</button></div>').join('')+'</div></div>').join('');}
             function renderLocal(){document.getElementById('localFolders').innerHTML=(TT.state.local_folders||[]).map(folder=>'<div class="source"><code>'+esc(folder)+'</code><button class="gray" onclick="sketchup.remove_local_folder(\''+String(folder).replace(/\\/g,'\\\\').replace(/'/g,"\\'")+'\')">Xóa</button></div>').join('');const html=groupedHtml(TT.state.local_items||[],x=>"sketchup.place_local('"+x.id+"')",x=>x.category);document.getElementById('localItems').innerHTML=html||'<div class="hint">Chưa có model SKP phù hợp.</div>';}
             function renderRemote(){const html=groupedHtml(TT.state.remote_items||[],x=>"sketchup.place_remote('"+x.id+"')",x=>x.category+' · v'+x.version+' · '+x.source_name);document.getElementById('remoteItems').innerHTML=html||'<div class="hint">Chưa có model ngoài phù hợp.</div>';}
             let viewYaw=-0.72,viewPitch=0.48,viewZoom=1.0,dragging=false,lastX=0,lastY=0;
