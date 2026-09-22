@@ -11,7 +11,7 @@ module TranTuanNoiThat
   NAME = 'TRẦN TUẤN NỘI THẤT'.freeze unless const_defined?(:NAME, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.127'.freeze
+  VERSION = '1.9.128'.freeze
 
   class << self
     def setting(key, default = nil)
@@ -88,6 +88,7 @@ module TranTuanNoiThat
         rename_ui
         rename_tool
         tam_pro
+        bao_gia_tool
         scale_corner_lock
         box_tool
         drawer_tool
@@ -172,6 +173,7 @@ module TranTuanNoiThat
       install_cabinet_door_ui
       install_rename_ui
       install_tam_pro_ui
+      install_bao_gia_ui
       install_scale_corner_lock_ui
       install_round_ui
       install_stretch_mode_ui
@@ -219,6 +221,20 @@ module TranTuanNoiThat
       true
     rescue StandardError => error
       puts "[TT UI TamPro] #{error.class}: #{error.message}"
+      false
+    end
+
+    def install_bao_gia_ui
+      return false unless defined?(TranTuanNoiThat::BaoGiaTool)
+      @bao_gia_cmd ||= command(
+        'Bảng Báo Giá',
+        'bao_gia.svg',
+        'Lập báo giá · Lưu/Mở · QR VietQR · Xuất PDF · Chia sẻ Zalo'
+      ) { BaoGiaTool.show }
+      add_feature_command_once(@bao_gia_cmd, :bao_gia_menu_installed)
+      true
+    rescue StandardError => error
+      puts "[TT UI BaoGia] #{error.class}: #{error.message}"
       false
     end
 
