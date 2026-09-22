@@ -11,7 +11,7 @@ module TranTuanNoiThat
   NAME = 'TRẦN TUẤN NỘI THẤT'.freeze unless const_defined?(:NAME, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.128'.freeze
+  VERSION = '1.9.129'.freeze
 
   class << self
     def setting(key, default = nil)
@@ -84,7 +84,7 @@ module TranTuanNoiThat
       reset_layout_runtime
       %w[
         board_tool
-        cabinet_door_tool
+        door_standard_tool
         rename_ui
         rename_tool
         tam_pro
@@ -152,8 +152,33 @@ module TranTuanNoiThat
       true
     end
 
+    def cleanup_retired_cabinet_door
+      begin
+        FileUtils.rm_f(File.join(ROOT, 'cabinet_door_tool.rb'))
+        FileUtils.rm_f(File.join(ROOT, 'icons', 'cabinet_door.svg'))
+
+        # Nếu toolbar cũ còn sống trong phiên hiện tại, biến chính command đó
+        # thành Tạo Cánh Chuẩn thay vì để lại icon chết.
+        if instance_variable_defined?(:@cabinet_door_cmd) && @cabinet_door_cmd
+          title = 'Tạo Cánh Chuẩn'
+          @cabinet_door_cmd.tooltip = title
+          @cabinet_door_cmd.status_bar_text = 'Tự nhận 2 mép ngoài + tâm chia · preview 3D theo chuột · click tạo liên tục.'
+          @cabinet_door_cmd.menu_text = title if @cabinet_door_cmd.respond_to?(:menu_text=)
+          icon = File.join(ROOT, 'icons', 'door_standard.svg')
+          if File.file?(icon)
+            @cabinet_door_cmd.small_icon = icon
+            @cabinet_door_cmd.large_icon = icon
+          end
+        end
+      rescue StandardError => error
+        puts "[TT cleanup retired cabinet door] #{error.class}: #{error.message}"
+      end
+      true
+    end
+
     def install_ui
       cleanup_retired_library
+      cleanup_retired_cabinet_door
       unless @ui_installed
         @ui_installed = true
         @main_menu = UI.menu('Extensions').add_submenu(NAME)
@@ -170,7 +195,7 @@ module TranTuanNoiThat
 
       install_box_ui
       install_drawer_ui
-      install_cabinet_door_ui
+      install_door_standard_ui
       install_rename_ui
       install_tam_pro_ui
       install_bao_gia_ui
@@ -202,16 +227,55 @@ module TranTuanNoiThat
       add_feature_command(cmd)
     end
 
-    def install_cabinet_door_ui
-      return unless defined?(TranTuanNoiThat::CabinetDoor)
-      @cabinet_door_cmd ||= command('Vẽ Cánh Tủ', 'cabinet_door.svg', 'Cánh phẳng / khung / kính / soi huỳnh; SHIFT chia ngang/dọc; TAB cài đặt; ENTER tạo') { CabinetDoor.show_gallery }
+    def install_door_standard_ui
+      return false unless defined?(TranTuanNoiThat::DoorStandard)
+
+      @cabinet_door_cmd ||= command(
+        'Tạo Cánh Chuẩn',
+        'door_standard.svg',
+        'Tự nhận 2 mép ngoài + tâm chia · preview 3D theo chuột · click tạo liên tục'
+      ) { DoorStandard.activate }
+
+      # Đồng bộ lại text/icon khi hot reload từ command Vẽ Cánh Tủ cũ.
+      @cabinet_door_cmd.tooltip = 'Tạo Cánh Chuẩn'
+      @cabinet_door_cmd.status_bar_text = 'Tự nhận 2 mép ngoài + tâm chia · preview 3D theo chuột · click tạo liên tục.'
+      @cabinet_door_cmd.menu_text = 'Tạo Cánh Chuẩn' if @cabinet_door_cmd.respond_to?(:menu_text=)
+      icon = File.join(ROOT, 'icons', 'door_standard.svg')
+      if File.file?(icon)
+        @cabinet_door_cmd.small_icon = icon
+        @cabinet_door_cmd.large_icon = icon
+      end
+
       add_feature_command_once(@cabinet_door_cmd, :cabinet_door_menu_installed)
+      true
+    rescue StandardError => error
+      puts "[TT UI DoorStandard] #{error.class}: #{error.message}"
+      false
     end
 
     def install_rename_ui
-      return unless defined?(TranTuanNoiThat::RenameTool)
-      @rename_cmd ||= command('Đổi Tên + Thống Kê', 'rename.svg', 'Quét Group/Component, biên dạng 3D, đổi tên và thống kê độ dày') { RenameTool.show }
+      return false unless defined?(TranTuanNoiThat::RenameTool)
+
+      @rename_cmd ||= command(
+        'THỐNG KÊ VÁN',
+        'board_stats.svg',
+        'Quét Group/Component · thống kê ván · kích thước · độ dày · biên dạng'
+      ) { RenameTool.show }
+
+      @rename_cmd.tooltip = 'THỐNG KÊ VÁN'
+      @rename_cmd.status_bar_text = 'Quét Group/Component · thống kê ván · kích thước · độ dày · biên dạng.'
+      @rename_cmd.menu_text = 'THỐNG KÊ VÁN' if @rename_cmd.respond_to?(:menu_text=)
+      icon = File.join(ROOT, 'icons', 'board_stats.svg')
+      if File.file?(icon)
+        @rename_cmd.small_icon = icon
+        @rename_cmd.large_icon = icon
+      end
+
       add_feature_command_once(@rename_cmd, :rename_menu_installed)
+      true
+    rescue StandardError => error
+      puts "[TT UI BoardStats] #{error.class}: #{error.message}"
+      false
     end
 
     def install_tam_pro_ui
