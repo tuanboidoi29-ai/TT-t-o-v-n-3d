@@ -4,7 +4,7 @@
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Xóa sạch THƯ VIỆN NỘI THẤT và thay bằng KHÓA GÓC SCALE. Tool mới: chọn Group/Component, click 1 trong 8 góc BoundingBox để khóa, rê chuột preview scale quanh góc đó, TAB đổi Đồng tỷ lệ/XYZ tự do, click áp dụng; hỗ trợ nhập 1 hệ số hoặc X,Y,Z và một thao tác = một Undo. Updater xóa library_tool.rb, library.svg và thư mục library_cache cũ; mở lại SketchUp để toolbar làm sạch hoàn toàn.",
+  "notes": "Xóa sạch THƯ VIỆN NỘI THẤT và thay bằng KHÓA GÓC SCALE. Tool mới: chọn Group/Component, click 1 trong 8 góc BoundingBox để khóa, rê chuột preview scale quanh góc đó, TAB đổi Đồng tỷ lệ/XYZ tự do, click áp dụng; hỗ trợ nhập 1 hệ số hoặc X,Y,Z và một thao tác = một Undo. Khi nạp 1.9.123 hệ thống tự xóa file, icon, cache và state cũ của Thư viện; mở lại SketchUp để toolbar làm sạch hoàn toàn.",
   "files": [
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -24,7 +24,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "2301eaa62732be8e8cf740dfdbe2cf2af1a9f7e65241f42f8c7ed43a28777e56"
+      "sha256": "6c8892c68a470b8fd06c209b3f48b1184506bb604ce62a29c0c064a8e060406e"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
