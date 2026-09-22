@@ -11,7 +11,7 @@ module TranTuanNoiThat
   NAME = 'TRẦN TUẤN NỘI THẤT'.freeze unless const_defined?(:NAME, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.122'.freeze
+  VERSION = '1.9.123'.freeze
 
   class << self
     def setting(key, default = nil)
@@ -88,7 +88,7 @@ module TranTuanNoiThat
         rename_ui
         rename_tool
         tam_pro
-        library_tool
+        scale_corner_lock
         box_tool
         drawer_tool
         round_tool
@@ -141,7 +141,7 @@ module TranTuanNoiThat
       install_cabinet_door_ui
       install_rename_ui
       install_tam_pro_ui
-      install_library_ui
+      install_scale_corner_lock_ui
       install_round_ui
       install_stretch_mode_ui
       install_grain_ui
@@ -191,17 +191,17 @@ module TranTuanNoiThat
       false
     end
 
-    def install_library_ui
-      return false unless defined?(TranTuanNoiThat::LibraryTool)
-      @library_cmd ||= command(
-        'Thư Viện Nội Thất',
-        'library.svg',
-        'Mẫu component tham số · nạp SKP · đồng bộ thư viện ngoài'
-      ) { LibraryTool.show }
-      add_feature_command_once(@library_cmd, :library_menu_installed)
+    def install_scale_corner_lock_ui
+      return false unless defined?(TranTuanNoiThat::ScaleCornerLock)
+      @scale_corner_lock_cmd ||= command(
+        'Khóa Góc Scale',
+        'scale_corner_lock.svg',
+        'Khóa 1 góc BoundingBox rồi Scale quanh góc đó · TAB đổi Đồng tỷ lệ/XYZ tự do'
+      ) { ScaleCornerLock.activate }
+      add_feature_command_once(@scale_corner_lock_cmd, :scale_corner_lock_menu_installed)
       true
     rescue StandardError => error
-      puts "[TT UI Library] #{error.class}: #{error.message}"
+      puts "[TT UI ScaleCornerLock] #{error.class}: #{error.message}"
       false
     end
 
