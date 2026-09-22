@@ -1107,6 +1107,5 @@ module TranTuanNoiThat
         ]
       end
     end
-    end
   end
 end
