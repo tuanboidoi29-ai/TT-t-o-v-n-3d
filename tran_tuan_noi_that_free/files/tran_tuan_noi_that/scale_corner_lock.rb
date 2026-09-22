@@ -146,6 +146,7 @@ module TranTuanNoiThat
         when :scale
           # Đang kéo bằng chuột; không cần click lần hai.
           update_scale_preview(view, x, y)
+        end
 
         update_status
         view.invalidate
