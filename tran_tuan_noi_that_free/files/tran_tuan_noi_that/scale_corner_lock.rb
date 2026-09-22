@@ -1,16 +1,20 @@
 # encoding: UTF-8
-# TRẦN TUẤN NỘI THẤT - KHÓA GÓC SCALE
+# TRẦN TUẤN NỘI THẤT - KHÓA SCALE 4 CẠNH
 # SketchUp 2021+
 #
 # Quy trình:
 # - Chọn/hover 1 Group hoặc Component.
-# - Click 1 trong 8 góc BoundingBox để KHÓA.
-# - Rê chuột: preview scale quanh góc khóa.
-# - TAB: Đồng tỷ lệ <-> XYZ tự do.
-# - Click lần nữa để áp dụng.
-# - Gõ 1.2 = scale đồng tỷ lệ.
-# - Gõ 1.2,1,0.8 = scale X,Y,Z.
+# - Tool tự chọn mặt BoundingBox hướng về camera.
+# - Hiện 4 cạnh: Trái / Phải / Trên / Dưới.
+# - Click 1 cạnh để KHÓA nguyên cạnh đó.
+# - Rê chuột kéo cạnh đối diện để Scale theo đúng 1 trục.
+# - Click xác nhận hoặc gõ hệ số (vd 1.2).
 # - Một thao tác = một Undo.
+#
+# Lưu ý:
+# - Không sửa geometry bên trong.
+# - Chỉ thay Transformation của Group/Component.
+# - Không Scale âm/lật khối qua cạnh khóa.
 
 require 'sketchup.rb'
 
@@ -18,9 +22,16 @@ module TranTuanNoiThat
   module ScaleCornerLock
     extend self
 
-    VERSION = '1.9.123'.freeze
-    PICK_RADIUS = 18.0
+    VERSION = '1.9.124'.freeze
+    PICK_RADIUS = 16.0
     MIN_FACTOR = 0.001
+
+    EDGE_NAMES = {
+      u_min: 'TRÁI',
+      u_max: 'PHẢI',
+      v_min: 'DƯỚI',
+      v_max: 'TRÊN'
+    }.freeze
 
     def activate
       Sketchup.active_model.select_tool(Tool.new)
@@ -30,25 +41,36 @@ module TranTuanNoiThat
       def initialize
         @model = Sketchup.active_model
         @context_to_world = @model.edit_transform
+
         @state = :pick_entity
         @entity = nil
         @hover_entity = nil
         @bbox = nil
-        @anchor_index = nil
-        @hover_corner = nil
-        @opposite_index = nil
-        @ip = Sketchup::InputPoint.new
-        @factors = [1.0, 1.0, 1.0]
-        @uniform = true
-        @preview_transform_context = nil
         @original_transform = nil
-        @anchor_world = nil
-        @opposite_world = nil
-        @start_screen_distance = 1.0
+        @preview_transform_context = nil
+
+        @depth_axis = nil
+        @u_axis = nil
+        @v_axis = nil
+        @face_depth_coord = nil
+
+        @hover_edge = nil
+        @locked_edge = nil
+        @drag_edge = nil
+        @scale_axis = nil
+        @fixed_coord = nil
+        @factor = 1.0
+
+        @anchor_screen = nil
+        @drag_screen = nil
+        @screen_axis = nil
+        @screen_axis_len2 = 1.0
+
         use_selection_if_valid
       end
 
       def activate
+        refresh_view_plane
         update_status
         @model.active_view.invalidate
       end
@@ -65,11 +87,12 @@ module TranTuanNoiThat
       def onCancel(_reason, view)
         case @state
         when :scale
-          reset_anchor
-          @state = :pick_anchor
-        when :pick_anchor
+          reset_scale
+          @state = :pick_edge
+        when :pick_edge
           @entity = nil
           @bbox = nil
+          @hover_edge = nil
           @state = :pick_entity
         else
           @model.select_tool(nil)
@@ -79,33 +102,20 @@ module TranTuanNoiThat
         view.invalidate
       end
 
-      def onKeyDown(key, _repeat, _flags, view)
-        return unless tab_key?(key)
-        return unless @entity
-
-        @uniform = !@uniform
-        update_preview_from_last_input(view)
-        update_status
-        view.invalidate
-      rescue StandardError => error
-        puts "[TT ScaleCornerLock key] #{error.class}: #{error.message}"
-      end
-
       def onMouseMove(_flags, x, y, view)
         case @state
         when :pick_entity
           @hover_entity = pick_container(view, x, y)
-        when :pick_anchor
-          @hover_corner = nearest_corner_index(view, x, y)
+        when :pick_edge
+          refresh_view_plane
+          @hover_edge = nearest_edge_key(view, x, y)
         when :scale
-          @last_x = x
-          @last_y = y
           update_scale_preview(view, x, y)
         end
         update_status
         view.invalidate
       rescue StandardError => error
-        puts "[TT ScaleCornerLock move] #{error.class}: #{error.message}"
+        puts "[TT Scale4Edges move] #{error.class}: #{error.message}"
       end
 
       def onLButtonDown(_flags, x, y, view)
@@ -117,69 +127,66 @@ module TranTuanNoiThat
             return
           end
           set_entity(entity)
-          @state = :pick_anchor
+          refresh_view_plane
+          @state = :pick_edge
 
-        when :pick_anchor
-          index = nearest_corner_index(view, x, y)
-          unless index
+        when :pick_edge
+          refresh_view_plane
+          edge = nearest_edge_key(view, x, y)
+          unless edge
             UI.beep
             return
           end
-          lock_corner(index, view)
+          lock_edge(edge, view)
 
         when :scale
           update_scale_preview(view, x, y)
           commit_scale
         end
+
         update_status
         view.invalidate
       rescue StandardError => error
-        UI.messagebox("Khóa Góc Scale:\n#{error.message}")
-        puts "[TT ScaleCornerLock click] #{error.class}: #{error.message}"
+        UI.messagebox("Khóa Scale 4 Cạnh:\n#{error.message}")
+        puts "[TT Scale4Edges click] #{error.class}: #{error.message}"
       end
 
       def onUserText(text, view)
         return UI.beep unless @state == :scale
-        raw = text.to_s.strip
+
+        raw = text.to_s.strip.tr(',', '.')
         return UI.beep if raw.empty?
 
-        values = raw.split(/[;,xX\s]+/).reject(&:empty?).map { |item| Float(item.tr(',', '.')) }
-        if values.length == 1
-          factor = valid_factor(values[0])
-          @uniform = true
-          @factors = [factor, factor, factor]
-        elsif values.length == 3
-          @uniform = false
-          @factors = values.map { |value| valid_factor(value) }
-        else
-          raise 'Nhập 1 hệ số (vd 1.2) hoặc 3 hệ số X,Y,Z (vd 1.2,1,0.8).'
-        end
-
+        @factor = valid_factor(Float(raw))
         rebuild_preview_transform
         commit_scale
         view.invalidate
       rescue StandardError => error
         UI.beep
-        UI.messagebox("Không nhận được hệ số Scale:\n#{error.message}")
+        UI.messagebox("Không nhận được hệ số Scale:\n#{error.message}\nVí dụ: 1.2")
       end
 
       def draw(view)
-        draw_entity_box(view, @hover_entity, Sketchup::Color.new(120, 120, 120), 1) if @state == :pick_entity && @hover_entity
+        if @state == :pick_entity && @hover_entity
+          draw_entity_box(view, @hover_entity, Sketchup::Color.new(120, 120, 120), 1)
+          return
+        end
 
         return unless @entity && @bbox
 
+        refresh_view_plane if @state == :pick_edge
+
         case @state
-        when :pick_anchor
-          draw_entity_box(view, @entity, Sketchup::Color.new(241, 150, 170), 3)
-          draw_corners(view)
+        when :pick_edge
+          draw_entity_box(view, @entity, Sketchup::Color.new(241, 150, 170), 2)
+          draw_four_edges(view)
         when :scale
           draw_preview_box(view)
-          draw_locked_corner(view)
-          draw_drag_corner(view)
+          draw_scale_edges(view)
           draw_factor_text(view)
         end
       rescue StandardError => error
-        puts "[TT ScaleCornerLock draw] #{error.class}: #{error.message}"
+        puts "[TT Scale4Edges draw] #{error.class}: #{error.message}"
       end
 
       def getExtents
@@ -197,11 +204,14 @@ module TranTuanNoiThat
       private
 
       def use_selection_if_valid
-        selected = @model.selection.to_a.select { |entity| valid_container?(entity) && active_entities.include?(entity) }
+        selected = @model.selection.to_a.select do |entity|
+          valid_container?(entity) && active_entities.include?(entity)
+        end
         return unless selected.length == 1
 
         set_entity(selected.first)
-        @state = :pick_anchor
+        refresh_view_plane
+        @state = :pick_edge
       end
 
       def active_entities
@@ -217,15 +227,12 @@ module TranTuanNoiThat
       def set_entity(entity)
         @entity = entity
         @hover_entity = entity
-        @original_transform = entity.transformation
         @bbox = definition_bounds(entity)
         raise 'Không đọc được BoundingBox của đối tượng.' unless @bbox && !@bbox.empty?
 
-        @anchor_index = nil
-        @hover_corner = nil
-        @opposite_index = nil
-        @factors = [1.0, 1.0, 1.0]
+        @original_transform = entity.transformation
         @preview_transform_context = @original_transform
+        reset_scale
       end
 
       def definition_bounds(entity)
@@ -261,146 +268,249 @@ module TranTuanNoiThat
         8.times.map { |index| bounds.corner(index).transform(tr) }
       end
 
-      def nearest_corner_index(view, x, y)
-        return nil unless @entity
-        best = nil
+      def axis_value(point, axis)
+        case axis
+        when 0 then point.x
+        when 1 then point.y
+        else point.z
+        end
+      end
+
+      def axis_min(axis)
+        axis_value(@bbox.min, axis)
+      end
+
+      def axis_max(axis)
+        axis_value(@bbox.max, axis)
+      end
+
+      def point_local(a0, a1, a2)
+        values = [0.0, 0.0, 0.0]
+        values[@u_axis] = a0
+        values[@v_axis] = a1
+        values[@depth_axis] = a2
+        Geom::Point3d.new(values[0], values[1], values[2])
+      end
+
+      def refresh_view_plane
+        return unless @entity && @bbox
+
+        view = @model.active_view
+        camera_direction_world = view.camera.direction.clone
+        tr = entity_to_world
+        local_direction = camera_direction_world.transform(tr.inverse)
+        local_direction.normalize! if local_direction.length > 0.000001
+
+        values = [local_direction.x.abs, local_direction.y.abs, local_direction.z.abs]
+        @depth_axis = values.each_with_index.max[1]
+        plane_axes = [0, 1, 2] - [@depth_axis]
+        @u_axis = plane_axes[0]
+        @v_axis = plane_axes[1]
+
+        component = [local_direction.x, local_direction.y, local_direction.z][@depth_axis]
+        @face_depth_coord = component >= 0.0 ? axis_min(@depth_axis) : axis_max(@depth_axis)
+      rescue StandardError
+        @depth_axis = 2
+        @u_axis = 0
+        @v_axis = 1
+        @face_depth_coord = axis_max(@depth_axis)
+      end
+
+      def edge_local_points(key)
+        u0 = axis_min(@u_axis)
+        u1 = axis_max(@u_axis)
+        v0 = axis_min(@v_axis)
+        v1 = axis_max(@v_axis)
+        d = @face_depth_coord
+
+        case key
+        when :u_min
+          [point_local(u0, v0, d), point_local(u0, v1, d)]
+        when :u_max
+          [point_local(u1, v0, d), point_local(u1, v1, d)]
+        when :v_min
+          [point_local(u0, v0, d), point_local(u1, v0, d)]
+        when :v_max
+          [point_local(u0, v1, d), point_local(u1, v1, d)]
+        else
+          []
+        end
+      end
+
+      def edge_world_points(key, transform_context = nil)
+        tr = entity_to_world(@entity, transform_context || @entity.transformation)
+        edge_local_points(key).map { |point| point.transform(tr) }
+      end
+
+      def edge_midpoint_world(key, transform_context = nil)
+        points = edge_world_points(key, transform_context)
+        Geom::Point3d.linear_combination(0.5, points[0], 0.5, points[1])
+      end
+
+      def nearest_edge_key(view, x, y)
+        best_key = nil
         best_distance = PICK_RADIUS + 1.0
 
-        entity_world_corners.each_with_index do |point, index|
-          screen = view.screen_coords(point)
-          dx = screen.x.to_f - x.to_f
-          dy = screen.y.to_f - y.to_f
-          distance = Math.sqrt(dx * dx + dy * dy)
+        %i[u_min u_max v_min v_max].each do |key|
+          a_world, b_world = edge_world_points(key)
+          a = view.screen_coords(a_world)
+          b = view.screen_coords(b_world)
+          distance = screen_distance_to_segment(
+            x.to_f, y.to_f,
+            a.x.to_f, a.y.to_f,
+            b.x.to_f, b.y.to_f
+          )
           if distance <= PICK_RADIUS && distance < best_distance
-            best = index
+            best_key = key
             best_distance = distance
           end
         end
-        best
+        best_key
       rescue StandardError
         nil
       end
 
-      def lock_corner(index, view)
-        @anchor_index = index
-        @opposite_index = 7 - index
-        @anchor_world = entity_world_corners[index]
-        @opposite_world = entity_world_corners[@opposite_index]
+      def screen_distance_to_segment(px, py, ax, ay, bx, by)
+        dx = bx - ax
+        dy = by - ay
+        length2 = dx * dx + dy * dy
+        if length2 <= 0.000001
+          return Math.sqrt((px - ax) ** 2 + (py - ay) ** 2)
+        end
 
-        a = view.screen_coords(@anchor_world)
-        b = view.screen_coords(@opposite_world)
-        dx = b.x.to_f - a.x.to_f
-        dy = b.y.to_f - a.y.to_f
-        @start_screen_distance = Math.sqrt(dx * dx + dy * dy)
-        @start_screen_distance = 1.0 if @start_screen_distance < 1.0
-
-        @factors = [1.0, 1.0, 1.0]
-        @preview_transform_context = @original_transform
-        @state = :scale
-        @last_x = b.x.to_i
-        @last_y = b.y.to_i
-
-        Sketchup.set_status_text('Scale', SB_VCB_LABEL)
-        Sketchup.set_status_text('1.0', SB_VCB_VALUE)
+        t = ((px - ax) * dx + (py - ay) * dy) / length2
+        t = 0.0 if t < 0.0
+        t = 1.0 if t > 1.0
+        cx = ax + t * dx
+        cy = ay + t * dy
+        Math.sqrt((px - cx) ** 2 + (py - cy) ** 2)
       end
 
-      def reset_anchor
-        @anchor_index = nil
-        @hover_corner = nil
-        @opposite_index = nil
-        @anchor_world = nil
-        @opposite_world = nil
-        @factors = [1.0, 1.0, 1.0]
+      def opposite_edge(key)
+        {
+          u_min: :u_max,
+          u_max: :u_min,
+          v_min: :v_max,
+          v_max: :v_min
+        }.fetch(key)
+      end
+
+      def edge_axis(key)
+        [:u_min, :u_max].include?(key) ? @u_axis : @v_axis
+      end
+
+      def edge_fixed_coord(key)
+        case key
+        when :u_min then axis_min(@u_axis)
+        when :u_max then axis_max(@u_axis)
+        when :v_min then axis_min(@v_axis)
+        when :v_max then axis_max(@v_axis)
+        end
+      end
+
+      def lock_edge(key, view)
+        @locked_edge = key
+        @drag_edge = opposite_edge(key)
+        @scale_axis = edge_axis(key)
+        @fixed_coord = edge_fixed_coord(key)
+        @factor = 1.0
         @preview_transform_context = @original_transform
+
+        @anchor_screen = view.screen_coords(edge_midpoint_world(@locked_edge))
+        @drag_screen = view.screen_coords(edge_midpoint_world(@drag_edge))
+        @screen_axis = Geom::Vector3d.new(
+          @drag_screen.x.to_f - @anchor_screen.x.to_f,
+          @drag_screen.y.to_f - @anchor_screen.y.to_f,
+          0.0
+        )
+        @screen_axis_len2 = @screen_axis.x * @screen_axis.x + @screen_axis.y * @screen_axis.y
+        @screen_axis_len2 = 1.0 if @screen_axis_len2 < 1.0
+
+        @state = :scale
+        Sketchup.set_status_text('Scale', SB_VCB_LABEL)
+        Sketchup.set_status_text('1.000', SB_VCB_VALUE)
+      end
+
+      def reset_scale
+        @hover_edge = nil
+        @locked_edge = nil
+        @drag_edge = nil
+        @scale_axis = nil
+        @fixed_coord = nil
+        @factor = 1.0
+        @preview_transform_context = @original_transform if @original_transform
+        @anchor_screen = nil
+        @drag_screen = nil
+        @screen_axis = nil
+        @screen_axis_len2 = 1.0
         clear_vcb
       end
 
       def update_scale_preview(view, x, y)
-        return unless @anchor_index && @opposite_index
+        return unless @locked_edge && @drag_edge && @screen_axis && @anchor_screen
 
-        if @uniform
-          anchor_screen = view.screen_coords(@anchor_world)
-          dx = x.to_f - anchor_screen.x.to_f
-          dy = y.to_f - anchor_screen.y.to_f
-          factor = Math.sqrt(dx * dx + dy * dy) / @start_screen_distance
-          factor = valid_factor(factor)
-          @factors = [factor, factor, factor]
-        else
-          @ip.pick(view, x, y)
-          if @ip.valid? && @ip.degrees_of_freedom < 3
-            current_world = @ip.position
-            current_local = current_world.transform(entity_to_world.inverse)
-            anchor_local = @bbox.corner(@anchor_index)
-            opposite_local = @bbox.corner(@opposite_index)
-            @factors = [
-              factor_from_coords(anchor_local.x, opposite_local.x, current_local.x),
-              factor_from_coords(anchor_local.y, opposite_local.y, current_local.y),
-              factor_from_coords(anchor_local.z, opposite_local.z, current_local.z)
-            ]
-            view.tooltip = @ip.tooltip
-          else
-            anchor_screen = view.screen_coords(@anchor_world)
-            dx = x.to_f - anchor_screen.x.to_f
-            dy = y.to_f - anchor_screen.y.to_f
-            factor = Math.sqrt(dx * dx + dy * dy) / @start_screen_distance
-            factor = valid_factor(factor)
-            @factors = [factor, factor, factor]
-          end
-        end
+        px = x.to_f - @anchor_screen.x.to_f
+        py = y.to_f - @anchor_screen.y.to_f
+        numerator = px * @screen_axis.x + py * @screen_axis.y
+        @factor = valid_factor(numerator / @screen_axis_len2)
 
         rebuild_preview_transform
-        Sketchup.set_status_text(
-          @uniform ? format('%.3f', @factors[0]) : @factors.map { |f| format('%.3f', f) }.join(', '),
-          SB_VCB_VALUE
-        )
-      end
-
-      def update_preview_from_last_input(view)
-        return unless @last_x && @last_y
-        update_scale_preview(view, @last_x, @last_y)
-      end
-
-      def factor_from_coords(anchor, opposite, current)
-        denominator = opposite.to_f - anchor.to_f
-        return 1.0 if denominator.abs < 0.000001
-        valid_factor((current.to_f - anchor.to_f) / denominator)
+        Sketchup.set_status_text(format('%.3f', @factor), SB_VCB_VALUE)
       end
 
       def valid_factor(value)
         factor = value.to_f
-        raise 'Hệ số scale phải lớn hơn 0.' unless factor > 0.0
+        raise 'Hệ số Scale phải lớn hơn 0.' unless factor > 0.0
         [factor, MIN_FACTOR].max
       end
 
       def rebuild_preview_transform
-        anchor = @bbox.corner(@anchor_index)
-        to_anchor = Geom::Transformation.translation(Geom::Vector3d.new(anchor.x, anchor.y, anchor.z))
-        from_anchor = Geom::Transformation.translation(Geom::Vector3d.new(-anchor.x, -anchor.y, -anchor.z))
+        raise 'Chưa chọn cạnh khóa.' unless @scale_axis
+
+        factors = [1.0, 1.0, 1.0]
+        factors[@scale_axis] = @factor
+
+        center = @bbox.center
+        anchor_values = [center.x, center.y, center.z]
+        anchor_values[@scale_axis] = @fixed_coord
+        anchor = Geom::Point3d.new(anchor_values[0], anchor_values[1], anchor_values[2])
+
+        to_anchor = Geom::Transformation.translation(
+          Geom::Vector3d.new(anchor.x, anchor.y, anchor.z)
+        )
+        from_anchor = Geom::Transformation.translation(
+          Geom::Vector3d.new(-anchor.x, -anchor.y, -anchor.z)
+        )
         scale = Geom::Transformation.scaling(
           Geom::Point3d.new(0, 0, 0),
-          @factors[0],
-          @factors[1],
-          @factors[2]
+          factors[0], factors[1], factors[2]
         )
-        local_scale_about_anchor = to_anchor * scale * from_anchor
-        @preview_transform_context = @original_transform * local_scale_about_anchor
+
+        @preview_transform_context =
+          @original_transform * to_anchor * scale * from_anchor
       end
 
       def commit_scale
         raise 'Đối tượng không còn hợp lệ.' unless valid_container?(@entity)
-        raise 'Chưa khóa góc.' unless @anchor_index
+        raise 'Chưa chọn cạnh khóa.' unless @locked_edge
+        raise 'Hệ số Scale không hợp lệ.' unless @factor > 0.0
 
-        @model.start_operation('TT - Khóa Góc Scale', true)
+        @model.start_operation('TT - Khóa Scale 4 Cạnh', true)
         started = true
+
         @entity.transformation = @preview_transform_context
+
         @model.commit_operation
         started = false
 
         @original_transform = @entity.transformation
         @bbox = definition_bounds(@entity)
-        reset_anchor
-        @state = :pick_anchor
-        update_status('Đã Scale · góc khóa giữ nguyên · Ctrl+Z để hoàn tác. Chọn góc mới để tiếp tục.')
+        reset_scale
+        refresh_view_plane
+        @state = :pick_edge
+
+        Sketchup.status_text =
+          'Đã Scale · cạnh khóa giữ nguyên · Ctrl+Z hoàn tác · chọn cạnh khác để tiếp tục.'
         true
       rescue StandardError
         @model.abort_operation if started rescue nil
@@ -409,17 +519,23 @@ module TranTuanNoiThat
 
       def preview_world_corners
         return [] unless @entity && @bbox
-        entity_world_corners(@entity, @preview_transform_context || @entity.transformation)
+        entity_world_corners(
+          @entity,
+          @preview_transform_context || @entity.transformation
+        )
       end
 
       def draw_entity_box(view, entity, color, width)
-        corners = entity_world_corners(entity)
-        draw_box_edges(view, corners, color, width)
+        draw_box_edges(view, entity_world_corners(entity), color, width)
       end
 
       def draw_preview_box(view)
-        corners = preview_world_corners
-        draw_box_edges(view, corners, Sketchup::Color.new(241, 150, 170), 4)
+        draw_box_edges(
+          view,
+          preview_world_corners,
+          Sketchup::Color.new(241, 150, 170),
+          3
+        )
       end
 
       def draw_box_edges(view, corners, color, width)
@@ -433,53 +549,75 @@ module TranTuanNoiThat
         view.draw(GL_LINES, pairs.flat_map { |a, b| [corners[a], corners[b]] })
       end
 
-      def draw_corners(view)
-        corners = entity_world_corners
-        corners.each_with_index do |point, index|
-          hovered = index == @hover_corner
-          color = hovered ? Sketchup::Color.new(255, 70, 40) : Sketchup::Color.new(255, 190, 40)
-          view.draw_points(point, hovered ? 14 : 10, 2, color)
+      def draw_four_edges(view)
+        %i[u_min u_max v_min v_max].each do |key|
+          hovered = key == @hover_edge
+          color = hovered ?
+            Sketchup::Color.new(255, 180, 40) :
+            Sketchup::Color.new(80, 160, 245)
+          width = hovered ? 7 : 4
+
+          points = edge_world_points(key)
+          view.line_width = width
+          view.drawing_color = color
+          view.draw(GL_LINES, points)
+
+          midpoint = edge_midpoint_world(key)
+          view.draw_points(midpoint, hovered ? 12 : 8, 2, color)
+
+          screen = view.screen_coords(midpoint)
+          view.draw_text(
+            [screen.x + 8, screen.y - 8],
+            EDGE_NAMES[key],
+            color: color
+          )
         end
       end
 
-      def draw_locked_corner(view)
-        return unless @anchor_index
-        point = @bbox.corner(@anchor_index).transform(entity_to_world(@entity, @preview_transform_context))
-        view.draw_points(point, 16, 2, Sketchup::Color.new(230, 45, 45))
-      end
+      def draw_scale_edges(view)
+        locked_points = edge_world_points(
+          @locked_edge,
+          @preview_transform_context
+        )
+        drag_points = edge_world_points(
+          @drag_edge,
+          @preview_transform_context
+        )
 
-      def draw_drag_corner(view)
-        return unless @opposite_index
-        point = @bbox.corner(@opposite_index).transform(entity_to_world(@entity, @preview_transform_context))
-        view.draw_points(point, 14, 2, Sketchup::Color.new(40, 130, 240))
+        view.line_width = 7
+        view.drawing_color = Sketchup::Color.new(230, 45, 45)
+        view.draw(GL_LINES, locked_points)
+
+        view.line_width = 7
+        view.drawing_color = Sketchup::Color.new(40, 130, 240)
+        view.draw(GL_LINES, drag_points)
+
+        locked_mid = edge_midpoint_world(@locked_edge, @preview_transform_context)
+        drag_mid = edge_midpoint_world(@drag_edge, @preview_transform_context)
+        view.draw_points(locked_mid, 13, 2, Sketchup::Color.new(230, 45, 45))
+        view.draw_points(drag_mid, 13, 2, Sketchup::Color.new(40, 130, 240))
       end
 
       def draw_factor_text(view)
-        point = @bbox.corner(@opposite_index).transform(entity_to_world(@entity, @preview_transform_context))
-        text = if @uniform
-          "LOCK SCALE  #{format('%.3f', @factors[0])}x"
-        else
-          "XYZ  #{@factors.map { |f| format('%.2f', f) }.join(' / ')}"
-        end
+        point = edge_midpoint_world(@drag_edge, @preview_transform_context)
         screen = view.screen_coords(point)
-        view.draw_text([screen.x + 14, screen.y - 16], text)
+        text = "#{EDGE_NAMES[@locked_edge]} KHÓA · SCALE #{format('%.3f', @factor)}x"
+        view.draw_text(
+          [screen.x + 14, screen.y - 18],
+          text,
+          color: Sketchup::Color.new(30, 80, 160)
+        )
       rescue StandardError
       end
 
-      def update_status(custom = nil)
-        if custom
-          Sketchup.status_text = custom
-          return
-        end
-
+      def update_status
         Sketchup.status_text = case @state
         when :pick_entity
-          'KHÓA GÓC SCALE · click Group/Component cần Scale.'
-        when :pick_anchor
-          'Rê vào 1 trong 8 góc · click để KHÓA góc cố định.'
+          'KHÓA SCALE 4 CẠNH · click Group/Component cần Scale.'
+        when :pick_edge
+          '4 cạnh đang hiện · rê vào TRÁI/PHẢI/TRÊN/DƯỚI · click cạnh cần KHÓA.'
         when :scale
-          mode = @uniform ? 'ĐỒNG TỶ LỆ' : 'XYZ TỰ DO'
-          "Góc đỏ = khóa · góc xanh = kéo · #{mode} · TAB đổi mode · click áp dụng · gõ 1.2 hoặc 1.2,1,0.8."
+          "Cạnh đỏ = KHÓA · cạnh xanh = KÉO · click áp dụng · gõ hệ số, ví dụ 1.2."
         end
       end
 
@@ -487,12 +625,6 @@ module TranTuanNoiThat
         Sketchup.set_status_text('', SB_VCB_LABEL)
         Sketchup.set_status_text('', SB_VCB_VALUE)
       rescue StandardError
-      end
-
-      def tab_key?(key)
-        key == 9 || key == VK_TAB
-      rescue StandardError
-        key == 9
       end
     end
   end
