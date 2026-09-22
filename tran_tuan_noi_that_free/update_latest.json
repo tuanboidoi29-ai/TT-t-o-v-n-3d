@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.118",
+  "version": "1.9.119",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Thêm THƯ VIỆN NỘI THẤT: 5 mẫu Component tham số có sẵn (ván hồi đứng, đợt ngang, khung tủ bếp dưới, khung tủ bếp trên, khung tủ áo), preview đặt 3D, sửa lại thông số component đã chọn, nạp SKP từ máy, quản lý nguồn thư viện HTTPS và tự đồng bộ model SKP theo manifest/version/SHA256 khi mở thư viện. Không đồng bộ lúc SketchUp khởi động.",
+  "notes": "Nâng cấp THƯ VIỆN NỘI THẤT: thêm 3D View xoay/zoom ngay trong bảng, tự nhận trục Model X/Y/Z khi rê đặt component, preview trục màu trong viewport; thêm thư mục SKP trên máy và tự quét toàn bộ model .skp trong mọi thư mục con; mỗi nguồn HTTPS đồng bộ toàn bộ items theo version/SHA256. Chỉ nhập các nguồn/link/API người dùng có quyền truy cập.",
   "files": [
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -14,7 +14,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "8563136ee8ba515b3d90327340ed78e4438b1cafcef0ec7f989d37e32398666d"
+      "sha256": "3ba680b46454936bd460c85f52210e75a811365a5b67a709d8169e996cbfefc9"
     },
     {
       "path": "tran_tuan_noi_that/board_tool.rb",
@@ -24,7 +24,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "8eb1ac68a363ff06caf061487a52569c432d010e8de1bd9cd2cb90c806873d74"
+      "sha256": "47d5f05dd608cd813ed413699438fbba34be4fdbdf43617128b52e18bc28773d"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -259,12 +259,12 @@
     {
       "path": "tran_tuan_noi_that/updater.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/updater.rb",
-      "sha256": "272037762f61e59f1fda0b89ccb7911dc4b6029114b748c11c57519b56b3ba3e"
+      "sha256": "d6967c07176b1e3d950ca5a2207ac26206d9eb779d3156a1eba320efcb07de70"
     },
     {
       "path": "tran_tuan_noi_that/tam_pro.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/tam_pro.rb",
-      "sha256": "fb3e292715006b4bcea311428ac7bf42b23f3cda8f626fc7f05efe80b9696f0c"
+      "sha256": "f8e9763ae8b46445649917dad5b60053e0226103c9698b2e4f2fdb6a08a3398f"
     },
     {
       "path": "tran_tuan_noi_that/icons/tam_find.svg",
@@ -284,7 +284,7 @@
     {
       "path": "tran_tuan_noi_that/library_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/library_tool.rb",
-      "sha256": "6222b55e3f7ccefef879733ffdcbcccd338d74f5f3016307d5f95cc9f449d20f"
+      "sha256": "3921598e56c9749327274969b6b1c41a30d5ce0ac68644e92ea0fef2b33639be"
     },
     {
       "path": "tran_tuan_noi_that/icons/library.svg",
