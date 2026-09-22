@@ -6,7 +6,7 @@ module TranTuanNoiThat
   module TamPro
     extend self
 
-    VERSION = '1.9.126'.freeze
+    VERSION = '1.9.127'.freeze
     EPS = 0.001
     QUICK_NAMES = ['Trái', 'Phải', 'Trên', 'Dưới', 'Trước', 'Sau'].freeze
 
@@ -460,6 +460,64 @@ module TranTuanNoiThat
       notify(@dialog_convert, error.message, 'error')
     end
 
+    def explode_selected_groups
+      explode_selected_objects(:group)
+    end
+
+    def explode_selected_components
+      explode_selected_objects(:component)
+    end
+
+    def explode_selected_objects(kind)
+      targets = model.selection.to_a.select do |entity|
+        next false unless entity.valid?
+        case kind
+        when :group
+          entity.is_a?(Sketchup::Group)
+        when :component
+          entity.is_a?(Sketchup::ComponentInstance)
+        else
+          false
+        end
+      end
+
+      label = kind == :group ? 'Group' : 'Component'
+      raise "Hãy Ctrl chọn ít nhất một #{label} trong SketchUp." if targets.empty?
+
+      model.start_operation("TT - Explode #{label}", true)
+      started = true
+      created = []
+
+      targets.each do |entity|
+        next unless entity.valid?
+        result = entity.explode
+        created.concat(Array(result).select { |item| item.respond_to?(:valid?) && item.valid? })
+      end
+
+      model.selection.clear
+      created.each do |entity|
+        begin
+          model.selection.add(entity)
+        rescue StandardError
+        end
+      end
+
+      model.commit_operation
+      started = false
+
+      notify(
+        @dialog_convert,
+        "Đã EXPLODE #{targets.length} #{label}. Sinh ra #{created.length} đối tượng/entity. Ctrl+Z hoàn tác một lần.",
+        'ok'
+      )
+      selection_changed
+      true
+    rescue StandardError => error
+      model.abort_operation if started rescue nil
+      notify(@dialog_convert, error.message, 'error')
+      false
+    end
+
     def convert_objects
       ensure_selection_observer
       if dialog_visible?(@dialog_convert)
@@ -470,11 +528,11 @@ module TranTuanNoiThat
 
       @dialog_convert = UI::HtmlDialog.new(
         dialog_title: 'TT - CHUYỂN ĐỔI ĐỐI TƯỢNG',
-        preferences_key: 'TranTuanNoiThat.TamPro.Convert.104',
+        preferences_key: 'TranTuanNoiThat.TamPro.Convert.127',
         scrollable: true,
         resizable: true,
-        width: 560,
-        height: 520,
+        width: 580,
+        height: 680,
         style: UI::HtmlDialog::STYLE_DIALOG
       )
       @dialog_convert.set_html(convert_html)
@@ -482,6 +540,8 @@ module TranTuanNoiThat
       @dialog_convert.add_action_callback('component_to_group') { |_ctx| convert_component_to_group }
       @dialog_convert.add_action_callback('group_to_component') { |_ctx| convert_group_to_component }
       @dialog_convert.add_action_callback('face_to_group') { |_ctx| convert_face_to_group }
+      @dialog_convert.add_action_callback('explode_groups') { |_ctx| explode_selected_groups }
+      @dialog_convert.add_action_callback('explode_components') { |_ctx| explode_selected_components }
       @dialog_convert.set_on_closed { @dialog_convert = nil }
       @dialog_convert.show
     rescue StandardError => error
@@ -642,6 +702,14 @@ module TranTuanNoiThat
             <div class="card">
               <button class="orange" onclick="sketchup.face_to_group()">FACE → GROUP</button>
               <div class="hint">Chui vào đúng Group/Component nếu Face nằm bên trong, chọn Face rồi bấm nút.</div>
+            </div>
+            <div class="card">
+              <button style="background:#b42318" onclick="sketchup.explode_groups()">EXPLODE GROUP</button>
+              <div class="hint">Ctrl chọn một hoặc nhiều Group. Bung Group thành geometry/đối tượng con thật. Toàn bộ = 1 Undo.</div>
+            </div>
+            <div class="card">
+              <button style="background:#7a1fa2" onclick="sketchup.explode_components()">EXPLODE COMPONENT</button>
+              <div class="hint">Ctrl chọn một hoặc nhiều Component. Bung instance thành geometry/đối tượng con thật. Toàn bộ = 1 Undo.</div>
             </div>
             <div id="notice" class="notice"></div>
           </div>
