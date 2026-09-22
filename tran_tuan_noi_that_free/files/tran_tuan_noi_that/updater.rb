@@ -28,7 +28,8 @@ module TranTuanNoiThat
         comparison = normalize(latest) <=> normalize(local)
         pending_changes = changed_files(manifest)
         pending_removals = removed_files_present(manifest)
-        if comparison < 0 || (comparison == 0 && pending_changes.empty? && pending_removals.empty?)
+        pending_removed_dirs = removed_dirs_present(manifest)
+        if comparison < 0 || (comparison == 0 && pending_changes.empty? && pending_removals.empty? && pending_removed_dirs.empty?)
           UI.messagebox("Đang dùng bản không bản quyền mới nhất: #{local}.") if interactive
           return false
         end
@@ -94,6 +95,11 @@ module TranTuanNoiThat
       raise 'Danh sách tệp cần xóa bị trùng.' unless remove_paths.uniq.length == remove_paths.length
       raise 'Tệp vừa cập nhật vừa bị yêu cầu xóa.' unless (paths & remove_paths).empty?
 
+      remove_dirs = Array(data['remove_dirs']).map do |relative|
+        safe_remove_dir(relative)
+      end
+      raise 'Danh sách thư mục cần xóa bị trùng.' unless remove_dirs.uniq.length == remove_dirs.length
+
       %w[TranTuanNoiThat.rb tran_tuan_noi_that/bootstrap.rb tran_tuan_noi_that/settings.rb tran_tuan_noi_that/updater.rb].each do |path|
         raise "Gói cập nhật thiếu #{path}" unless paths.include?(path)
       end
@@ -106,6 +112,23 @@ module TranTuanNoiThat
       raise 'Đường dẫn cập nhật không hợp lệ.' unless valid
       raise 'Gói cập nhật có tệp cấp phép thương mại.' if clean.match?(/licen[sc]e|commercial|payment|owner_admin/i)
       clean
+    end
+
+    def safe_remove_dir(path)
+      clean = path.to_s
+      allowed = [
+        'tran_tuan_noi_that/library_cache'
+      ]
+      raise 'Thư mục cần xóa không nằm trong danh sách an toàn.' unless allowed.include?(clean)
+      clean
+    end
+
+    def remove_dir_path(relative)
+      clean = safe_remove_dir(relative)
+      plugins = File.expand_path(Sketchup.find_support_file('Plugins'))
+      target = File.expand_path(File.join(plugins, clean))
+      raise 'Đường dẫn thư mục nằm ngoài Plugins.' unless target.start_with?(plugins + File::SEPARATOR)
+      target
     end
 
     def install_path(relative)
@@ -126,6 +149,12 @@ module TranTuanNoiThat
     def removed_files_present(manifest)
       Array(manifest['remove_files']).select do |relative|
         File.file?(install_path(relative))
+      end
+    end
+
+    def removed_dirs_present(manifest)
+      Array(manifest['remove_dirs']).select do |relative|
+        File.directory?(remove_dir_path(relative))
       end
     end
 
@@ -170,6 +199,11 @@ module TranTuanNoiThat
           FileUtils.rm_f(target)
         end
 
+        Array(manifest['remove_dirs']).each do |relative|
+          target = remove_dir_path(relative)
+          FileUtils.rm_rf(target) if File.directory?(target)
+        end
+
         # Reload bootstrap too: its UI callbacks and version may have changed.
         load(File.join(TranTuanNoiThat::ROOT, 'bootstrap.rb'))
         actual_version = TranTuanNoiThat.current_version.to_s
@@ -179,7 +213,8 @@ module TranTuanNoiThat
         end
         TranTuanNoiThat.save_setting('installed_version', manifest['version'])
         TranTuanNoiThat::Settings.sync if defined?(TranTuanNoiThat::Settings) && TranTuanNoiThat::Settings.instance_variable_get(:@dialog)
-        extra = Array(manifest['remove_files']).empty? ? '' : "\nĐã xóa tính năng cũ. Hãy đóng và mở lại SketchUp để toolbar làm sạch hoàn toàn."
+        retired = !Array(manifest['remove_files']).empty? || !Array(manifest['remove_dirs']).empty?
+        extra = retired ? "\nĐã xóa sạch tính năng cũ. Hãy đóng và mở lại SketchUp để toolbar làm sạch hoàn toàn." : ''
         UI.messagebox("Đã cập nhật #{manifest['version']} từ GitHub.\nKhông yêu cầu kích hoạt bản quyền.#{extra}")
         true
       rescue StandardError, ScriptError => error
