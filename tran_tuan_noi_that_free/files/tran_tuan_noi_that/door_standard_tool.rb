@@ -620,7 +620,12 @@ module TranTuanNoiThat
         root.name = "Cánh tủ #{@options['door_count']} cánh"
         root.set_attribute(DICT, 'version', VERSION)
         root.set_attribute(DICT, 'settings_json', JSON.generate(@options))
-        root.set_attribute(DICT, 'source_face_pid', @region[:face].persistent_id rescue 0)
+        source_pid = begin
+          @region[:face].respond_to?(:persistent_id) ? @region[:face].persistent_id : 0
+        rescue StandardError
+          0
+        end
+        root.set_attribute(DICT, 'source_face_pid', source_pid)
 
         inverse_edit = model.edit_transform.inverse
         tag_name = "Ván #{format('%.1f', @options['thickness']).sub('.0','')}mm"
