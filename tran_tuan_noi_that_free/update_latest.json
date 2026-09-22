@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.122",
+  "version": "1.9.123",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Thư viện Nội thất: hiển thị Nguồn trực tuyến và khả năng đồng bộ thật. Mỗi manifest HTTPS có nút Đồng bộ riêng + trạng thái/số model; 3D Warehouse có nút Mở nguồn và Theo dõi Downloads để tự quét các SKP người dùng tải về; thêm Quét lại thư mục. Sketchfab/BIMobject hiển thị Cần kết nối vì yêu cầu OAuth/API. Không tạo nguồn/model giả.",
+  "notes": "Xóa sạch THƯ VIỆN NỘI THẤT và thay bằng KHÓA GÓC SCALE. Tool mới: chọn Group/Component, click 1 trong 8 góc BoundingBox để khóa, rê chuột preview scale quanh góc đó, TAB đổi Đồng tỷ lệ/XYZ tự do, click áp dụng; hỗ trợ nhập 1 hệ số hoặc X,Y,Z và một thao tác = một Undo. Updater xóa library_tool.rb, library.svg và thư mục library_cache cũ; mở lại SketchUp để toolbar làm sạch hoàn toàn.",
   "files": [
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -14,7 +14,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "70b2d1714ff14ec5b8de865349103afc822a3fa0aeca341ae31823f2dffccd6f"
+      "sha256": "2c3cf2c7e3958468c8591c208772943c853da56caeb108c3d385f02541782ca8"
     },
     {
       "path": "tran_tuan_noi_that/board_tool.rb",
@@ -24,7 +24,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "3639e5e3feb5b180ff88ff96cf2441b09839e6b77837bf717b5d0a1cb76a387e"
+      "sha256": "2301eaa62732be8e8cf740dfdbe2cf2af1a9f7e65241f42f8c7ed43a28777e56"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -259,12 +259,12 @@
     {
       "path": "tran_tuan_noi_that/updater.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/updater.rb",
-      "sha256": "2582e725e0ba6a1dec5e3219d04055e8f3aec9b38f91d56a09df6eb080b60c78"
+      "sha256": "7e85ac27635dbecdd1cbfe14e566584ee526c57e043eaeca06fe6ab5c7c91ad6"
     },
     {
       "path": "tran_tuan_noi_that/tam_pro.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/tam_pro.rb",
-      "sha256": "a6d6a0dce222d69c593e4761432a7a163852c263d7183c63ded0649d3f6a3dc6"
+      "sha256": "620c358ce163f718f112bfc71d69a8c4e40ceab54e6ba040a205cb2be1146c68"
     },
     {
       "path": "tran_tuan_noi_that/icons/tam_find.svg",
@@ -282,19 +282,24 @@
       "sha256": "adac3fcab30c9ce057dd8d6e2b1296af858d7c3034d156a822d0fb94639be546"
     },
     {
-      "path": "tran_tuan_noi_that/library_tool.rb",
-      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/library_tool.rb",
-      "sha256": "65ff9166e43a56defe1e8e1f2d286e82a5f596aa6e298cc982d7830db0b34802"
+      "path": "tran_tuan_noi_that/scale_corner_lock.rb",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/scale_corner_lock.rb",
+      "sha256": "bb971ae68873b0873dea9938457d68be0fa831bf0b32d8d3cef5c7872e2b4029"
     },
     {
-      "path": "tran_tuan_noi_that/icons/library.svg",
-      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/icons/library.svg",
-      "sha256": "c91a7d9c379dac15aa595e00a30ee953d4a346fe207b4a39b768ca7ca672904c"
+      "path": "tran_tuan_noi_that/icons/scale_corner_lock.svg",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/icons/scale_corner_lock.svg",
+      "sha256": "11b7b627a432d59d471f77f9b762029f35cd7bdc25002ff7611d8d4f96e7eb9d"
     }
   ],
   "stretch_mode_version": "1.0.1",
   "remove_files": [
     "tran_tuan_noi_that/cam_chot_tool.rb",
-    "tran_tuan_noi_that/icons/cam_chot.svg"
+    "tran_tuan_noi_that/icons/cam_chot.svg",
+    "tran_tuan_noi_that/library_tool.rb",
+    "tran_tuan_noi_that/icons/library.svg"
+  ],
+  "remove_dirs": [
+    "tran_tuan_noi_that/library_cache"
   ]
 }
