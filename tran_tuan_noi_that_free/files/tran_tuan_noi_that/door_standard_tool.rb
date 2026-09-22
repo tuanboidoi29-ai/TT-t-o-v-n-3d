@@ -675,4 +675,23 @@ module TranTuanNoiThat
       end
     end
   end
+
+  # Tương thích nóng cho UI::Command cũ trong phiên SketchUp đang mở.
+  # Source Vẽ Cánh Tủ cũ đã bị gỡ; lệnh cũ nếu còn trên toolbar sẽ gọi tool mới.
+  remove_const(:CabinetDoor) if const_defined?(:CabinetDoor, false)
+  module CabinetDoor
+    extend self
+
+    def show_gallery
+      TranTuanNoiThat::DoorStandard.activate
+    end
+
+    def show(tool = nil)
+      if tool
+        TranTuanNoiThat::DoorStandard.show_settings(tool)
+      else
+        TranTuanNoiThat::DoorStandard.activate
+      end
+    end
+  end
 end
