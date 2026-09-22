@@ -483,9 +483,14 @@ module TranTuanNoiThat
         count = @options['door_count']
         gap = @options['gap_middle'].mm
         normal = @flip ? @region[:normal].reverse : @region[:normal]
-        offset_vector = @region[:normal].clone
-        offset_vector.length = @options['offset'].mm.abs if @options['offset'].abs > 0.0001
-        offset_vector.reverse! if @options['offset'] < 0
+        offset_vector = if @options['offset'].abs > 0.0001
+          vector = @region[:normal].clone
+          vector.length = @options['offset'].mm.abs
+          vector.reverse! if @options['offset'] < 0
+          vector
+        else
+          Geom::Vector3d.new(0, 0, 0)
+        end
         thickness_vector = normal.clone
         thickness_vector.length = @options['thickness'].mm
 
