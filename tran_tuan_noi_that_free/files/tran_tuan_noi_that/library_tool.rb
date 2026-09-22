@@ -10,10 +10,11 @@ module TranTuanNoiThat
   module LibraryTool
     extend self
 
-    VERSION = '1.9.118'.freeze
+    VERSION = '1.9.119'.freeze
     DICT = 'TT_LIBRARY'.freeze
     SOURCE_KEY = 'library_sources_json'.freeze
     AUTO_SYNC_KEY = 'library_auto_sync'.freeze
+    LOCAL_FOLDERS_KEY = 'library_local_folders_json'.freeze
     CACHE_ROOT = File.join(TranTuanNoiThat::ROOT, 'library_cache').freeze
 
     BUILTINS = {
@@ -82,7 +83,7 @@ module TranTuanNoiThat
 
       @dialog = UI::HtmlDialog.new(
         dialog_title: 'TT - THƯ VIỆN NỘI THẤT',
-        preferences_key: 'TranTuanNoiThat.Library.118',
+        preferences_key: 'TranTuanNoiThat.Library.119',
         scrollable: true,
         resizable: true,
         width: 900,
@@ -120,6 +121,23 @@ module TranTuanNoiThat
 
       @dialog.add_action_callback('import_local') do |_ctx|
         import_local_skp
+      end
+
+      @dialog.add_action_callback('add_local_folder') do |_ctx|
+        add_local_folder
+      end
+
+      @dialog.add_action_callback('remove_local_folder') do |_ctx, folder|
+        remove_local_folder(folder.to_s)
+        sync_ui
+      end
+
+      @dialog.add_action_callback('place_local') do |_ctx, item_id|
+        begin
+          place_local(item_id.to_s)
+        rescue StandardError => error
+          notify("Không đặt được mẫu trong thư mục: #{error.message}", 'error')
+        end
       end
 
       @dialog.add_action_callback('add_source') do |_ctx, url|
@@ -200,6 +218,69 @@ module TranTuanNoiThat
       true
     end
 
+    def local_folders
+      raw = Sketchup.read_default(TranTuanNoiThat::NAME, LOCAL_FOLDERS_KEY, '[]').to_s
+      list = JSON.parse(raw)
+      list.is_a?(Array) ? list.map(&:to_s).select { |path| File.directory?(path) }.uniq : []
+    rescue StandardError
+      []
+    end
+
+    def save_local_folders(list)
+      Sketchup.write_default(
+        TranTuanNoiThat::NAME,
+        LOCAL_FOLDERS_KEY,
+        JSON.generate(list.map(&:to_s).uniq)
+      )
+    end
+
+    def add_local_folder
+      folder = if UI.respond_to?(:select_directory)
+        UI.select_directory(title: 'Chọn thư mục chứa các model SKP')
+      else
+        nil
+      end
+      return false unless folder && File.directory?(folder)
+
+      list = local_folders
+      list << folder unless list.include?(folder)
+      save_local_folders(list)
+      sync_ui
+      notify("Đã thêm thư mục. Tìm thấy #{scan_local_items.length} model SKP.", 'ok')
+      true
+    rescue StandardError => error
+      notify("Không thêm được thư mục: #{error.message}", 'error')
+      false
+    end
+
+    def remove_local_folder(folder)
+      save_local_folders(local_folders.reject { |item| item == folder.to_s })
+      true
+    end
+
+    def scan_local_items
+      items = []
+      local_folders.each do |folder|
+        Dir.glob(File.join(folder, '**', '*')).each do |path|
+          next unless File.file?(path)
+          next unless File.extname(path).downcase == '.skp'
+
+          relative = path.sub(/A#{Regexp.escape(folder)}[\\\/]?/, '')
+          items << {
+            'id' => Digest::SHA256.hexdigest(path)[0, 16],
+            'name' => File.basename(path, File.extname(path)),
+            'category' => File.dirname(relative) == '.' ? 'SKP máy' : File.dirname(relative),
+            'path' => path,
+            'folder' => folder
+          }
+        end
+      end
+      items.sort_by { |item| [item['category'].to_s.downcase, item['name'].to_s.downcase] }
+    rescue StandardError => error
+      warn "[TT Library local scan] #{error.class}: #{error.message}"
+      []
+    end
+
     def builtin_payload
       BUILTINS.map do |id, spec|
         {
@@ -223,6 +304,8 @@ module TranTuanNoiThat
       payload = {
         builtins: builtin_payload,
         sources: sources,
+        local_folders: local_folders,
+        local_items: scan_local_items,
         auto_sync: auto_sync?,
         remote_items: Array(@remote_items).map do |item|
           {
@@ -294,14 +377,14 @@ module TranTuanNoiThat
       "#{BUILTINS.fetch(template_id).fetch('name')} [TT #{component_signature(template_id, params)}]"
     end
 
-    def create_builtin_instance(template_id, params, point)
+    def create_builtin_instance(template_id, params, transformation)
       model = Sketchup.active_model
       model.start_operation('TT - Đặt mẫu thư viện', true)
       started = true
 
       definition = model.definitions.add(definition_name(template_id, params))
       build_definition(definition, template_id, params)
-      instance = model.active_entities.add_instance(definition, Geom::Transformation.translation(point))
+      instance = model.active_entities.add_instance(definition, transformation)
       write_instance_attributes(instance, template_id, params)
 
       model.commit_operation
@@ -606,6 +689,18 @@ module TranTuanNoiThat
       path
     end
 
+    def place_local(item_id)
+      item = scan_local_items.find { |entry| entry['id'].to_s == item_id.to_s }
+      raise 'Không tìm thấy model SKP trong thư mục.' unless item
+      definition = Sketchup.active_model.definitions.load(item['path'])
+      raise 'SketchUp không đọc được file SKP.' unless definition
+      definition.set_attribute(DICT, 'source', 'local_folder')
+      definition.set_attribute(DICT, 'local_path', item['path'])
+      Sketchup.active_model.select_tool(PlacementTool.new(nil, nil, definition))
+      notify("Đã nạp #{item['name']}. Rê chuột để tự nhận trục rồi click đặt.", 'ok')
+      true
+    end
+
     def place_remote(item_id)
       item = Array(@remote_items).find { |entry| entry['id'].to_s == item_id.to_s }
       raise 'Chưa có mẫu này trong cache. Hãy Đồng bộ nguồn trước.' unless item
@@ -631,7 +726,7 @@ module TranTuanNoiThat
       uri = URI.parse(url)
       raise 'Chỉ cho phép HTTPS.' unless uri.is_a?(URI::HTTPS)
       request = Net::HTTP::Get.new(uri.request_uri)
-      request['User-Agent'] = 'TranTuanNoiThat-Library/1.9.118'
+      request['User-Agent'] = 'TranTuanNoiThat-Library/1.9.119'
 
       http = Net::HTTP.new(uri.host, uri.port)
       http.use_ssl = true
@@ -691,6 +786,13 @@ module TranTuanNoiThat
             .notice.ok{display:block;background:#e5f5eb;color:#166534}.notice.warn{display:block;background:#fff4d6;color:#7c5700}.notice.error{display:block;background:#fde8e8;color:#8c2222}
             .hint{font-size:12px;line-height:1.55;color:#657080;margin-top:9px}
             .remoteItem{display:flex;justify-content:space-between;gap:8px;align-items:center;border-bottom:1px solid #edf0f4;padding:8px 0}
+            .libraryWork{display:grid;grid-template-columns:minmax(300px,1fr) 360px;gap:12px;align-items:start}
+            .preview3d{background:#0f172a;border-radius:9px;padding:10px;color:#fff;position:sticky;top:68px}
+            .preview3d canvas{display:block;width:100%;height:330px;background:linear-gradient(#172033,#0b1220);border-radius:7px;cursor:grab}
+            .preview3d canvas:active{cursor:grabbing}
+            .previewTitle{display:flex;justify-content:space-between;gap:8px;align-items:center;margin-bottom:7px;font-size:13px}
+            .axisHint{font-size:11px;opacity:.75}
+            @media(max-width:760px){.libraryWork{grid-template-columns:1fr}.preview3d{position:static}}
           </style>
         </head>
         <body>
@@ -705,8 +807,10 @@ module TranTuanNoiThat
             </div>
 
             <div id="builtin" class="panel active">
-              <div id="cards" class="cards"></div>
-              <div class="editor">
+              <div class="libraryWork">
+                <div>
+                  <div id="cards" class="cards"></div>
+                  <div class="editor">
                 <b id="editorTitle">Chọn một mẫu</b>
                 <div id="fields" class="grid" style="margin-top:10px"></div>
                 <div class="row">
@@ -714,18 +818,36 @@ module TranTuanNoiThat
                   <button class="gray" onclick="sketchup.selected_params()">Lấy component đang chọn</button>
                   <button class="orange" onclick="updateSelected()">Cập nhật component đang chọn</button>
                 </div>
-                <div class="hint">Khi bấm Đặt Component, rê chuột trong model để xem preview khung 3D rồi click để đặt. ESC kết thúc.</div>
+                    <div class="hint">Khi bấm Đặt Component, rê chuột lên mặt trong model: tool tự nhận trục Model X/Y/Z gần nhất và xoay preview theo mặt. Click để đặt, ESC kết thúc.</div>
+                  </div>
+                </div>
+                <div class="preview3d">
+                  <div class="previewTitle"><b>3D VIEW</b><span class="axisHint">Kéo: xoay · Lăn: zoom</span></div>
+                  <canvas id="previewCanvas" width="680" height="660"></canvas>
+                </div>
               </div>
             </div>
 
             <div id="remote" class="panel">
               <div class="editor">
+                <b>Thư mục model SKP trên máy</b>
+                <div class="row">
+                  <button class="green" onclick="sketchup.add_local_folder()">Thêm thư mục SKP</button>
+                  <button class="gray" onclick="sketchup.import_local()">Nạp 1 SKP</button>
+                </div>
+                <div id="localFolders" style="margin-top:10px"></div>
+                <div class="hint">Hệ thống tự quét toàn bộ file .skp trong thư mục và các thư mục con. Không nạp tất cả vào RAM; chỉ load model khi bấm Đặt.</div>
+              </div>
+              <div class="editor">
+                <b>Model từ thư mục</b>
+                <div id="localItems"></div>
+              </div>
+              <div class="editor">
                 <b>Nguồn thư viện HTTPS</b>
                 <div class="row">
                   <input id="sourceUrl" placeholder="https://.../library.json" style="flex:1;min-width:420px">
                   <button onclick="addSource()">Thêm nguồn</button>
-                  <button class="green" onclick="sketchup.sync_sources()">Đồng bộ ngay</button>
-                  <button class="gray" onclick="sketchup.import_local()">Nạp SKP từ máy</button>
+                  <button class="green" onclick="sketchup.sync_sources()">Đồng bộ toàn bộ nguồn</button>
                 </div>
                 <div class="row">
                   <label><input id="autoSync" type="checkbox" style="width:auto" onchange="sketchup.set_auto_sync(this.checked)"> Tự đồng bộ khi mở Thư viện</label>
@@ -742,23 +864,45 @@ module TranTuanNoiThat
           </div>
 
           <script>
-            const TT={state:{builtins:[],sources:[],remote_items:[],auto_sync:true},selected:null,
+            const TT={state:{builtins:[],sources:[],local_folders:[],local_items:[],remote_items:[],auto_sync:true},selected:null,
               setState(s){this.state=s||this.state;renderAll();},
               notice(msg,kind){const e=document.getElementById('notice');e.className='notice '+(kind||'ok');e.textContent=msg||'';},
               loadSelected(data){openTab('builtin');selectCard(data.template_id);for(const [k,v] of Object.entries(data.params||{})){const el=document.getElementById('f_'+k);if(el)el.value=v;}this.notice('Đã lấy thông số component đang chọn.','ok');}
             };
             function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
             function openTab(id){for(const x of ['builtin','remote'])document.getElementById(x).classList.toggle('active',x===id);document.getElementById('tabBuiltin').classList.toggle('active',id==='builtin');document.getElementById('tabRemote').classList.toggle('active',id==='remote');}
-            function renderAll(){renderCards();renderSources();renderRemote();document.getElementById('autoSync').checked=!!TT.state.auto_sync;if(!TT.selected&&TT.state.builtins.length)selectCard(TT.state.builtins[0].id);}
+            function renderAll(){renderCards();renderSources();renderLocal();renderRemote();document.getElementById('autoSync').checked=!!TT.state.auto_sync;if(!TT.selected&&TT.state.builtins.length)selectCard(TT.state.builtins[0].id);render3D();}
             function renderCards(){document.getElementById('cards').innerHTML=(TT.state.builtins||[]).map(x=>'<div class="card '+(TT.selected===x.id?'selected':'')+'" onclick="selectCard(\''+x.id+'\')"><h3>'+esc(x.name)+'</h3><div class="cat">'+esc(x.category)+'</div></div>').join('');}
-            function selectCard(id){TT.selected=id;const x=(TT.state.builtins||[]).find(a=>a.id===id);if(!x)return;document.getElementById('editorTitle').textContent=x.name;document.getElementById('fields').innerHTML=x.fields.map(f=>'<label>'+esc(f.label)+'</label><input id="f_'+f.key+'" type="number" step="'+(f.key==='shelves'?'1':'0.5')+'" value="'+esc(x.defaults[f.key])+'"><span>'+esc(f.unit)+'</span>').join('');renderCards();}
+            function selectCard(id){TT.selected=id;const x=(TT.state.builtins||[]).find(a=>a.id===id);if(!x)return;document.getElementById('editorTitle').textContent=x.name;document.getElementById('fields').innerHTML=x.fields.map(f=>'<label>'+esc(f.label)+'</label><input id="f_'+f.key+'" type="number" step="'+(f.key==='shelves'?'1':'0.5')+'" value="'+esc(x.defaults[f.key])+'" oninput="render3D()"><span>'+esc(f.unit)+'</span>').join('');renderCards();render3D();}
             function values(){const x=(TT.state.builtins||[]).find(a=>a.id===TT.selected);const o={};for(const f of (x?.fields||[]))o[f.key]=Number(document.getElementById('f_'+f.key).value);return o;}
             function place(){if(TT.selected)sketchup.place_builtin(TT.selected,JSON.stringify(values()));}
             function updateSelected(){if(TT.selected)sketchup.update_selected(TT.selected,JSON.stringify(values()));}
             function addSource(){const e=document.getElementById('sourceUrl');if(e.value.trim()){sketchup.add_source(e.value.trim());e.value='';}}
             function renderSources(){document.getElementById('sources').innerHTML=(TT.state.sources||[]).map(url=>'<div class="source"><code>'+esc(url)+'</code><button class="gray" onclick="sketchup.remove_source(\''+String(url).replace(/'/g,"\\'")+'\')">Xóa</button></div>').join('');}
+            function renderLocal(){document.getElementById('localFolders').innerHTML=(TT.state.local_folders||[]).map(folder=>'<div class="source"><code>'+esc(folder)+'</code><button class="gray" onclick="sketchup.remove_local_folder(\''+String(folder).replace(/\\/g,'\\\\').replace(/'/g,"\\'")+'\')">Xóa</button></div>').join('');document.getElementById('localItems').innerHTML=(TT.state.local_items||[]).map(x=>'<div class="remoteItem"><div><b>'+esc(x.name)+'</b><br><span class="cat">'+esc(x.category)+'</span></div><button onclick="sketchup.place_local(\''+x.id+'\')">Đặt</button></div>').join('')||'<div class="hint">Chưa có thư mục SKP.</div>';}
             function renderRemote(){document.getElementById('remoteItems').innerHTML=(TT.state.remote_items||[]).map(x=>'<div class="remoteItem"><div><b>'+esc(x.name)+'</b><br><span class="cat">'+esc(x.category)+' · v'+esc(x.version)+' · '+esc(x.source_name)+'</span></div><button onclick="sketchup.place_remote(\''+x.id+'\')">Đặt</button></div>').join('')||'<div class="hint">Chưa có mẫu ngoài trong cache.</div>';}
-            window.addEventListener('load',()=>sketchup.ready());
+            let viewYaw=-0.72,viewPitch=0.48,viewZoom=1.0,dragging=false,lastX=0,lastY=0;
+            function modelBoxes(id,p){
+              const t=+p.thickness||17.5,w=+p.width||800,d=+p.depth||600,h=+p.height||720,b=+p.back||9,toe=+p.toe||0;
+              const B=(x,y,z,sx,sy,sz)=>({x,y,z,sx,sy,sz});
+              if(id==='hoi_dung')return [B(0,0,0,t,d,h)];
+              if(id==='dot_ngang')return [B(0,0,0,w,d,t)];
+              if(id==='tu_bep_duoi'){const iw=w-2*t,bh=h-toe,rd=Math.min(80,d/3);return [B(0,0,toe,t,d,bh),B(w-t,0,toe,t,d,bh),B(t,0,toe,iw,d,t),B(t,0,h-t,iw,rd,t),B(t,d-rd,h-t,iw,rd,t),...(b>0?[B(t,d-b,toe+t,iw,b,h-toe-t)]:[])];}
+              if(id==='tu_bep_tren'){const iw=w-2*t;return [B(0,0,0,t,d,h),B(w-t,0,0,t,d,h),B(t,0,0,iw,d,t),B(t,0,h-t,iw,d,t),...(b>0?[B(t,d-b,t,iw,b,h-2*t)]:[])];}
+              if(id==='khung_tu_ao'){const iw=w-2*t,s=+p.shelves||0,arr=[B(0,0,0,t,d,h),B(w-t,0,0,t,d,h),B(t,0,0,iw,d,t),B(t,0,h-t,iw,d,t),...(b>0?[B(t,d-b,t,iw,b,h-2*t)]:[])];if(s>0){const step=(h-2*t)/(s+1);for(let i=0;i<s;i++)arr.push(B(t,0,t+step*(i+1),iw,d-b,t));}return arr;}
+              return [];
+            }
+            function render3D(){
+              const c=document.getElementById('previewCanvas');if(!c||!TT.selected)return;const ctx=c.getContext('2d'),p=values(),boxes=modelBoxes(TT.selected,p);ctx.clearRect(0,0,c.width,c.height);if(!boxes.length)return;
+              let maxX=1,maxY=1,maxZ=1;for(const b of boxes){maxX=Math.max(maxX,b.x+b.sx);maxY=Math.max(maxY,b.y+b.sy);maxZ=Math.max(maxZ,b.z+b.sz);}const center=[maxX/2,maxY/2,maxZ/2],base=520/Math.max(maxX,maxY,maxZ)*viewZoom;
+              const cy=Math.cos(viewYaw),sy=Math.sin(viewYaw),cp=Math.cos(viewPitch),sp=Math.sin(viewPitch);
+              function pr(v){let x=v[0]-center[0],y=v[1]-center[1],z=v[2]-center[2];const x1=x*cy-y*sy,y1=x*sy+y*cy,z1=z;const y2=y1*cp-z1*sp,z2=y1*sp+z1*cp;return [c.width/2+x1*base,c.height/2-y2*base,z2];}
+              const faces=[];for(const b of boxes){const x=b.x,y=b.y,z=b.z,X=x+b.sx,Y=y+b.sy,Z=z+b.sz,v=[[x,y,z],[X,y,z],[x,Y,z],[X,Y,z],[x,y,Z],[X,y,Z],[x,Y,Z],[X,Y,Z]];[[0,1,3,2],[4,6,7,5],[0,4,5,1],[2,3,7,6],[0,2,6,4],[1,5,7,3]].forEach(f=>{const pts=f.map(i=>pr(v[i]));faces.push({pts,depth:pts.reduce((a,q)=>a+q[2],0)/4});});}
+              faces.sort((a,b)=>a.depth-b.depth);for(const f of faces){ctx.beginPath();ctx.moveTo(f.pts[0][0],f.pts[0][1]);for(let i=1;i<f.pts.length;i++)ctx.lineTo(f.pts[i][0],f.pts[i][1]);ctx.closePath();ctx.fillStyle='rgba(166,205,255,.20)';ctx.fill();ctx.strokeStyle='rgba(255,255,255,.78)';ctx.lineWidth=2;ctx.stroke();}
+              ctx.fillStyle='rgba(255,255,255,.65)';ctx.font='22px Arial';ctx.fillText('X',26,c.height-28);ctx.fillText('Y',58,c.height-28);ctx.fillText('Z',90,c.height-28);
+            }
+            function init3D(){const c=document.getElementById('previewCanvas');if(!c)return;c.addEventListener('mousedown',e=>{dragging=true;lastX=e.clientX;lastY=e.clientY});window.addEventListener('mouseup',()=>dragging=false);window.addEventListener('mousemove',e=>{if(!dragging)return;viewYaw+=(e.clientX-lastX)*.01;viewPitch+=(e.clientY-lastY)*.01;viewPitch=Math.max(-1.3,Math.min(1.3,viewPitch));lastX=e.clientX;lastY=e.clientY;render3D()});c.addEventListener('wheel',e=>{e.preventDefault();viewZoom*=e.deltaY>0?.9:1.1;viewZoom=Math.max(.35,Math.min(3,viewZoom));render3D()},{passive:false});}
+            window.addEventListener('load',()=>{init3D();sketchup.ready();});
           </script>
         </body>
         </html>
@@ -771,27 +915,38 @@ module TranTuanNoiThat
         @params = params
         @definition = definition
         @point = nil
+        @normal = nil
+        @placement = nil
         @ip = Sketchup::InputPoint.new
       end
 
       def activate
-        Sketchup.status_text = 'TT Thư viện: rê chuột xem preview · click để đặt · ESC kết thúc.'
+        Sketchup.status_text = 'TT Thư viện: rê lên mặt để tự nhận trục X/Y/Z · click đặt · ESC kết thúc.'
       end
 
       def onMouseMove(_flags, x, y, view)
         @ip.pick(view, x, y)
-        if @ip.valid?
-          @point = @ip.position
-          view.invalidate
+        return unless @ip.valid?
+
+        @point = @ip.position
+        @normal = picked_world_normal(view, x, y)
+        @placement = placement_transform(@point, @normal)
+        view.invalidate
+
+        if @normal
+          Sketchup.status_text = "TT Thư viện: đã nhận mặt · #{axis_label(@normal)} · click để đặt."
+        else
+          Sketchup.status_text = 'TT Thư viện: không có Face, dùng trục Model mặc định · click để đặt.'
         end
       end
 
       def onLButtonDown(_flags, _x, _y, view)
-        return UI.beep unless @point
+        return UI.beep unless @placement
+
         if @definition
           place_external
         else
-          LibraryTool.create_builtin_instance(@template_id, @params, @point)
+          LibraryTool.create_builtin_instance(@template_id, @params, @placement)
         end
         view.invalidate
       rescue StandardError => error
@@ -804,30 +959,130 @@ module TranTuanNoiThat
       end
 
       def draw(view)
-        return unless @point
+        return unless @placement
+
         corners = if @definition
           bounds_corners(@definition.bounds)
         else
           dims = LibraryTool.preview_dimensions(@template_id, @params)
           box_corners(dims[0].mm, dims[1].mm, dims[2].mm)
         end
-        translated = corners.map { |p| p + Geom::Vector3d.new(@point.x, @point.y, @point.z) }
+
+        transformed = corners.map { |point| point.transform(@placement) }
         pairs = [[0,1],[1,3],[3,2],[2,0],[4,5],[5,7],[7,6],[6,4],[0,4],[1,5],[2,6],[3,7]]
         view.line_width = 3
         view.drawing_color = Sketchup::Color.new(241, 150, 170)
-        view.draw(GL_LINES, pairs.flat_map { |a,b| [translated[a], translated[b]] })
+        view.draw(GL_LINES, pairs.flat_map { |a,b| [transformed[a], transformed[b]] })
+
+        draw_axes(view)
+      end
+
+      def picked_world_normal(view, x, y)
+        helper = view.pick_helper
+        helper.do_pick(x, y)
+        path = helper.path_at(0)
+        return nil unless path
+
+        face = path.reverse.find { |entity| entity.is_a?(Sketchup::Face) }
+        return nil unless face
+
+        tr = if helper.respond_to?(:transformation_at)
+          helper.transformation_at(0)
+        else
+          Geom::Transformation.new
+        end
+        normal = face.normal.transform(tr)
+        return nil if normal.length < 0.000001
+        normal.normalize!
+        snap_axis(normal)
+      rescue StandardError
+        nil
+      end
+
+      def snap_axis(vector)
+        axes = [
+          X_AXIS, X_AXIS.reverse,
+          Y_AXIS, Y_AXIS.reverse,
+          Z_AXIS, Z_AXIS.reverse
+        ]
+        axes.max_by { |axis| vector.dot(axis) }.clone
+      end
+
+      def axis_label(normal)
+        return '+X' if normal.dot(X_AXIS) > 0.9
+        return '-X' if normal.dot(X_AXIS) < -0.9
+        return '+Y' if normal.dot(Y_AXIS) > 0.9
+        return '-Y' if normal.dot(Y_AXIS) < -0.9
+        return '+Z' if normal.dot(Z_AXIS) > 0.9
+        '-Z'
+      end
+
+      def placement_transform(point_world, normal_world)
+        model = Sketchup.active_model
+        edit = model.respond_to?(:edit_transform) ? model.edit_transform : Geom::Transformation.new
+        inverse = edit.inverse
+        point = point_world.transform(inverse)
+
+        unless normal_world
+          return Geom::Transformation.axes(point, X_AXIS, Y_AXIS, Z_AXIS)
+        end
+
+        n = normal_world.transform(inverse)
+        n.normalize! if n.length > 0.000001
+        n = snap_axis(n)
+
+        if n.dot(Z_AXIS).abs > 0.9
+          zaxis = n
+          xaxis = X_AXIS.clone
+          xaxis = X_AXIS.reverse if zaxis.dot(Z_AXIS) < -0.9
+          yaxis = zaxis.cross(xaxis)
+          yaxis.normalize!
+          xaxis = yaxis.cross(zaxis)
+          xaxis.normalize!
+        else
+          zaxis = Z_AXIS.clone
+          yaxis = n
+          xaxis = yaxis.cross(zaxis)
+          xaxis.normalize!
+          yaxis = zaxis.cross(xaxis)
+          yaxis.normalize!
+        end
+
+        Geom::Transformation.axes(point, xaxis, yaxis, zaxis)
+      rescue StandardError
+        Geom::Transformation.translation(point_world)
+      end
+
+      def draw_axes(view)
+        origin = Geom::Point3d.new(0,0,0).transform(@placement)
+        scale = 120.mm
+        axes = [
+          [Geom::Point3d.new(scale,0,0).transform(@placement), Sketchup::Color.new(220,60,60)],
+          [Geom::Point3d.new(0,scale,0).transform(@placement), Sketchup::Color.new(60,180,80)],
+          [Geom::Point3d.new(0,0,scale).transform(@placement), Sketchup::Color.new(60,110,230)]
+        ]
+        view.line_width = 2
+        axes.each do |point, color|
+          view.drawing_color = color
+          view.draw(GL_LINES, [origin, point])
+        end
+      rescue StandardError
       end
 
       def place_external
         model = Sketchup.active_model
         model.start_operation('TT - Đặt mẫu thư viện ngoài', true)
         started = true
-        min = @definition.bounds.min
-        anchor = Geom::Vector3d.new(@point.x - min.x, @point.y - min.y, @point.z - min.z)
-        instance = model.active_entities.add_instance(@definition, Geom::Transformation.translation(anchor))
+
+        bounds = @definition.bounds
+        offset = Geom::Transformation.translation(
+          Geom::Vector3d.new(-bounds.min.x, -bounds.min.y, -bounds.min.z)
+        )
+        instance = model.active_entities.add_instance(@definition, @placement * offset)
         instance.set_attribute(DICT, 'source', @definition.get_attribute(DICT, 'source', 'external'))
         instance.set_attribute(DICT, 'remote_id', @definition.get_attribute(DICT, 'remote_id', nil))
         instance.set_attribute(DICT, 'remote_version', @definition.get_attribute(DICT, 'remote_version', nil))
+
         model.commit_operation
         started = false
         instance
@@ -851,6 +1106,7 @@ module TranTuanNoiThat
           Geom::Point3d.new(0,y,z), Geom::Point3d.new(x,y,z)
         ]
       end
+    end
     end
   end
 end
