@@ -6,9 +6,9 @@
 # - Chọn/hover 1 Group hoặc Component.
 # - Tool tự chọn mặt BoundingBox hướng về camera.
 # - Hiện 4 cạnh: Trái / Phải / Trên / Dưới.
-# - Click 1 cạnh để KHÓA nguyên cạnh đó.
-# - Rê chuột kéo cạnh đối diện để Scale theo đúng 1 trục.
-# - Click xác nhận hoặc gõ hệ số (vd 1.2).
+# - Nhấn giữ trực tiếp 1 cạnh để kéo Scale.
+# - Cạnh đối diện tự KHÓA cố định.
+# - Thả chuột để áp dụng; hoặc gõ hệ số (vd 1.2).
 # - Một thao tác = một Undo.
 #
 # Lưu ý:
@@ -22,7 +22,7 @@ module TranTuanNoiThat
   module ScaleCornerLock
     extend self
 
-    VERSION = '1.9.124'.freeze
+    VERSION = '1.9.125'.freeze
     PICK_RADIUS = 16.0
     MIN_FACTOR = 0.001
 
@@ -60,6 +60,7 @@ module TranTuanNoiThat
         @scale_axis = nil
         @fixed_coord = nil
         @factor = 1.0
+        @dragging = false
 
         @anchor_screen = nil
         @drag_screen = nil
@@ -88,6 +89,7 @@ module TranTuanNoiThat
         case @state
         when :scale
           reset_scale
+          @dragging = false
           @state = :pick_edge
         when :pick_edge
           @entity = nil
@@ -137,18 +139,38 @@ module TranTuanNoiThat
             UI.beep
             return
           end
-          lock_edge(edge, view)
+          begin_drag(edge, view)
+          @dragging = true
+          update_scale_preview(view, x, y)
 
         when :scale
+          # Đang kéo bằng chuột; không cần click lần hai.
           update_scale_preview(view, x, y)
-          commit_scale
-        end
 
         update_status
         view.invalidate
       rescue StandardError => error
-        UI.messagebox("Khóa Scale 4 Cạnh:\n#{error.message}")
+        UI.messagebox("Scale 4 Cạnh:\n#{error.message}")
         puts "[TT Scale4Edges click] #{error.class}: #{error.message}"
+      end
+
+      def onLButtonUp(_flags, x, y, view)
+        return unless @state == :scale && @dragging
+
+        update_scale_preview(view, x, y)
+        @dragging = false
+
+        if (@factor - 1.0).abs < 0.0001
+          reset_scale
+          @state = :pick_edge
+          update_status
+        else
+          commit_scale
+        end
+        view.invalidate
+      rescue StandardError => error
+        @dragging = false
+        UI.messagebox("Không hoàn tất Scale 4 Cạnh:\n#{error.message}")
       end
 
       def onUserText(text, view)
@@ -408,11 +430,11 @@ module TranTuanNoiThat
         end
       end
 
-      def lock_edge(key, view)
-        @locked_edge = key
-        @drag_edge = opposite_edge(key)
+      def begin_drag(key, view)
+        @drag_edge = key
+        @locked_edge = opposite_edge(key)
         @scale_axis = edge_axis(key)
-        @fixed_coord = edge_fixed_coord(key)
+        @fixed_coord = edge_fixed_coord(@locked_edge)
         @factor = 1.0
         @preview_transform_context = @original_transform
 
@@ -438,6 +460,7 @@ module TranTuanNoiThat
         @scale_axis = nil
         @fixed_coord = nil
         @factor = 1.0
+        @dragging = false
         @preview_transform_context = @original_transform if @original_transform
         @anchor_screen = nil
         @drag_screen = nil
@@ -495,7 +518,7 @@ module TranTuanNoiThat
         raise 'Chưa chọn cạnh khóa.' unless @locked_edge
         raise 'Hệ số Scale không hợp lệ.' unless @factor > 0.0
 
-        @model.start_operation('TT - Khóa Scale 4 Cạnh', true)
+        @model.start_operation('TT - Scale 4 Cạnh', true)
         started = true
 
         @entity.transformation = @preview_transform_context
@@ -613,11 +636,11 @@ module TranTuanNoiThat
       def update_status
         Sketchup.status_text = case @state
         when :pick_entity
-          'KHÓA SCALE 4 CẠNH · click Group/Component cần Scale.'
+          'SCALE 4 CẠNH · click Group/Component cần Scale.'
         when :pick_edge
-          '4 cạnh đang hiện · rê vào TRÁI/PHẢI/TRÊN/DƯỚI · click cạnh cần KHÓA.'
+          '4 cạnh đang mở · nhấn giữ TRÁI/PHẢI/TRÊN/DƯỚI rồi kéo trực tiếp. Cạnh đối diện tự khóa.'
         when :scale
-          "Cạnh đỏ = KHÓA · cạnh xanh = KÉO · click áp dụng · gõ hệ số, ví dụ 1.2."
+          "ĐANG KÉO · cạnh đỏ = tự khóa · cạnh xanh = đang kéo · thả chuột để áp dụng."
         end
       end
 
