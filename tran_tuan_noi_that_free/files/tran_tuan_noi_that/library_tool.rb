@@ -10,12 +10,24 @@ module TranTuanNoiThat
   module LibraryTool
     extend self
 
-    VERSION = '1.9.119'.freeze
+    VERSION = '1.9.120'.freeze
     DICT = 'TT_LIBRARY'.freeze
     SOURCE_KEY = 'library_sources_json'.freeze
     AUTO_SYNC_KEY = 'library_auto_sync'.freeze
     LOCAL_FOLDERS_KEY = 'library_local_folders_json'.freeze
     CACHE_ROOT = File.join(TranTuanNoiThat::ROOT, 'library_cache').freeze
+    MAX_SOURCE_DEPTH = 3
+
+    CATEGORY_RULES = [
+      ['Tủ bếp', /(tủ\s*bếp|tu\s*bep|kitchen|base\s*cabinet|wall\s*cabinet|upper\s*cabinet)/i],
+      ['Tủ áo', /(tủ\s*áo|tu\s*ao|wardrobe|closet|armoire)/i],
+      ['Kệ / TV', /(kệ|ke\s|tv|television|media\s*unit|shelf|shelving)/i],
+      ['Bàn', /(bàn|ban\s|table|desk|console)/i],
+      ['Giường', /(giường|giuong|bed|bedroom)/i],
+      ['Cửa', /(cửa|cua\s|door|window|cánh|canh\s)/i],
+      ['Phụ kiện', /(phụ\s*kiện|phu\s*kien|hardware|handle|hinge|ray|drawer\s*slide|accessor)/i],
+      ['Tấm ván', /(ván|van\s|board|panel|shelf\s*board|side\s*panel|đợt|dot\s)/i]
+    ].freeze
 
     BUILTINS = {
       'hoi_dung' => {
@@ -83,7 +95,7 @@ module TranTuanNoiThat
 
       @dialog = UI::HtmlDialog.new(
         dialog_title: 'TT - THƯ VIỆN NỘI THẤT',
-        preferences_key: 'TranTuanNoiThat.Library.119',
+        preferences_key: 'TranTuanNoiThat.Library.120',
         scrollable: true,
         resizable: true,
         width: 900,
@@ -208,6 +220,7 @@ module TranTuanNoiThat
       list = sources
       list << uri.to_s unless list.include?(uri.to_s)
       save_sources(list)
+      UI.start_timer(0.05, false) { sync_sources(false) }
       true
     rescue URI::InvalidURIError
       raise 'URL nguồn thư viện không hợp lệ.'
@@ -265,11 +278,14 @@ module TranTuanNoiThat
           next unless File.file?(path)
           next unless File.extname(path).downcase == '.skp'
 
-          relative = path.sub(/A#{Regexp.escape(folder)}[\\\/]?/, '')
+          relative = path.sub(/\A#{Regexp.escape(folder)}[\\\/]?/, '')
+          name = File.basename(path, File.extname(path))
+          folder_category = File.dirname(relative) == '.' ? '' : File.dirname(relative)
           items << {
             'id' => Digest::SHA256.hexdigest(path)[0, 16],
-            'name' => File.basename(path, File.extname(path)),
-            'category' => File.dirname(relative) == '.' ? 'SKP máy' : File.dirname(relative),
+            'name' => name,
+            'category' => categorize_model(name, folder_category, relative),
+            'raw_category' => folder_category,
             'path' => path,
             'folder' => folder
           }
@@ -587,25 +603,82 @@ module TranTuanNoiThat
       false
     end
 
+    def categorize_model(name, explicit_category = nil, context = nil)
+      explicit = explicit_category.to_s.strip
+      haystack = [explicit, name, context].compact.join(' ')
+
+      CATEGORY_RULES.each do |category, pattern|
+        return category if haystack.match?(pattern)
+      end
+
+      return explicit unless explicit.empty?
+      'Khác'
+    end
+
+    def discover_source_manifests(seed_urls)
+      queue = Array(seed_urls).map { |url| [url.to_s, 0] }
+      seen = {}
+      manifests = []
+      errors = []
+
+      until queue.empty?
+        source_url, depth = queue.shift
+        next if seen[source_url]
+        seen[source_url] = true
+
+        begin
+          uri = URI.parse(source_url)
+          raise 'Nguồn liên kết phải là HTTPS.' unless uri.is_a?(URI::HTTPS)
+
+          manifest = fetch_json(source_url)
+          manifests << [source_url, manifest]
+
+          if depth < MAX_SOURCE_DEPTH
+            Array(manifest['sources']).each do |entry|
+              child_url = if entry.is_a?(Hash)
+                entry['url'].to_s
+              else
+                entry.to_s
+              end
+              next if child_url.empty?
+
+              begin
+                child_uri = URI.parse(child_url)
+                next unless child_uri.is_a?(URI::HTTPS)
+                queue << [child_uri.to_s, depth + 1] unless seen[child_uri.to_s]
+              rescue URI::InvalidURIError
+                errors << "#{source_url}: source con không hợp lệ #{child_url}"
+              end
+            end
+          end
+        rescue StandardError => error
+          errors << "#{source_url}: #{error.message}"
+        end
+      end
+
+      [manifests, errors]
+    end
+
     def sync_sources(interactive)
       list = sources
       if list.empty?
-        notify('Chưa có nguồn thư viện ngoài. Hãy thêm URL manifest HTTPS.', 'warn') if interactive
+        notify('Chưa có nguồn thư viện ngoài. Hãy thêm ít nhất 1 URL manifest HTTPS.', 'warn') if interactive
         return false
       end
 
+      manifests, errors = discover_source_manifests(list)
+      discovered_urls = manifests.map(&:first)
+      save_sources((list + discovered_urls).uniq) unless discovered_urls.empty?
+
       items = {}
-      errors = []
-      list.each do |source_url|
+      manifests.each do |source_url, manifest|
         begin
-          manifest = fetch_json(source_url)
           source_name = manifest['name'].to_s.strip
           source_name = URI.parse(source_url).host if source_name.empty?
-          remote_items = manifest['items']
-          raise 'Manifest không có items.' unless remote_items.is_a?(Array)
+          remote_items = Array(manifest['items'])
 
           remote_items.each do |item|
-            validated = validate_remote_item(item, source_name)
+            validated = validate_remote_item(item, source_name, source_url)
             old = items[validated['id']]
             if old.nil? || (version_tuple(validated['version']) <=> version_tuple(old['version'])) > 0
               items[validated['id']] = validated
@@ -630,14 +703,14 @@ module TranTuanNoiThat
       sync_ui
 
       if interactive
-        message = "Đã đồng bộ #{@remote_items.length} mẫu ngoài."
+        message = "Đã quét #{manifests.length} nguồn (gồm nguồn liên kết) · #{@remote_items.length} model."
         message += "\n#{errors.length} lỗi nguồn/tệp." unless errors.empty?
         notify(message, errors.empty? ? 'ok' : 'warn')
       end
       true
     end
 
-    def validate_remote_item(item, source_name)
+    def validate_remote_item(item, source_name, source_url = nil)
       raise 'Item nguồn không hợp lệ.' unless item.is_a?(Hash)
       id = item['id'].to_s
       name = item['name'].to_s.strip
@@ -653,11 +726,13 @@ module TranTuanNoiThat
       {
         'id' => id,
         'name' => name,
-        'category' => item['category'].to_s.empty? ? 'Ngoài' : item['category'].to_s,
+        'category' => categorize_model(name, item['category'], source_name),
+        'raw_category' => item['category'].to_s,
         'version' => version,
         'url' => url,
         'sha256' => sha,
-        'source_name' => source_name
+        'source_name' => source_name,
+        'source_url' => source_url.to_s
       }
     rescue URI::InvalidURIError
       raise 'URL mẫu không hợp lệ.'
@@ -726,7 +801,7 @@ module TranTuanNoiThat
       uri = URI.parse(url)
       raise 'Chỉ cho phép HTTPS.' unless uri.is_a?(URI::HTTPS)
       request = Net::HTTP::Get.new(uri.request_uri)
-      request['User-Agent'] = 'TranTuanNoiThat-Library/1.9.119'
+      request['User-Agent'] = 'TranTuanNoiThat-Library/1.9.120'
 
       http = Net::HTTP.new(uri.host, uri.port)
       http.use_ssl = true
@@ -786,6 +861,11 @@ module TranTuanNoiThat
             .notice.ok{display:block;background:#e5f5eb;color:#166534}.notice.warn{display:block;background:#fff4d6;color:#7c5700}.notice.error{display:block;background:#fde8e8;color:#8c2222}
             .hint{font-size:12px;line-height:1.55;color:#657080;margin-top:9px}
             .remoteItem{display:flex;justify-content:space-between;gap:8px;align-items:center;border-bottom:1px solid #edf0f4;padding:8px 0}
+            .categoryGroup{margin:9px 0;border:1px solid #d8dee8;border-radius:8px;overflow:hidden;background:#fff}
+            .categoryHead{padding:8px 10px;background:#eaf0f7;font-weight:bold;display:flex;justify-content:space-between;align-items:center}
+            .categoryCount{font-size:11px;background:#cdd9e7;padding:2px 7px;border-radius:10px}
+            .categoryBody{padding:0 9px}
+            .searchBox{margin-top:9px}
             .libraryWork{display:grid;grid-template-columns:minmax(300px,1fr) 360px;gap:12px;align-items:start}
             .preview3d{background:#0f172a;border-radius:9px;padding:10px;color:#fff;position:sticky;top:68px}
             .preview3d canvas{display:block;width:100%;height:330px;background:linear-gradient(#172033,#0b1220);border-radius:7px;cursor:grab}
@@ -840,6 +920,7 @@ module TranTuanNoiThat
               </div>
               <div class="editor">
                 <b>Model từ thư mục</b>
+                <input id="modelSearch" class="searchBox" placeholder="Tìm model theo tên hoặc danh mục..." oninput="renderLocal();renderRemote()">
                 <div id="localItems"></div>
               </div>
               <div class="editor">
@@ -847,12 +928,12 @@ module TranTuanNoiThat
                 <div class="row">
                   <input id="sourceUrl" placeholder="https://.../library.json" style="flex:1;min-width:420px">
                   <button onclick="addSource()">Thêm nguồn</button>
-                  <button class="green" onclick="sketchup.sync_sources()">Đồng bộ toàn bộ nguồn</button>
+                  <button class="green" onclick="sketchup.sync_sources()">Quét nguồn + đồng bộ model</button>
                 </div>
                 <div class="row">
                   <label><input id="autoSync" type="checkbox" style="width:auto" onchange="sketchup.set_auto_sync(this.checked)"> Tự đồng bộ khi mở Thư viện</label>
                 </div>
-                <div class="hint">Manifest nguồn: JSON có name và items[]. Mỗi item cần id, name, category, version x.y.z, url HTTPS tới file SKP và sha256. Nguồn cần đăng nhập/API riêng phải cung cấp adapter hoặc link tải được phép.</div>
+                <div class="hint">Hệ thống tự quét nguồn đã thêm và các nguồn con khai báo trong <b>sources[]</b> (tối đa 3 tầng), sau đó đồng bộ toàn bộ model. Model được tự xếp theo danh mục. Manifest item cần id, name, version x.y.z, url HTTPS tới SKP và sha256; category có thể bỏ trống để hệ thống tự nhận theo tên.</div>
                 <div id="sources" style="margin-top:10px"></div>
               </div>
               <div class="editor">
@@ -872,15 +953,18 @@ module TranTuanNoiThat
             function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
             function openTab(id){for(const x of ['builtin','remote'])document.getElementById(x).classList.toggle('active',x===id);document.getElementById('tabBuiltin').classList.toggle('active',id==='builtin');document.getElementById('tabRemote').classList.toggle('active',id==='remote');}
             function renderAll(){renderCards();renderSources();renderLocal();renderRemote();document.getElementById('autoSync').checked=!!TT.state.auto_sync;if(!TT.selected&&TT.state.builtins.length)selectCard(TT.state.builtins[0].id);render3D();}
-            function renderCards(){document.getElementById('cards').innerHTML=(TT.state.builtins||[]).map(x=>'<div class="card '+(TT.selected===x.id?'selected':'')+'" onclick="selectCard(\''+x.id+'\')"><h3>'+esc(x.name)+'</h3><div class="cat">'+esc(x.category)+'</div></div>').join('');}
+            function renderCards(){const items=TT.state.builtins||[],groups=groupByCategory(items);document.getElementById('cards').innerHTML=Object.keys(groups).sort().map(cat=>'<div class="categoryGroup"><div class="categoryHead"><span>'+esc(cat)+'</span><span class="categoryCount">'+groups[cat].length+'</span></div><div class="categoryBody"><div class="cards">'+groups[cat].map(x=>'<div class="card '+(TT.selected===x.id?'selected':'')+'" onclick="selectCard(\''+x.id+'\')"><h3>'+esc(x.name)+'</h3><div class="cat">'+esc(x.category)+'</div></div>').join('')+'</div></div></div>').join('');}
             function selectCard(id){TT.selected=id;const x=(TT.state.builtins||[]).find(a=>a.id===id);if(!x)return;document.getElementById('editorTitle').textContent=x.name;document.getElementById('fields').innerHTML=x.fields.map(f=>'<label>'+esc(f.label)+'</label><input id="f_'+f.key+'" type="number" step="'+(f.key==='shelves'?'1':'0.5')+'" value="'+esc(x.defaults[f.key])+'" oninput="render3D()"><span>'+esc(f.unit)+'</span>').join('');renderCards();render3D();}
             function values(){const x=(TT.state.builtins||[]).find(a=>a.id===TT.selected);const o={};for(const f of (x?.fields||[]))o[f.key]=Number(document.getElementById('f_'+f.key).value);return o;}
             function place(){if(TT.selected)sketchup.place_builtin(TT.selected,JSON.stringify(values()));}
             function updateSelected(){if(TT.selected)sketchup.update_selected(TT.selected,JSON.stringify(values()));}
             function addSource(){const e=document.getElementById('sourceUrl');if(e.value.trim()){sketchup.add_source(e.value.trim());e.value='';}}
             function renderSources(){document.getElementById('sources').innerHTML=(TT.state.sources||[]).map(url=>'<div class="source"><code>'+esc(url)+'</code><button class="gray" onclick="sketchup.remove_source(\''+String(url).replace(/'/g,"\\'")+'\')">Xóa</button></div>').join('');}
-            function renderLocal(){document.getElementById('localFolders').innerHTML=(TT.state.local_folders||[]).map(folder=>'<div class="source"><code>'+esc(folder)+'</code><button class="gray" onclick="sketchup.remove_local_folder(\''+String(folder).replace(/\\/g,'\\\\').replace(/'/g,"\\'")+'\')">Xóa</button></div>').join('');document.getElementById('localItems').innerHTML=(TT.state.local_items||[]).map(x=>'<div class="remoteItem"><div><b>'+esc(x.name)+'</b><br><span class="cat">'+esc(x.category)+'</span></div><button onclick="sketchup.place_local(\''+x.id+'\')">Đặt</button></div>').join('')||'<div class="hint">Chưa có thư mục SKP.</div>';}
-            function renderRemote(){document.getElementById('remoteItems').innerHTML=(TT.state.remote_items||[]).map(x=>'<div class="remoteItem"><div><b>'+esc(x.name)+'</b><br><span class="cat">'+esc(x.category)+' · v'+esc(x.version)+' · '+esc(x.source_name)+'</span></div><button onclick="sketchup.place_remote(\''+x.id+'\')">Đặt</button></div>').join('')||'<div class="hint">Chưa có mẫu ngoài trong cache.</div>';}
+            function searchText(){const e=document.getElementById('modelSearch');return (e?e.value:'').trim().toLowerCase();}
+            function groupByCategory(items){const groups={};for(const x of (items||[])){const cat=x.category||'Khác';(groups[cat]||(groups[cat]=[])).push(x);}return groups;}
+            function groupedHtml(items,buttonFn,metaFn){const q=searchText(),filtered=(items||[]).filter(x=>!q||((x.name||'')+' '+(x.category||'')).toLowerCase().includes(q)),groups=groupByCategory(filtered);return Object.keys(groups).sort().map(cat=>'<div class="categoryGroup"><div class="categoryHead"><span>'+esc(cat)+'</span><span class="categoryCount">'+groups[cat].length+'</span></div><div class="categoryBody">'+groups[cat].map(x=>'<div class="remoteItem"><div><b>'+esc(x.name)+'</b><br><span class="cat">'+esc(metaFn(x))+'</span></div><button onclick="'+buttonFn(x)+'">Đặt</button></div>').join('')+'</div></div>').join('');}
+            function renderLocal(){document.getElementById('localFolders').innerHTML=(TT.state.local_folders||[]).map(folder=>'<div class="source"><code>'+esc(folder)+'</code><button class="gray" onclick="sketchup.remove_local_folder(\''+String(folder).replace(/\\/g,'\\\\').replace(/'/g,"\\'")+'\')">Xóa</button></div>').join('');const html=groupedHtml(TT.state.local_items||[],x=>"sketchup.place_local('"+x.id+"')",x=>x.category);document.getElementById('localItems').innerHTML=html||'<div class="hint">Chưa có model SKP phù hợp.</div>';}
+            function renderRemote(){const html=groupedHtml(TT.state.remote_items||[],x=>"sketchup.place_remote('"+x.id+"')",x=>x.category+' · v'+x.version+' · '+x.source_name);document.getElementById('remoteItems').innerHTML=html||'<div class="hint">Chưa có model ngoài phù hợp.</div>';}
             let viewYaw=-0.72,viewPitch=0.48,viewZoom=1.0,dragging=false,lastX=0,lastY=0;
             function modelBoxes(id,p){
               const t=+p.thickness||17.5,w=+p.width||800,d=+p.depth||600,h=+p.height||720,b=+p.back||9,toe=+p.toe||0;
