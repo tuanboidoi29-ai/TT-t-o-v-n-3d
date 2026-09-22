@@ -10,7 +10,7 @@ module TranTuanNoiThat
   module LibraryTool
     extend self
 
-    VERSION = '1.9.121'.freeze
+    VERSION = '1.9.122'.freeze
     DICT = 'TT_LIBRARY'.freeze
     SOURCE_KEY = 'library_sources_json'.freeze
     AUTO_SYNC_KEY = 'library_auto_sync'.freeze
@@ -96,7 +96,7 @@ module TranTuanNoiThat
 
       @dialog = UI::HtmlDialog.new(
         dialog_title: 'TT - THƯ VIỆN NỘI THẤT',
-        preferences_key: 'TranTuanNoiThat.Library.121',
+        preferences_key: 'TranTuanNoiThat.Library.122',
         scrollable: true,
         resizable: true,
         width: 900,
@@ -176,6 +176,29 @@ module TranTuanNoiThat
         discover_registry_sources(true)
       end
 
+      @dialog.add_action_callback('sync_source') do |_ctx, url|
+        sync_one_source(url.to_s, true)
+      end
+
+      @dialog.add_action_callback('open_platform') do |_ctx, url|
+        begin
+          uri = URI.parse(url.to_s)
+          raise 'URL nền tảng không hợp lệ.' unless uri.is_a?(URI::HTTPS)
+          UI.openURL(uri.to_s)
+        rescue StandardError => error
+          notify(error.message, 'error')
+        end
+      end
+
+      @dialog.add_action_callback('watch_downloads') do |_ctx|
+        watch_downloads_folder
+      end
+
+      @dialog.add_action_callback('refresh_local') do |_ctx|
+        sync_ui
+        notify("Đã quét lại thư mục · tìm thấy #{scan_local_items.length} model SKP.", 'ok')
+      end
+
       @dialog.add_action_callback('set_auto_sync') do |_ctx, enabled|
         Sketchup.write_default(TranTuanNoiThat::NAME, AUTO_SYNC_KEY, enabled == true || enabled.to_s == 'true')
         sync_ui
@@ -237,6 +260,36 @@ module TranTuanNoiThat
     def remove_source(url)
       save_sources(sources.reject { |item| item == url.to_s })
       true
+    end
+
+    def downloads_folder
+      candidates = []
+      home = ENV['USERPROFILE'].to_s
+      home = ENV['HOME'].to_s if home.empty?
+      candidates << File.join(home, 'Downloads') unless home.empty?
+      candidates.find { |path| File.directory?(path) }
+    rescue StandardError
+      nil
+    end
+
+    def watch_downloads_folder
+      folder = downloads_folder
+      raise 'Không tìm thấy thư mục Downloads trên máy.' unless folder
+
+      list = local_folders
+      added = !list.include?(folder)
+      list << folder if added
+      save_local_folders(list)
+      sync_ui
+      notify(
+        added ? "Đã theo dõi Downloads. Hiện có #{scan_local_items.length} model SKP." :
+                "Downloads đã được theo dõi. Hiện có #{scan_local_items.length} model SKP.",
+        'ok'
+      )
+      true
+    rescue StandardError => error
+      notify("Không theo dõi được Downloads: #{error.message}", 'error')
+      false
     end
 
     def local_folders
@@ -338,6 +391,8 @@ module TranTuanNoiThat
       payload = {
         builtins: builtin_payload,
         sources: sources,
+        source_status: @source_status || {},
+        downloads_folder: downloads_folder,
         local_folders: local_folders,
         local_items: scan_local_items,
         auto_sync: auto_sync?,
@@ -720,6 +775,63 @@ module TranTuanNoiThat
       [manifests, errors]
     end
 
+    def sync_one_source(source_url, interactive = true)
+      uri = URI.parse(source_url.to_s)
+      raise 'Nguồn phải là HTTPS.' unless uri.is_a?(URI::HTTPS)
+
+      manifests, errors = discover_source_manifests([uri.to_s])
+      items = {}
+
+      manifests.each do |url, manifest|
+        source_name = manifest['name'].to_s.strip
+        source_name = URI.parse(url).host if source_name.empty?
+        Array(manifest['items']).each do |item|
+          validated = validate_remote_item(item, source_name, url)
+          old = items[validated['id']]
+          if old.nil? || (version_tuple(validated['version']) <=> version_tuple(old['version'])) > 0
+            items[validated['id']] = validated
+          end
+        end
+      end
+
+      current = Array(@remote_items).each_with_object({}) { |item, memo| memo[item['id']] = item }
+      success = 0
+
+      items.values.each do |item|
+        begin
+          ensure_cached(item)
+          current[item['id']] = item
+          success += 1
+        rescue StandardError => error
+          errors << "#{item['name']}: #{error.message}"
+        end
+      end
+
+      @remote_items = current.values.sort_by { |item| [item['category'].to_s, item['name'].to_s] }
+      @source_status ||= {}
+      @source_status[uri.to_s] = {
+        'ok' => errors.empty?,
+        'model_count' => success,
+        'message' => errors.empty? ? "Đã đồng bộ #{success} model" : "#{success} model · #{errors.length} lỗi"
+      }
+      sync_ui
+
+      if interactive
+        notify(@source_status[uri.to_s]['message'], errors.empty? ? 'ok' : 'warn')
+      end
+      success > 0
+    rescue StandardError => error
+      @source_status ||= {}
+      @source_status[source_url.to_s] = {
+        'ok' => false,
+        'model_count' => 0,
+        'message' => error.message
+      }
+      sync_ui
+      notify("Đồng bộ nguồn lỗi: #{error.message}", 'error') if interactive
+      false
+    end
+
     def sync_sources(interactive)
       list = sources
       if list.empty?
@@ -732,21 +844,34 @@ module TranTuanNoiThat
       save_sources((list + discovered_urls).uniq) unless discovered_urls.empty?
 
       items = {}
+      @source_status ||= {}
       manifests.each do |source_url, manifest|
         begin
           source_name = manifest['name'].to_s.strip
           source_name = URI.parse(source_url).host if source_name.empty?
           remote_items = Array(manifest['items'])
 
+          remote_count = 0
           remote_items.each do |item|
             validated = validate_remote_item(item, source_name, source_url)
+            remote_count += 1
             old = items[validated['id']]
             if old.nil? || (version_tuple(validated['version']) <=> version_tuple(old['version'])) > 0
               items[validated['id']] = validated
             end
           end
+          @source_status[source_url] = {
+            'ok' => true,
+            'model_count' => remote_count,
+            'message' => "Đọc được #{remote_count} model"
+          }
         rescue StandardError => error
           errors << "#{source_url}: #{error.message}"
+          @source_status[source_url] = {
+            'ok' => false,
+            'model_count' => 0,
+            'message' => error.message
+          }
         end
       end
 
@@ -862,7 +987,7 @@ module TranTuanNoiThat
       uri = URI.parse(url)
       raise 'Chỉ cho phép HTTPS.' unless uri.is_a?(URI::HTTPS)
       request = Net::HTTP::Get.new(uri.request_uri)
-      request['User-Agent'] = 'TranTuanNoiThat-Library/1.9.121'
+      request['User-Agent'] = 'TranTuanNoiThat-Library/1.9.122'
 
       http = Net::HTTP.new(uri.host, uri.port)
       http.use_ssl = true
@@ -918,6 +1043,10 @@ module TranTuanNoiThat
             .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px}
             .source{background:#fff;border:1px solid #d8dee8;border-radius:7px;padding:9px;margin-bottom:7px;display:flex;gap:8px;align-items:center}
             .source code{flex:1;font-size:11px;overflow-wrap:anywhere}
+            .platformCard{background:#fff;border:1px solid #d8dee8;border-radius:8px;padding:10px;margin:7px 0}
+            .platformTop{display:flex;justify-content:space-between;gap:8px;align-items:center}
+            .status{font-size:11px;padding:3px 7px;border-radius:10px;background:#e2e8f0;color:#334155}
+            .status.ok{background:#dcfce7;color:#166534}.status.warn{background:#fef3c7;color:#92400e}
             .notice{display:none;margin-top:10px;padding:9px;border-radius:6px;white-space:pre-wrap;font-size:13px}
             .notice.ok{display:block;background:#e5f5eb;color:#166534}.notice.warn{display:block;background:#fff4d6;color:#7c5700}.notice.error{display:block;background:#fde8e8;color:#8c2222}
             .hint{font-size:12px;line-height:1.55;color:#657080;margin-top:9px}
@@ -976,6 +1105,8 @@ module TranTuanNoiThat
                 <b>Thư mục model SKP trên máy</b>
                 <div class="row">
                   <button class="green" onclick="sketchup.add_local_folder()">Thêm thư mục SKP</button>
+                  <button class="orange" onclick="sketchup.watch_downloads()">Theo dõi Downloads</button>
+                  <button class="gray" onclick="sketchup.refresh_local()">Quét lại thư mục</button>
                   <button class="gray" onclick="sketchup.import_local()">Nạp 1 SKP</button>
                 </div>
                 <div id="localFolders" style="margin-top:10px"></div>
@@ -989,6 +1120,11 @@ module TranTuanNoiThat
                 <b>Model từ thư mục</b>
                 <input id="modelSearch" class="searchBox" placeholder="Tìm model theo tên hoặc danh mục..." oninput="renderLocal();renderRemote()">
                 <div id="localItems"></div>
+              </div>
+              <div class="editor">
+                <b>Nguồn trực tuyến</b>
+                <div id="platforms" style="margin-top:9px"></div>
+                <div class="hint">Nguồn yêu cầu tài khoản/API không thể tải tự động nếu chưa kết nối. Với 3D Warehouse: mở nguồn → tải SKP → TT quét Downloads.</div>
               </div>
               <div class="editor">
                 <b>Nguồn thư viện HTTPS</b>
@@ -1014,21 +1150,22 @@ module TranTuanNoiThat
           </div>
 
           <script>
-            const TT={state:{builtins:[],sources:[],local_folders:[],local_items:[],remote_items:[],categories:[],registry:{},auto_sync:true},selected:null,activeCategory:'Tất cả',
+            const TT={state:{builtins:[],sources:[],source_status:{},downloads_folder:null,local_folders:[],local_items:[],remote_items:[],categories:[],registry:{},auto_sync:true},selected:null,activeCategory:'Tất cả',
               setState(s){this.state=s||this.state;renderAll();},
               notice(msg,kind){const e=document.getElementById('notice');e.className='notice '+(kind||'ok');e.textContent=msg||'';},
               loadSelected(data){openTab('builtin');selectCard(data.template_id);for(const [k,v] of Object.entries(data.params||{})){const el=document.getElementById('f_'+k);if(el)el.value=v;}this.notice('Đã lấy thông số component đang chọn.','ok');}
             };
             function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
             function openTab(id){for(const x of ['builtin','remote'])document.getElementById(x).classList.toggle('active',x===id);document.getElementById('tabBuiltin').classList.toggle('active',id==='builtin');document.getElementById('tabRemote').classList.toggle('active',id==='remote');}
-            function renderAll(){renderCards();renderSources();renderCategories();renderLocal();renderRemote();document.getElementById('autoSync').checked=!!TT.state.auto_sync;if(!TT.selected&&TT.state.builtins.length)selectCard(TT.state.builtins[0].id);render3D();const r=TT.state.registry||{};document.getElementById('registryStatus').textContent=r.name?('Registry: '+r.name+' · v'+(r.version||'?')+' · '+(r.source_count||0)+' nguồn công khai'):'Registry chưa được quét';}
+            function renderAll(){renderCards();renderPlatforms();renderSources();renderCategories();renderLocal();renderRemote();document.getElementById('autoSync').checked=!!TT.state.auto_sync;if(!TT.selected&&TT.state.builtins.length)selectCard(TT.state.builtins[0].id);render3D();const r=TT.state.registry||{};document.getElementById('registryStatus').textContent=r.name?('Registry: '+r.name+' · v'+(r.version||'?')+' · '+(r.source_count||0)+' nguồn công khai'):'Registry chưa được quét';}
             function renderCards(){const items=TT.state.builtins||[],groups=groupByCategory(items);document.getElementById('cards').innerHTML=Object.keys(groups).sort().map(cat=>'<div class="categoryGroup"><div class="categoryHead"><span>'+esc(cat)+'</span><span class="categoryCount">'+groups[cat].length+'</span></div><div class="categoryBody"><div class="cards">'+groups[cat].map(x=>'<div class="card '+(TT.selected===x.id?'selected':'')+'" onclick="selectCard(\''+x.id+'\')"><h3>'+esc(x.name)+'</h3><div class="cat">'+esc(x.category)+'</div></div>').join('')+'</div></div></div>').join('');}
             function selectCard(id){TT.selected=id;const x=(TT.state.builtins||[]).find(a=>a.id===id);if(!x)return;document.getElementById('editorTitle').textContent=x.name;document.getElementById('fields').innerHTML=x.fields.map(f=>'<label>'+esc(f.label)+'</label><input id="f_'+f.key+'" type="number" step="'+(f.key==='shelves'?'1':'0.5')+'" value="'+esc(x.defaults[f.key])+'" oninput="render3D()"><span>'+esc(f.unit)+'</span>').join('');renderCards();render3D();}
             function values(){const x=(TT.state.builtins||[]).find(a=>a.id===TT.selected);const o={};for(const f of (x?.fields||[]))o[f.key]=Number(document.getElementById('f_'+f.key).value);return o;}
             function place(){if(TT.selected)sketchup.place_builtin(TT.selected,JSON.stringify(values()));}
             function updateSelected(){if(TT.selected)sketchup.update_selected(TT.selected,JSON.stringify(values()));}
             function addSource(){const e=document.getElementById('sourceUrl');if(e.value.trim()){sketchup.add_source(e.value.trim());e.value='';}}
-            function renderSources(){document.getElementById('sources').innerHTML=(TT.state.sources||[]).map(url=>'<div class="source"><code>'+esc(url)+'</code><button class="gray" onclick="sketchup.remove_source(\''+String(url).replace(/'/g,"\\'")+'\')">Xóa</button></div>').join('');}
+            function renderPlatforms(){const r=TT.state.registry||{},items=r.platforms||[];document.getElementById('platforms').innerHTML=items.map(p=>{let status='Cần kết nối',cls='warn',buttons='';if(p.status==='supported'){status='Hỗ trợ trực tiếp';cls='ok';}if(p.id==='3dwarehouse'){buttons+='<button onclick="sketchup.open_platform(\''+p.home_url+'\')">Mở 3D Warehouse</button> <button class="orange" onclick="sketchup.watch_downloads()">Theo dõi Downloads</button>';}else if(p.home_url){buttons+='<button onclick="sketchup.open_platform(\''+p.home_url+'\')">Mở nguồn</button>';}return '<div class="platformCard"><div class="platformTop"><b>'+esc(p.name)+'</b><span class="status '+cls+'">'+status+'</span></div><div class="hint">'+esc(p.note||'')+'</div><div class="row">'+buttons+'</div></div>';}).join('')||'<div class="hint">Bấm TỰ TÌM NGUỒN để tải danh sách nền tảng.</div>';}
+            function renderSources(){const st=TT.state.source_status||{};document.getElementById('sources').innerHTML=(TT.state.sources||[]).map(url=>{const x=st[url]||{},safe=String(url).replace(/'/g,"\\'");return '<div class="source"><code>'+esc(url)+'</code><span class="status '+(x.ok?'ok':(x.message?'warn':''))+'">'+esc(x.message||'Chưa đồng bộ')+'</span><button class="green" onclick="sketchup.sync_source(\''+safe+'\')">Đồng bộ</button><button class="gray" onclick="sketchup.remove_source(\''+safe+'\')">Xóa</button></div>';}).join('')||'<div class="hint">Chưa có manifest HTTPS nào được thêm.</div>';}
             function renderCategories(){const cats=['Tất cả',...(TT.state.categories||[])];document.getElementById('categoryBar').innerHTML=cats.map(c=>'<button class="chip '+(TT.activeCategory===c?'active':'')+'" onclick="TT.activeCategory=\''+String(c).replace(/'/g,"\\'")+'\';renderCategories();renderLocal();renderRemote()">'+esc(c)+'</button>').join('');}
             function searchText(){const e=document.getElementById('modelSearch');return (e?e.value:'').trim().toLowerCase();}
             function groupByCategory(items){const groups={};for(const x of (items||[])){const cat=x.category||'Khác';(groups[cat]||(groups[cat]=[])).push(x);}return groups;}
