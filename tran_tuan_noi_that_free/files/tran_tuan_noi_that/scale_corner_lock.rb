@@ -5,8 +5,8 @@
 # Quy trình:
 # - Chọn/hover 1 Group hoặc Component.
 # - Tool tự chọn mặt BoundingBox hướng về camera.
-# - Hiện 4 cạnh: Trái / Phải / Trên / Dưới.
-# - Nhấn giữ trực tiếp 1 cạnh để kéo Scale.
+# - Hiện 4 TAY NẮM ở trung điểm: Trái / Phải / Trên / Dưới.
+# - Nhấn giữ trực tiếp TRUNG ĐIỂM để kéo Scale.
 # - Cạnh đối diện tự KHÓA cố định.
 # - Thả chuột để áp dụng; hoặc gõ hệ số (vd 1.2).
 # - Một thao tác = một Undo.
@@ -22,8 +22,8 @@ module TranTuanNoiThat
   module ScaleCornerLock
     extend self
 
-    VERSION = '1.9.125'.freeze
-    PICK_RADIUS = 16.0
+    VERSION = '1.9.126'.freeze
+    PICK_RADIUS = 20.0
     MIN_FACTOR = 0.001
 
     EDGE_NAMES = {
@@ -110,7 +110,7 @@ module TranTuanNoiThat
           @hover_entity = pick_container(view, x, y)
         when :pick_edge
           refresh_view_plane
-          @hover_edge = nearest_edge_key(view, x, y)
+          @hover_edge = nearest_midpoint_key(view, x, y)
         when :scale
           update_scale_preview(view, x, y)
         end
@@ -134,7 +134,7 @@ module TranTuanNoiThat
 
         when :pick_edge
           refresh_view_plane
-          edge = nearest_edge_key(view, x, y)
+          edge = nearest_midpoint_key(view, x, y)
           unless edge
             UI.beep
             return
@@ -202,7 +202,7 @@ module TranTuanNoiThat
         case @state
         when :pick_edge
           draw_entity_box(view, @entity, Sketchup::Color.new(241, 150, 170), 2)
-          draw_four_edges(view)
+          draw_four_midpoints(view)
         when :scale
           draw_preview_box(view)
           draw_scale_edges(view)
@@ -370,19 +370,16 @@ module TranTuanNoiThat
         Geom::Point3d.linear_combination(0.5, points[0], 0.5, points[1])
       end
 
-      def nearest_edge_key(view, x, y)
+      def nearest_midpoint_key(view, x, y)
         best_key = nil
         best_distance = PICK_RADIUS + 1.0
 
         %i[u_min u_max v_min v_max].each do |key|
-          a_world, b_world = edge_world_points(key)
-          a = view.screen_coords(a_world)
-          b = view.screen_coords(b_world)
-          distance = screen_distance_to_segment(
-            x.to_f, y.to_f,
-            a.x.to_f, a.y.to_f,
-            b.x.to_f, b.y.to_f
-          )
+          midpoint = view.screen_coords(edge_midpoint_world(key))
+          dx = midpoint.x.to_f - x.to_f
+          dy = midpoint.y.to_f - y.to_f
+          distance = Math.sqrt(dx * dx + dy * dy)
+
           if distance <= PICK_RADIUS && distance < best_distance
             best_key = key
             best_distance = distance
@@ -391,22 +388,6 @@ module TranTuanNoiThat
         best_key
       rescue StandardError
         nil
-      end
-
-      def screen_distance_to_segment(px, py, ax, ay, bx, by)
-        dx = bx - ax
-        dy = by - ay
-        length2 = dx * dx + dy * dy
-        if length2 <= 0.000001
-          return Math.sqrt((px - ax) ** 2 + (py - ay) ** 2)
-        end
-
-        t = ((px - ax) * dx + (py - ay) * dy) / length2
-        t = 0.0 if t < 0.0
-        t = 1.0 if t > 1.0
-        cx = ax + t * dx
-        cy = ay + t * dy
-        Math.sqrt((px - cx) ** 2 + (py - cy) ** 2)
       end
 
       def opposite_edge(key)
@@ -573,25 +554,26 @@ module TranTuanNoiThat
         view.draw(GL_LINES, pairs.flat_map { |a, b| [corners[a], corners[b]] })
       end
 
-      def draw_four_edges(view)
+      def draw_four_midpoints(view)
         %i[u_min u_max v_min v_max].each do |key|
           hovered = key == @hover_edge
-          color = hovered ?
-            Sketchup::Color.new(255, 180, 40) :
-            Sketchup::Color.new(80, 160, 245)
-          width = hovered ? 7 : 4
-
-          points = edge_world_points(key)
-          view.line_width = width
-          view.drawing_color = color
-          view.draw(GL_LINES, points)
-
           midpoint = edge_midpoint_world(key)
-          view.draw_points(midpoint, hovered ? 12 : 8, 2, color)
+
+          color = hovered ?
+            Sketchup::Color.new(255, 170, 30) :
+            Sketchup::Color.new(50, 135, 235)
+
+          # Chỉ tay nắm TRUNG ĐIỂM là vùng thao tác.
+          view.draw_points(
+            midpoint,
+            hovered ? 18 : 13,
+            2,
+            color
+          )
 
           screen = view.screen_coords(midpoint)
           view.draw_text(
-            [screen.x + 8, screen.y - 8],
+            [screen.x + 10, screen.y - 10],
             EDGE_NAMES[key],
             color: color
           )
@@ -599,27 +581,32 @@ module TranTuanNoiThat
       end
 
       def draw_scale_edges(view)
-        locked_points = edge_world_points(
+        locked_mid = edge_midpoint_world(
           @locked_edge,
           @preview_transform_context
         )
-        drag_points = edge_world_points(
+        drag_mid = edge_midpoint_world(
           @drag_edge,
           @preview_transform_context
         )
 
-        view.line_width = 7
-        view.drawing_color = Sketchup::Color.new(230, 45, 45)
-        view.draw(GL_LINES, locked_points)
+        # Đường hướng chỉ để nhìn trục kéo, không phải vùng bắt chuột.
+        view.line_width = 2
+        view.drawing_color = Sketchup::Color.new(120, 150, 190)
+        view.draw(GL_LINES, [locked_mid, drag_mid])
 
-        view.line_width = 7
-        view.drawing_color = Sketchup::Color.new(40, 130, 240)
-        view.draw(GL_LINES, drag_points)
-
-        locked_mid = edge_midpoint_world(@locked_edge, @preview_transform_context)
-        drag_mid = edge_midpoint_world(@drag_edge, @preview_transform_context)
-        view.draw_points(locked_mid, 13, 2, Sketchup::Color.new(230, 45, 45))
-        view.draw_points(drag_mid, 13, 2, Sketchup::Color.new(40, 130, 240))
+        view.draw_points(
+          locked_mid,
+          17,
+          2,
+          Sketchup::Color.new(230, 45, 45)
+        )
+        view.draw_points(
+          drag_mid,
+          19,
+          2,
+          Sketchup::Color.new(40, 130, 240)
+        )
       end
 
       def draw_factor_text(view)
@@ -639,9 +626,9 @@ module TranTuanNoiThat
         when :pick_entity
           'SCALE 4 CẠNH · click Group/Component cần Scale.'
         when :pick_edge
-          '4 cạnh đang mở · nhấn giữ TRÁI/PHẢI/TRÊN/DƯỚI rồi kéo trực tiếp. Cạnh đối diện tự khóa.'
+          '4 TRUNG ĐIỂM đang hiện · nhấn giữ đúng điểm TRÁI/PHẢI/TRÊN/DƯỚI rồi kéo. Điểm đối diện tự khóa.'
         when :scale
-          "ĐANG KÉO · cạnh đỏ = tự khóa · cạnh xanh = đang kéo · thả chuột để áp dụng."
+          "ĐANG KÉO TRUNG ĐIỂM · điểm đỏ = mốc khóa · điểm xanh = đang kéo · thả chuột để áp dụng."
         end
       end
 
