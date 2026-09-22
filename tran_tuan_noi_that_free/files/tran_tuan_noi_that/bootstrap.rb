@@ -121,7 +121,38 @@ module TranTuanNoiThat
       false
     end
 
+    def cleanup_retired_library
+      # Dọn sạch Thư viện Nội thất đã gỡ ở 1.9.123.
+      begin
+        FileUtils.rm_rf(File.join(ROOT, 'library_cache'))
+        FileUtils.rm_f(File.join(ROOT, 'library_tool.rb'))
+        FileUtils.rm_f(File.join(ROOT, 'icons', 'library.svg'))
+
+        %w[
+          library_sources_json
+          library_auto_sync
+          library_local_folders_json
+        ].each do |key|
+          Sketchup.write_default(NAME, key, key == 'library_auto_sync' ? false : '[]')
+        end
+
+        if const_defined?(:LibraryTool, false)
+          remove_const(:LibraryTool)
+        end
+
+        if instance_variable_defined?(:@library_cmd) && @library_cmd
+          @library_cmd.tooltip = 'Thư Viện Nội Thất (ĐÃ GỠ)'
+          @library_cmd.status_bar_text = 'Chức năng Thư Viện Nội Thất đã được gỡ.'
+          @library_cmd.set_validation_proc { MF_GRAYED }
+        end
+      rescue StandardError => error
+        puts "[TT cleanup retired library] #{error.class}: #{error.message}"
+      end
+      true
+    end
+
     def install_ui
+      cleanup_retired_library
       unless @ui_installed
         @ui_installed = true
         @main_menu = UI.menu('Extensions').add_submenu(NAME)
