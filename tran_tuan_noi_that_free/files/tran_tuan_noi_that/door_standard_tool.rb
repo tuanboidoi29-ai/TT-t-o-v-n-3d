@@ -7,7 +7,7 @@
 # - Trong lúc rê P2 có preview 3D tấm cánh theo chuột.
 # - Sau P2 tự hiện 3 điểm: Mép trái - Trung điểm - Mép phải.
 # - Bấm Trung điểm hoặc click trong preview để chia/tạo cánh.
-# - TAB mở thông số; SHIFT đổi hướng dày cánh ra/vào.
+# - TAB mở thông số; SHIFT đổi Dọc/Ngang; CTRL đổi Lọt/Phủ.
 # - Chia 1..8 cánh theo Dọc hoặc Ngang.
 # - Tạo xong tự quay về P1 để làm khoang kế tiếp.
 # - Một lần tạo = một Undo.
@@ -433,7 +433,7 @@ module TranTuanNoiThat
         view.invalidate
       end
 
-      def onKeyDown(key, _repeat, _flags, view)
+      def onKeyDown(key, repeat, _flags, view)
         if key == 9
           DoorStandard.show_settings(self)
           return
@@ -448,6 +448,7 @@ module TranTuanNoiThat
         end
 
         if key == 16
+          return if repeat.to_i > 1
           @options = @options.merge(
             'split_direction' => (@options['split_direction'] == 'Dọc' ? 'Ngang' : 'Dọc')
           )
@@ -461,6 +462,7 @@ module TranTuanNoiThat
         end
 
         if key == 17
+          return if repeat.to_i > 1
           @options = @options.merge(
             'fit_mode' => (@options['fit_mode'] == 'Lọt lòng' ? 'Phủ ngoài' : 'Lọt lòng')
           )
@@ -643,6 +645,11 @@ module TranTuanNoiThat
         normal = face.normal.transform(transform)
         raise 'Không nhận được pháp tuyến Face.' if normal.length < 0.000001
         normal.normalize!
+
+        # Tạo cánh theo khoang MẶT ĐỨNG. Cho phép sai lệch nhẹ để dùng với model thực tế.
+        if normal.dot(Z_AXIS).abs > 0.35
+          raise 'P1 phải nằm trên mặt đứng của khoang.'
+        end
 
         # Phía mặt cánh ưu tiên hướng về camera.
         normal.reverse! if normal.dot(view.camera.direction) > 0.0
