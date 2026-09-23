@@ -21,7 +21,7 @@ module TranTuanNoiThat
   module DoorStandard
     extend self
 
-    VERSION = '1.9.144'.freeze
+    VERSION = '1.9.145'.freeze
     DICT = 'TT_DOOR_STANDARD'.freeze
     SETTINGS_KEY = 'door_standard_settings_v1'.freeze
     PRESETS_KEY = 'door_standard_presets_v1'.freeze
@@ -308,7 +308,7 @@ module TranTuanNoiThat
 
       @dialog = UI::HtmlDialog.new(
         dialog_title: 'TRẦN TUẤN - TẠO CÁNH CHUẨN',
-        preferences_key: 'TranTuanNoiThat.DoorStandard.144',
+        preferences_key: 'TranTuanNoiThat.DoorStandard.145',
         scrollable: true,
         resizable: true,
         width: 470,
@@ -322,8 +322,8 @@ module TranTuanNoiThat
           data = JSON.parse(payload.to_s)
           clean = save_settings(data)
           @active_tool.update_settings(clean) if @active_tool && @active_tool.respond_to?(:update_settings)
-          send_settings
-          @dialog.execute_script("TT.notice('Đã áp dụng thông số vào preview hiện tại.', false);")
+          send_settings(false)
+          @dialog.execute_script("TT.notice('Đã áp dụng thông số vào preview hiện tại. Muốn ghi vào mẫu đã chọn, bấm LƯU LẠI MẪU ĐANG CHỌN.', false);")
         rescue StandardError => error
           @dialog.execute_script("TT.notice(#{JSON.generate(error.message)}, true);")
         end
@@ -337,7 +337,14 @@ module TranTuanNoiThat
 
       @dialog.add_action_callback('save_preset') do |_ctx, name, payload|
         begin
-          data = JSON.parse(payload.to_s)
+          data = validate(JSON.parse(payload.to_s))
+
+          # Đồng bộ form -> tool trước, rồi mới chụp layout để settings và kiểu chia
+          # luôn thuộc cùng một phiên bản của mẫu.
+          if @active_tool && @active_tool.respond_to?(:update_settings)
+            @active_tool.update_settings(data)
+          end
+
           pattern = if @active_tool && @active_tool.respond_to?(:preset_segments)
             @active_tool.preset_segments
           else
@@ -367,7 +374,13 @@ module TranTuanNoiThat
           current = current_name.to_s.strip
           raise 'Hãy nạp/chọn mẫu cần chỉnh sửa trước.' if current.empty?
 
-          data = JSON.parse(payload.to_s)
+          data = validate(JSON.parse(payload.to_s))
+
+          # Đồng bộ các ô vừa sửa (đặc biệt Tag/Layer) vào tool trước khi chụp layout.
+          if @active_tool && @active_tool.respond_to?(:update_settings)
+            @active_tool.update_settings(data)
+          end
+
           pattern = if @active_tool && @active_tool.respond_to?(:preset_segments)
             @active_tool.preset_segments
           else
@@ -389,7 +402,7 @@ module TranTuanNoiThat
           end
 
           send_settings
-          @dialog.execute_script("TT.notice(#{JSON.generate("ĐÃ LƯU LẠI MẪU: #{preset_name} · Tag riêng: #{clean['tag_name']}")}, false);")
+          @dialog.execute_script("TT.notice(#{JSON.generate("ĐÃ CẬP NHẬT MẪU: #{preset_name} · Tag/Layer: #{clean['tag_name']} · toàn bộ thông số + kiểu chia đã lưu")}, false);")
         rescue StandardError => error
           @dialog.execute_script("TT.notice(#{JSON.generate(error.message)}, true);")
         end
@@ -423,12 +436,12 @@ module TranTuanNoiThat
       UI.messagebox("Không mở được thông số Tạo Cánh Chuẩn:\n#{error.message}")
     end
 
-    def send_settings
+    def send_settings(prefer_preset = true)
       return unless @dialog && @dialog.visible?
 
       preset_data = presets
       current_name = @current_preset_name.to_s
-      current_raw = preset_data[current_name]
+      current_raw = prefer_preset ? preset_data[current_name] : nil
       current_clean = nil
 
       if current_raw.is_a?(Hash)
@@ -522,6 +535,7 @@ module TranTuanNoiThat
                 <label>Nhô (+) / lùi (-)</label><input id="offset" type="number" step="0.5"><span>mm</span>
                 <label>Tên cánh</label><input id="name_prefix"><span></span>
                 <label>Tag / Layer</label><input id="tag_name"><span></span>
+                <label></label><div class="hint" style="grid-column:span 2">Tag/Layer này được lưu RIÊNG trong từng mẫu và được gán thật cho group tổng + từng cánh con.</div>
               </div>
             </div>
 
