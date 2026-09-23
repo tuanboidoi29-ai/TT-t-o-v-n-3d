@@ -11,7 +11,7 @@ module TranTuanNoiThat
   NAME = 'TRẦN TUẤN NỘI THẤT'.freeze unless const_defined?(:NAME, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.135'.freeze
+  VERSION = '1.9.136'.freeze
 
   class << self
     def setting(key, default = nil)
@@ -162,7 +162,7 @@ module TranTuanNoiThat
         if instance_variable_defined?(:@cabinet_door_cmd) && @cabinet_door_cmd
           title = 'Tạo Cánh Chuẩn'
           @cabinet_door_cmd.tooltip = title
-          @cabinet_door_cmd.status_bar_text = 'P1-P2 chéo tự do · TÂM động theo chuột · / hoặc 1 chia tự do · SHIFT Dọc/Ngang · CTRL Lọt/Phủ · TAB cài đặt.'
+          @cabinet_door_cmd.status_bar_text = 'P1-P2 chéo tự do · chuột làm TÂM chia · / hoặc click chia · mũi tên khóa hướng · SHIFT Dọc/Ngang · CTRL Lọt/Phủ · TAB.'
           @cabinet_door_cmd.menu_text = title if @cabinet_door_cmd.respond_to?(:menu_text=)
           icon = File.join(ROOT, 'icons', 'door_standard.svg')
           if File.file?(icon)
