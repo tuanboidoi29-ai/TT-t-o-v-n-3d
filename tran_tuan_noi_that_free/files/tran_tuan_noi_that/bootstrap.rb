@@ -238,7 +238,7 @@ module TranTuanNoiThat
 
       # Đồng bộ lại text/icon khi hot reload từ command Vẽ Cánh Tủ cũ.
       @cabinet_door_cmd.tooltip = 'Tạo Cánh Chuẩn'
-      @cabinet_door_cmd.status_bar_text = 'Tự nhận 2 mép ngoài + tâm chia · preview 3D theo chuột · click tạo liên tục.'
+      @cabinet_door_cmd.status_bar_text = 'P1-P2 chéo trên mặt đứng · tự hiện Mép trái/Tâm/Mép phải · / chia cánh · SHIFT Dọc/Ngang · CTRL Lọt/Phủ · TAB cài đặt.'
       @cabinet_door_cmd.menu_text = 'Tạo Cánh Chuẩn' if @cabinet_door_cmd.respond_to?(:menu_text=)
       icon = File.join(ROOT, 'icons', 'door_standard.svg')
       if File.file?(icon)
