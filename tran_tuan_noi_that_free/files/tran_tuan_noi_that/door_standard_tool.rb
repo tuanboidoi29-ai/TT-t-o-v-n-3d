@@ -271,6 +271,59 @@ module TranTuanNoiThat
       preset_name
     end
 
+    # Đồng bộ Tag của group cánh đang chọn sau khi lưu mẫu.
+    # Hình học và thông số gốc của cánh đã tạo được giữ nguyên.
+    def sync_selected_instances_tag(preset_name, tag_name, previous_name = nil)
+      model = Sketchup.active_model
+      return 0 unless model
+
+      roots = model.selection.to_a.select do |entity|
+        next false unless entity.is_a?(Sketchup::Group)
+        next false unless entity.get_attribute(DICT, 'version')
+        has_doors = entity.entities.any? { |child|
+          child.is_a?(Sketchup::Group) && child.get_attribute(DICT, 'is_door')
+        }
+        next false unless has_doors
+
+        owner = entity.get_attribute(DICT, 'preset_name').to_s
+        owner.empty? || owner == preset_name.to_s || owner == previous_name.to_s
+      end
+      return 0 if roots.empty?
+
+      changed = roots.select do |root|
+        root.layer.name != tag_name ||
+          root.get_attribute(DICT, 'preset_name').to_s != preset_name.to_s ||
+          root.entities.any? { |child|
+          child.is_a?(Sketchup::Group) &&
+            child.get_attribute(DICT, 'is_door') &&
+            child.layer.name != tag_name
+        }
+      end
+      return 0 if changed.empty?
+
+      started = false
+      begin
+        model.start_operation('TT - Cập nhật Tag cánh đã chọn', true)
+        started = true
+        tag = model.layers[tag_name] || model.layers.add(tag_name)
+        changed.each do |root|
+          root.layer = tag
+          root.set_attribute(DICT, 'preset_name', preset_name)
+          root.entities.each do |child|
+            next unless child.is_a?(Sketchup::Group)
+            next unless child.get_attribute(DICT, 'is_door')
+            child.layer = tag
+          end
+        end
+        model.commit_operation
+        started = false
+        changed.length
+      rescue StandardError
+        model.abort_operation if started
+        raise
+      end
+    end
+
     def load_preset(name)
       preset_name = name.to_s
       value = presets[preset_name]
@@ -355,6 +408,7 @@ module TranTuanNoiThat
           clean, saved_pattern = load_preset(preset_name)
           @current_preset_name = preset_name
           clean = save_settings(clean)
+          sync_selected_instances_tag(preset_name, clean['tag_name'])
 
           if @active_tool && @active_tool.respond_to?(:update_preset)
             @active_tool.update_preset(clean, saved_pattern)
@@ -394,6 +448,7 @@ module TranTuanNoiThat
           # Cố định settings hiện hành đúng bằng mẫu vừa lưu lại.
           # Đặc biệt giữ nguyên tag_name riêng, không rơi về "Cánh tủ".
           clean = save_settings(clean)
+          sync_selected_instances_tag(preset_name, clean['tag_name'], current)
 
           if @active_tool && @active_tool.respond_to?(:update_preset)
             @active_tool.update_preset(clean, saved_pattern)
@@ -2072,6 +2127,13 @@ module TranTuanNoiThat
         tag_name = "Cánh #{format('%.1f', @options['thickness']).sub('.0','')}mm" if tag_name.empty?
         board_tag = model.layers[tag_name] || model.layers.add(tag_name)
         root.layer = board_tag
+        preset_name = DoorStandard.instance_variable_get(:@current_preset_name).to_s
+        unless preset_name.empty?
+          saved = DoorStandard.presets[preset_name]
+          if saved.is_a?(Hash) && saved['tag_name'].to_s == tag_name
+            root.set_attribute(DICT, 'preset_name', preset_name)
+          end
+        end
 
         @doors.each_with_index do |door, index|
           child = root.entities.add_group
