@@ -24,6 +24,6 @@ jobs:
           ruby -c tran_tuan_noi_that_free/files/tran_tuan_noi_that/door_standard_tool.rb
           test ! -e tran_tuan_noi_that_free/files/tran_tuan_noi_that/cabinet_door_tool.rb
           test ! -e tran_tuan_noi_that_free/files/tran_tuan_noi_that/icons/cabinet_door.svg
-          grep -Fq "VERSION = '1.9.138'" tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb
-          grep -Fq "VERSION = '1.9.138'" tran_tuan_noi_that_free/files/tran_tuan_noi_that/tam_pro.rb
-          grep -Fq "ext.version = '1.9.138'" tran_tuan_noi_that_free/files/TranTuanNoiThat.rb
+          grep -Fq "VERSION = '1.9.139'" tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb
+          grep -Fq "VERSION = '1.9.139'" tran_tuan_noi_that_free/files/tran_tuan_noi_that/tam_pro.rb
+          grep -Fq "ext.version = '1.9.139'" tran_tuan_noi_that_free/files/TranTuanNoiThat.rb
