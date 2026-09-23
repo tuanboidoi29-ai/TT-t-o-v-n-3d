@@ -21,7 +21,7 @@ module TranTuanNoiThat
   module DoorStandard
     extend self
 
-    VERSION = '1.9.143'.freeze
+    VERSION = '1.9.144'.freeze
     DICT = 'TT_DOOR_STANDARD'.freeze
     SETTINGS_KEY = 'door_standard_settings_v1'.freeze
     PRESETS_KEY = 'door_standard_presets_v1'.freeze
@@ -308,7 +308,7 @@ module TranTuanNoiThat
 
       @dialog = UI::HtmlDialog.new(
         dialog_title: 'TRẦN TUẤN - TẠO CÁNH CHUẨN',
-        preferences_key: 'TranTuanNoiThat.DoorStandard.143',
+        preferences_key: 'TranTuanNoiThat.DoorStandard.144',
         scrollable: true,
         resizable: true,
         width: 470,
@@ -347,7 +347,7 @@ module TranTuanNoiThat
           preset_name = save_preset(name, data, pattern, nil)
           clean, saved_pattern = load_preset(preset_name)
           @current_preset_name = preset_name
-          save_settings(clean)
+          clean = save_settings(clean)
 
           if @active_tool && @active_tool.respond_to?(:update_preset)
             @active_tool.update_preset(clean, saved_pattern)
@@ -377,7 +377,10 @@ module TranTuanNoiThat
           preset_name = save_preset(new_name, data, pattern, current)
           clean, saved_pattern = load_preset(preset_name)
           @current_preset_name = preset_name
-          save_settings(clean)
+
+          # Cố định settings hiện hành đúng bằng mẫu vừa lưu lại.
+          # Đặc biệt giữ nguyên tag_name riêng, không rơi về "Cánh tủ".
+          clean = save_settings(clean)
 
           if @active_tool && @active_tool.respond_to?(:update_preset)
             @active_tool.update_preset(clean, saved_pattern)
@@ -396,7 +399,7 @@ module TranTuanNoiThat
         begin
           clean, pattern = load_preset(name)
           @current_preset_name = name.to_s
-          save_settings(clean)
+          clean = save_settings(clean)
           if @active_tool && @active_tool.respond_to?(:update_preset)
             @active_tool.update_preset(clean, pattern)
           elsif @active_tool && @active_tool.respond_to?(:update_settings)
@@ -422,10 +425,39 @@ module TranTuanNoiThat
 
     def send_settings
       return unless @dialog && @dialog.visible?
+
       preset_data = presets
+      current_name = @current_preset_name.to_s
+      current_raw = preset_data[current_name]
+      current_clean = nil
+
+      if current_raw.is_a?(Hash)
+        begin
+          current_clean = validate(current_raw)
+        rescue StandardError => error
+          puts "[TT DoorStandard current preset] #{error.class}: #{error.message}"
+        end
+      end
+
+      preset_values = preset_data.each_with_object({}) do |(name, value), memo|
+        next unless value.is_a?(Hash)
+        begin
+          clean = validate(value)
+          clean['_segments'] = normalize_preset_segments(value['_segments'])
+          clean['_cells'] = normalize_preset_cells(value['_cells'])
+          memo[name.to_s] = clean
+        rescue StandardError => error
+          puts "[TT DoorStandard preset payload #{name}] #{error.class}: #{error.message}"
+        end
+      end
+
       payload = {
-        'settings' => settings,
+        # Khi đang chỉnh một mẫu, ưu tiên chính settings của mẫu đó.
+        # Không để settings chung "Cánh tủ" đè ngược Tag/Layer riêng của mẫu.
+        'settings' => current_clean || settings,
+        'current_preset_settings' => current_clean,
         'presets' => preset_data.keys.sort,
+        'preset_values' => preset_values,
         'preset_tags' => preset_data.each_with_object({}) do |(name, value), memo|
           memo[name.to_s] = value.is_a?(Hash) ? value['tag_name'].to_s : ''
         end,
@@ -434,11 +466,13 @@ module TranTuanNoiThat
           tag = value['tag_name'].to_s.strip
           memo[tag.downcase] = name.to_s unless tag.empty?
         end,
-        'current_preset' => @current_preset_name.to_s,
+        'current_preset' => current_name,
         'preset_file' => PRESET_FILE
       }
+
       @dialog.execute_script("TT.load(#{JSON.generate(payload)});")
-    rescue StandardError
+    rescue StandardError => error
+      puts "[TT DoorStandard send_settings] #{error.class}: #{error.message}"
     end
 
     def settings_html
@@ -548,21 +582,42 @@ module TranTuanNoiThat
             const TT={
               currentPreset:'',
               presetTags:{},
+              presetValues:{},
               tagOwners:{},
-              load(payload){
-                const s=payload.settings||{};
-                fit.value=s.fit_mode||'Lọt lòng';dir.value=s.split_direction||'Dọc';count.value=s.door_count||1;
-                thickness.value=s.thickness||17.5;
+              applySettings(s){
+                s=s||{};
+                fit.value=(s.fit_mode!=null?s.fit_mode:'Lọt lòng');
+                dir.value=(s.split_direction!=null?s.split_direction:'Dọc');
+                count.value=(s.door_count!=null?s.door_count:1);
+                thickness.value=(s.thickness!=null?s.thickness:17.5);
                 gap_vertical.value=(s.gap_vertical!=null?s.gap_vertical:(s.gap_middle!=null?s.gap_middle:2));
                 gap_horizontal.value=(s.gap_horizontal!=null?s.gap_horizontal:(s.gap_middle!=null?s.gap_middle:2));
-                offset.value=s.offset||0;
-                name_prefix.value=s.name_prefix||'Cánh';tag_name.value=s.tag_name||'Cánh tủ';
-                gap_left.value=s.gap_left||0;gap_right.value=s.gap_right||0;gap_top.value=s.gap_top||0;gap_bottom.value=s.gap_bottom||0;
-                over_left.value=s.over_left||0;over_right.value=s.over_right||0;over_top.value=s.over_top||0;over_bottom.value=s.over_bottom||0;
-                const names=payload.presets||[];
+                offset.value=(s.offset!=null?s.offset:0);
+                name_prefix.value=(s.name_prefix!=null?s.name_prefix:'Cánh');
+                tag_name.value=(s.tag_name!=null?s.tag_name:'Cánh tủ');
+                gap_left.value=(s.gap_left!=null?s.gap_left:0);
+                gap_right.value=(s.gap_right!=null?s.gap_right:0);
+                gap_top.value=(s.gap_top!=null?s.gap_top:0);
+                gap_bottom.value=(s.gap_bottom!=null?s.gap_bottom:0);
+                over_left.value=(s.over_left!=null?s.over_left:0);
+                over_right.value=(s.over_right!=null?s.over_right:0);
+                over_top.value=(s.over_top!=null?s.over_top:0);
+                over_bottom.value=(s.over_bottom!=null?s.over_bottom:0);
+              },
+              load(payload){
                 TT.currentPreset=payload.current_preset||'';
                 TT.presetTags=payload.preset_tags||{};
+                TT.presetValues=payload.preset_values||{};
                 TT.tagOwners=payload.tag_owners||{};
+
+                // Nếu đang chỉnh mẫu, luôn lấy settings của chính mẫu đó.
+                // Không lấy settings chung để đè Tag/Layer hoặc các thông số mẫu.
+                const s=(TT.currentPreset && TT.presetValues[TT.currentPreset]) ?
+                  TT.presetValues[TT.currentPreset] :
+                  (payload.current_preset_settings||payload.settings||{});
+                TT.applySettings(s);
+
+                const names=payload.presets||[];
                 preset_select.innerHTML='<option value="">-- Chọn mẫu --</option>'+names.map(n=>'<option value="'+esc(n)+'">'+esc(n)+'</option>').join('');
                 preset_select.value=TT.currentPreset||'';
                 if(TT.currentPreset){
@@ -641,6 +696,7 @@ module TranTuanNoiThat
               if(!name){TT.notice('Hãy chọn mẫu cần nạp.',true);return;}
               TT.currentPreset=name;
               preset_name.value=name;
+              if(TT.presetValues[name]) TT.applySettings(TT.presetValues[name]);
               current_preset_info.innerHTML='<b>Mẫu đang chỉnh sửa:</b> '+esc(name);
               renderEditingPresetState();
               sketchup.load_preset(name);
@@ -666,7 +722,12 @@ module TranTuanNoiThat
               TT.currentPreset=name;
               preset_name.value=name;
 
-              const savedTag=TT.presetTags[name]||'';
+              const saved=TT.presetValues[name]||null;
+              if(saved){
+                TT.applySettings(saved);
+              }
+
+              const savedTag=(saved&&saved.tag_name)||TT.presetTags[name]||'';
               if(savedTag){
                 tag_name.value=savedTag;
                 preset_tag_info.textContent='Tag/Layer riêng của mẫu: '+savedTag;
@@ -676,9 +737,9 @@ module TranTuanNoiThat
 
               current_preset_info.innerHTML='<b>Mẫu đang chỉnh sửa:</b> '+esc(name);
               renderEditingPresetState();
-              TT.notice('Đang nạp mẫu: '+name+' ...',false);
+              TT.notice('Đang nạp TOÀN BỘ thông số mẫu: '+name+' ...',false);
 
-              // Ruby sẽ nạp settings + kiểu chia rồi send_settings trả lại trạng thái chuẩn.
+              // Ruby đồng bộ active tool + kiểu chia, rồi send_settings xác nhận lại.
               sketchup.load_preset(name);
             });
             tag_name.addEventListener('input',renderEditingPresetState);
