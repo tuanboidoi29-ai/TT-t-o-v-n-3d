@@ -3,7 +3,7 @@
 # SketchUp 2021+
 #
 # Cơ chế:
-# - Click P1 trên mặt đứng -> click P2 chéo đối diện để xác định khoang.
+# - Click P1 -> P2 chéo trên Face bất kỳ; không khóa hướng bắt điểm/trục.
 # - P1/P2 bắt điểm tự do, không khóa hướng X/Y/Z; vẫn dùng Endpoint/Edge/Inference tự nhiên.
 # - Trong lúc rê P2 có preview 3D tấm cánh theo chuột.
 # - Sau P2 chỉ hiện 1 điểm TÂM ở giữa tấm.
@@ -15,15 +15,18 @@
 
 require 'sketchup.rb'
 require 'json'
+require 'fileutils'
 
 module TranTuanNoiThat
   module DoorStandard
     extend self
 
-    VERSION = '1.9.138'.freeze
+    VERSION = '1.9.139'.freeze
     DICT = 'TT_DOOR_STANDARD'.freeze
     SETTINGS_KEY = 'door_standard_settings_v1'.freeze
     PRESETS_KEY = 'door_standard_presets_v1'.freeze
+    PRESET_DIR = File.join(TranTuanNoiThat::ROOT, 'data', 'door_standard').freeze
+    PRESET_FILE = File.join(PRESET_DIR, 'door_presets.json').freeze
 
     DEFAULTS = {
       'fit_mode' => 'Lọt lòng',
@@ -121,17 +124,45 @@ module TranTuanNoiThat
     end
 
     def presets
+      FileUtils.mkdir_p(PRESET_DIR)
+
+      if File.file?(PRESET_FILE)
+        value = JSON.parse(File.read(PRESET_FILE, encoding: 'UTF-8'))
+        return value if value.is_a?(Hash)
+      end
+
+      # Tự chuyển các mẫu cũ từng lưu trong SketchUp Preferences sang file JSON thật.
       raw = Sketchup.read_default(TranTuanNoiThat::NAME, PRESETS_KEY, '{}').to_s
-      value = JSON.parse(raw)
-      value.is_a?(Hash) ? value : {}
-    rescue StandardError
+      legacy = JSON.parse(raw)
+      if legacy.is_a?(Hash) && !legacy.empty?
+        save_presets(legacy)
+        return legacy
+      end
+
+      {}
+    rescue StandardError => error
+      puts "[TT DoorStandard presets] #{error.class}: #{error.message}"
       {}
     end
 
     def save_presets(value)
       clean = value.is_a?(Hash) ? value : {}
-      Sketchup.write_default(TranTuanNoiThat::NAME, PRESETS_KEY, JSON.generate(clean))
+      FileUtils.mkdir_p(PRESET_DIR)
+
+      temp = PRESET_FILE + '.tmp'
+      File.write(temp, JSON.pretty_generate(clean), encoding: 'UTF-8')
+      FileUtils.mv(temp, PRESET_FILE)
+
+      # Giữ thêm một bản trong Preferences để tương thích ngược.
+      Sketchup.write_default(
+        TranTuanNoiThat::NAME,
+        PRESETS_KEY,
+        JSON.generate(clean)
+      )
       clean
+    rescue StandardError => error
+      FileUtils.rm_f(temp) if defined?(temp) && temp
+      raise "Không lưu được mẫu cánh: #{error.message}"
     end
 
     def normalize_preset_segments(raw)
@@ -204,7 +235,7 @@ module TranTuanNoiThat
 
       @dialog = UI::HtmlDialog.new(
         dialog_title: 'TRẦN TUẤN - TẠO CÁNH CHUẨN',
-        preferences_key: 'TranTuanNoiThat.DoorStandard.131',
+        preferences_key: 'TranTuanNoiThat.DoorStandard.139',
         scrollable: true,
         resizable: true,
         width: 470,
@@ -242,7 +273,7 @@ module TranTuanNoiThat
           clean = save_settings(data)
           @active_tool.update_settings(clean) if @active_tool && @active_tool.respond_to?(:update_settings)
           send_settings
-          @dialog.execute_script("TT.notice(#{JSON.generate("Đã lưu mẫu + kiểu chia: #{preset_name}")}, false);")
+          @dialog.execute_script("TT.notice(#{JSON.generate("ĐÃ LƯU MẪU: #{preset_name} · file: door_presets.json")}, false);")
         rescue StandardError => error
           @dialog.execute_script("TT.notice(#{JSON.generate(error.message)}, true);")
         end
@@ -279,7 +310,8 @@ module TranTuanNoiThat
       return unless @dialog && @dialog.visible?
       payload = {
         'settings' => settings,
-        'presets' => presets.keys.sort
+        'presets' => presets.keys.sort,
+        'preset_file' => PRESET_FILE
       }
       @dialog.execute_script("TT.load(#{JSON.generate(payload)});")
     rescue StandardError
@@ -316,8 +348,8 @@ module TranTuanNoiThat
                 <label>Hướng chia</label><select id="dir"><option>Dọc</option><option>Ngang</option></select><span></span>
                 <label>Số cánh</label><input id="count" type="number" min="1" max="64" step="1"><span>cánh</span>
                 <label>Dày cánh</label><input id="thickness" type="number" step="0.5"><span>mm</span>
-                <label>Khe dọc</label><input id="gap_vertical" type="number" step="0.5"><span>mm</span>
-                <label>Khe ngang</label><input id="gap_horizontal" type="number" step="0.5"><span>mm</span>
+                <label>Độ rộng khe dọc</label><input id="gap_vertical" type="number" step="0.5"><span>mm</span>
+                <label>Độ rộng khe ngang (B)</label><input id="gap_horizontal" type="number" step="0.5"><span>mm</span>
                 <label>Nhô (+) / lùi (-)</label><input id="offset" type="number" step="0.5"><span>mm</span>
                 <label>Tên cánh</label><input id="name_prefix"><span></span>
                 <label>Tag / Layer</label><input id="tag_name"><span></span>
@@ -350,6 +382,7 @@ module TranTuanNoiThat
                 <label>Chọn mẫu</label><select id="preset_select"></select><span></span>
                 <label>Tên mẫu mới</label><input id="preset_name" placeholder="VD: Cánh bếp 2 cánh"><span></span>
               </div>
+              <div class="hint" id="preset_info" style="margin-top:7px">Mẫu sẽ được lưu thành file JSON thật trong dữ liệu plugin.</div>
               <div class="row" style="margin-top:9px">
                 <button onclick="savePreset()">LƯU MẪU MỚI</button>
                 <button class="gray" onclick="loadPreset()">NẠP MẪU</button>
@@ -360,7 +393,7 @@ module TranTuanNoiThat
             <div class="card">
               <div class="row"><button onclick="apply()">ÁP DỤNG</button><button class="gray" onclick="sketchup.reset()">MẶC ĐỊNH</button></div>
               <div class="hint" style="margin-top:10px">
-                Click <b>P1 → P2 chéo</b> trên mặt đứng để xác định khoang. P2 <b>không khóa hướng</b>,
+                Click <b>P1 → P2 chéo</b> trên <b>bất kỳ Face nào</b> để xác định khoang. P1/P2 <b>không khóa hướng</b>,
                 vẫn bắt Endpoint / Edge / Inference tự nhiên. Sau P2 tự hiện
                 Sau P2 chỉ hiện <b>TÂM</b> của khoang con đang rê. Bấm <b>TÂM</b>, phím <b>/</b> để chia đôi khoang đó;
                 rê sang khoang con khác để TÂM tự chuyển, chia tự do. Click phần còn lại của preview để tạo cánh. <b>TAB</b> mở bảng này · <b>SHIFT</b> đổi CÁNH DỌC/CÁNH NGANG ·
@@ -385,6 +418,9 @@ module TranTuanNoiThat
                 over_left.value=s.over_left||0;over_right.value=s.over_right||0;over_top.value=s.over_top||0;over_bottom.value=s.over_bottom||0;
                 const names=payload.presets||[];
                 preset_select.innerHTML='<option value="">-- Chọn mẫu --</option>'+names.map(n=>'<option>'+esc(n)+'</option>').join('');
+                if(document.getElementById('preset_info')){
+                  preset_info.textContent='Đã lưu '+names.length+' mẫu · dữ liệu: door_presets.json';
+                }
               },
               notice(text,error){
                 const e=document.getElementById('notice');e.className=error?'err':'ok';e.textContent=text;
@@ -410,7 +446,9 @@ module TranTuanNoiThat
               sketchup.apply(JSON.stringify(collect()));
             }
             function savePreset(){
-              sketchup.save_preset(preset_name.value,JSON.stringify(collect()));
+              const name=preset_name.value.trim();
+              if(!name){TT.notice('Hãy nhập TÊN MẪU trước khi lưu.',true);preset_name.focus();return;}
+              sketchup.save_preset(name,JSON.stringify(collect()));
             }
             function loadPreset(){
               if(!preset_select.value){TT.notice('Hãy chọn mẫu cần nạp.',true);return;}
@@ -863,11 +901,6 @@ module TranTuanNoiThat
         normal = face.normal.transform(transform)
         raise 'Không nhận được pháp tuyến Face.' if normal.length < 0.000001
         normal.normalize!
-
-        # Tạo cánh theo khoang MẶT ĐỨNG. Cho phép sai lệch nhẹ để dùng với model thực tế.
-        if normal.dot(Z_AXIS).abs > 0.35
-          raise 'P1 phải nằm trên mặt đứng của khoang.'
-        end
 
         # Phía mặt cánh ưu tiên hướng về camera.
         normal.reverse! if normal.dot(view.camera.direction) > 0.0
@@ -1689,7 +1722,7 @@ module TranTuanNoiThat
       def update_status
         Sketchup.status_text = case @state
         when :pick_p1
-          'TẠO CÁNH · Click P1 trên MẶT ĐỨNG · bắt điểm tự do, không khóa hướng · TAB cài đặt.'
+          'TẠO CÁNH · Click P1 trên Face bất kỳ · P1/P2 bắt điểm tự do, không khóa trục · TAB cài đặt.'
         when :pick_p2
           'Rê P2 chéo tự do trên mặt · tự bắt Endpoint/Edge/Inference · preview ván 3D theo chuột · click P2.'
         when :ready
