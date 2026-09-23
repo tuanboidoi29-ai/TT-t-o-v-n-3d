@@ -20,7 +20,7 @@ module TranTuanNoiThat
   module DoorStandard
     extend self
 
-    VERSION = '1.9.134'.freeze
+    VERSION = '1.9.135'.freeze
     DICT = 'TT_DOOR_STANDARD'.freeze
     SETTINGS_KEY = 'door_standard_settings_v1'.freeze
     PRESETS_KEY = 'door_standard_presets_v1'.freeze
@@ -510,10 +510,30 @@ module TranTuanNoiThat
           return
         end
 
-        # "/" hoặc "1" chia trực tiếp KHOANG CON đang chọn.
-        # Hỗ trợ OEM Slash, Numpad Divide, hàng số 1 và Numpad 1.
-        if [47, 49, 97, 111, 191].include?(key) && @state == :ready
+        # "/" chốt đường chia tự do tại vị trí TÂM động.
+        if [47, 111, 191].include?(key) && @state == :ready
           split_active_segment
+          view.invalidate
+          return
+        end
+
+        # 2 / 3 / 4: chia nhanh TOÀN KHOANG thành số cánh tương ứng.
+        quick_count = {
+          50 => 2, 98 => 2,
+          51 => 3, 99 => 3,
+          52 => 4, 100 => 4
+        }[key]
+        if quick_count && @state == :ready
+          set_equal_door_count(quick_count)
+          view.invalidate
+          return
+        end
+
+        # ENTER: tạo ngay preview hiện tại.
+        if [13].include?(key) && @state == :ready
+          create_doors
+          reset_all
+          update_status
           view.invalidate
           return
         end
@@ -524,10 +544,11 @@ module TranTuanNoiThat
             'split_direction' => (@options['split_direction'] == 'Dọc' ? 'Ngang' : 'Dọc')
           )
           DoorStandard.save_settings(@options)
+          @split_ratio = nil
           rebuild_preview if @region
           DoorStandard.send_settings
           Sketchup.status_text =
-            "SHIFT · #{@options['split_direction'] == 'Dọc' ? 'CÁNH DỌC' : 'CÁNH NGANG'}"
+            "SHIFT · #{@options['split_direction'] == 'Dọc' ? 'CÁNH DỌC' : 'CÁNH NGANG'} · rê chuột đặt TÂM mới"
           view.invalidate
           return
         end
@@ -892,6 +913,27 @@ module TranTuanNoiThat
         []
       end
 
+      def set_equal_door_count(count)
+        n = count.to_i
+        return false unless n.between?(2, 4)
+
+        @segments = equal_segments(n)
+        @active_segment_index = 0
+        @split_ratio = nil
+        @options = @options.merge('door_count' => n)
+        DoorStandard.save_settings(@options)
+        rebuild_preview
+        DoorStandard.send_settings
+
+        Sketchup.status_text =
+          "CHIA NHANH #{n} CÁNH · rê chuột để chia tự do thêm · ENTER tạo ngay."
+        true
+      rescue StandardError => error
+        UI.beep
+        Sketchup.status_text = "Không chia nhanh được: #{error.message}"
+        false
+      end
+
       def split_active_segment
         unless valid_region?
           UI.beep
@@ -950,7 +992,9 @@ module TranTuanNoiThat
         raise 'Khoang quá nhỏ sau khi trừ khe hở/phủ.' unless u1 > u0 && v1 > v0
 
         gap = @options['gap_middle'].mm
-        normal = @flip ? @region[:normal].reverse : @region[:normal]
+
+        # Mặt trước luôn là phía ngoài; chiều dày luôn đẩy vào trong tủ.
+        normal = @region[:normal].reverse
         @segments = equal_segments(@options['door_count']) if @segments.nil? || @segments.empty?
         @active_segment_index = [@active_segment_index.to_i, @segments.length - 1].min
         @options = @options.merge('door_count' => @segments.length)
@@ -1390,9 +1434,21 @@ module TranTuanNoiThat
           back = door[:back].map { |point| point.transform(inverse_edit) }
           entities = child.entities
 
-          faces = []
-          faces << entities.add_face(front)
-          faces << entities.add_face(back.reverse)
+          outward_local = @region[:normal].transform(inverse_edit)
+          outward_local.normalize! if outward_local.length > 0.000001
+          inward_local = outward_local.reverse
+
+          front_face = entities.add_face(front)
+          back_face  = entities.add_face(back.reverse)
+
+          if front_face && front_face.normal.dot(outward_local) < 0.0
+            front_face.reverse!
+          end
+          if back_face && back_face.normal.dot(inward_local) < 0.0
+            back_face.reverse!
+          end
+
+          faces = [front_face, back_face]
           faces << entities.add_face(front[0], front[1], back[1], back[0])
           faces << entities.add_face(front[1], front[2], back[2], back[1])
           faces << entities.add_face(front[2], front[3], back[3], back[2])
