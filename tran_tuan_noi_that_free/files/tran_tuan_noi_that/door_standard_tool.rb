@@ -20,7 +20,7 @@ module TranTuanNoiThat
   module DoorStandard
     extend self
 
-    VERSION = '1.9.132'.freeze
+    VERSION = '1.9.133'.freeze
     DICT = 'TT_DOOR_STANDARD'.freeze
     SETTINGS_KEY = 'door_standard_settings_v1'.freeze
     PRESETS_KEY = 'door_standard_presets_v1'.freeze
@@ -72,7 +72,7 @@ module TranTuanNoiThat
       result['split_direction'] = direction
 
       count = source['door_count'].to_i
-      raise 'Số cánh phải từ 1 đến 8.' unless count.between?(1, 8)
+      raise 'Số cánh phải từ 1 đến 64.' unless count.between?(1, 64)
       result['door_count'] = count
 
       %w[
@@ -267,7 +267,7 @@ module TranTuanNoiThat
               <div class="grid">
                 <label>Lắp đặt</label><select id="fit"><option>Lọt lòng</option><option>Phủ ngoài</option></select><span></span>
                 <label>Hướng chia</label><select id="dir"><option>Dọc</option><option>Ngang</option></select><span></span>
-                <label>Số cánh</label><input id="count" type="number" min="1" max="8" step="1"><span>cánh</span>
+                <label>Số cánh</label><input id="count" type="number" min="1" max="64" step="1"><span>cánh</span>
                 <label>Dày cánh</label><input id="thickness" type="number" step="0.5"><span>mm</span>
                 <label>Khe giữa</label><input id="gap_middle" type="number" step="0.5"><span>mm</span>
                 <label>Nhô (+) / lùi (-)</label><input id="offset" type="number" step="0.5"><span>mm</span>
@@ -314,8 +314,8 @@ module TranTuanNoiThat
               <div class="hint" style="margin-top:10px">
                 Click <b>P1 → P2 chéo</b> trên mặt đứng để xác định khoang. P2 <b>không khóa hướng</b>,
                 vẫn bắt Endpoint / Edge / Inference tự nhiên. Sau P2 tự hiện
-                <b>MÉP TRÁI · TRUNG ĐIỂM · MÉP PHẢI</b>. Bấm <b>TÂM CHIA</b> hoặc phím <b>/</b> để tăng số cánh trực tiếp;
-                click phần còn lại của preview để tạo cánh. <b>TAB</b> mở bảng này · <b>SHIFT</b> đổi CÁNH DỌC/CÁNH NGANG ·
+                Sau P2 chỉ hiện <b>TÂM</b> của khoang con đang rê. Bấm <b>TÂM</b>, phím <b>/</b> hoặc <b>1</b> để chia đôi khoang đó;
+                rê sang khoang con khác để TÂM tự chuyển, chia tự do. Click phần còn lại của preview để tạo cánh. <b>TAB</b> mở bảng này · <b>SHIFT</b> đổi CÁNH DỌC/CÁNH NGANG ·
                 <b>CTRL</b> đổi CÁNH LỌT/CÁNH PHỦ.
               </div>
               <div id="notice"></div>
@@ -393,6 +393,8 @@ module TranTuanNoiThat
 
         @region = nil
         @doors = []
+        @segments = equal_segments(@options['door_count'])
+        @active_segment_index = 0
         @flip = false
         @hover_handle = nil
       end
@@ -407,7 +409,32 @@ module TranTuanNoiThat
       end
 
       def update_settings(options)
+        old_count = @options['door_count'].to_i
         @options = DoorStandard.validate(options)
+
+        if @options['door_count'].to_i != old_count
+          @segments = equal_segments(@options['door_count'])
+          @active_segment_index = 0
+        end
+
+        rebuild_preview if @region
+        @model.active_view.invalidate
+        true
+      rescue StandardError => error
+        UI.messagebox(error.message)
+        false
+      end
+
+      def preset_segments
+        Array(@segments).map { |pair| Array(pair).map(&:to_f) }
+      end
+
+      def update_preset(options, segments = nil)
+        @options = DoorStandard.validate(options)
+        @segments = normalize_segments(segments)
+        @segments = equal_segments(@options['door_count']) if @segments.empty?
+        @options = @options.merge('door_count' => @segments.length)
+        @active_segment_index = 0
         rebuild_preview if @region
         @model.active_view.invalidate
         true
@@ -441,10 +468,10 @@ module TranTuanNoiThat
           return
         end
 
-        # Phím "/" chia cánh trực tiếp ngay trên preview.
-        # Hỗ trợ OEM Slash, Numpad Divide và mã ASCII phổ biến.
-        if [47, 111, 191].include?(key) && [:pick_p2, :ready].include?(@state)
-          split_more
+        # "/" hoặc "1" chia trực tiếp KHOANG CON đang chọn.
+        # Hỗ trợ OEM Slash, Numpad Divide, hàng số 1 và Numpad 1.
+        if [47, 49, 97, 111, 191].include?(key) && @state == :ready
+          split_active_segment
           view.invalidate
           return
         end
@@ -500,6 +527,8 @@ module TranTuanNoiThat
           view.tooltip = @ip.tooltip if @ip.valid?
 
         when :ready
+          index = segment_index_at_mouse(view, x, y)
+          @active_segment_index = index unless index.nil?
           @hover_handle = nearest_handle(view, x, y)
         end
 
@@ -524,6 +553,8 @@ module TranTuanNoiThat
           @state = :pick_p2
           @region = nil
           @doors = []
+          @segments = equal_segments(@options['door_count'])
+          @active_segment_index = 0
 
         when :pick_p2
           point = pick_second_point(view, x, y)
@@ -547,15 +578,19 @@ module TranTuanNoiThat
           end
 
           @state = :ready
+          index = segment_index_at_mouse(view, x, y)
+          @active_segment_index = index unless index.nil?
           @hover_handle = nearest_handle(view, x, y)
 
         when :ready
+          index = segment_index_at_mouse(view, x, y)
+          @active_segment_index = index unless index.nil?
           @hover_handle = nearest_handle(view, x, y)
 
-          # Bấm đúng TÂM CHIA: tăng số cánh trực tiếp.
+          # Bấm TÂM: chia đôi đúng khoang con đang thao tác.
           # Click phần còn lại của preview: tạo cánh thật.
           if @hover_handle == :center
-            split_more
+            split_active_segment
           elsif point_inside_region_screen?(view, x, y)
             create_doors
             reset_all
@@ -630,6 +665,8 @@ module TranTuanNoiThat
         @v = nil
         @region = nil
         @doors = []
+        @segments = equal_segments(@options['door_count'])
+        @active_segment_index = 0
         @hover_handle = nil
       end
 
@@ -792,27 +829,65 @@ module TranTuanNoiThat
         end
       end
 
-      def split_more
+      def equal_segments(count)
+        n = [[count.to_i, 1].max, 64].min
+        step = 1.0 / n.to_f
+        Array.new(n) { |index| [index * step, (index + 1) * step] }
+      end
+
+      def normalize_segments(raw)
+        values = Array(raw).map do |pair|
+          next unless pair.is_a?(Array) && pair.length == 2
+          a = Float(pair[0]) rescue nil
+          b = Float(pair[1]) rescue nil
+          next unless a && b && b > a
+          [[a, 0.0].max, [b, 1.0].min]
+        end.compact
+        values.sort_by!(&:first)
+        return [] if values.empty?
+        return [] if values.first.first > 0.0001 || values.last.last < 0.9999
+        values
+      rescue StandardError
+        []
+      end
+
+      def split_active_segment
         unless valid_region?
           UI.beep
-          Sketchup.status_text = 'Hãy bắt P1 và rê/bắt P2 trước khi chia cánh.'
+          Sketchup.status_text = 'Hãy khóa P1-P2 trước khi chia cánh.'
           return false
         end
 
-        current = @options['door_count'].to_i
-        if current >= 8
+        @segments = equal_segments(@options['door_count']) if @segments.nil? || @segments.empty?
+        index = [[@active_segment_index.to_i, 0].max, @segments.length - 1].min
+        segment = @segments[index]
+        a = segment[0].to_f
+        b = segment[1].to_f
+        mid = (a + b) * 0.5
+
+        axis_span = if @options['split_direction'] == 'Dọc'
+          adjusted_bounds[1] - adjusted_bounds[0]
+        else
+          adjusted_bounds[3] - adjusted_bounds[2]
+        end
+
+        segment_length = axis_span * (b - a)
+        minimum = [@options['gap_middle'].mm + 20.mm, 30.mm].max
+        if segment_length <= minimum
           UI.beep
-          Sketchup.status_text = 'Đã đạt tối đa 8 cánh.'
+          Sketchup.status_text = 'Khoang con quá nhỏ để chia tiếp.'
           return false
         end
 
-        @options = @options.merge('door_count' => current + 1)
+        @segments[index, 1] = [[a, mid], [mid, b]]
+        @active_segment_index = index
+        @options = @options.merge('door_count' => @segments.length)
         DoorStandard.save_settings(@options)
-        rebuild_preview if @region
+        rebuild_preview
         DoorStandard.send_settings
 
         Sketchup.status_text =
-          "CHIA CÁNH: #{@options['door_count']} cánh · / hoặc TÂM = +1 · SHIFT đổi Dọc/Ngang · click preview để tạo."
+          "ĐÃ CHIA #{@segments.length} CÁNH · rê vào khoang con khác để TÂM tự chuyển · /, 1 hoặc TÂM để chia tiếp."
         true
       rescue StandardError => error
         UI.beep
@@ -827,9 +902,11 @@ module TranTuanNoiThat
         u0, u1, v0, v1 = adjusted_bounds
         raise 'Khoang quá nhỏ sau khi trừ khe hở/phủ.' unless u1 > u0 && v1 > v0
 
-        count = @options['door_count']
         gap = @options['gap_middle'].mm
         normal = @flip ? @region[:normal].reverse : @region[:normal]
+        @segments = equal_segments(@options['door_count']) if @segments.nil? || @segments.empty?
+        @active_segment_index = [@active_segment_index.to_i, @segments.length - 1].min
+        @options = @options.merge('door_count' => @segments.length)
 
         offset_vector = if @options['offset'].abs > 0.0001
           vector = @region[:normal].clone
@@ -844,23 +921,23 @@ module TranTuanNoiThat
         thickness_vector.length = @options['thickness'].mm
 
         if @options['split_direction'] == 'Dọc'
-          available = (u1 - u0) - gap * (count - 1)
-          raise 'Khe giữa quá lớn so với chiều rộng khoang.' unless available > 0.0
-
-          size = available / count.to_f
-          count.times do |index|
-            a = u0 + index * (size + gap)
-            b = a + size
+          span = u1 - u0
+          @segments.each_with_index do |segment, index|
+            a = u0 + span * segment[0]
+            b = u0 + span * segment[1]
+            a += gap * 0.5 if segment[0] > 0.000001
+            b -= gap * 0.5 if segment[1] < 0.999999
+            raise 'Khe giữa quá lớn so với một khoang con.' unless b > a
             @doors << build_box(a, b, v0, v1, offset_vector, thickness_vector, index)
           end
         else
-          available = (v1 - v0) - gap * (count - 1)
-          raise 'Khe giữa quá lớn so với chiều cao khoang.' unless available > 0.0
-
-          size = available / count.to_f
-          count.times do |index|
-            a = v0 + index * (size + gap)
-            b = a + size
+          span = v1 - v0
+          @segments.each_with_index do |segment, index|
+            a = v0 + span * segment[0]
+            b = v0 + span * segment[1]
+            a += gap * 0.5 if segment[0] > 0.000001
+            b -= gap * 0.5 if segment[1] < 0.999999
+            raise 'Khe giữa quá lớn so với một khoang con.' unless b > a
             @doors << build_box(u0, u1, a, b, offset_vector, thickness_vector, index)
           end
         end
@@ -898,10 +975,28 @@ module TranTuanNoiThat
         }
       end
 
-      def handle_points
-        return {} unless valid_region?
+      def active_segment_bounds
+        return nil unless valid_region?
 
         u0, u1, v0, v1 = adjusted_bounds
+        @segments = equal_segments(@options['door_count']) if @segments.nil? || @segments.empty?
+        index = [[@active_segment_index.to_i, 0].max, @segments.length - 1].min
+        segment = @segments[index]
+
+        if @options['split_direction'] == 'Dọc'
+          span = u1 - u0
+          [u0 + span * segment[0], u0 + span * segment[1], v0, v1]
+        else
+          span = v1 - v0
+          [u0, u1, v0 + span * segment[0], v0 + span * segment[1]]
+        end
+      end
+
+      def handle_points
+        bounds = active_segment_bounds
+        return {} unless bounds
+
+        u0, u1, v0, v1 = bounds
         {
           center: point_on_plane(
             (u0 + u1) * 0.5,
@@ -910,6 +1005,40 @@ module TranTuanNoiThat
         }
       rescue StandardError
         {}
+      end
+
+      def point_on_region_from_mouse(view, x, y)
+        ray = view.pickray(x, y)
+        return nil unless ray && ray.length == 2
+        Geom.intersect_line_plane(ray, [@region[:origin], @region[:normal]])
+      rescue StandardError
+        nil
+      end
+
+      def segment_index_at_mouse(view, x, y)
+        return nil unless valid_region?
+
+        point = point_on_region_from_mouse(view, x, y)
+        return nil unless point
+
+        u0, u1, v0, v1 = adjusted_bounds
+        vector = vector_between(@region[:origin], point)
+        u_value = vector.dot(@region[:u])
+        v_value = vector.dot(@region[:v])
+        return nil unless u_value >= u0 && u_value <= u1 && v_value >= v0 && v_value <= v1
+
+        ratio = if @options['split_direction'] == 'Dọc'
+          (u_value - u0) / (u1 - u0)
+        else
+          (v_value - v0) / (v1 - v0)
+        end
+
+        @segments.each_with_index do |segment, index|
+          return index if ratio >= segment[0] - 0.000001 && ratio <= segment[1] + 0.000001
+        end
+        nil
+      rescue StandardError
+        nil
       end
 
       def nearest_handle(view, x, y)
@@ -936,21 +1065,16 @@ module TranTuanNoiThat
       def point_inside_region_screen?(view, x, y)
         return false unless valid_region?
 
+        point = point_on_region_from_mouse(view, x, y)
+        return false unless point
+
         u0, u1, v0, v1 = adjusted_bounds
-        points = [
-          point_on_plane(u0, v0),
-          point_on_plane(u1, v0),
-          point_on_plane(u1, v1),
-          point_on_plane(u0, v1)
-        ].map { |point| view.screen_coords(point) }
+        vector = vector_between(@region[:origin], point)
+        u_value = vector.dot(@region[:u])
+        v_value = vector.dot(@region[:v])
 
-        min_x, max_x = points.map(&:x).minmax
-        min_y, max_y = points.map(&:y).minmax
-
-        x.to_f >= min_x.to_f &&
-          x.to_f <= max_x.to_f &&
-          y.to_f >= min_y.to_f &&
-          y.to_f <= max_y.to_f
+        u_value >= u0 && u_value <= u1 &&
+          v_value >= v0 && v_value <= v1
       rescue StandardError
         false
       end
@@ -1076,6 +1200,21 @@ module TranTuanNoiThat
           Sketchup::Color.new(22, 163, 74) :
           Sketchup::Color.new(234, 88, 12)
 
+        bounds = active_segment_bounds
+        if bounds
+          u0, u1, v0, v1 = bounds
+          guide = if @options['split_direction'] == 'Dọc'
+            mid = (u0 + u1) * 0.5
+            [point_on_plane(mid, v0), point_on_plane(mid, v1)]
+          else
+            mid = (v0 + v1) * 0.5
+            [point_on_plane(u0, mid), point_on_plane(u1, mid)]
+          end
+          view.line_width = 2
+          view.drawing_color = color
+          view.draw(GL_LINES, guide)
+        end
+
         view.draw_points(
           point,
           hovered ? 20 : 16,
@@ -1084,7 +1223,7 @@ module TranTuanNoiThat
         )
 
         direction = @options['split_direction'] == 'Dọc' ? 'DỌC' : 'NGANG'
-        label = "TÂM · CHIA #{direction} +1"
+        label = "TÂM · CHIA #{direction}"
 
         screen = view.screen_coords(point)
         view.draw_text(
@@ -1100,7 +1239,7 @@ module TranTuanNoiThat
 
         screen = view.screen_coords(center)
         text =
-          "#{@options['door_count']} CÁNH · "           "#{format_mm(@region[:width])} × #{format_mm(@region[:height])} mm · "           "#{@options['split_direction']}"
+          "#{@segments.length} CÁNH · "           "#{format_mm(@region[:width])} × #{format_mm(@region[:height])} mm · "           "#{@options['split_direction']} · CHIA TỰ DO"
 
         view.draw_text(
           [screen.x + 18, screen.y + 22],
@@ -1119,9 +1258,10 @@ module TranTuanNoiThat
         started = true
 
         root = model.active_entities.add_group
-        root.name = "Cánh tủ #{@options['door_count']} cánh"
+        root.name = "Cánh tủ #{@doors.length} cánh"
         root.set_attribute(DICT, 'version', VERSION)
         root.set_attribute(DICT, 'settings_json', JSON.generate(@options))
+        root.set_attribute(DICT, 'split_segments_json', JSON.generate(@segments))
 
         source_pid = begin
           @face.respond_to?(:persistent_id) ? @face.persistent_id : 0
@@ -1214,7 +1354,7 @@ module TranTuanNoiThat
         when :pick_p2
           'Rê P2 chéo tự do trên mặt · tự bắt Endpoint/Edge/Inference · preview ván 3D theo chuột · click P2.'
         when :ready
-          "P1-P2 · / hoặc TÂM = +1 cánh · SHIFT Dọc/Ngang · CTRL Phủ/Lọt · click preview TẠO · TAB cài đặt."
+          "P1-P2 · rê vào khoang con → TÂM tự chuyển · /, 1 hoặc TÂM = chia khoang đó · SHIFT Dọc/Ngang · CTRL Phủ/Lọt · click preview TẠO."
         end
       end
     end
