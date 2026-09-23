@@ -3,6 +3,8 @@ name: Check Free Ruby Syntax
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -22,6 +24,7 @@ jobs:
           ruby -c tran_tuan_noi_that_free/files/tran_tuan_noi_that/scale_corner_lock.rb
           ruby -c tran_tuan_noi_that_free/files/tran_tuan_noi_that/bao_gia_tool.rb
           ruby -c tran_tuan_noi_that_free/files/tran_tuan_noi_that/door_standard_tool.rb
+          ruby -I tran_tuan_noi_that_free/tests tran_tuan_noi_that_free/tests/door_tag_regression.rb
           test ! -e tran_tuan_noi_that_free/files/tran_tuan_noi_that/cabinet_door_tool.rb
           test ! -e tran_tuan_noi_that_free/files/tran_tuan_noi_that/icons/cabinet_door.svg
           grep -Fq "VERSION = '1.9.145'" tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb
