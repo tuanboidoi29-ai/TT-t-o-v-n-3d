@@ -21,7 +21,7 @@ module TranTuanNoiThat
   module DoorStandard
     extend self
 
-    VERSION = '1.9.141'.freeze
+    VERSION = '1.9.142'.freeze
     DICT = 'TT_DOOR_STANDARD'.freeze
     SETTINGS_KEY = 'door_standard_settings_v1'.freeze
     PRESETS_KEY = 'door_standard_presets_v1'.freeze
@@ -187,6 +187,30 @@ module TranTuanNoiThat
       []
     end
 
+    def normalize_preset_cells(raw)
+      cells = Array(raw).map do |item|
+        next unless item.is_a?(Array) && item.length == 4
+        u0 = Float(item[0]) rescue nil
+        u1 = Float(item[1]) rescue nil
+        v0 = Float(item[2]) rescue nil
+        v1 = Float(item[3]) rescue nil
+        next unless u0 && u1 && v0 && v1
+        next unless u1 > u0 && v1 > v0
+
+        [
+          [[u0, 0.0].max, 1.0].min,
+          [[u1, 0.0].max, 1.0].min,
+          [[v0, 0.0].max, 1.0].min,
+          [[v1, 0.0].max, 1.0].min
+        ]
+      end.compact
+
+      return [] if cells.empty? || cells.length > 64
+      cells
+    rescue StandardError
+      []
+    end
+
     def preset_tag_owner(list, tag_name, except_name = nil)
       wanted = tag_name.to_s.strip.downcase
       return nil if wanted.empty?
@@ -228,8 +252,11 @@ module TranTuanNoiThat
       clean = validate(options)
       clean = normalize_preset_tag(list, preset_name, clean, old_name.empty? ? nil : old_name)
 
-      pattern = normalize_preset_segments(segments)
+      layout = segments.is_a?(Hash) ? segments : { 'segments' => segments }
+      pattern = normalize_preset_segments(layout['segments'])
+      cells = normalize_preset_cells(layout['cells'])
       clean['_segments'] = pattern unless pattern.empty?
+      clean['_cells'] = cells unless cells.empty?
 
       if !old_name.empty? && old_name != preset_name
         raise "Không tìm thấy mẫu đang chỉnh sửa: #{old_name}" unless list.key?(old_name)
@@ -251,7 +278,8 @@ module TranTuanNoiThat
 
       clean = validate(value)
       pattern = normalize_preset_segments(value['_segments'])
-      [clean, pattern]
+      cells = normalize_preset_cells(value['_cells'])
+      [clean, { 'segments' => pattern, 'cells' => cells }]
     end
 
     def delete_preset(name)
@@ -280,7 +308,7 @@ module TranTuanNoiThat
 
       @dialog = UI::HtmlDialog.new(
         dialog_title: 'TRẦN TUẤN - TẠO CÁNH CHUẨN',
-        preferences_key: 'TranTuanNoiThat.DoorStandard.141',
+        preferences_key: 'TranTuanNoiThat.DoorStandard.142',
         scrollable: true,
         resizable: true,
         width: 470,
@@ -401,6 +429,11 @@ module TranTuanNoiThat
         'preset_tags' => preset_data.each_with_object({}) do |(name, value), memo|
           memo[name.to_s] = value.is_a?(Hash) ? value['tag_name'].to_s : ''
         end,
+        'tag_owners' => preset_data.each_with_object({}) do |(name, value), memo|
+          next unless value.is_a?(Hash)
+          tag = value['tag_name'].to_s.strip
+          memo[tag.downcase] = name.to_s unless tag.empty?
+        end,
         'current_preset' => @current_preset_name.to_s,
         'preset_file' => PRESET_FILE
       }
@@ -423,6 +456,11 @@ module TranTuanNoiThat
             .grid{display:grid;grid-template-columns:1fr 130px 34px;gap:7px;align-items:center}
             label{font-weight:bold} input,select{width:100%;padding:8px;border:1px solid #b9c4d1;border-radius:6px}
             .row{display:flex;gap:8px;flex-wrap:wrap}.row button{flex:1}
+            .presetCurrent{background:linear-gradient(135deg,#eaf3ff,#fff7ed);border:2px solid #6ea8e8;border-radius:11px;padding:12px 14px;margin-bottom:10px}
+            .presetCurrent .label{font-size:11px;font-weight:bold;color:#52657a;letter-spacing:.5px}
+            .presetCurrent .name{font-size:18px;font-weight:800;color:#173c69;margin:3px 0 7px}
+            .presetCurrent .tag{font-weight:bold;color:#b45309}
+            .presetCurrent .owner{font-size:12px;color:#5b6777;margin-top:4px}
             button{border:0;border-radius:7px;padding:9px 12px;background:#176fd1;color:#fff;font-weight:bold;cursor:pointer}
             button.gray{background:#667085}.hint{font-size:12px;color:#667085;line-height:1.55}
             #notice{display:none;margin-top:9px;padding:9px;border-radius:6px}
@@ -433,6 +471,12 @@ module TranTuanNoiThat
         <body>
           <div class="head"><h2>TẠO CÁNH CHUẨN</h2><small>P1–P2 tự do · preview 3D · TÂM / +1 cánh</small></div>
           <div class="wrap">
+            <div class="presetCurrent">
+              <div class="label">MẪU ĐANG CHỈNH SỬA</div>
+              <div class="name" id="editing_preset_name">CHƯA CHỌN MẪU</div>
+              <div>TAG/LAYER: <span class="tag" id="editing_tag_name">Cánh tủ</span></div>
+              <div class="owner" id="editing_tag_owner">Tag hiện tại chưa thuộc mẫu đã lưu nào.</div>
+            </div>
             <div class="card">
               <div class="grid">
                 <label>Lắp đặt</label><select id="fit"><option>Lọt lòng</option><option>Phủ ngoài</option></select><span></span>
@@ -492,7 +536,7 @@ module TranTuanNoiThat
                 Click <b>P1 → P2 chéo</b> trên <b>bất kỳ Face nào</b> để xác định khoang. P1/P2 <b>không khóa hướng</b>,
                 vẫn bắt Endpoint / Edge / Inference tự nhiên. Sau P2 tự hiện
                 Sau P2 chỉ hiện <b>TÂM</b> của khoang con đang rê. Bấm <b>TÂM</b>, phím <b>/</b> để chia đôi khoang đó;
-                rê sang khoang con khác để TÂM tự chuyển, chia tự do. Click phần còn lại của preview để tạo cánh. <b>TAB</b> mở bảng này · <b>SHIFT</b> đổi CÁNH DỌC/CÁNH NGANG ·
+                đường đã chia được khóa giữ nguyên; rê sang cánh/khoang con khác để TÂM tự chuyển, SHIFT đổi Dọc/Ngang và chia tiếp riêng cánh đó. Click phần còn lại của preview để tạo cánh. <b>TAB</b> mở bảng này · <b>SHIFT</b> đổi CÁNH DỌC/CÁNH NGANG ·
                 <b>CTRL</b> đổi CÁNH LỌT/CÁNH PHỦ. Khi chia Ngang, preview dùng riêng <b>Khe ngang</b>; chia Dọc dùng <b>Khe dọc</b>.
               </div>
               <div id="notice"></div>
@@ -504,6 +548,7 @@ module TranTuanNoiThat
             const TT={
               currentPreset:'',
               presetTags:{},
+              tagOwners:{},
               load(payload){
                 const s=payload.settings||{};
                 fit.value=s.fit_mode||'Lọt lòng';dir.value=s.split_direction||'Dọc';count.value=s.door_count||1;
@@ -517,6 +562,7 @@ module TranTuanNoiThat
                 const names=payload.presets||[];
                 TT.currentPreset=payload.current_preset||'';
                 TT.presetTags=payload.preset_tags||{};
+                TT.tagOwners=payload.tag_owners||{};
                 preset_select.innerHTML='<option value="">-- Chọn mẫu --</option>'+names.map(n=>'<option value="'+esc(n)+'">'+esc(n)+'</option>').join('');
                 preset_select.value=TT.currentPreset||'';
                 if(TT.currentPreset){
@@ -532,12 +578,26 @@ module TranTuanNoiThat
                 if(document.getElementById('preset_info')){
                   preset_info.textContent='Đã lưu '+names.length+' mẫu · dữ liệu: door_presets.json';
                 }
+                renderEditingPresetState();
               },
               notice(text,error){
                 const e=document.getElementById('notice');e.className=error?'err':'ok';e.textContent=text;
               }
             };
             function esc(v){return String(v||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+            function renderEditingPresetState(){
+              const tag=(tag_name.value||'').trim();
+              editing_preset_name.textContent=TT.currentPreset||'CHƯA CHỌN MẪU';
+              editing_tag_name.textContent=tag||'(chưa đặt)';
+              const owner=TT.tagOwners[(tag||'').toLowerCase()]||'';
+              if(owner){
+                editing_tag_owner.textContent='Tag/Layer này thuộc mẫu: '+owner;
+              }else if(TT.currentPreset){
+                editing_tag_owner.textContent='Tag/Layer hiện tại của mẫu đang chỉnh sửa.';
+              }else{
+                editing_tag_owner.textContent='Tag hiện tại chưa thuộc mẫu đã lưu nào.';
+              }
+            }
             function collect(){
               return {
                 fit_mode:fit.value,split_direction:dir.value,door_count:Number(count.value),
@@ -589,7 +649,9 @@ module TranTuanNoiThat
                 preset_name.value=name;
                 preset_tag_info.textContent='Tag/Layer riêng của mẫu: '+(TT.presetTags[name]||'');
               }
+              renderEditingPresetState();
             });
+            tag_name.addEventListener('input',renderEditingPresetState);
             window.addEventListener('load',()=>sketchup.ready());
           </script>
         </body></html>
@@ -619,7 +681,9 @@ module TranTuanNoiThat
         @region = nil
         @doors = []
         @segments = equal_segments(@options['door_count'])
+        @cells = cells_from_segments(@segments, @options['split_direction'])
         @active_segment_index = 0
+        @active_cell_index = 0
         @split_ratio = nil
         @split_point = nil
         @direction_lock = nil
@@ -645,10 +709,12 @@ module TranTuanNoiThat
 
         if @options['door_count'].to_i != old_count
           @segments = equal_segments(@options['door_count'])
+          @cells = cells_from_segments(@segments, @options['split_direction'])
           @active_segment_index = 0
+          @active_cell_index = 0
           @split_ratio = nil
           @split_point = nil
-          @split_committed = @options['door_count'].to_i > 1
+          @split_committed = @cells.length > 1
           @direction_lock = @options['split_direction'] if @split_committed
         end
 
@@ -661,18 +727,28 @@ module TranTuanNoiThat
       end
 
       def preset_segments
-        Array(@segments).map { |pair| Array(pair).map(&:to_f) }
+        {
+          'segments' => Array(@segments).map { |pair| Array(pair).map(&:to_f) },
+          'cells' => Array(@cells).map { |cell| Array(cell).map(&:to_f) }
+        }
       end
 
-      def update_preset(options, segments = nil)
+      def update_preset(options, layout = nil)
         @options = DoorStandard.validate(options)
-        @segments = normalize_segments(segments)
+
+        payload = layout.is_a?(Hash) ? layout : { 'segments' => layout }
+        @segments = normalize_segments(payload['segments'])
         @segments = equal_segments(@options['door_count']) if @segments.empty?
-        @options = @options.merge('door_count' => @segments.length)
+
+        @cells = normalize_cells(payload['cells'])
+        @cells = cells_from_segments(@segments, @options['split_direction']) if @cells.empty?
+
+        @options = @options.merge('door_count' => @cells.length)
         @active_segment_index = 0
+        @active_cell_index = 0
         @split_ratio = nil
         @split_point = nil
-        @split_committed = @segments.length > 1
+        @split_committed = @cells.length > 1
         @direction_lock = @options['split_direction'] if @split_committed
         rebuild_preview if @region
         @model.active_view.invalidate
@@ -813,7 +889,9 @@ module TranTuanNoiThat
           @region = nil
           @doors = []
           @segments = equal_segments(@options['door_count'])
+          @cells = cells_from_segments(@segments, @options['split_direction'])
           @active_segment_index = 0
+          @active_cell_index = 0
           @split_ratio = nil
 
         when :pick_p2
@@ -913,14 +991,16 @@ module TranTuanNoiThat
         @direction_lock = direction if lock
 
         if changed
-          # Nếu đã chốt chia: GIỮ NGUYÊN tỷ lệ/mốc @segments.
-          # Chỉ đổi trục biểu diễn khi người dùng SHIFT chủ động.
+          # Nếu chưa có đường chia thật, xoay lại chia đều theo hướng mới.
+          # Nếu đã chia: GIỮ NGUYÊN toàn bộ ô 2D, chỉ đổi hướng cho lần chia kế tiếp.
           unless @split_committed
-            count = [@segments.to_a.length, 1].max
+            count = [@cells.to_a.length, 1].max
             @segments = equal_segments(count)
+            @cells = cells_from_segments(@segments, direction)
           end
 
           @active_segment_index = 0
+          @active_cell_index = 0
           @split_ratio = nil
           @split_point = nil
           rebuild_preview if @region
@@ -961,7 +1041,9 @@ module TranTuanNoiThat
         @region = nil
         @doors = []
         @segments = equal_segments(@options['door_count'])
+        @cells = cells_from_segments(@segments, @options['split_direction'])
         @active_segment_index = 0
+        @active_cell_index = 0
         @split_ratio = nil
         @split_point = nil
         @direction_lock = nil
@@ -1182,6 +1264,41 @@ module TranTuanNoiThat
         Array.new(n) { |index| [index * step, (index + 1) * step] }
       end
 
+      def equal_cells(count, direction)
+        segments = equal_segments(count)
+        cells_from_segments(segments, direction)
+      end
+
+      def cells_from_segments(segments, direction)
+        values = normalize_segments(segments)
+        values = [[0.0, 1.0]] if values.empty?
+
+        if direction == 'Ngang'
+          values.map { |pair| [0.0, 1.0, pair[0].to_f, pair[1].to_f] }
+        else
+          values.map { |pair| [pair[0].to_f, pair[1].to_f, 0.0, 1.0] }
+        end
+      end
+
+      def normalize_cells(raw)
+        Array(raw).map do |cell|
+          next unless cell.is_a?(Array) && cell.length == 4
+          u0 = Float(cell[0]) rescue nil
+          u1 = Float(cell[1]) rescue nil
+          v0 = Float(cell[2]) rescue nil
+          v1 = Float(cell[3]) rescue nil
+          next unless u0 && u1 && v0 && v1
+          next unless u1 > u0 && v1 > v0
+
+          [u0, u1, v0, v1]
+        end.compact.select do |cell|
+          cell[0] >= -0.0001 && cell[1] <= 1.0001 &&
+            cell[2] >= -0.0001 && cell[3] <= 1.0001
+        end.first(64)
+      rescue StandardError
+        []
+      end
+
       def normalize_segments(raw)
         values = Array(raw).map do |pair|
           next unless pair.is_a?(Array) && pair.length == 2
@@ -1202,19 +1319,45 @@ module TranTuanNoiThat
         n = count.to_i
         return false unless n.between?(2, 4)
 
-        @segments = equal_segments(n)
-        @active_segment_index = 0
+        if @split_committed && @cells && !@cells.empty?
+          index = [[@active_cell_index.to_i, 0].max, @cells.length - 1].min
+          cell = @cells[index]
+          pieces = []
+
+          n.times do |i|
+            a = i.to_f / n
+            b = (i + 1).to_f / n
+
+            if @options['split_direction'] == 'Dọc'
+              u0 = cell[0] + (cell[1] - cell[0]) * a
+              u1 = cell[0] + (cell[1] - cell[0]) * b
+              pieces << [u0, u1, cell[2], cell[3]]
+            else
+              v0 = cell[2] + (cell[3] - cell[2]) * a
+              v1 = cell[2] + (cell[3] - cell[2]) * b
+              pieces << [cell[0], cell[1], v0, v1]
+            end
+          end
+
+          @cells[index, 1] = pieces
+          @active_cell_index = index
+        else
+          @segments = equal_segments(n)
+          @cells = cells_from_segments(@segments, @options['split_direction'])
+          @active_cell_index = 0
+        end
+
         @split_ratio = nil
         @split_point = nil
-        @options = @options.merge('door_count' => n)
-        @split_committed = true
+        @options = @options.merge('door_count' => @cells.length)
+        @split_committed = @cells.length > 1
         @direction_lock ||= @options['split_direction']
         DoorStandard.save_settings(@options)
         rebuild_preview
         DoorStandard.send_settings
 
         Sketchup.status_text =
-          "CHIA NHANH #{n} CÁNH · rê chuột để chia tự do thêm · ENTER tạo ngay."
+          "CHIA NHANH #{@cells.length} CÁNH · đường cũ giữ nguyên · rê sang cánh khác và SHIFT đổi hướng để chia tiếp."
         true
       rescue StandardError => error
         UI.beep
@@ -1229,40 +1372,54 @@ module TranTuanNoiThat
           return false
         end
 
-        @segments = equal_segments(@options['door_count']) if @segments.nil? || @segments.empty?
-        index = [[@active_segment_index.to_i, 0].max, @segments.length - 1].min
-        segment = @segments[index]
-        a = segment[0].to_f
-        b = segment[1].to_f
+        @cells = [[0.0, 1.0, 0.0, 1.0]] if @cells.nil? || @cells.empty?
+        index = [[@active_cell_index.to_i, 0].max, @cells.length - 1].min
+        cell = @cells[index]
+        split = @split_ratio.to_f
 
+        u0, u1, v0, v1 = adjusted_bounds
         axis_span = if @options['split_direction'] == 'Dọc'
-          adjusted_bounds[1] - adjusted_bounds[0]
+          (u1 - u0) * (cell[1] - cell[0])
         else
-          adjusted_bounds[3] - adjusted_bounds[2]
+          (v1 - v0) * (cell[3] - cell[2])
         end
 
-        # Mỗi phần sau khi chia phải đủ chỗ cho ván + khe.
         active_gap = @options['split_direction'] == 'Dọc' ?
           @options['gap_vertical'] :
           @options['gap_horizontal']
         minimum = [active_gap.mm + 20.mm, 30.mm].max
         min_ratio = minimum / axis_span.to_f
-        if (b - a) <= min_ratio * 2.0
-          UI.beep
-          Sketchup.status_text = 'Khoang con quá nhỏ để chia tiếp.'
-          return false
+
+        if @options['split_direction'] == 'Dọc'
+          a = cell[0].to_f
+          b = cell[1].to_f
+          split = (a + b) * 0.5 unless split > a && split < b
+          split = [split, a + (b - a) * min_ratio].max
+          split = [split, b - (b - a) * min_ratio].min
+          return false unless split > a && split < b
+
+          @cells[index, 1] = [
+            [a, split, cell[2], cell[3]],
+            [split, b, cell[2], cell[3]]
+          ]
+        else
+          a = cell[2].to_f
+          b = cell[3].to_f
+          split = (a + b) * 0.5 unless split > a && split < b
+          split = [split, a + (b - a) * min_ratio].max
+          split = [split, b - (b - a) * min_ratio].min
+          return false unless split > a && split < b
+
+          @cells[index, 1] = [
+            [cell[0], cell[1], a, split],
+            [cell[0], cell[1], split, b]
+          ]
         end
 
-        split = @split_ratio.to_f
-        split = (a + b) * 0.5 unless split > a && split < b
-        split = [split, a + min_ratio].max
-        split = [split, b - min_ratio].min
-
-        @segments[index, 1] = [[a, split], [split, b]]
-        @active_segment_index = index
+        @active_cell_index = index
         @split_ratio = nil
         @split_point = nil
-        @options = @options.merge('door_count' => @segments.length)
+        @options = @options.merge('door_count' => @cells.length)
         @split_committed = true
         @direction_lock ||= @options['split_direction']
         DoorStandard.save_settings(@options)
@@ -1270,7 +1427,7 @@ module TranTuanNoiThat
         DoorStandard.send_settings
 
         Sketchup.status_text =
-          "ĐÃ KHÓA #{@segments.length} CÁNH · đường chia cũ giữ nguyên · rê chuột chỉ đặt TÂM mới · / hoặc TÂM chia tiếp · ENTER tạo."
+          "ĐÃ KHÓA #{@cells.length} CÁNH · đường chia cũ giữ nguyên · rê sang cánh khác, SHIFT đổi Dọc/Ngang rồi chia tiếp."
         true
       rescue StandardError => error
         UI.beep
@@ -1285,17 +1442,12 @@ module TranTuanNoiThat
         u0, u1, v0, v1 = adjusted_bounds
         raise 'Khoang quá nhỏ sau khi trừ khe hở/phủ.' unless u1 > u0 && v1 > v0
 
-        gap = if @options['split_direction'] == 'Dọc'
-          @options['gap_vertical'].mm
-        else
-          @options['gap_horizontal'].mm
-        end
+        @cells = cells_from_segments(@segments, @options['split_direction']) if @cells.nil? || @cells.empty?
+        @active_cell_index = [@active_cell_index.to_i, @cells.length - 1].min
+        @options = @options.merge('door_count' => @cells.length)
 
-        # Mặt trước luôn là phía ngoài; chiều dày luôn đẩy vào trong tủ.
+        # Mặt trước luôn hướng ra ngoài; chiều dày đẩy vào trong.
         normal = @region[:normal].reverse
-        @segments = equal_segments(@options['door_count']) if @segments.nil? || @segments.empty?
-        @active_segment_index = [@active_segment_index.to_i, @segments.length - 1].min
-        @options = @options.merge('door_count' => @segments.length)
 
         offset_vector = if @options['offset'].abs > 0.0001
           vector = @region[:normal].clone
@@ -1309,26 +1461,24 @@ module TranTuanNoiThat
         thickness_vector = normal.clone
         thickness_vector.length = @options['thickness'].mm
 
-        if @options['split_direction'] == 'Dọc'
-          span = u1 - u0
-          @segments.each_with_index do |segment, index|
-            a = u0 + span * segment[0]
-            b = u0 + span * segment[1]
-            a += gap * 0.5 if segment[0] > 0.000001
-            b -= gap * 0.5 if segment[1] < 0.999999
-            raise 'Khe giữa quá lớn so với một khoang con.' unless b > a
-            @doors << build_box(a, b, v0, v1, offset_vector, thickness_vector, index)
-          end
-        else
-          span = v1 - v0
-          @segments.each_with_index do |segment, index|
-            a = v0 + span * segment[0]
-            b = v0 + span * segment[1]
-            a += gap * 0.5 if segment[0] > 0.000001
-            b -= gap * 0.5 if segment[1] < 0.999999
-            raise 'Khe giữa quá lớn so với một khoang con.' unless b > a
-            @doors << build_box(u0, u1, a, b, offset_vector, thickness_vector, index)
-          end
+        span_u = u1 - u0
+        span_v = v1 - v0
+        gap_u = @options['gap_vertical'].mm
+        gap_v = @options['gap_horizontal'].mm
+
+        @cells.each_with_index do |cell, index|
+          cu0 = u0 + span_u * cell[0]
+          cu1 = u0 + span_u * cell[1]
+          cv0 = v0 + span_v * cell[2]
+          cv1 = v0 + span_v * cell[3]
+
+          cu0 += gap_u * 0.5 if cell[0] > 0.000001
+          cu1 -= gap_u * 0.5 if cell[1] < 0.999999
+          cv0 += gap_v * 0.5 if cell[2] > 0.000001
+          cv1 -= gap_v * 0.5 if cell[3] < 0.999999
+
+          raise 'Khe giữa quá lớn so với một khoang con.' unless cu1 > cu0 && cv1 > cv0
+          @doors << build_box(cu0, cu1, cv0, cv1, offset_vector, thickness_vector, index)
         end
       rescue StandardError => error
         @doors = []
@@ -1366,46 +1516,42 @@ module TranTuanNoiThat
 
       def active_segment_bounds
         return nil unless valid_region?
+        return nil if @cells.nil? || @cells.empty?
 
         u0, u1, v0, v1 = adjusted_bounds
-        @segments = equal_segments(@options['door_count']) if @segments.nil? || @segments.empty?
-        index = [[@active_segment_index.to_i, 0].max, @segments.length - 1].min
-        segment = @segments[index]
+        index = [[@active_cell_index.to_i, 0].max, @cells.length - 1].min
+        cell = @cells[index]
 
-        if @options['split_direction'] == 'Dọc'
-          span = u1 - u0
-          [u0 + span * segment[0], u0 + span * segment[1], v0, v1]
-        else
-          span = v1 - v0
-          [u0, u1, v0 + span * segment[0], v0 + span * segment[1]]
-        end
+        [
+          u0 + (u1 - u0) * cell[0],
+          u0 + (u1 - u0) * cell[1],
+          v0 + (v1 - v0) * cell[2],
+          v0 + (v1 - v0) * cell[3]
+        ]
       end
 
       def handle_points
         return {} unless valid_region?
-
-        if @split_point
-          return { center: @split_point }
-        end
+        return { center: @split_point } if @split_point
 
         bounds = active_segment_bounds
         return {} unless bounds
 
         u0, u1, v0, v1 = bounds
-        segment = @segments[[@active_segment_index.to_i, @segments.length - 1].min]
-        ratio = @split_ratio
-        ratio = (segment[0] + segment[1]) * 0.5 unless ratio && ratio > segment[0] && ratio < segment[1]
+        cell = @cells[[@active_cell_index.to_i, @cells.length - 1].min]
 
         point = if @options['split_direction'] == 'Dọc'
-          point_on_plane(
-            adjusted_bounds[0] + (adjusted_bounds[1] - adjusted_bounds[0]) * ratio,
-            (v0 + v1) * 0.5
-          )
+          ratio = @split_ratio
+          ratio = (cell[0] + cell[1]) * 0.5 unless ratio && ratio > cell[0] && ratio < cell[1]
+          all_u0, all_u1, = adjusted_bounds
+          split_u = all_u0 + (all_u1 - all_u0) * ratio
+          point_on_plane(split_u, (v0 + v1) * 0.5)
         else
-          point_on_plane(
-            (u0 + u1) * 0.5,
-            adjusted_bounds[2] + (adjusted_bounds[3] - adjusted_bounds[2]) * ratio
-          )
+          ratio = @split_ratio
+          ratio = (cell[2] + cell[3]) * 0.5 unless ratio && ratio > cell[2] && ratio < cell[3]
+          _, _, all_v0, all_v1 = adjusted_bounds
+          split_v = all_v0 + (all_v1 - all_v0) * ratio
+          point_on_plane((u0 + u1) * 0.5, split_v)
         end
 
         { center: point }
@@ -1435,50 +1581,55 @@ module TranTuanNoiThat
         return false unless u_value >= u0 && u_value <= u1 &&
           v_value >= v0 && v_value <= v1
 
-        ratio = if @options['split_direction'] == 'Dọc'
-          (u_value - u0) / (u1 - u0)
-        else
-          (v_value - v0) / (v1 - v0)
-        end
+        u_ratio = (u_value - u0) / (u1 - u0)
+        v_ratio = (v_value - v0) / (v1 - v0)
 
-        index = nil
-        @segments.each_with_index do |segment, i|
-          if ratio >= segment[0] - 0.000001 && ratio <= segment[1] + 0.000001
-            index = i
-            break
-          end
-        end
+        index = cell_index_for_ratios(u_ratio, v_ratio)
         return false if index.nil?
 
+        @active_cell_index = index
         @active_segment_index = index
-        segment = @segments[index]
-        free_ratio = [[ratio, segment[0]].max, segment[1]].min
+        cell = @cells[index]
+
+        free_ratio = if @options['split_direction'] == 'Dọc'
+          [[u_ratio, cell[0]].max, cell[1]].min
+        else
+          [[v_ratio, cell[2]].max, cell[3]].min
+        end
 
         snapped = nearest_split_snap(view, x, y, index, free_ratio)
         @split_ratio = snapped ? snapped[:ratio] : free_ratio
         @snap_label = snapped ? snapped[:label] : nil
-
-        # TÂM hiển thị đúng tại vị trí chuột (hoặc điểm snap gần nhất).
         @split_point = split_point_for_ratio(@split_ratio, point)
         true
       rescue StandardError
         false
       end
 
+      def cell_index_for_ratios(u_ratio, v_ratio)
+        @cells.each_with_index do |cell, index|
+          if u_ratio >= cell[0] - 0.000001 && u_ratio <= cell[1] + 0.000001 &&
+              v_ratio >= cell[2] - 0.000001 && v_ratio <= cell[3] + 0.000001
+            return index
+          end
+        end
+        nil
+      end
+
       def nearest_split_snap(view, x, y, index, free_ratio)
-        segment = @segments[index]
-        a = segment[0].to_f
-        b = segment[1].to_f
+        cell = @cells[index]
+
+        a, b = if @options['split_direction'] == 'Dọc'
+          [cell[0].to_f, cell[1].to_f]
+        else
+          [cell[2].to_f, cell[3].to_f]
+        end
 
         candidates = [
-          ['Tâm ván', (a + b) * 0.5],
-          ['1/4 ván', a + (b - a) * 0.25],
-          ['3/4 ván', a + (b - a) * 0.75]
+          ['Tâm cánh', (a + b) * 0.5],
+          ['1/4 cánh', a + (b - a) * 0.25],
+          ['3/4 cánh', a + (b - a) * 0.75]
         ]
-
-        @segments.each_with_index do |other, i|
-          candidates << ["Tâm cánh #{i + 1}", (other[0].to_f + other[1].to_f) * 0.5]
-        end
 
         best = nil
         best_distance = SNAP_RADIUS + 1.0
@@ -1505,10 +1656,14 @@ module TranTuanNoiThat
 
       def split_point_for_ratio(ratio, mouse_point = nil)
         u0, u1, v0, v1 = adjusted_bounds
-        mouse_point ||= point_on_plane((u0 + u1) * 0.5, (v0 + v1) * 0.5)
+        bounds = active_segment_bounds
+        return nil unless bounds
+
+        cu0, cu1, cv0, cv1 = bounds
+        mouse_point ||= point_on_plane((cu0 + cu1) * 0.5, (cv0 + cv1) * 0.5)
         vector = vector_between(@region[:origin], mouse_point)
-        mouse_u = [[vector.dot(@region[:u]), u0].max, u1].min
-        mouse_v = [[vector.dot(@region[:v]), v0].max, v1].min
+        mouse_u = [[vector.dot(@region[:u]), cu0].max, cu1].min
+        mouse_v = [[vector.dot(@region[:v]), cv0].max, cv1].min
 
         if @options['split_direction'] == 'Dọc'
           split_u = u0 + (u1 - u0) * ratio
@@ -1520,8 +1675,6 @@ module TranTuanNoiThat
       end
 
       def segment_index_at_mouse(view, x, y)
-        return nil unless valid_region?
-
         point = point_on_region_from_mouse(view, x, y)
         return nil unless point
 
@@ -1529,18 +1682,13 @@ module TranTuanNoiThat
         vector = vector_between(@region[:origin], point)
         u_value = vector.dot(@region[:u])
         v_value = vector.dot(@region[:v])
-        return nil unless u_value >= u0 && u_value <= u1 && v_value >= v0 && v_value <= v1
+        return nil unless u_value >= u0 && u_value <= u1 &&
+          v_value >= v0 && v_value <= v1
 
-        ratio = if @options['split_direction'] == 'Dọc'
-          (u_value - u0) / (u1 - u0)
-        else
+        cell_index_for_ratios(
+          (u_value - u0) / (u1 - u0),
           (v_value - v0) / (v1 - v0)
-        end
-
-        @segments.each_with_index do |segment, index|
-          return index if ratio >= segment[0] - 0.000001 && ratio <= segment[1] + 0.000001
-        end
-        nil
+        )
       rescue StandardError
         nil
       end
@@ -1698,26 +1846,27 @@ module TranTuanNoiThat
       def draw_committed_split_lines(view)
         return unless @split_committed
         return unless valid_region?
-        return if @segments.nil? || @segments.length < 2
+        return if @cells.nil? || @cells.length < 2
 
         u0, u1, v0, v1 = adjusted_bounds
-        ratios = @segments[0...-1].map { |segment| segment[1].to_f }.uniq
-
         lines = []
-        ratios.each do |ratio|
-          if @options['split_direction'] == 'Dọc'
-            split_u = u0 + (u1 - u0) * ratio
-            lines << point_on_plane(split_u, v0)
-            lines << point_on_plane(split_u, v1)
-          else
-            split_v = v0 + (v1 - v0) * ratio
-            lines << point_on_plane(u0, split_v)
-            lines << point_on_plane(u1, split_v)
+
+        @cells.each do |cell|
+          # Chỉ vẽ biên trái/dưới bên trong để tránh vẽ đôi cùng một đường.
+          if cell[0] > 0.000001
+            split_u = u0 + (u1 - u0) * cell[0]
+            lines << point_on_plane(split_u, v0 + (v1 - v0) * cell[2])
+            lines << point_on_plane(split_u, v0 + (v1 - v0) * cell[3])
+          end
+
+          if cell[2] > 0.000001
+            split_v = v0 + (v1 - v0) * cell[2]
+            lines << point_on_plane(u0 + (u1 - u0) * cell[0], split_v)
+            lines << point_on_plane(u0 + (u1 - u0) * cell[1], split_v)
           end
         end
 
         return if lines.empty?
-
         view.line_width = 4
         view.drawing_color = Sketchup::Color.new(37, 99, 235)
         view.draw(GL_LINES, lines)
@@ -1735,20 +1884,23 @@ module TranTuanNoiThat
           Sketchup::Color.new(234, 88, 12)
 
         bounds = active_segment_bounds
-        if bounds
-          u0, u1, v0, v1 = bounds
-          segment = @segments[[@active_segment_index.to_i, @segments.length - 1].min]
+        if bounds && @cells && !@cells.empty?
+          cu0, cu1, cv0, cv1 = bounds
+          cell = @cells[[@active_cell_index.to_i, @cells.length - 1].min]
           ratio = @split_ratio
-          ratio = (segment[0] + segment[1]) * 0.5 unless ratio && ratio > segment[0] && ratio < segment[1]
 
-          all_u0, all_u1, all_v0, all_v1 = adjusted_bounds
-          guide = if @options['split_direction'] == 'Dọc'
+          if @options['split_direction'] == 'Dọc'
+            ratio = (cell[0] + cell[1]) * 0.5 unless ratio && ratio > cell[0] && ratio < cell[1]
+            all_u0, all_u1, = adjusted_bounds
             split_u = all_u0 + (all_u1 - all_u0) * ratio
-            [point_on_plane(split_u, v0), point_on_plane(split_u, v1)]
+            guide = [point_on_plane(split_u, cv0), point_on_plane(split_u, cv1)]
           else
+            ratio = (cell[2] + cell[3]) * 0.5 unless ratio && ratio > cell[2] && ratio < cell[3]
+            _, _, all_v0, all_v1 = adjusted_bounds
             split_v = all_v0 + (all_v1 - all_v0) * ratio
-            [point_on_plane(u0, split_v), point_on_plane(u1, split_v)]
+            guide = [point_on_plane(cu0, split_v), point_on_plane(cu1, split_v)]
           end
+
           view.line_width = 2
           view.drawing_color = color
           view.draw(GL_LINES, guide)
@@ -1778,7 +1930,7 @@ module TranTuanNoiThat
 
         screen = view.screen_coords(center)
         text =
-          "#{@segments.length} CÁNH · "           "#{format_mm(@region[:width])} × #{format_mm(@region[:height])} mm · "           "#{@options['split_direction']} · CHIA TỰ DO"
+          "#{@cells.length} CÁNH · "           "#{format_mm(@region[:width])} × #{format_mm(@region[:height])} mm · "           "#{@options['split_direction']} · CHIA LỒNG"
 
         view.draw_text(
           [screen.x + 18, screen.y + 22],
@@ -1801,6 +1953,7 @@ module TranTuanNoiThat
         root.set_attribute(DICT, 'version', VERSION)
         root.set_attribute(DICT, 'settings_json', JSON.generate(@options))
         root.set_attribute(DICT, 'split_segments_json', JSON.generate(@segments))
+        root.set_attribute(DICT, 'split_cells_json', JSON.generate(@cells))
 
         source_pid = begin
           @face.respond_to?(:persistent_id) ? @face.persistent_id : 0
