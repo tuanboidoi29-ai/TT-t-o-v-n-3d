@@ -162,7 +162,7 @@ module TranTuanNoiThat
         if instance_variable_defined?(:@cabinet_door_cmd) && @cabinet_door_cmd
           title = 'Tạo Cánh Chuẩn'
           @cabinet_door_cmd.tooltip = title
-          @cabinet_door_cmd.status_bar_text = 'Tự nhận 2 mép ngoài + tâm chia · preview 3D theo chuột · click tạo liên tục.'
+          @cabinet_door_cmd.status_bar_text = 'P1-P2 chéo · preview 3D · / chia cánh · SHIFT Dọc/Ngang · CTRL Lọt/Phủ · TAB cài đặt.'
           @cabinet_door_cmd.menu_text = title if @cabinet_door_cmd.respond_to?(:menu_text=)
           icon = File.join(ROOT, 'icons', 'door_standard.svg')
           if File.file?(icon)
@@ -233,7 +233,7 @@ module TranTuanNoiThat
       @cabinet_door_cmd ||= command(
         'Tạo Cánh Chuẩn',
         'door_standard.svg',
-        'Tự nhận 2 mép ngoài + tâm chia · preview 3D theo chuột · click tạo liên tục'
+        'P1-P2 chéo · preview 3D · / chia cánh · SHIFT Dọc/Ngang · CTRL Lọt/Phủ · TAB cài đặt'
       ) { DoorStandard.activate }
 
       # Đồng bộ lại text/icon khi hot reload từ command Vẽ Cánh Tủ cũ.
