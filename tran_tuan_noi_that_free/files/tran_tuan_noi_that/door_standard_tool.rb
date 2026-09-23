@@ -22,6 +22,7 @@ module TranTuanNoiThat
     VERSION = '1.9.130'.freeze
     DICT = 'TT_DOOR_STANDARD'.freeze
     SETTINGS_KEY = 'door_standard_settings_v1'.freeze
+    PRESETS_KEY = 'door_standard_presets_v1'.freeze
 
     DEFAULTS = {
       'fit_mode' => 'Lọt lòng',
@@ -39,6 +40,7 @@ module TranTuanNoiThat
       'over_bottom' => 0.0,
       'offset' => 0.0,
       'name_prefix' => 'Cánh',
+      'tag_name' => 'Cánh tủ',
       'preview_alpha' => 88
     }.freeze
 
@@ -93,6 +95,11 @@ module TranTuanNoiThat
       raise 'Tên cánh tối đa 60 ký tự.' if prefix.length > 60
       result['name_prefix'] = prefix
 
+      tag_name = source['tag_name'].to_s.strip
+      tag_name = 'Cánh tủ' if tag_name.empty?
+      raise 'Tên Tag/Layer tối đa 60 ký tự.' if tag_name.length > 60
+      result['tag_name'] = tag_name
+
       alpha = source['preview_alpha'].to_i
       alpha = 20 if alpha < 20
       alpha = 180 if alpha > 180
@@ -101,6 +108,44 @@ module TranTuanNoiThat
       result
     rescue ArgumentError, TypeError
       raise 'Thông số cánh không hợp lệ.'
+    end
+
+    def presets
+      raw = Sketchup.read_default(TranTuanNoiThat::NAME, PRESETS_KEY, '{}').to_s
+      value = JSON.parse(raw)
+      value.is_a?(Hash) ? value : {}
+    rescue StandardError
+      {}
+    end
+
+    def save_presets(value)
+      clean = value.is_a?(Hash) ? value : {}
+      Sketchup.write_default(TranTuanNoiThat::NAME, PRESETS_KEY, JSON.generate(clean))
+      clean
+    end
+
+    def save_preset(name, options)
+      preset_name = name.to_s.strip
+      raise 'Hãy nhập tên mẫu cánh.' if preset_name.empty?
+      raise 'Tên mẫu tối đa 60 ký tự.' if preset_name.length > 60
+
+      list = presets
+      list[preset_name] = validate(options)
+      save_presets(list)
+      preset_name
+    end
+
+    def load_preset(name)
+      value = presets[name.to_s]
+      raise 'Không tìm thấy mẫu cánh.' unless value.is_a?(Hash)
+      validate(value)
+    end
+
+    def delete_preset(name)
+      list = presets
+      list.delete(name.to_s)
+      save_presets(list)
+      true
     end
 
     def activate
@@ -124,7 +169,7 @@ module TranTuanNoiThat
         scrollable: true,
         resizable: true,
         width: 470,
-        height: 690,
+        height: 790,
         style: UI::HtmlDialog::STYLE_DIALOG
       )
       @dialog.set_html(settings_html)
@@ -145,6 +190,37 @@ module TranTuanNoiThat
         @active_tool.update_settings(clean) if @active_tool && @active_tool.respond_to?(:update_settings)
         send_settings
       end
+
+      @dialog.add_action_callback('save_preset') do |_ctx, name, payload|
+        begin
+          data = JSON.parse(payload.to_s)
+          preset_name = save_preset(name, data)
+          clean = save_settings(data)
+          @active_tool.update_settings(clean) if @active_tool && @active_tool.respond_to?(:update_settings)
+          send_settings
+          @dialog.execute_script("TT.notice(#{JSON.generate("Đã lưu mẫu: #{preset_name}")}, false);")
+        rescue StandardError => error
+          @dialog.execute_script("TT.notice(#{JSON.generate(error.message)}, true);")
+        end
+      end
+
+      @dialog.add_action_callback('load_preset') do |_ctx, name|
+        begin
+          clean = load_preset(name)
+          save_settings(clean)
+          @active_tool.update_settings(clean) if @active_tool && @active_tool.respond_to?(:update_settings)
+          send_settings
+          @dialog.execute_script("TT.notice(#{JSON.generate("Đã nạp mẫu: #{name}")}, false);")
+        rescue StandardError => error
+          @dialog.execute_script("TT.notice(#{JSON.generate(error.message)}, true);")
+        end
+      end
+
+      @dialog.add_action_callback('delete_preset') do |_ctx, name|
+        delete_preset(name)
+        send_settings
+        @dialog.execute_script("TT.notice('Đã xóa mẫu cánh.', false);")
+      end
       @dialog.set_on_closed { @dialog = nil }
       @dialog.show
     rescue StandardError => error
@@ -153,7 +229,11 @@ module TranTuanNoiThat
 
     def send_settings
       return unless @dialog && @dialog.visible?
-      @dialog.execute_script("TT.load(#{JSON.generate(settings)});")
+      payload = {
+        'settings' => settings,
+        'presets' => presets.keys.sort
+      }
+      @dialog.execute_script("TT.load(#{JSON.generate(payload)});")
     rescue StandardError
     end
 
@@ -191,6 +271,7 @@ module TranTuanNoiThat
                 <label>Khe giữa</label><input id="gap_middle" type="number" step="0.5"><span>mm</span>
                 <label>Nhô (+) / lùi (-)</label><input id="offset" type="number" step="0.5"><span>mm</span>
                 <label>Tên cánh</label><input id="name_prefix"><span></span>
+                <label>Tag / Layer</label><input id="tag_name"><span></span>
               </div>
             </div>
 
@@ -215,39 +296,72 @@ module TranTuanNoiThat
             </div>
 
             <div class="card">
+              <b>MẪU CÁNH ĐÃ LƯU</b>
+              <div class="grid" style="margin-top:9px">
+                <label>Chọn mẫu</label><select id="preset_select"></select><span></span>
+                <label>Tên mẫu mới</label><input id="preset_name" placeholder="VD: Cánh bếp 2 cánh"><span></span>
+              </div>
+              <div class="row" style="margin-top:9px">
+                <button onclick="savePreset()">LƯU MẪU MỚI</button>
+                <button class="gray" onclick="loadPreset()">NẠP MẪU</button>
+                <button class="gray" onclick="deletePreset()">XÓA MẪU</button>
+              </div>
+            </div>
+
+            <div class="card">
               <div class="row"><button onclick="apply()">ÁP DỤNG</button><button class="gray" onclick="sketchup.reset()">MẶC ĐỊNH</button></div>
               <div class="hint" style="margin-top:10px">
                 Click <b>P1 → P2 chéo</b> trên cùng một mặt để xác định khoang. Sau P2 tự hiện
                 <b>MÉP TRÁI · TRUNG ĐIỂM · MÉP PHẢI</b>. Bấm <b>TÂM CHIA</b> hoặc phím <b>/</b> để tăng số cánh trực tiếp;
-                click phần còn lại của preview để tạo cánh. <b>TAB</b> mở bảng này. <b>SHIFT</b> đảo hướng dày cánh ra/vào.
+                click phần còn lại của preview để tạo cánh. <b>TAB</b> mở bảng này · <b>SHIFT</b> đổi CÁNH DỌC/CÁNH NGANG ·
+                <b>CTRL</b> đổi CÁNH LỌT/CÁNH PHỦ.
               </div>
               <div id="notice"></div>
             </div>
           </div>
           <script>
-            const ids=['fit','dir','count','thickness','gap_middle','offset','name_prefix',
+            const ids=['fit','dir','count','thickness','gap_middle','offset','name_prefix','tag_name',
               'gap_left','gap_right','gap_top','gap_bottom','over_left','over_right','over_top','over_bottom'];
             const TT={
-              load(s){
-                fit.value=s.fit_mode;dir.value=s.split_direction;count.value=s.door_count;
-                thickness.value=s.thickness;gap_middle.value=s.gap_middle;offset.value=s.offset;name_prefix.value=s.name_prefix;
-                gap_left.value=s.gap_left;gap_right.value=s.gap_right;gap_top.value=s.gap_top;gap_bottom.value=s.gap_bottom;
-                over_left.value=s.over_left;over_right.value=s.over_right;over_top.value=s.over_top;over_bottom.value=s.over_bottom;
+              load(payload){
+                const s=payload.settings||{};
+                fit.value=s.fit_mode||'Lọt lòng';dir.value=s.split_direction||'Dọc';count.value=s.door_count||2;
+                thickness.value=s.thickness||17.5;gap_middle.value=s.gap_middle||2;offset.value=s.offset||0;
+                name_prefix.value=s.name_prefix||'Cánh';tag_name.value=s.tag_name||'Cánh tủ';
+                gap_left.value=s.gap_left||0;gap_right.value=s.gap_right||0;gap_top.value=s.gap_top||0;gap_bottom.value=s.gap_bottom||0;
+                over_left.value=s.over_left||0;over_right.value=s.over_right||0;over_top.value=s.over_top||0;over_bottom.value=s.over_bottom||0;
+                const names=payload.presets||[];
+                preset_select.innerHTML='<option value="">-- Chọn mẫu --</option>'+names.map(n=>'<option>'+esc(n)+'</option>').join('');
               },
               notice(text,error){
                 const e=document.getElementById('notice');e.className=error?'err':'ok';e.textContent=text;
               }
             };
-            function apply(){
-              const s={
+            function esc(v){return String(v||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+            function collect(){
+              return {
                 fit_mode:fit.value,split_direction:dir.value,door_count:Number(count.value),
                 thickness:Number(thickness.value),gap_middle:Number(gap_middle.value),offset:Number(offset.value),
-                name_prefix:name_prefix.value,gap_left:Number(gap_left.value),gap_right:Number(gap_right.value),
+                name_prefix:name_prefix.value,tag_name:tag_name.value,
+                gap_left:Number(gap_left.value),gap_right:Number(gap_right.value),
                 gap_top:Number(gap_top.value),gap_bottom:Number(gap_bottom.value),
                 over_left:Number(over_left.value),over_right:Number(over_right.value),
                 over_top:Number(over_top.value),over_bottom:Number(over_bottom.value)
               };
-              sketchup.apply(JSON.stringify(s));
+            }
+            function apply(){
+              sketchup.apply(JSON.stringify(collect()));
+            }
+            function savePreset(){
+              sketchup.save_preset(preset_name.value,JSON.stringify(collect()));
+            }
+            function loadPreset(){
+              if(!preset_select.value){TT.notice('Hãy chọn mẫu cần nạp.',true);return;}
+              sketchup.load_preset(preset_select.value);
+            }
+            function deletePreset(){
+              if(!preset_select.value){TT.notice('Hãy chọn mẫu cần xóa.',true);return;}
+              sketchup.delete_preset(preset_select.value);
             }
             window.addEventListener('load',()=>sketchup.ready());
           </script>
@@ -334,12 +448,29 @@ module TranTuanNoiThat
         end
 
         if key == 16
-          @flip = !@flip
+          @options = @options.merge(
+            'split_direction' => (@options['split_direction'] == 'Dọc' ? 'Ngang' : 'Dọc')
+          )
+          DoorStandard.save_settings(@options)
           rebuild_preview if @region
-          Sketchup.status_text = @flip ?
-            'Hướng dày: VÀO trong · SHIFT để đổi.' :
-            'Hướng dày: RA ngoài · SHIFT để đổi.'
+          DoorStandard.send_settings
+          Sketchup.status_text =
+            "SHIFT · #{@options['split_direction'] == 'Dọc' ? 'CÁNH DỌC' : 'CÁNH NGANG'}"
           view.invalidate
+          return
+        end
+
+        if key == 17
+          @options = @options.merge(
+            'fit_mode' => (@options['fit_mode'] == 'Lọt lòng' ? 'Phủ ngoài' : 'Lọt lòng')
+          )
+          DoorStandard.save_settings(@options)
+          rebuild_preview if @region
+          DoorStandard.send_settings
+          Sketchup.status_text =
+            "CTRL · #{@options['fit_mode'] == 'Lọt lòng' ? 'CÁNH LỌT' : 'CÁNH PHỦ'}"
+          view.invalidate
+          return
         end
       rescue StandardError => error
         puts "[TT DoorStandard key] #{error.class}: #{error.message}"
@@ -648,6 +779,7 @@ module TranTuanNoiThat
         @options = @options.merge('door_count' => current + 1)
         DoorStandard.save_settings(@options)
         rebuild_preview if @region
+        DoorStandard.send_settings
 
         Sketchup.status_text =
           "CHIA CÁNH: #{@options['door_count']} cánh · bấm / hoặc TÂM CHIA để tăng tiếp · click trong preview để tạo."
@@ -953,8 +1085,10 @@ module TranTuanNoiThat
         root.set_attribute(DICT, 'source_face_pid', source_pid)
 
         inverse_edit = model.edit_transform.inverse
-        tag_name = "Ván #{format('%.1f', @options['thickness']).sub('.0','')}mm"
+        tag_name = @options['tag_name'].to_s.strip
+        tag_name = "Cánh #{format('%.1f', @options['thickness']).sub('.0','')}mm" if tag_name.empty?
         board_tag = model.layers[tag_name] || model.layers.add(tag_name)
+        root.layer = board_tag
 
         @doors.each_with_index do |door, index|
           child = root.entities.add_group
@@ -1034,10 +1168,12 @@ module TranTuanNoiThat
         when :pick_p2
           'Rê và Click P2 chéo đối diện · preview 3D cập nhật theo chuột · ESC quay lại P1.'
         when :ready
-          "Đã khóa P1-P2 · bấm TÂM CHIA hoặc phím / để tăng số cánh · click trong preview để TẠO · TAB cài đặt."
+          "P1-P2 · / hoặc TÂM: chia cánh · SHIFT: Dọc/Ngang · CTRL: Lọt/Phủ · click preview: TẠO · TAB: cài đặt."
         end
       end
     end
+  end
+
   # Tương thích nóng cho UI::Command cũ trong phiên SketchUp đang mở.
   # Source Vẽ Cánh Tủ cũ đã bị gỡ; lệnh cũ nếu còn trên toolbar sẽ gọi tool mới.
   remove_const(:CabinetDoor) if const_defined?(:CabinetDoor, false)
