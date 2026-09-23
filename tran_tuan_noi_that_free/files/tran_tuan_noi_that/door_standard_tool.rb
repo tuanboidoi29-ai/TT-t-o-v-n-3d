@@ -21,7 +21,7 @@ module TranTuanNoiThat
   module DoorStandard
     extend self
 
-    VERSION = '1.9.140'.freeze
+    VERSION = '1.9.141'.freeze
     DICT = 'TT_DOOR_STANDARD'.freeze
     SETTINGS_KEY = 'door_standard_settings_v1'.freeze
     PRESETS_KEY = 'door_standard_presets_v1'.freeze
@@ -187,23 +187,66 @@ module TranTuanNoiThat
       []
     end
 
-    def save_preset(name, options, segments = nil)
+    def preset_tag_owner(list, tag_name, except_name = nil)
+      wanted = tag_name.to_s.strip.downcase
+      return nil if wanted.empty?
+
+      list.each do |name, value|
+        next if except_name && name.to_s == except_name.to_s
+        next unless value.is_a?(Hash)
+        saved_tag = value['tag_name'].to_s.strip
+        return name.to_s if !saved_tag.empty? && saved_tag.downcase == wanted
+      end
+      nil
+    end
+
+    def normalize_preset_tag(list, preset_name, clean, previous_name = nil)
+      tag = clean['tag_name'].to_s.strip
+
+      # Mẫu mới không dùng chung Tag mặc định "Cánh tủ".
+      if tag.empty? || tag.casecmp('Cánh tủ').zero?
+        tag = "Cánh - #{preset_name}"
+      end
+
+      owner = preset_tag_owner(list, tag, previous_name || preset_name)
+      if owner
+        raise "Tag/Layer '#{tag}' đang thuộc mẫu '#{owner}'. Hãy đặt Tag/Layer riêng cho từng mẫu."
+      end
+
+      clean['tag_name'] = tag
+      clean
+    end
+
+    def save_preset(name, options, segments = nil, previous_name = nil)
       preset_name = name.to_s.strip
+      old_name = previous_name.to_s.strip
+
       raise 'Hãy nhập tên mẫu cánh.' if preset_name.empty?
       raise 'Tên mẫu tối đa 60 ký tự.' if preset_name.length > 60
 
+      list = presets
       clean = validate(options)
+      clean = normalize_preset_tag(list, preset_name, clean, old_name.empty? ? nil : old_name)
+
       pattern = normalize_preset_segments(segments)
       clean['_segments'] = pattern unless pattern.empty?
 
-      list = presets
+      if !old_name.empty? && old_name != preset_name
+        raise "Không tìm thấy mẫu đang chỉnh sửa: #{old_name}" unless list.key?(old_name)
+        if list.key?(preset_name)
+          raise "Tên mẫu '#{preset_name}' đã tồn tại. Hãy chọn tên khác."
+        end
+        list.delete(old_name)
+      end
+
       list[preset_name] = clean
       save_presets(list)
       preset_name
     end
 
     def load_preset(name)
-      value = presets[name.to_s]
+      preset_name = name.to_s
+      value = presets[preset_name]
       raise 'Không tìm thấy mẫu cánh.' unless value.is_a?(Hash)
 
       clean = validate(value)
@@ -212,9 +255,11 @@ module TranTuanNoiThat
     end
 
     def delete_preset(name)
+      preset_name = name.to_s
       list = presets
-      list.delete(name.to_s)
+      list.delete(preset_name)
       save_presets(list)
+      @current_preset_name = nil if @current_preset_name.to_s == preset_name
       true
     end
 
@@ -235,7 +280,7 @@ module TranTuanNoiThat
 
       @dialog = UI::HtmlDialog.new(
         dialog_title: 'TRẦN TUẤN - TẠO CÁNH CHUẨN',
-        preferences_key: 'TranTuanNoiThat.DoorStandard.140',
+        preferences_key: 'TranTuanNoiThat.DoorStandard.141',
         scrollable: true,
         resizable: true,
         width: 470,
@@ -256,6 +301,7 @@ module TranTuanNoiThat
         end
       end
       @dialog.add_action_callback('reset') do |_ctx|
+        @current_preset_name = nil
         clean = save_settings(DEFAULTS)
         @active_tool.update_settings(clean) if @active_tool && @active_tool.respond_to?(:update_settings)
         send_settings
@@ -269,11 +315,50 @@ module TranTuanNoiThat
           else
             nil
           end
-          preset_name = save_preset(name, data, pattern)
-          clean = save_settings(data)
-          @active_tool.update_settings(clean) if @active_tool && @active_tool.respond_to?(:update_settings)
+
+          preset_name = save_preset(name, data, pattern, nil)
+          clean, saved_pattern = load_preset(preset_name)
+          @current_preset_name = preset_name
+          save_settings(clean)
+
+          if @active_tool && @active_tool.respond_to?(:update_preset)
+            @active_tool.update_preset(clean, saved_pattern)
+          elsif @active_tool && @active_tool.respond_to?(:update_settings)
+            @active_tool.update_settings(clean)
+          end
+
           send_settings
-          @dialog.execute_script("TT.notice(#{JSON.generate("ĐÃ LƯU MẪU: #{preset_name} · file: door_presets.json")}, false);")
+          @dialog.execute_script("TT.notice(#{JSON.generate("ĐÃ LƯU MẪU MỚI: #{preset_name} · Tag riêng: #{clean['tag_name']}")}, false);")
+        rescue StandardError => error
+          @dialog.execute_script("TT.notice(#{JSON.generate(error.message)}, true);")
+        end
+      end
+
+      @dialog.add_action_callback('update_preset') do |_ctx, current_name, new_name, payload|
+        begin
+          current = current_name.to_s.strip
+          raise 'Hãy nạp/chọn mẫu cần chỉnh sửa trước.' if current.empty?
+
+          data = JSON.parse(payload.to_s)
+          pattern = if @active_tool && @active_tool.respond_to?(:preset_segments)
+            @active_tool.preset_segments
+          else
+            nil
+          end
+
+          preset_name = save_preset(new_name, data, pattern, current)
+          clean, saved_pattern = load_preset(preset_name)
+          @current_preset_name = preset_name
+          save_settings(clean)
+
+          if @active_tool && @active_tool.respond_to?(:update_preset)
+            @active_tool.update_preset(clean, saved_pattern)
+          elsif @active_tool && @active_tool.respond_to?(:update_settings)
+            @active_tool.update_settings(clean)
+          end
+
+          send_settings
+          @dialog.execute_script("TT.notice(#{JSON.generate("ĐÃ LƯU LẠI MẪU: #{preset_name} · Tag riêng: #{clean['tag_name']}")}, false);")
         rescue StandardError => error
           @dialog.execute_script("TT.notice(#{JSON.generate(error.message)}, true);")
         end
@@ -282,6 +367,7 @@ module TranTuanNoiThat
       @dialog.add_action_callback('load_preset') do |_ctx, name|
         begin
           clean, pattern = load_preset(name)
+          @current_preset_name = name.to_s
           save_settings(clean)
           if @active_tool && @active_tool.respond_to?(:update_preset)
             @active_tool.update_preset(clean, pattern)
@@ -308,9 +394,14 @@ module TranTuanNoiThat
 
     def send_settings
       return unless @dialog && @dialog.visible?
+      preset_data = presets
       payload = {
         'settings' => settings,
-        'presets' => presets.keys.sort,
+        'presets' => preset_data.keys.sort,
+        'preset_tags' => preset_data.each_with_object({}) do |(name, value), memo|
+          memo[name.to_s] = value.is_a?(Hash) ? value['tag_name'].to_s : ''
+        end,
+        'current_preset' => @current_preset_name.to_s,
         'preset_file' => PRESET_FILE
       }
       @dialog.execute_script("TT.load(#{JSON.generate(payload)});")
@@ -380,11 +471,16 @@ module TranTuanNoiThat
               <b>MẪU CÁNH ĐÃ LƯU</b>
               <div class="grid" style="margin-top:9px">
                 <label>Chọn mẫu</label><select id="preset_select"></select><span></span>
-                <label>Tên mẫu mới</label><input id="preset_name" placeholder="VD: Cánh bếp 2 cánh"><span></span>
+                <label>Tên mẫu / tên mới</label><input id="preset_name" placeholder="VD: Cánh bếp dưới"><span></span>
               </div>
-              <div class="hint" id="preset_info" style="margin-top:7px">Mẫu sẽ được lưu thành file JSON thật trong dữ liệu plugin.</div>
+              <div class="hint" id="current_preset_info" style="margin-top:7px"><b>Mẫu đang chỉnh sửa:</b> Chưa chọn</div>
+              <div class="hint" id="preset_tag_info" style="margin-top:5px">Mỗi mẫu dùng Tag/Layer riêng.</div>
+              <div class="hint" id="preset_info" style="margin-top:5px">Mẫu được lưu trong door_presets.json.</div>
               <div class="row" style="margin-top:9px">
                 <button onclick="savePreset()">LƯU MẪU MỚI</button>
+                <button onclick="updatePreset()">LƯU LẠI MẪU ĐANG CHỌN</button>
+              </div>
+              <div class="row" style="margin-top:7px">
                 <button class="gray" onclick="loadPreset()">NẠP MẪU</button>
                 <button class="gray" onclick="deletePreset()">XÓA MẪU</button>
               </div>
@@ -406,6 +502,8 @@ module TranTuanNoiThat
             const ids=['fit','dir','count','thickness','gap_vertical','gap_horizontal','offset','name_prefix','tag_name',
               'gap_left','gap_right','gap_top','gap_bottom','over_left','over_right','over_top','over_bottom'];
             const TT={
+              currentPreset:'',
+              presetTags:{},
               load(payload){
                 const s=payload.settings||{};
                 fit.value=s.fit_mode||'Lọt lòng';dir.value=s.split_direction||'Dọc';count.value=s.door_count||1;
@@ -417,7 +515,20 @@ module TranTuanNoiThat
                 gap_left.value=s.gap_left||0;gap_right.value=s.gap_right||0;gap_top.value=s.gap_top||0;gap_bottom.value=s.gap_bottom||0;
                 over_left.value=s.over_left||0;over_right.value=s.over_right||0;over_top.value=s.over_top||0;over_bottom.value=s.over_bottom||0;
                 const names=payload.presets||[];
-                preset_select.innerHTML='<option value="">-- Chọn mẫu --</option>'+names.map(n=>'<option>'+esc(n)+'</option>').join('');
+                TT.currentPreset=payload.current_preset||'';
+                TT.presetTags=payload.preset_tags||{};
+                preset_select.innerHTML='<option value="">-- Chọn mẫu --</option>'+names.map(n=>'<option value="'+esc(n)+'">'+esc(n)+'</option>').join('');
+                preset_select.value=TT.currentPreset||'';
+                if(TT.currentPreset){
+                  preset_name.value=TT.currentPreset;
+                }
+                if(document.getElementById('current_preset_info')){
+                  current_preset_info.innerHTML='<b>Mẫu đang chỉnh sửa:</b> '+(TT.currentPreset?esc(TT.currentPreset):'Chưa chọn');
+                }
+                if(document.getElementById('preset_tag_info')){
+                  const tag=TT.currentPreset?(TT.presetTags[TT.currentPreset]||''):'';
+                  preset_tag_info.textContent=tag?('Tag/Layer riêng của mẫu: '+tag):'Mỗi mẫu dùng Tag/Layer riêng.';
+                }
                 if(document.getElementById('preset_info')){
                   preset_info.textContent='Đã lưu '+names.length+' mẫu · dữ liệu: door_presets.json';
                 }
@@ -448,16 +559,37 @@ module TranTuanNoiThat
             function savePreset(){
               const name=preset_name.value.trim();
               if(!name){TT.notice('Hãy nhập TÊN MẪU trước khi lưu.',true);preset_name.focus();return;}
+
+              // Mẫu mới không dùng chung Tag mặc định.
+              if(!tag_name.value.trim() || tag_name.value.trim().toLowerCase()==='cánh tủ'){
+                tag_name.value='Cánh - '+name;
+              }
               sketchup.save_preset(name,JSON.stringify(collect()));
+            }
+            function updatePreset(){
+              if(!TT.currentPreset){
+                TT.notice('Hãy NẠP một mẫu trước khi LƯU LẠI.',true);
+                return;
+              }
+              const name=preset_name.value.trim()||TT.currentPreset;
+              sketchup.update_preset(TT.currentPreset,name,JSON.stringify(collect()));
             }
             function loadPreset(){
               if(!preset_select.value){TT.notice('Hãy chọn mẫu cần nạp.',true);return;}
               sketchup.load_preset(preset_select.value);
             }
             function deletePreset(){
-              if(!preset_select.value){TT.notice('Hãy chọn mẫu cần xóa.',true);return;}
-              sketchup.delete_preset(preset_select.value);
+              const name=preset_select.value||TT.currentPreset;
+              if(!name){TT.notice('Hãy chọn mẫu cần xóa.',true);return;}
+              sketchup.delete_preset(name);
             }
+            preset_select.addEventListener('change',function(){
+              const name=preset_select.value;
+              if(name){
+                preset_name.value=name;
+                preset_tag_info.textContent='Tag/Layer riêng của mẫu: '+(TT.presetTags[name]||'');
+              }
+            });
             window.addEventListener('load',()=>sketchup.ready());
           </script>
         </body></html>
