@@ -6,8 +6,8 @@
 # - Click P1 trên mặt đứng -> click P2 chéo đối diện để xác định khoang.
 # - P1/P2 bắt điểm tự do, không khóa hướng X/Y/Z; vẫn dùng Endpoint/Edge/Inference tự nhiên.
 # - Trong lúc rê P2 có preview 3D tấm cánh theo chuột.
-# - Sau P2 tự hiện 3 điểm: Mép trái - Trung điểm - Mép phải.
-# - Bấm Trung điểm hoặc click trong preview để chia/tạo cánh.
+# - Sau P2 chỉ hiện 1 điểm TÂM ở giữa tấm.
+# - Bấm TÂM hoặc phím / để +1 cánh trực tiếp; click vùng preview còn lại để tạo.
 # - TAB mở thông số; SHIFT đổi Dọc/Ngang; CTRL đổi Lọt/Phủ.
 # - Chia 1..8 cánh theo Dọc hoặc Ngang.
 # - Tạo xong tự quay về P1 để làm khoang kế tiếp.
@@ -20,7 +20,7 @@ module TranTuanNoiThat
   module DoorStandard
     extend self
 
-    VERSION = '1.9.131'.freeze
+    VERSION = '1.9.132'.freeze
     DICT = 'TT_DOOR_STANDARD'.freeze
     SETTINGS_KEY = 'door_standard_settings_v1'.freeze
     PRESETS_KEY = 'door_standard_presets_v1'.freeze
@@ -28,7 +28,7 @@ module TranTuanNoiThat
     DEFAULTS = {
       'fit_mode' => 'Lọt lòng',
       'split_direction' => 'Dọc',
-      'door_count' => 2,
+      'door_count' => 1,
       'thickness' => 17.5,
       'gap_left' => 2.0,
       'gap_right' => 2.0,
@@ -261,7 +261,7 @@ module TranTuanNoiThat
           </style>
         </head>
         <body>
-          <div class="head"><h2>TẠO CÁNH CHUẨN</h2><small>Preview 3D theo chuột · click tạo liên tục</small></div>
+          <div class="head"><h2>TẠO CÁNH CHUẨN</h2><small>P1–P2 tự do · preview 3D · TÂM / +1 cánh</small></div>
           <div class="wrap">
             <div class="card">
               <div class="grid">
@@ -327,7 +327,7 @@ module TranTuanNoiThat
             const TT={
               load(payload){
                 const s=payload.settings||{};
-                fit.value=s.fit_mode||'Lọt lòng';dir.value=s.split_direction||'Dọc';count.value=s.door_count||2;
+                fit.value=s.fit_mode||'Lọt lòng';dir.value=s.split_direction||'Dọc';count.value=s.door_count||1;
                 thickness.value=s.thickness||17.5;gap_middle.value=s.gap_middle||2;offset.value=s.offset||0;
                 name_prefix.value=s.name_prefix||'Cánh';tag_name.value=s.tag_name||'Cánh tủ';
                 gap_left.value=s.gap_left||0;gap_right.value=s.gap_right||0;gap_top.value=s.gap_top||0;gap_bottom.value=s.gap_bottom||0;
@@ -577,15 +577,17 @@ module TranTuanNoiThat
         end
 
         draw_p1(view)
+        draw_hover_p2(view) if @state == :pick_p2 && @hover_point
+        draw_p2(view) if @state == :ready && @p2
 
         if @state == :pick_p2 && @region
           draw_region_frame(view)
           draw_preview_doors(view)
-          draw_three_handles(view, false)
+          draw_center_handle(view, false)
         elsif @state == :ready && @region
           draw_region_frame(view)
           draw_preview_doors(view)
-          draw_three_handles(view, true)
+          draw_center_handle(view, true)
           draw_info(view)
         end
       rescue StandardError => error
@@ -791,6 +793,12 @@ module TranTuanNoiThat
       end
 
       def split_more
+        unless valid_region?
+          UI.beep
+          Sketchup.status_text = 'Hãy bắt P1 và rê/bắt P2 trước khi chia cánh.'
+          return false
+        end
+
         current = @options['door_count'].to_i
         if current >= 8
           UI.beep
@@ -804,7 +812,7 @@ module TranTuanNoiThat
         DoorStandard.send_settings
 
         Sketchup.status_text =
-          "CHIA CÁNH: #{@options['door_count']} cánh · bấm / hoặc TÂM CHIA để tăng tiếp · click trong preview để tạo."
+          "CHIA CÁNH: #{@options['door_count']} cánh · / hoặc TÂM = +1 · SHIFT đổi Dọc/Ngang · click preview để tạo."
         true
       rescue StandardError => error
         UI.beep
@@ -894,12 +902,11 @@ module TranTuanNoiThat
         return {} unless valid_region?
 
         u0, u1, v0, v1 = adjusted_bounds
-        vmid = (v0 + v1) * 0.5
-
         {
-          left: point_on_plane(u0, vmid),
-          center: point_on_plane((u0 + u1) * 0.5, vmid),
-          right: point_on_plane(u1, vmid)
+          center: point_on_plane(
+            (u0 + u1) * 0.5,
+            (v0 + v1) * 0.5
+          )
         }
       rescue StandardError
         {}
@@ -974,6 +981,36 @@ module TranTuanNoiThat
         )
       end
 
+      def draw_hover_p2(view)
+        view.draw_points(
+          @hover_point,
+          14,
+          2,
+          Sketchup::Color.new(245, 158, 11)
+        )
+        screen = view.screen_coords(@hover_point)
+        view.draw_text(
+          [screen.x + 8, screen.y - 10],
+          'P2',
+          color: Sketchup::Color.new(180, 83, 9)
+        )
+      end
+
+      def draw_p2(view)
+        view.draw_points(
+          @p2,
+          14,
+          2,
+          Sketchup::Color.new(245, 158, 11)
+        )
+        screen = view.screen_coords(@p2)
+        view.draw_text(
+          [screen.x + 8, screen.y - 10],
+          'P2',
+          color: Sketchup::Color.new(180, 83, 9)
+        )
+      end
+
       def draw_region_frame(view)
         return unless valid_region?
 
@@ -1030,44 +1067,31 @@ module TranTuanNoiThat
         view.draw(GL_LINES, edges.flatten(1))
       end
 
-      def draw_three_handles(view, interactive)
-        styles = {
-          left: [
-            'MÉP TRÁI',
-            Sketchup::Color.new(37, 99, 235)
-          ],
-          center: [
-            'TÂM CHIA +',
-            Sketchup::Color.new(234, 88, 12)
-          ],
-          right: [
-            'MÉP PHẢI',
-            Sketchup::Color.new(37, 99, 235)
-          ]
-        }
+      def draw_center_handle(view, interactive)
+        point = handle_points[:center]
+        return unless point
 
-        handle_points.each do |key, point|
-          label, base_color = styles[key]
-          hovered = interactive && key == @hover_handle
-          color = hovered ?
-            Sketchup::Color.new(22, 163, 74) :
-            base_color
+        hovered = interactive && @hover_handle == :center
+        color = hovered ?
+          Sketchup::Color.new(22, 163, 74) :
+          Sketchup::Color.new(234, 88, 12)
 
-          size = if key == :center
-            hovered ? 18 : 15
-          else
-            hovered ? 15 : 11
-          end
+        view.draw_points(
+          point,
+          hovered ? 20 : 16,
+          2,
+          color
+        )
 
-          view.draw_points(point, size, 2, color)
+        direction = @options['split_direction'] == 'Dọc' ? 'DỌC' : 'NGANG'
+        label = "TÂM · CHIA #{direction} +1"
 
-          screen = view.screen_coords(point)
-          view.draw_text(
-            [screen.x + 9, screen.y - 10],
-            label,
-            color: color
-          )
-        end
+        screen = view.screen_coords(point)
+        view.draw_text(
+          [screen.x + 10, screen.y - 12],
+          label,
+          color: color
+        )
       end
 
       def draw_info(view)
@@ -1186,11 +1210,11 @@ module TranTuanNoiThat
       def update_status
         Sketchup.status_text = case @state
         when :pick_p1
-          'TẠO CÁNH · Click P1 trên mặt/khoang · TAB cài đặt.'
+          'TẠO CÁNH · Click P1 trên MẶT ĐỨNG · bắt điểm tự do, không khóa hướng · TAB cài đặt.'
         when :pick_p2
-          'Rê P2 tự do, KHÔNG KHÓA HƯỚNG · vẫn bắt Endpoint/Edge/Inference · preview 3D theo chuột · click P2.'
+          'Rê P2 chéo tự do trên mặt · tự bắt Endpoint/Edge/Inference · preview ván 3D theo chuột · click P2.'
         when :ready
-          "P1-P2 · / hoặc TÂM: chia cánh · SHIFT: Dọc/Ngang · CTRL: Lọt/Phủ · click preview: TẠO · TAB: cài đặt."
+          "P1-P2 · / hoặc TÂM = +1 cánh · SHIFT Dọc/Ngang · CTRL Phủ/Lọt · click preview TẠO · TAB cài đặt."
         end
       end
     end
