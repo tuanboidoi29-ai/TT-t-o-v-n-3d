@@ -21,7 +21,7 @@ module TranTuanNoiThat
   module DoorStandard
     extend self
 
-    VERSION = '1.9.142'.freeze
+    VERSION = '1.9.143'.freeze
     DICT = 'TT_DOOR_STANDARD'.freeze
     SETTINGS_KEY = 'door_standard_settings_v1'.freeze
     PRESETS_KEY = 'door_standard_presets_v1'.freeze
@@ -308,7 +308,7 @@ module TranTuanNoiThat
 
       @dialog = UI::HtmlDialog.new(
         dialog_title: 'TRẦN TUẤN - TẠO CÁNH CHUẨN',
-        preferences_key: 'TranTuanNoiThat.DoorStandard.142',
+        preferences_key: 'TranTuanNoiThat.DoorStandard.143',
         scrollable: true,
         resizable: true,
         width: 470,
@@ -567,6 +567,8 @@ module TranTuanNoiThat
                 preset_select.value=TT.currentPreset||'';
                 if(TT.currentPreset){
                   preset_name.value=TT.currentPreset;
+                }else if(preset_select.value){
+                  preset_select.value='';
                 }
                 if(document.getElementById('current_preset_info')){
                   current_preset_info.innerHTML='<b>Mẫu đang chỉnh sửa:</b> '+(TT.currentPreset?esc(TT.currentPreset):'Chưa chọn');
@@ -635,8 +637,13 @@ module TranTuanNoiThat
               sketchup.update_preset(TT.currentPreset,name,JSON.stringify(collect()));
             }
             function loadPreset(){
-              if(!preset_select.value){TT.notice('Hãy chọn mẫu cần nạp.',true);return;}
-              sketchup.load_preset(preset_select.value);
+              const name=preset_select.value;
+              if(!name){TT.notice('Hãy chọn mẫu cần nạp.',true);return;}
+              TT.currentPreset=name;
+              preset_name.value=name;
+              current_preset_info.innerHTML='<b>Mẫu đang chỉnh sửa:</b> '+esc(name);
+              renderEditingPresetState();
+              sketchup.load_preset(name);
             }
             function deletePreset(){
               const name=preset_select.value||TT.currentPreset;
@@ -645,11 +652,34 @@ module TranTuanNoiThat
             }
             preset_select.addEventListener('change',function(){
               const name=preset_select.value;
-              if(name){
-                preset_name.value=name;
-                preset_tag_info.textContent='Tag/Layer riêng của mẫu: '+(TT.presetTags[name]||'');
+
+              if(!name){
+                TT.currentPreset='';
+                preset_name.value='';
+                preset_tag_info.textContent='Mỗi mẫu dùng Tag/Layer riêng.';
+                current_preset_info.innerHTML='<b>Mẫu đang chỉnh sửa:</b> Chưa chọn';
+                renderEditingPresetState();
+                return;
               }
+
+              // Chọn dropdown = nhận ngay mẫu đang chỉnh sửa + tự nạp toàn bộ dữ liệu mẫu.
+              TT.currentPreset=name;
+              preset_name.value=name;
+
+              const savedTag=TT.presetTags[name]||'';
+              if(savedTag){
+                tag_name.value=savedTag;
+                preset_tag_info.textContent='Tag/Layer riêng của mẫu: '+savedTag;
+              }else{
+                preset_tag_info.textContent='Tag/Layer riêng của mẫu: (chưa đặt)';
+              }
+
+              current_preset_info.innerHTML='<b>Mẫu đang chỉnh sửa:</b> '+esc(name);
               renderEditingPresetState();
+              TT.notice('Đang nạp mẫu: '+name+' ...',false);
+
+              // Ruby sẽ nạp settings + kiểu chia rồi send_settings trả lại trạng thái chuẩn.
+              sketchup.load_preset(name);
             });
             tag_name.addEventListener('input',renderEditingPresetState);
             window.addEventListener('load',()=>sketchup.ready());
