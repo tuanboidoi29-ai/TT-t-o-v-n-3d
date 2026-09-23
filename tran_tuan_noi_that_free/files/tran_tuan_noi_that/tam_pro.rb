@@ -6,7 +6,7 @@ module TranTuanNoiThat
   module TamPro
     extend self
 
-    VERSION = '1.9.134'.freeze
+    VERSION = '1.9.135'.freeze
     EPS = 0.001
     QUICK_NAMES = ['Trái', 'Phải', 'Trên', 'Dưới', 'Trước', 'Sau'].freeze
 
