@@ -11,7 +11,7 @@ module TranTuanNoiThat
   NAME = 'TRẦN TUẤN NỘI THẤT'.freeze unless const_defined?(:NAME, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.130'.freeze
+  VERSION = '1.9.131'.freeze
 
   class << self
     def setting(key, default = nil)
@@ -238,7 +238,7 @@ module TranTuanNoiThat
 
       # Đồng bộ lại text/icon khi hot reload từ command Vẽ Cánh Tủ cũ.
       @cabinet_door_cmd.tooltip = 'Tạo Cánh Chuẩn'
-      @cabinet_door_cmd.status_bar_text = 'P1-P2 chéo trên mặt đứng · tự hiện Mép trái/Tâm/Mép phải · / chia cánh · SHIFT Dọc/Ngang · CTRL Lọt/Phủ · TAB cài đặt.'
+      @cabinet_door_cmd.status_bar_text = 'P1-P2 chéo trên mặt đứng · bắt điểm tự do không khóa hướng · tự hiện Mép trái/Tâm/Mép phải · / chia cánh · SHIFT Dọc/Ngang · CTRL Lọt/Phủ · TAB cài đặt.'
       @cabinet_door_cmd.menu_text = 'Tạo Cánh Chuẩn' if @cabinet_door_cmd.respond_to?(:menu_text=)
       icon = File.join(ROOT, 'icons', 'door_standard.svg')
       if File.file?(icon)
