@@ -3,7 +3,8 @@
 # SketchUp 2021+
 #
 # Cơ chế:
-# - Click P1 trên Face -> click P2 chéo đối diện để xác định khoang.
+# - Click P1 trên mặt đứng -> click P2 chéo đối diện để xác định khoang.
+# - P1/P2 bắt điểm tự do, không khóa hướng X/Y/Z; vẫn dùng Endpoint/Edge/Inference tự nhiên.
 # - Trong lúc rê P2 có preview 3D tấm cánh theo chuột.
 # - Sau P2 tự hiện 3 điểm: Mép trái - Trung điểm - Mép phải.
 # - Bấm Trung điểm hoặc click trong preview để chia/tạo cánh.
@@ -19,7 +20,7 @@ module TranTuanNoiThat
   module DoorStandard
     extend self
 
-    VERSION = '1.9.130'.freeze
+    VERSION = '1.9.131'.freeze
     DICT = 'TT_DOOR_STANDARD'.freeze
     SETTINGS_KEY = 'door_standard_settings_v1'.freeze
     PRESETS_KEY = 'door_standard_presets_v1'.freeze
@@ -165,7 +166,7 @@ module TranTuanNoiThat
 
       @dialog = UI::HtmlDialog.new(
         dialog_title: 'TRẦN TUẤN - TẠO CÁNH CHUẨN',
-        preferences_key: 'TranTuanNoiThat.DoorStandard.130',
+        preferences_key: 'TranTuanNoiThat.DoorStandard.131',
         scrollable: true,
         resizable: true,
         width: 470,
@@ -311,7 +312,8 @@ module TranTuanNoiThat
             <div class="card">
               <div class="row"><button onclick="apply()">ÁP DỤNG</button><button class="gray" onclick="sketchup.reset()">MẶC ĐỊNH</button></div>
               <div class="hint" style="margin-top:10px">
-                Click <b>P1 → P2 chéo</b> trên cùng một mặt để xác định khoang. Sau P2 tự hiện
+                Click <b>P1 → P2 chéo</b> trên mặt đứng để xác định khoang. P2 <b>không khóa hướng</b>,
+                vẫn bắt Endpoint / Edge / Inference tự nhiên. Sau P2 tự hiện
                 <b>MÉP TRÁI · TRUNG ĐIỂM · MÉP PHẢI</b>. Bấm <b>TÂM CHIA</b> hoặc phím <b>/</b> để tăng số cánh trực tiếp;
                 click phần còn lại của preview để tạo cánh. <b>TAB</b> mở bảng này · <b>SHIFT</b> đổi CÁNH DỌC/CÁNH NGANG ·
                 <b>CTRL</b> đổi CÁNH LỌT/CÁNH PHỦ.
@@ -479,6 +481,8 @@ module TranTuanNoiThat
       end
 
       def onMouseMove(_flags, x, y, view)
+        unlock_direction_lock(view) if [:pick_p1, :pick_p2].include?(@state)
+
         case @state
         when :pick_p1
           @hover_point = pick_first_point(view, x, y)
@@ -506,6 +510,8 @@ module TranTuanNoiThat
       end
 
       def onLButtonDown(_flags, x, y, view)
+        unlock_direction_lock(view) if [:pick_p1, :pick_p2].include?(@state)
+
         case @state
         when :pick_p1
           point = pick_first_point(view, x, y)
@@ -599,6 +605,15 @@ module TranTuanNoiThat
       end
 
       private
+
+      def unlock_direction_lock(view)
+        # Không giữ khóa inference/hướng từ thao tác trước.
+        # InputPoint vẫn tự bắt Endpoint / Edge / Inference theo chuột.
+        view.lock_inference if view.respond_to?(:lock_inference)
+        true
+      rescue StandardError
+        false
+      end
 
       def reset_all
         @state = :pick_p1
@@ -1173,7 +1188,7 @@ module TranTuanNoiThat
         when :pick_p1
           'TẠO CÁNH · Click P1 trên mặt/khoang · TAB cài đặt.'
         when :pick_p2
-          'Rê và Click P2 chéo đối diện · preview 3D cập nhật theo chuột · ESC quay lại P1.'
+          'Rê P2 tự do, KHÔNG KHÓA HƯỚNG · vẫn bắt Endpoint/Edge/Inference · preview 3D theo chuột · click P2.'
         when :ready
           "P1-P2 · / hoặc TÂM: chia cánh · SHIFT: Dọc/Ngang · CTRL: Lọt/Phủ · click preview: TẠO · TAB: cài đặt."
         end
