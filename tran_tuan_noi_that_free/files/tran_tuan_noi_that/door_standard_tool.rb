@@ -125,13 +125,39 @@ module TranTuanNoiThat
       clean
     end
 
-    def save_preset(name, options)
+    def normalize_preset_segments(raw)
+      values = Array(raw).map do |pair|
+        next unless pair.is_a?(Array) && pair.length == 2
+        a = Float(pair[0]) rescue nil
+        b = Float(pair[1]) rescue nil
+        next unless a && b && b > a
+        [[a, 0.0].max, [b, 1.0].min]
+      end.compact
+      values.sort_by!(&:first)
+      return [] if values.empty? || values.length > 64
+      return [] if values.first.first > 0.0001 || values.last.last < 0.9999
+
+      previous_end = 0.0
+      values.each do |pair|
+        return [] if (pair[0] - previous_end).abs > 0.0002
+        previous_end = pair[1]
+      end
+      values
+    rescue StandardError
+      []
+    end
+
+    def save_preset(name, options, segments = nil)
       preset_name = name.to_s.strip
       raise 'Hãy nhập tên mẫu cánh.' if preset_name.empty?
       raise 'Tên mẫu tối đa 60 ký tự.' if preset_name.length > 60
 
+      clean = validate(options)
+      pattern = normalize_preset_segments(segments)
+      clean['_segments'] = pattern unless pattern.empty?
+
       list = presets
-      list[preset_name] = validate(options)
+      list[preset_name] = clean
       save_presets(list)
       preset_name
     end
@@ -139,7 +165,10 @@ module TranTuanNoiThat
     def load_preset(name)
       value = presets[name.to_s]
       raise 'Không tìm thấy mẫu cánh.' unless value.is_a?(Hash)
-      validate(value)
+
+      clean = validate(value)
+      pattern = normalize_preset_segments(value['_segments'])
+      [clean, pattern]
     end
 
     def delete_preset(name)
@@ -195,11 +224,16 @@ module TranTuanNoiThat
       @dialog.add_action_callback('save_preset') do |_ctx, name, payload|
         begin
           data = JSON.parse(payload.to_s)
-          preset_name = save_preset(name, data)
+          pattern = if @active_tool && @active_tool.respond_to?(:preset_segments)
+            @active_tool.preset_segments
+          else
+            nil
+          end
+          preset_name = save_preset(name, data, pattern)
           clean = save_settings(data)
           @active_tool.update_settings(clean) if @active_tool && @active_tool.respond_to?(:update_settings)
           send_settings
-          @dialog.execute_script("TT.notice(#{JSON.generate("Đã lưu mẫu: #{preset_name}")}, false);")
+          @dialog.execute_script("TT.notice(#{JSON.generate("Đã lưu mẫu + kiểu chia: #{preset_name}")}, false);")
         rescue StandardError => error
           @dialog.execute_script("TT.notice(#{JSON.generate(error.message)}, true);")
         end
@@ -207,11 +241,15 @@ module TranTuanNoiThat
 
       @dialog.add_action_callback('load_preset') do |_ctx, name|
         begin
-          clean = load_preset(name)
+          clean, pattern = load_preset(name)
           save_settings(clean)
-          @active_tool.update_settings(clean) if @active_tool && @active_tool.respond_to?(:update_settings)
+          if @active_tool && @active_tool.respond_to?(:update_preset)
+            @active_tool.update_preset(clean, pattern)
+          elsif @active_tool && @active_tool.respond_to?(:update_settings)
+            @active_tool.update_settings(clean)
+          end
           send_settings
-          @dialog.execute_script("TT.notice(#{JSON.generate("Đã nạp mẫu: #{name}")}, false);")
+          @dialog.execute_script("TT.notice(#{JSON.generate("Đã nạp mẫu + kiểu chia: #{name}")}, false);")
         rescue StandardError => error
           @dialog.execute_script("TT.notice(#{JSON.generate(error.message)}, true);")
         end
