@@ -4,7 +4,7 @@
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "TẠO CÁNH CHUẨN nâng cấp quy trình P1→P2 chéo liên tục. Trong lúc rê P2 có preview 3D ván có độ dày thật. Sau P2 tự hiện 3 điểm MÉP TRÁI / TÂM CHIA / MÉP PHẢI. Bấm TÂM hoặc phím / để tăng số cánh trực tiếp; click trong preview để tạo và tự quay lại P1. SHIFT đổi CÁNH DỌC/CÁNH NGANG; CTRL đổi CÁNH LỌT/CÁNH PHỦ; TAB mở cài đặt. Bổ sung tên Tag/Layer tùy chỉnh và hệ thống LƯU/NẠP/XÓA mẫu cánh.",
+  "notes": "TẠO CÁNH CHUẨN v1.9.130: bắt P1-P2 chéo trên mặt đứng; tự nhận hướng theo chuột và preview 3D ván có dày thật khi rê P2; sau P2 tự hiện 3 điểm MÉP TRÁI/TÂM CHIA/MÉP PHẢI; bấm TÂM hoặc phím / để tăng số cánh trực tiếp, click trong preview để tạo và tự quay lại P1 làm khoang tiếp theo. SHIFT đổi Cánh Dọc/Cánh Ngang; CTRL đổi Cánh Lọt/Cánh Phủ; TAB mở cài đặt. Hỗ trợ Tag/Layer tùy chỉnh và Lưu/Nạp/Xóa mẫu cánh. Chống lặp SHIFT/CTRL khi giữ phím.",
   "files": [
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -24,7 +24,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "8d3f0ffc0b5ed9ccda577a7ec5d4d447289834b7443c0da28d95ac78aadb5071"
+      "sha256": "05e99a060c7e75518cf2fbd51dfcf3b2abe3f41e347b71531cc935e1ff4faadc"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -289,7 +289,7 @@
     {
       "path": "tran_tuan_noi_that/door_standard_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/door_standard_tool.rb",
-      "sha256": "454d86494457f6673f3633482b9f8c72cfa054bcadeb3d5eb9c2fd329af41eb4"
+      "sha256": "4b53b06db5a0f5ff65097d6409b071209ec20357f8aa70cf9fae461bd58d5546"
     },
     {
       "path": "tran_tuan_noi_that/icons/door_standard.svg",
