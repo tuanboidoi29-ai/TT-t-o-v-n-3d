@@ -1173,6 +1173,7 @@ module TranTuanNoiThat
       end
     end
   end
+  end
 
   # Tương thích nóng cho UI::Command cũ trong phiên SketchUp đang mở.
   # Source Vẽ Cánh Tủ cũ đã bị gỡ; lệnh cũ nếu còn trên toolbar sẽ gọi tool mới.
