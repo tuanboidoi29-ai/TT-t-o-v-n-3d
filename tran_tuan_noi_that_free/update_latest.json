@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.141",
+  "version": "1.9.142",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "TẠO CÁNH CHUẨN 1.9.141: mẫu cánh đã lưu có thể nạp lại, chỉnh sửa và LƯU LẠI/ghi đè đúng mẫu đang chọn; cho phép đổi tên mẫu khi lưu lại. Mỗi mẫu lưu độc lập toàn bộ thông số, kiểu chia và Tag/Layer riêng. Mẫu mới còn dùng Tag mặc định sẽ tự tạo Tag theo tên mẫu; nếu Tag trùng với mẫu khác hệ thống báo để tránh dùng chung. Giữ P1-P2, preview 3D, chia tự do, SHIFT Dọc/Ngang, CTRL Phủ/Lọt, ENTER tạo, TAB cài đặt.",
+  "notes": "TẠO CÁNH CHUẨN 1.9.142: thêm chia lồng 2D theo từng cánh/khoang con. Đường chia ngang/dọc đã chốt được khóa giữ nguyên; rê sang cánh khác rồi SHIFT đổi Dọc/Ngang để chia tiếp riêng cánh đó mà không làm mất đường cũ. Giao diện cài đặt luôn hiện khối MẪU ĐANG CHỈNH SỬA, Tag/Layer hiện tại và Tag đang thuộc mẫu nào. Mẫu cánh lưu thêm bố cục 2D để nạp lại đúng kiểu chia hỗn hợp. CTRL vẫn giữ Cánh Phủ/Lọt theo quy tắc trước.",
   "files": [
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -14,7 +14,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "280bd868461e71b6807c7c7805f09284ddd08a9c311d881c09398c1c9e3545d9"
+      "sha256": "14f2f79ea16c0226593f5ff97fc3dd3220b4eb70a48b17795081e07fa565f80f"
     },
     {
       "path": "tran_tuan_noi_that/board_tool.rb",
@@ -24,7 +24,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "5e8901e07d70c5954d725f758ddaf2819e2467b34b311640bc436318760735ab"
+      "sha256": "8681eb412ebaec547ca6428c52f16f465200da033146f684aa1942b79e9f5212"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -244,12 +244,12 @@
     {
       "path": "tran_tuan_noi_that/updater.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/updater.rb",
-      "sha256": "d138ee55766a6ce92b3d2e93a962a063cf75479e1bf513d87fed951f008dd11d"
+      "sha256": "a771cf129123e26b29e1777cf7a43cbc15dd85496cb2a40a9f492490fa19a446"
     },
     {
       "path": "tran_tuan_noi_that/tam_pro.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/tam_pro.rb",
-      "sha256": "d896f5cc365986c0ac9071e8c06460f8725d93f7a01d65342b029e4b3a60942c"
+      "sha256": "5120cc580cde2f97a608bc71421772b333275e0bfd55e71aab7e6dce6e1210e9"
     },
     {
       "path": "tran_tuan_noi_that/icons/tam_find.svg",
@@ -269,7 +269,7 @@
     {
       "path": "tran_tuan_noi_that/scale_corner_lock.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/scale_corner_lock.rb",
-      "sha256": "56b91192f9124a97bffb1a3fa04b5244aab4f28f0582829acf2971de0df21b83"
+      "sha256": "0ebfb2b84bbb252ffcd216b4ff2616d86d3ea51afa87c1df4c5228bdf75cc9ee"
     },
     {
       "path": "tran_tuan_noi_that/icons/scale_corner_lock.svg",
@@ -279,7 +279,7 @@
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bao_gia_tool.rb",
-      "sha256": "3be5d62d598a5675923ff8842721e9418732cfe43d6db8393fb6aabee4a16d41"
+      "sha256": "b19f90d61f78790c0345262f9b920385c6fb7fcd8d0ef7c0aa833a4988232a74"
     },
     {
       "path": "tran_tuan_noi_that/icons/bao_gia.svg",
@@ -289,7 +289,7 @@
     {
       "path": "tran_tuan_noi_that/door_standard_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/door_standard_tool.rb",
-      "sha256": "97faf9cd076e4e0f63b0c39d84d4132faa4d6eae37a4e9929b2ac9266b1a9574"
+      "sha256": "dd157b4e06bdffdbff0f47a5cb6a7d5271e4db1c6b42d53bc18eb0b8ba81701f"
     },
     {
       "path": "tran_tuan_noi_that/icons/door_standard.svg",
