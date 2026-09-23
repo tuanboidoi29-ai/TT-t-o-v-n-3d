@@ -20,7 +20,7 @@ module TranTuanNoiThat
   module DoorStandard
     extend self
 
-    VERSION = '1.9.137'.freeze
+    VERSION = '1.9.138'.freeze
     DICT = 'TT_DOOR_STANDARD'.freeze
     SETTINGS_KEY = 'door_standard_settings_v1'.freeze
     PRESETS_KEY = 'door_standard_presets_v1'.freeze
@@ -35,6 +35,8 @@ module TranTuanNoiThat
       'gap_top' => 2.0,
       'gap_bottom' => 2.0,
       'gap_middle' => 2.0,
+      'gap_vertical' => 2.0,
+      'gap_horizontal' => 2.0,
       'over_left' => 0.0,
       'over_right' => 0.0,
       'over_top' => 0.0,
@@ -75,8 +77,14 @@ module TranTuanNoiThat
       raise 'Số cánh phải từ 1 đến 64.' unless count.between?(1, 64)
       result['door_count'] = count
 
+      # Tương thích mẫu cũ: gap_middle được dùng làm giá trị mặc định cho cả hai hướng.
+      legacy_gap = source['gap_middle']
+      source['gap_vertical'] = legacy_gap if source['gap_vertical'].nil?
+      source['gap_horizontal'] = legacy_gap if source['gap_horizontal'].nil?
+
       %w[
-        thickness gap_left gap_right gap_top gap_bottom gap_middle
+        thickness gap_left gap_right gap_top gap_bottom
+        gap_vertical gap_horizontal
         over_left over_right over_top over_bottom
       ].each do |key|
         value = Float(source[key].to_s.tr(',', '.'))
@@ -84,6 +92,7 @@ module TranTuanNoiThat
         raise "#{key} quá lớn." if value > 10_000.0
         result[key] = value
       end
+      result['gap_middle'] = legacy_gap.nil? ? result['gap_vertical'] : Float(legacy_gap.to_s.tr(',', '.'))
 
       offset = Float(source['offset'].to_s.tr(',', '.'))
       raise 'Offset quá lớn.' if offset.abs > 10_000.0
@@ -307,7 +316,8 @@ module TranTuanNoiThat
                 <label>Hướng chia</label><select id="dir"><option>Dọc</option><option>Ngang</option></select><span></span>
                 <label>Số cánh</label><input id="count" type="number" min="1" max="64" step="1"><span>cánh</span>
                 <label>Dày cánh</label><input id="thickness" type="number" step="0.5"><span>mm</span>
-                <label>Khe giữa</label><input id="gap_middle" type="number" step="0.5"><span>mm</span>
+                <label>Khe dọc</label><input id="gap_vertical" type="number" step="0.5"><span>mm</span>
+                <label>Khe ngang</label><input id="gap_horizontal" type="number" step="0.5"><span>mm</span>
                 <label>Nhô (+) / lùi (-)</label><input id="offset" type="number" step="0.5"><span>mm</span>
                 <label>Tên cánh</label><input id="name_prefix"><span></span>
                 <label>Tag / Layer</label><input id="tag_name"><span></span>
@@ -354,19 +364,22 @@ module TranTuanNoiThat
                 vẫn bắt Endpoint / Edge / Inference tự nhiên. Sau P2 tự hiện
                 Sau P2 chỉ hiện <b>TÂM</b> của khoang con đang rê. Bấm <b>TÂM</b>, phím <b>/</b> để chia đôi khoang đó;
                 rê sang khoang con khác để TÂM tự chuyển, chia tự do. Click phần còn lại của preview để tạo cánh. <b>TAB</b> mở bảng này · <b>SHIFT</b> đổi CÁNH DỌC/CÁNH NGANG ·
-                <b>CTRL</b> đổi CÁNH LỌT/CÁNH PHỦ.
+                <b>CTRL</b> đổi CÁNH LỌT/CÁNH PHỦ. Khi chia Ngang, preview dùng riêng <b>Khe ngang</b>; chia Dọc dùng <b>Khe dọc</b>.
               </div>
               <div id="notice"></div>
             </div>
           </div>
           <script>
-            const ids=['fit','dir','count','thickness','gap_middle','offset','name_prefix','tag_name',
+            const ids=['fit','dir','count','thickness','gap_vertical','gap_horizontal','offset','name_prefix','tag_name',
               'gap_left','gap_right','gap_top','gap_bottom','over_left','over_right','over_top','over_bottom'];
             const TT={
               load(payload){
                 const s=payload.settings||{};
                 fit.value=s.fit_mode||'Lọt lòng';dir.value=s.split_direction||'Dọc';count.value=s.door_count||1;
-                thickness.value=s.thickness||17.5;gap_middle.value=s.gap_middle||2;offset.value=s.offset||0;
+                thickness.value=s.thickness||17.5;
+                gap_vertical.value=(s.gap_vertical!=null?s.gap_vertical:(s.gap_middle!=null?s.gap_middle:2));
+                gap_horizontal.value=(s.gap_horizontal!=null?s.gap_horizontal:(s.gap_middle!=null?s.gap_middle:2));
+                offset.value=s.offset||0;
                 name_prefix.value=s.name_prefix||'Cánh';tag_name.value=s.tag_name||'Cánh tủ';
                 gap_left.value=s.gap_left||0;gap_right.value=s.gap_right||0;gap_top.value=s.gap_top||0;gap_bottom.value=s.gap_bottom||0;
                 over_left.value=s.over_left||0;over_right.value=s.over_right||0;over_top.value=s.over_top||0;over_bottom.value=s.over_bottom||0;
@@ -381,7 +394,11 @@ module TranTuanNoiThat
             function collect(){
               return {
                 fit_mode:fit.value,split_direction:dir.value,door_count:Number(count.value),
-                thickness:Number(thickness.value),gap_middle:Number(gap_middle.value),offset:Number(offset.value),
+                thickness:Number(thickness.value),
+                gap_vertical:Number(gap_vertical.value),
+                gap_horizontal:Number(gap_horizontal.value),
+                gap_middle:Number(gap_vertical.value),
+                offset:Number(offset.value),
                 name_prefix:name_prefix.value,tag_name:tag_name.value,
                 gap_left:Number(gap_left.value),gap_right:Number(gap_right.value),
                 gap_top:Number(gap_top.value),gap_bottom:Number(gap_bottom.value),
@@ -1045,7 +1062,10 @@ module TranTuanNoiThat
         end
 
         # Mỗi phần sau khi chia phải đủ chỗ cho ván + khe.
-        minimum = [@options['gap_middle'].mm + 20.mm, 30.mm].max
+        active_gap = @options['split_direction'] == 'Dọc' ?
+          @options['gap_vertical'] :
+          @options['gap_horizontal']
+        minimum = [active_gap.mm + 20.mm, 30.mm].max
         min_ratio = minimum / axis_span.to_f
         if (b - a) <= min_ratio * 2.0
           UI.beep
@@ -1083,7 +1103,11 @@ module TranTuanNoiThat
         u0, u1, v0, v1 = adjusted_bounds
         raise 'Khoang quá nhỏ sau khi trừ khe hở/phủ.' unless u1 > u0 && v1 > v0
 
-        gap = @options['gap_middle'].mm
+        gap = if @options['split_direction'] == 'Dọc'
+          @options['gap_vertical'].mm
+        else
+          @options['gap_horizontal'].mm
+        end
 
         # Mặt trước luôn là phía ngoài; chiều dày luôn đẩy vào trong tủ.
         normal = @region[:normal].reverse
