@@ -20,7 +20,7 @@ module TranTuanNoiThat
   module DoorStandard
     extend self
 
-    VERSION = '1.9.133'.freeze
+    VERSION = '1.9.134'.freeze
     DICT = 'TT_DOOR_STANDARD'.freeze
     SETTINGS_KEY = 'door_standard_settings_v1'.freeze
     PRESETS_KEY = 'door_standard_presets_v1'.freeze
@@ -433,6 +433,7 @@ module TranTuanNoiThat
         @doors = []
         @segments = equal_segments(@options['door_count'])
         @active_segment_index = 0
+        @split_ratio = nil
         @flip = false
         @hover_handle = nil
       end
@@ -453,6 +454,7 @@ module TranTuanNoiThat
         if @options['door_count'].to_i != old_count
           @segments = equal_segments(@options['door_count'])
           @active_segment_index = 0
+          @split_ratio = nil
         end
 
         rebuild_preview if @region
@@ -473,6 +475,7 @@ module TranTuanNoiThat
         @segments = equal_segments(@options['door_count']) if @segments.empty?
         @options = @options.merge('door_count' => @segments.length)
         @active_segment_index = 0
+        @split_ratio = nil
         rebuild_preview if @region
         @model.active_view.invalidate
         true
@@ -489,6 +492,7 @@ module TranTuanNoiThat
           @region = nil
           @doors = []
           @hover_handle = nil
+          @split_ratio = nil
         when :pick_p2
           reset_all
         else
@@ -565,8 +569,7 @@ module TranTuanNoiThat
           view.tooltip = @ip.tooltip if @ip.valid?
 
         when :ready
-          index = segment_index_at_mouse(view, x, y)
-          @active_segment_index = index unless index.nil?
+          update_split_cursor(view, x, y)
           @hover_handle = nearest_handle(view, x, y)
         end
 
@@ -593,6 +596,7 @@ module TranTuanNoiThat
           @doors = []
           @segments = equal_segments(@options['door_count'])
           @active_segment_index = 0
+          @split_ratio = nil
 
         when :pick_p2
           point = pick_second_point(view, x, y)
@@ -616,16 +620,14 @@ module TranTuanNoiThat
           end
 
           @state = :ready
-          index = segment_index_at_mouse(view, x, y)
-          @active_segment_index = index unless index.nil?
+          update_split_cursor(view, x, y)
           @hover_handle = nearest_handle(view, x, y)
 
         when :ready
-          index = segment_index_at_mouse(view, x, y)
-          @active_segment_index = index unless index.nil?
+          update_split_cursor(view, x, y)
           @hover_handle = nearest_handle(view, x, y)
 
-          # Bấm TÂM: chia đôi đúng khoang con đang thao tác.
+          # Bấm TÂM: chốt đường chia đúng tại vị trí chuột trên trục chia.
           # Click phần còn lại của preview: tạo cánh thật.
           if @hover_handle == :center
             split_active_segment
@@ -705,6 +707,7 @@ module TranTuanNoiThat
         @doors = []
         @segments = equal_segments(@options['door_count'])
         @active_segment_index = 0
+        @split_ratio = nil
         @hover_handle = nil
       end
 
@@ -901,7 +904,6 @@ module TranTuanNoiThat
         segment = @segments[index]
         a = segment[0].to_f
         b = segment[1].to_f
-        mid = (a + b) * 0.5
 
         axis_span = if @options['split_direction'] == 'Dọc'
           adjusted_bounds[1] - adjusted_bounds[0]
@@ -909,23 +911,30 @@ module TranTuanNoiThat
           adjusted_bounds[3] - adjusted_bounds[2]
         end
 
-        segment_length = axis_span * (b - a)
+        # Mỗi phần sau khi chia phải đủ chỗ cho ván + khe.
         minimum = [@options['gap_middle'].mm + 20.mm, 30.mm].max
-        if segment_length <= minimum
+        min_ratio = minimum / axis_span.to_f
+        if (b - a) <= min_ratio * 2.0
           UI.beep
           Sketchup.status_text = 'Khoang con quá nhỏ để chia tiếp.'
           return false
         end
 
-        @segments[index, 1] = [[a, mid], [mid, b]]
+        split = @split_ratio.to_f
+        split = (a + b) * 0.5 unless split > a && split < b
+        split = [split, a + min_ratio].max
+        split = [split, b - min_ratio].min
+
+        @segments[index, 1] = [[a, split], [split, b]]
         @active_segment_index = index
+        @split_ratio = nil
         @options = @options.merge('door_count' => @segments.length)
         DoorStandard.save_settings(@options)
         rebuild_preview
         DoorStandard.send_settings
 
         Sketchup.status_text =
-          "ĐÃ CHIA #{@segments.length} CÁNH · rê vào khoang con khác để TÂM tự chuyển · /, 1 hoặc TÂM để chia tiếp."
+          "ĐÃ CHIA #{@segments.length} CÁNH · rê chuột để đặt TÂM mới · /, 1 hoặc TÂM để chia tiếp."
         true
       rescue StandardError => error
         UI.beep
@@ -1035,12 +1044,21 @@ module TranTuanNoiThat
         return {} unless bounds
 
         u0, u1, v0, v1 = bounds
-        {
-          center: point_on_plane(
-            (u0 + u1) * 0.5,
-            (v0 + v1) * 0.5
-          )
-        }
+        segment = @segments[[@active_segment_index.to_i, @segments.length - 1].min]
+        ratio = @split_ratio
+        ratio = (segment[0] + segment[1]) * 0.5 unless ratio && ratio > segment[0] && ratio < segment[1]
+
+        all_u0, all_u1, all_v0, all_v1 = adjusted_bounds
+
+        point = if @options['split_direction'] == 'Dọc'
+          u_value = all_u0 + (all_u1 - all_u0) * ratio
+          point_on_plane(u_value, (v0 + v1) * 0.5)
+        else
+          v_value = all_v0 + (all_v1 - all_v0) * ratio
+          point_on_plane((u0 + u1) * 0.5, v_value)
+        end
+
+        { center: point }
       rescue StandardError
         {}
       end
@@ -1051,6 +1069,45 @@ module TranTuanNoiThat
         Geom.intersect_line_plane(ray, [@region[:origin], @region[:normal]])
       rescue StandardError
         nil
+      end
+
+      def update_split_cursor(view, x, y)
+        return false unless valid_region?
+
+        point = point_on_region_from_mouse(view, x, y)
+        return false unless point
+
+        u0, u1, v0, v1 = adjusted_bounds
+        vector = vector_between(@region[:origin], point)
+        u_value = vector.dot(@region[:u])
+        v_value = vector.dot(@region[:v])
+
+        return false unless u_value >= u0 && u_value <= u1 &&
+          v_value >= v0 && v_value <= v1
+
+        ratio = if @options['split_direction'] == 'Dọc'
+          (u_value - u0) / (u1 - u0)
+        else
+          (v_value - v0) / (v1 - v0)
+        end
+
+        index = nil
+        @segments.each_with_index do |segment, i|
+          if ratio >= segment[0] - 0.000001 && ratio <= segment[1] + 0.000001
+            index = i
+            break
+          end
+        end
+        return false if index.nil?
+
+        @active_segment_index = index
+        segment = @segments[index]
+
+        # TÂM chạy theo chuột nhưng không ra ngoài khoang con.
+        @split_ratio = [[ratio, segment[0]].max, segment[1]].min
+        true
+      rescue StandardError
+        false
       end
 
       def segment_index_at_mouse(view, x, y)
@@ -1241,12 +1298,17 @@ module TranTuanNoiThat
         bounds = active_segment_bounds
         if bounds
           u0, u1, v0, v1 = bounds
+          segment = @segments[[@active_segment_index.to_i, @segments.length - 1].min]
+          ratio = @split_ratio
+          ratio = (segment[0] + segment[1]) * 0.5 unless ratio && ratio > segment[0] && ratio < segment[1]
+
+          all_u0, all_u1, all_v0, all_v1 = adjusted_bounds
           guide = if @options['split_direction'] == 'Dọc'
-            mid = (u0 + u1) * 0.5
-            [point_on_plane(mid, v0), point_on_plane(mid, v1)]
+            split_u = all_u0 + (all_u1 - all_u0) * ratio
+            [point_on_plane(split_u, v0), point_on_plane(split_u, v1)]
           else
-            mid = (v0 + v1) * 0.5
-            [point_on_plane(u0, mid), point_on_plane(u1, mid)]
+            split_v = all_v0 + (all_v1 - all_v0) * ratio
+            [point_on_plane(u0, split_v), point_on_plane(u1, split_v)]
           end
           view.line_width = 2
           view.drawing_color = color
@@ -1261,7 +1323,7 @@ module TranTuanNoiThat
         )
 
         direction = @options['split_direction'] == 'Dọc' ? 'DỌC' : 'NGANG'
-        label = "TÂM · CHIA #{direction}"
+        label = "TÂM ĐỘNG · CHIA #{direction}"
 
         screen = view.screen_coords(point)
         view.draw_text(
