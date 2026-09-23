@@ -21,7 +21,7 @@ module TranTuanNoiThat
   module DoorStandard
     extend self
 
-    VERSION = '1.9.139'.freeze
+    VERSION = '1.9.140'.freeze
     DICT = 'TT_DOOR_STANDARD'.freeze
     SETTINGS_KEY = 'door_standard_settings_v1'.freeze
     PRESETS_KEY = 'door_standard_presets_v1'.freeze
@@ -235,7 +235,7 @@ module TranTuanNoiThat
 
       @dialog = UI::HtmlDialog.new(
         dialog_title: 'TRẦN TUẤN - TẠO CÁNH CHUẨN',
-        preferences_key: 'TranTuanNoiThat.DoorStandard.139',
+        preferences_key: 'TranTuanNoiThat.DoorStandard.140',
         scrollable: true,
         resizable: true,
         width: 470,
@@ -491,6 +491,7 @@ module TranTuanNoiThat
         @split_ratio = nil
         @split_point = nil
         @direction_lock = nil
+        @split_committed = false
         @last_ready_mouse = nil
         @snap_label = nil
         @flip = false
@@ -514,6 +515,9 @@ module TranTuanNoiThat
           @segments = equal_segments(@options['door_count'])
           @active_segment_index = 0
           @split_ratio = nil
+          @split_point = nil
+          @split_committed = @options['door_count'].to_i > 1
+          @direction_lock = @options['split_direction'] if @split_committed
         end
 
         rebuild_preview if @region
@@ -535,6 +539,9 @@ module TranTuanNoiThat
         @options = @options.merge('door_count' => @segments.length)
         @active_segment_index = 0
         @split_ratio = nil
+        @split_point = nil
+        @split_committed = @segments.length > 1
+        @direction_lock = @options['split_direction'] if @split_committed
         rebuild_preview if @region
         @model.active_view.invalidate
         true
@@ -736,6 +743,7 @@ module TranTuanNoiThat
         elsif @state == :ready && @region
           draw_region_frame(view)
           draw_preview_doors(view)
+          draw_committed_split_lines(view)
           draw_center_handle(view, true)
           draw_info(view)
         end
@@ -773,9 +781,13 @@ module TranTuanNoiThat
         @direction_lock = direction if lock
 
         if changed
-          # Khi đổi trục chia, giữ số cánh nhưng dựng lại đều trên trục mới.
-          count = [@segments.to_a.length, 1].max
-          @segments = equal_segments(count)
+          # Nếu đã chốt chia: GIỮ NGUYÊN tỷ lệ/mốc @segments.
+          # Chỉ đổi trục biểu diễn khi người dùng SHIFT chủ động.
+          unless @split_committed
+            count = [@segments.to_a.length, 1].max
+            @segments = equal_segments(count)
+          end
+
           @active_segment_index = 0
           @split_ratio = nil
           @split_point = nil
@@ -788,7 +800,7 @@ module TranTuanNoiThat
       end
 
       def auto_detect_split_direction(x, y)
-        return false if @direction_lock
+        return false if @direction_lock || @split_committed
 
         if @last_ready_mouse
           dx = x.to_f - @last_ready_mouse[0].to_f
@@ -821,6 +833,7 @@ module TranTuanNoiThat
         @split_ratio = nil
         @split_point = nil
         @direction_lock = nil
+        @split_committed = false
         @last_ready_mouse = nil
         @snap_label = nil
         @hover_handle = nil
@@ -1062,6 +1075,8 @@ module TranTuanNoiThat
         @split_ratio = nil
         @split_point = nil
         @options = @options.merge('door_count' => n)
+        @split_committed = true
+        @direction_lock ||= @options['split_direction']
         DoorStandard.save_settings(@options)
         rebuild_preview
         DoorStandard.send_settings
@@ -1116,12 +1131,14 @@ module TranTuanNoiThat
         @split_ratio = nil
         @split_point = nil
         @options = @options.merge('door_count' => @segments.length)
+        @split_committed = true
+        @direction_lock ||= @options['split_direction']
         DoorStandard.save_settings(@options)
         rebuild_preview
         DoorStandard.send_settings
 
         Sketchup.status_text =
-          "ĐÃ CHIA #{@segments.length} CÁNH · rê chuột đặt TÂM mới · / hoặc TÂM để chia tiếp · 2/3/4 chia nhanh · ENTER tạo."
+          "ĐÃ KHÓA #{@segments.length} CÁNH · đường chia cũ giữ nguyên · rê chuột chỉ đặt TÂM mới · / hoặc TÂM chia tiếp · ENTER tạo."
         true
       rescue StandardError => error
         UI.beep
@@ -1544,6 +1561,36 @@ module TranTuanNoiThat
         view.line_width = 2
         view.drawing_color = Sketchup::Color.new(198, 103, 32)
         view.draw(GL_LINES, edges.flatten(1))
+      end
+
+      def draw_committed_split_lines(view)
+        return unless @split_committed
+        return unless valid_region?
+        return if @segments.nil? || @segments.length < 2
+
+        u0, u1, v0, v1 = adjusted_bounds
+        ratios = @segments[0...-1].map { |segment| segment[1].to_f }.uniq
+
+        lines = []
+        ratios.each do |ratio|
+          if @options['split_direction'] == 'Dọc'
+            split_u = u0 + (u1 - u0) * ratio
+            lines << point_on_plane(split_u, v0)
+            lines << point_on_plane(split_u, v1)
+          else
+            split_v = v0 + (v1 - v0) * ratio
+            lines << point_on_plane(u0, split_v)
+            lines << point_on_plane(u1, split_v)
+          end
+        end
+
+        return if lines.empty?
+
+        view.line_width = 4
+        view.drawing_color = Sketchup::Color.new(37, 99, 235)
+        view.draw(GL_LINES, lines)
+      rescue StandardError => error
+        puts "[TT DoorStandard committed splits] #{error.class}: #{error.message}"
       end
 
       def draw_center_handle(view, interactive)
