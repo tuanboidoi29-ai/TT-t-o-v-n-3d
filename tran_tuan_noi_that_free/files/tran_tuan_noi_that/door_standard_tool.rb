@@ -218,8 +218,8 @@ module TranTuanNoiThat
               <div class="row"><button onclick="apply()">ÁP DỤNG</button><button class="gray" onclick="sketchup.reset()">MẶC ĐỊNH</button></div>
               <div class="hint" style="margin-top:10px">
                 Click <b>P1 → P2 chéo</b> trên cùng một mặt để xác định khoang. Sau P2 tự hiện
-                <b>MÉP TRÁI · TRUNG ĐIỂM · MÉP PHẢI</b>. Bấm <b>TÂM CHIA</b> hoặc click trong preview để tạo cánh.
-                <b>TAB</b> mở bảng này. <b>SHIFT</b> đảo hướng dày cánh ra/vào.
+                <b>MÉP TRÁI · TRUNG ĐIỂM · MÉP PHẢI</b>. Bấm <b>TÂM CHIA</b> hoặc phím <b>/</b> để tăng số cánh trực tiếp;
+                click phần còn lại của preview để tạo cánh. <b>TAB</b> mở bảng này. <b>SHIFT</b> đảo hướng dày cánh ra/vào.
               </div>
               <div id="notice"></div>
             </div>
@@ -325,6 +325,14 @@ module TranTuanNoiThat
           return
         end
 
+        # Phím "/" chia cánh trực tiếp ngay trên preview.
+        # Hỗ trợ OEM Slash, Numpad Divide và mã ASCII phổ biến.
+        if [47, 111, 191].include?(key) && [:pick_p2, :ready].include?(@state)
+          split_more
+          view.invalidate
+          return
+        end
+
         if key == 16
           @flip = !@flip
           rebuild_preview if @region
@@ -333,7 +341,8 @@ module TranTuanNoiThat
             'Hướng dày: RA ngoài · SHIFT để đổi.'
           view.invalidate
         end
-      rescue StandardError
+      rescue StandardError => error
+        puts "[TT DoorStandard key] #{error.class}: #{error.message}"
       end
 
       def onMouseMove(_flags, x, y, view)
@@ -404,9 +413,11 @@ module TranTuanNoiThat
         when :ready
           @hover_handle = nearest_handle(view, x, y)
 
-          # Trung điểm là nút chia/tạo chính.
-          # Cho phép click trong khung preview để thao tác nhanh liên tục.
-          if @hover_handle == :center || point_inside_region_screen?(view, x, y)
+          # Bấm đúng TÂM CHIA: tăng số cánh trực tiếp.
+          # Click phần còn lại của preview: tạo cánh thật.
+          if @hover_handle == :center
+            split_more
+          elsif point_inside_region_screen?(view, x, y)
             create_doors
             reset_all
           else
@@ -624,6 +635,27 @@ module TranTuanNoiThat
             r[:v1] - @options['gap_top'].mm
           ]
         end
+      end
+
+      def split_more
+        current = @options['door_count'].to_i
+        if current >= 8
+          UI.beep
+          Sketchup.status_text = 'Đã đạt tối đa 8 cánh.'
+          return false
+        end
+
+        @options = @options.merge('door_count' => current + 1)
+        DoorStandard.save_settings(@options)
+        rebuild_preview if @region
+
+        Sketchup.status_text =
+          "CHIA CÁNH: #{@options['door_count']} cánh · bấm / hoặc TÂM CHIA để tăng tiếp · click trong preview để tạo."
+        true
+      rescue StandardError => error
+        UI.beep
+        Sketchup.status_text = "Không chia được cánh: #{error.message}"
+        false
       end
 
       def rebuild_preview
@@ -851,7 +883,7 @@ module TranTuanNoiThat
             Sketchup::Color.new(37, 99, 235)
           ],
           center: [
-            'TÂM CHIA',
+            'TÂM CHIA +',
             Sketchup::Color.new(234, 88, 12)
           ],
           right: [
@@ -1002,7 +1034,7 @@ module TranTuanNoiThat
         when :pick_p2
           'Rê và Click P2 chéo đối diện · preview 3D cập nhật theo chuột · ESC quay lại P1.'
         when :ready
-          'Đã khóa P1-P2 · bấm TÂM CHIA màu cam hoặc click trong preview để tạo · TAB cài đặt.'
+          "Đã khóa P1-P2 · bấm TÂM CHIA hoặc phím / để tăng số cánh · click trong preview để TẠO · TAB cài đặt."
         end
       end
     end
