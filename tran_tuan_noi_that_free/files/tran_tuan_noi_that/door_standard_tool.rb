@@ -20,7 +20,7 @@ module TranTuanNoiThat
   module DoorStandard
     extend self
 
-    VERSION = '1.9.136'.freeze
+    VERSION = '1.9.137'.freeze
     DICT = 'TT_DOOR_STANDARD'.freeze
     SETTINGS_KEY = 'door_standard_settings_v1'.freeze
     PRESETS_KEY = 'door_standard_presets_v1'.freeze
@@ -352,7 +352,7 @@ module TranTuanNoiThat
               <div class="hint" style="margin-top:10px">
                 Click <b>P1 → P2 chéo</b> trên mặt đứng để xác định khoang. P2 <b>không khóa hướng</b>,
                 vẫn bắt Endpoint / Edge / Inference tự nhiên. Sau P2 tự hiện
-                Sau P2 chỉ hiện <b>TÂM</b> của khoang con đang rê. Bấm <b>TÂM</b>, phím <b>/</b> hoặc <b>1</b> để chia đôi khoang đó;
+                Sau P2 chỉ hiện <b>TÂM</b> của khoang con đang rê. Bấm <b>TÂM</b>, phím <b>/</b> để chia đôi khoang đó;
                 rê sang khoang con khác để TÂM tự chuyển, chia tự do. Click phần còn lại của preview để tạo cánh. <b>TAB</b> mở bảng này · <b>SHIFT</b> đổi CÁNH DỌC/CÁNH NGANG ·
                 <b>CTRL</b> đổi CÁNH LỌT/CÁNH PHỦ.
               </div>
@@ -511,20 +511,6 @@ module TranTuanNoiThat
       def onKeyDown(key, repeat, _flags, view)
         if key == 9
           DoorStandard.show_settings(self)
-          return
-        end
-
-        # MŨI TÊN khóa hướng chia trên mặt cánh.
-        # Trái/Phải -> rê TÂM theo ngang -> đường chia DỌC.
-        # Lên/Xuống -> rê TÂM theo dọc -> đường chia NGANG.
-        if @state == :ready && [37, 38, 39, 40].include?(key)
-          return if repeat.to_i > 1
-          direction = [37, 39].include?(key) ? 'Dọc' : 'Ngang'
-          set_split_direction(direction, true)
-          update_split_cursor(view, @last_ready_mouse[0], @last_ready_mouse[1]) if @last_ready_mouse
-          Sketchup.status_text =
-            "KHÓA HƯỚNG · #{direction == 'Dọc' ? 'CÁNH DỌC' : 'CÁNH NGANG'} · rê chuột đặt TÂM · / hoặc click để chia."
-          view.invalidate
           return
         end
 
@@ -1082,7 +1068,7 @@ module TranTuanNoiThat
         DoorStandard.send_settings
 
         Sketchup.status_text =
-          "ĐÃ CHIA #{@segments.length} CÁNH · rê chuột để đặt TÂM mới · /, 1 hoặc TÂM để chia tiếp."
+          "ĐÃ CHIA #{@segments.length} CÁNH · rê chuột đặt TÂM mới · / hoặc TÂM để chia tiếp · 2/3/4 chia nhanh · ENTER tạo."
         true
       rescue StandardError => error
         UI.beep
@@ -1683,7 +1669,7 @@ module TranTuanNoiThat
         when :pick_p2
           'Rê P2 chéo tự do trên mặt · tự bắt Endpoint/Edge/Inference · preview ván 3D theo chuột · click P2.'
         when :ready
-          "P1-P2 · rê vào khoang con → TÂM tự chuyển · /, 1 hoặc TÂM = chia khoang đó · SHIFT Dọc/Ngang · CTRL Phủ/Lọt · click preview TẠO."
+          "P1-P2 · TÂM chạy theo chuột · / hoặc TÂM = chia tự do · 2/3/4 = chia nhanh · SHIFT Dọc/Ngang · CTRL Phủ/Lọt · ENTER = TẠO · TAB."
         end
       end
     end
