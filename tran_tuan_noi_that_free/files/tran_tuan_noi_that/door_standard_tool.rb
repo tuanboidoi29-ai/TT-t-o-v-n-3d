@@ -20,7 +20,7 @@ module TranTuanNoiThat
   module DoorStandard
     extend self
 
-    VERSION = '1.9.135'.freeze
+    VERSION = '1.9.136'.freeze
     DICT = 'TT_DOOR_STANDARD'.freeze
     SETTINGS_KEY = 'door_standard_settings_v1'.freeze
     PRESETS_KEY = 'door_standard_presets_v1'.freeze
@@ -410,7 +410,7 @@ module TranTuanNoiThat
     end
 
     class Tool
-      SNAP_RADIUS = 20.0
+      SNAP_RADIUS = 24.0
 
       def initialize(options)
         @model = Sketchup.active_model
@@ -434,6 +434,10 @@ module TranTuanNoiThat
         @segments = equal_segments(@options['door_count'])
         @active_segment_index = 0
         @split_ratio = nil
+        @split_point = nil
+        @direction_lock = nil
+        @last_ready_mouse = nil
+        @snap_label = nil
         @flip = false
         @hover_handle = nil
       end
@@ -510,6 +514,20 @@ module TranTuanNoiThat
           return
         end
 
+        # MŨI TÊN khóa hướng chia trên mặt cánh.
+        # Trái/Phải -> rê TÂM theo ngang -> đường chia DỌC.
+        # Lên/Xuống -> rê TÂM theo dọc -> đường chia NGANG.
+        if @state == :ready && [37, 38, 39, 40].include?(key)
+          return if repeat.to_i > 1
+          direction = [37, 39].include?(key) ? 'Dọc' : 'Ngang'
+          set_split_direction(direction, true)
+          update_split_cursor(view, @last_ready_mouse[0], @last_ready_mouse[1]) if @last_ready_mouse
+          Sketchup.status_text =
+            "KHÓA HƯỚNG · #{direction == 'Dọc' ? 'CÁNH DỌC' : 'CÁNH NGANG'} · rê chuột đặt TÂM · / hoặc click để chia."
+          view.invalidate
+          return
+        end
+
         # "/" chốt đường chia tự do tại vị trí TÂM động.
         if [47, 111, 191].include?(key) && @state == :ready
           split_active_segment
@@ -530,7 +548,7 @@ module TranTuanNoiThat
         end
 
         # ENTER: tạo ngay preview hiện tại.
-        if [13].include?(key) && @state == :ready
+        if key == 13 && @state == :ready
           create_doors
           reset_all
           update_status
@@ -538,17 +556,14 @@ module TranTuanNoiThat
           return
         end
 
-        if key == 16
+        # SHIFT: đổi Dọc/Ngang và khóa hướng do người dùng chọn.
+        if key == 16 && @state == :ready
           return if repeat.to_i > 1
-          @options = @options.merge(
-            'split_direction' => (@options['split_direction'] == 'Dọc' ? 'Ngang' : 'Dọc')
-          )
-          DoorStandard.save_settings(@options)
-          @split_ratio = nil
-          rebuild_preview if @region
-          DoorStandard.send_settings
+          direction = @options['split_direction'] == 'Dọc' ? 'Ngang' : 'Dọc'
+          set_split_direction(direction, true)
+          update_split_cursor(view, @last_ready_mouse[0], @last_ready_mouse[1]) if @last_ready_mouse
           Sketchup.status_text =
-            "SHIFT · #{@options['split_direction'] == 'Dọc' ? 'CÁNH DỌC' : 'CÁNH NGANG'} · rê chuột đặt TÂM mới"
+            "SHIFT · #{direction == 'Dọc' ? 'CÁNH DỌC' : 'CÁNH NGANG'} · đã khóa hướng chia."
           view.invalidate
           return
         end
@@ -571,12 +586,12 @@ module TranTuanNoiThat
       end
 
       def onMouseMove(_flags, x, y, view)
-        unlock_direction_lock(view) if [:pick_p1, :pick_p2].include?(@state)
+        clear_inference_lock(view) if [:pick_p1, :pick_p2].include?(@state)
 
         case @state
         when :pick_p1
           @hover_point = pick_first_point(view, x, y)
-          view.tooltip = @ip.tooltip if @ip.valid?
+          view.tooltip = @snap_label || @ip.tooltip if @ip.valid?
 
         when :pick_p2
           @hover_point = pick_second_point(view, x, y)
@@ -587,11 +602,13 @@ module TranTuanNoiThat
             @region = nil
             @doors = []
           end
-          view.tooltip = @ip.tooltip if @ip.valid?
+          view.tooltip = @snap_label || @ip.tooltip if @ip.valid?
 
         when :ready
+          auto_detect_split_direction(x, y) unless @direction_lock
+          @last_ready_mouse = [x, y]
           update_split_cursor(view, x, y)
-          @hover_handle = nearest_handle(view, x, y)
+          @hover_handle = :center
         end
 
         update_status
@@ -645,16 +662,11 @@ module TranTuanNoiThat
           @hover_handle = nearest_handle(view, x, y)
 
         when :ready
-          update_split_cursor(view, x, y)
-          @hover_handle = nearest_handle(view, x, y)
-
-          # Bấm TÂM: chốt đường chia đúng tại vị trí chuột trên trục chia.
-          # Click phần còn lại của preview: tạo cánh thật.
-          if @hover_handle == :center
+          auto_detect_split_direction(x, y) unless @direction_lock
+          @last_ready_mouse = [x, y]
+          if update_split_cursor(view, x, y)
+            # Chuột là công cụ CHIA: click chốt ngay TÂM hiện tại.
             split_active_segment
-          elsif point_inside_region_screen?(view, x, y)
-            create_doors
-            reset_all
           else
             UI.beep
           end
@@ -704,10 +716,47 @@ module TranTuanNoiThat
 
       private
 
-      def unlock_direction_lock(view)
-        # Không giữ khóa inference/hướng từ thao tác trước.
-        # InputPoint vẫn tự bắt Endpoint / Edge / Inference theo chuột.
+      def clear_inference_lock(view)
+        # P1/P2 không khóa trục. InputPoint vẫn tự nhận Endpoint/Edge/Inference.
         view.lock_inference if view.respond_to?(:lock_inference)
+        true
+      rescue StandardError
+        false
+      end
+
+      def set_split_direction(direction, lock = false)
+        return false unless ['Dọc', 'Ngang'].include?(direction)
+
+        changed = @options['split_direction'] != direction
+        @options = @options.merge('split_direction' => direction)
+        @direction_lock = direction if lock
+
+        if changed
+          # Khi đổi trục chia, giữ số cánh nhưng dựng lại đều trên trục mới.
+          count = [@segments.to_a.length, 1].max
+          @segments = equal_segments(count)
+          @active_segment_index = 0
+          @split_ratio = nil
+          @split_point = nil
+          rebuild_preview if @region
+        end
+
+        DoorStandard.save_settings(@options)
+        DoorStandard.send_settings
+        true
+      end
+
+      def auto_detect_split_direction(x, y)
+        return false if @direction_lock
+
+        if @last_ready_mouse
+          dx = x.to_f - @last_ready_mouse[0].to_f
+          dy = y.to_f - @last_ready_mouse[1].to_f
+          if [dx.abs, dy.abs].max >= 4.0
+            direction = dx.abs >= dy.abs ? 'Dọc' : 'Ngang'
+            set_split_direction(direction, false)
+          end
+        end
         true
       rescue StandardError
         false
@@ -729,6 +778,10 @@ module TranTuanNoiThat
         @segments = equal_segments(@options['door_count'])
         @active_segment_index = 0
         @split_ratio = nil
+        @split_point = nil
+        @direction_lock = nil
+        @last_ready_mouse = nil
+        @snap_label = nil
         @hover_handle = nil
       end
 
@@ -750,11 +803,57 @@ module TranTuanNoiThat
           Geom::Transformation.new
         end
 
-        point = @ip.position
+        point = nearest_face_snap_point(
+          view, face, transform, x, y, @ip.position
+        )
         setup_plane(face, transform, point, view)
         point
       rescue StandardError
         nil
+      end
+
+      def nearest_face_snap_point(view, face, transform, x, y, fallback)
+        candidates = []
+
+        face.outer_loop.vertices.each do |vertex|
+          candidates << ['Endpoint', vertex.position.transform(transform)]
+        end
+
+        face.outer_loop.edges.each do |edge|
+          a = edge.start.position.transform(transform)
+          b = edge.end.position.transform(transform)
+          midpoint = Geom::Point3d.linear_combination(0.5, a, 0.5, b)
+          candidates << ['Midpoint', midpoint]
+        end
+
+        vertices = face.outer_loop.vertices.map { |vertex| vertex.position.transform(transform) }
+        if vertices.length >= 3
+          candidates << ['Tâm Face', average_point(vertices)]
+        end
+
+        best = nil
+        best_distance = SNAP_RADIUS + 1.0
+        candidates.each do |label, point|
+          screen = view.screen_coords(point)
+          dx = screen.x.to_f - x.to_f
+          dy = screen.y.to_f - y.to_f
+          distance = Math.sqrt(dx * dx + dy * dy)
+          if distance <= SNAP_RADIUS && distance < best_distance
+            best = [label, point]
+            best_distance = distance
+          end
+        end
+
+        if best
+          @snap_label = "Bắt gần nhất · #{best[0]}"
+          best[1]
+        else
+          @snap_label = nil
+          fallback
+        end
+      rescue StandardError
+        @snap_label = nil
+        fallback
       end
 
       def setup_plane(face, transform, origin, view)
@@ -803,20 +902,25 @@ module TranTuanNoiThat
         return nil unless @origin && @normal
 
         @ip.pick(view, x, y)
+        fallback = nil
+
         if @ip.valid?
           picked = @ip.position
           distance = point_plane_distance(picked, @origin, @normal)
-
-          # Ưu tiên inference/Endpoint thật nếu nằm gần mặt phẳng P1.
-          if distance.abs <= 5.mm
-            return project_point_to_plane(picked, @origin, @normal)
-          end
+          fallback = project_point_to_plane(picked, @origin, @normal) if distance.abs <= 5.mm
         end
 
-        ray = view.pickray(x, y)
-        return nil unless ray && ray.length == 2
+        unless fallback
+          ray = view.pickray(x, y)
+          return nil unless ray && ray.length == 2
+          fallback = Geom.intersect_line_plane(ray, [@origin, @normal])
+        end
+        return nil unless fallback
 
-        Geom.intersect_line_plane(ray, [@origin, @normal])
+        snapped = nearest_face_snap_point(
+          view, @face, @face_transform, x, y, fallback
+        )
+        project_point_to_plane(snapped, @origin, @normal)
       rescue StandardError
         nil
       end
@@ -920,6 +1024,7 @@ module TranTuanNoiThat
         @segments = equal_segments(n)
         @active_segment_index = 0
         @split_ratio = nil
+        @split_point = nil
         @options = @options.merge('door_count' => n)
         DoorStandard.save_settings(@options)
         rebuild_preview
@@ -970,6 +1075,7 @@ module TranTuanNoiThat
         @segments[index, 1] = [[a, split], [split, b]]
         @active_segment_index = index
         @split_ratio = nil
+        @split_point = nil
         @options = @options.merge('door_count' => @segments.length)
         DoorStandard.save_settings(@options)
         rebuild_preview
@@ -1084,6 +1190,12 @@ module TranTuanNoiThat
       end
 
       def handle_points
+        return {} unless valid_region?
+
+        if @split_point
+          return { center: @split_point }
+        end
+
         bounds = active_segment_bounds
         return {} unless bounds
 
@@ -1092,14 +1204,16 @@ module TranTuanNoiThat
         ratio = @split_ratio
         ratio = (segment[0] + segment[1]) * 0.5 unless ratio && ratio > segment[0] && ratio < segment[1]
 
-        all_u0, all_u1, all_v0, all_v1 = adjusted_bounds
-
         point = if @options['split_direction'] == 'Dọc'
-          u_value = all_u0 + (all_u1 - all_u0) * ratio
-          point_on_plane(u_value, (v0 + v1) * 0.5)
+          point_on_plane(
+            adjusted_bounds[0] + (adjusted_bounds[1] - adjusted_bounds[0]) * ratio,
+            (v0 + v1) * 0.5
+          )
         else
-          v_value = all_v0 + (all_v1 - all_v0) * ratio
-          point_on_plane((u0 + u1) * 0.5, v_value)
+          point_on_plane(
+            (u0 + u1) * 0.5,
+            adjusted_bounds[2] + (adjusted_bounds[3] - adjusted_bounds[2]) * ratio
+          )
         end
 
         { center: point }
@@ -1146,12 +1260,71 @@ module TranTuanNoiThat
 
         @active_segment_index = index
         segment = @segments[index]
+        free_ratio = [[ratio, segment[0]].max, segment[1]].min
 
-        # TÂM chạy theo chuột nhưng không ra ngoài khoang con.
-        @split_ratio = [[ratio, segment[0]].max, segment[1]].min
+        snapped = nearest_split_snap(view, x, y, index, free_ratio)
+        @split_ratio = snapped ? snapped[:ratio] : free_ratio
+        @snap_label = snapped ? snapped[:label] : nil
+
+        # TÂM hiển thị đúng tại vị trí chuột (hoặc điểm snap gần nhất).
+        @split_point = split_point_for_ratio(@split_ratio, point)
         true
       rescue StandardError
         false
+      end
+
+      def nearest_split_snap(view, x, y, index, free_ratio)
+        segment = @segments[index]
+        a = segment[0].to_f
+        b = segment[1].to_f
+
+        candidates = [
+          ['Tâm ván', (a + b) * 0.5],
+          ['1/4 ván', a + (b - a) * 0.25],
+          ['3/4 ván', a + (b - a) * 0.75]
+        ]
+
+        @segments.each_with_index do |other, i|
+          candidates << ["Tâm cánh #{i + 1}", (other[0].to_f + other[1].to_f) * 0.5]
+        end
+
+        best = nil
+        best_distance = SNAP_RADIUS + 1.0
+        mouse_plane = point_on_region_from_mouse(view, x, y)
+
+        candidates.each do |label, ratio|
+          next unless ratio > a + 0.000001 && ratio < b - 0.000001
+          point = split_point_for_ratio(ratio, mouse_plane)
+          screen = view.screen_coords(point)
+          dx = screen.x.to_f - x.to_f
+          dy = screen.y.to_f - y.to_f
+          distance = Math.sqrt(dx * dx + dy * dy)
+
+          if distance <= SNAP_RADIUS && distance < best_distance
+            best = { label: "Bắt gần nhất · #{label}", ratio: ratio }
+            best_distance = distance
+          end
+        end
+
+        best
+      rescue StandardError
+        nil
+      end
+
+      def split_point_for_ratio(ratio, mouse_point = nil)
+        u0, u1, v0, v1 = adjusted_bounds
+        mouse_point ||= point_on_plane((u0 + u1) * 0.5, (v0 + v1) * 0.5)
+        vector = vector_between(@region[:origin], mouse_point)
+        mouse_u = [[vector.dot(@region[:u]), u0].max, u1].min
+        mouse_v = [[vector.dot(@region[:v]), v0].max, v1].min
+
+        if @options['split_direction'] == 'Dọc'
+          split_u = u0 + (u1 - u0) * ratio
+          point_on_plane(split_u, mouse_v)
+        else
+          split_v = v0 + (v1 - v0) * ratio
+          point_on_plane(mouse_u, split_v)
+        end
       end
 
       def segment_index_at_mouse(view, x, y)
