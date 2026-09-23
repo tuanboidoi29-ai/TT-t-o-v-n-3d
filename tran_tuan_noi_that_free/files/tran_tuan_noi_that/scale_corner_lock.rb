@@ -22,7 +22,7 @@ module TranTuanNoiThat
   module ScaleCornerLock
     extend self
 
-    VERSION = '1.9.133'.freeze
+    VERSION = '1.9.134'.freeze
     PICK_RADIUS = 20.0
     MIN_FACTOR = 0.001
 
