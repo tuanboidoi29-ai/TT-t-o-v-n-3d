@@ -3,13 +3,14 @@
 # SketchUp 2021+
 #
 # Cơ chế:
-# - Rê chuột lên Face/khoang: tự nhận mặt và hệ trục.
-# - Tự bắt 2 mép ngoài + 1 trung điểm làm tâm chia cánh.
-# - Preview 3D cánh cập nhật liên tục theo chuột.
-# - Click tạo cánh thật; tool tiếp tục để tạo khoang kế tiếp.
+# - Click P1 trên Face -> click P2 chéo đối diện để xác định khoang.
+# - Trong lúc rê P2 có preview 3D tấm cánh theo chuột.
+# - Sau P2 tự hiện 3 điểm: Mép trái - Trung điểm - Mép phải.
+# - Bấm Trung điểm hoặc click trong preview để chia/tạo cánh.
 # - TAB mở thông số; SHIFT đổi hướng dày cánh ra/vào.
 # - Chia 1..8 cánh theo Dọc hoặc Ngang.
-# - Một lần click tạo = một Undo.
+# - Tạo xong tự quay về P1 để làm khoang kế tiếp.
+# - Một lần tạo = một Undo.
 
 require 'sketchup.rb'
 require 'json'
@@ -18,7 +19,7 @@ module TranTuanNoiThat
   module DoorStandard
     extend self
 
-    VERSION = '1.9.129'.freeze
+    VERSION = '1.9.130'.freeze
     DICT = 'TT_DOOR_STANDARD'.freeze
     SETTINGS_KEY = 'door_standard_settings_v1'.freeze
 
@@ -119,7 +120,7 @@ module TranTuanNoiThat
 
       @dialog = UI::HtmlDialog.new(
         dialog_title: 'TRẦN TUẤN - TẠO CÁNH CHUẨN',
-        preferences_key: 'TranTuanNoiThat.DoorStandard.129',
+        preferences_key: 'TranTuanNoiThat.DoorStandard.130',
         scrollable: true,
         resizable: true,
         width: 470,
@@ -216,7 +217,8 @@ module TranTuanNoiThat
             <div class="card">
               <div class="row"><button onclick="apply()">ÁP DỤNG</button><button class="gray" onclick="sketchup.reset()">MẶC ĐỊNH</button></div>
               <div class="hint" style="margin-top:10px">
-                Rê chuột lên mặt khoang: tool tự nhận hai mép ngoài và tâm chia. Click tạo cánh rồi tiếp tục rê sang khoang khác.
+                Click <b>P1 → P2 chéo</b> trên cùng một mặt để xác định khoang. Sau P2 tự hiện
+                <b>MÉP TRÁI · TRUNG ĐIỂM · MÉP PHẢI</b>. Bấm <b>TÂM CHIA</b> hoặc click trong preview để tạo cánh.
                 <b>TAB</b> mở bảng này. <b>SHIFT</b> đảo hướng dày cánh ra/vào.
               </div>
               <div id="notice"></div>
@@ -254,17 +256,33 @@ module TranTuanNoiThat
     end
 
     class Tool
+      SNAP_RADIUS = 20.0
+
       def initialize(options)
         @model = Sketchup.active_model
         @options = DoorStandard.validate(options)
+        @state = :pick_p1
+        @ip = Sketchup::InputPoint.new
+
+        @p1 = nil
+        @p2 = nil
+        @hover_point = nil
+
+        @face = nil
+        @face_transform = Geom::Transformation.new
+        @origin = nil
+        @normal = nil
+        @u = nil
+        @v = nil
+
         @region = nil
         @doors = []
         @flip = false
-        @last_mouse = nil
+        @hover_handle = nil
       end
 
       def activate
-        Sketchup.status_text = 'TẠO CÁNH CHUẨN · rê chuột lên Face/khoang để tự nhận · click tạo · TAB thông số · SHIFT đảo hướng dày.'
+        update_status
         @model.active_view.invalidate
       end
 
@@ -274,7 +292,7 @@ module TranTuanNoiThat
 
       def update_settings(options)
         @options = DoorStandard.validate(options)
-        rebuild_preview
+        rebuild_preview if @region
         @model.active_view.invalidate
         true
       rescue StandardError => error
@@ -283,7 +301,21 @@ module TranTuanNoiThat
       end
 
       def onCancel(_reason, view)
-        @model.select_tool(nil)
+        case @state
+        when :ready
+          @state = :pick_p2
+          @p2 = nil
+          @region = nil
+          @doors = []
+          @hover_handle = nil
+        when :pick_p2
+          reset_all
+        else
+          @model.select_tool(nil)
+          return
+        end
+
+        update_status
         view.invalidate
       end
 
@@ -295,62 +327,128 @@ module TranTuanNoiThat
 
         if key == 16
           @flip = !@flip
-          rebuild_preview
-          Sketchup.status_text = @flip ? 'Hướng dày: VÀO trong. SHIFT để đổi.' : 'Hướng dày: RA ngoài. SHIFT để đổi.'
+          rebuild_preview if @region
+          Sketchup.status_text = @flip ?
+            'Hướng dày: VÀO trong · SHIFT để đổi.' :
+            'Hướng dày: RA ngoài · SHIFT để đổi.'
           view.invalidate
         end
       rescue StandardError
       end
 
       def onMouseMove(_flags, x, y, view)
-        @last_mouse = [x, y]
-        region = detect_region(view, x, y)
-        if region
-          @region = region
-          rebuild_preview
-          view.tooltip = "Khoang #{format_mm(region[:width])} × #{format_mm(region[:height])} mm · #{@options['door_count']} cánh"
-        else
-          @region = nil
-          @doors = []
+        case @state
+        when :pick_p1
+          @hover_point = pick_first_point(view, x, y)
+          view.tooltip = @ip.tooltip if @ip.valid?
+
+        when :pick_p2
+          @hover_point = pick_second_point(view, x, y)
+          if @hover_point
+            build_region_from_points(@p1, @hover_point)
+            rebuild_preview if @region
+          else
+            @region = nil
+            @doors = []
+          end
+          view.tooltip = @ip.tooltip if @ip.valid?
+
+        when :ready
+          @hover_handle = nearest_handle(view, x, y)
         end
+
+        update_status
         view.invalidate
       rescue StandardError => error
-        @region = nil
-        @doors = []
         puts "[TT DoorStandard move] #{error.class}: #{error.message}"
-        view.invalidate
       end
 
       def onLButtonDown(_flags, x, y, view)
-        @region ||= detect_region(view, x, y)
-        unless @region && !@doors.empty?
-          UI.beep
-          return
+        case @state
+        when :pick_p1
+          point = pick_first_point(view, x, y)
+          unless point && @face
+            UI.beep
+            return
+          end
+
+          @p1 = point
+          @state = :pick_p2
+          @region = nil
+          @doors = []
+
+        when :pick_p2
+          point = pick_second_point(view, x, y)
+          unless point
+            UI.beep
+            return
+          end
+
+          build_region_from_points(@p1, point)
+          unless valid_region?
+            UI.beep
+            Sketchup.status_text = 'P2 quá gần P1. Hãy chọn điểm chéo đối diện của khoang.'
+            return
+          end
+
+          @p2 = point
+          rebuild_preview
+          if @doors.empty?
+            UI.beep
+            return
+          end
+
+          @state = :ready
+          @hover_handle = nearest_handle(view, x, y)
+
+        when :ready
+          @hover_handle = nearest_handle(view, x, y)
+
+          # Trung điểm là nút chia/tạo chính.
+          # Cho phép click trong khung preview để thao tác nhanh liên tục.
+          if @hover_handle == :center || point_inside_region_screen?(view, x, y)
+            create_doors
+            reset_all
+          else
+            UI.beep
+          end
         end
-        create_doors
-        # Giữ tool chạy liên tục, preview sẽ tự bắt khoang kế tiếp khi chuột di chuyển.
-        @region = nil
-        @doors = []
+
+        update_status
         view.invalidate
       rescue StandardError => error
         UI.messagebox("Không tạo được cánh:\n#{error.message}")
       end
 
       def draw(view)
-        return unless @region && !@doors.empty?
-
-        draw_detected_guides(view)
-        @doors.each do |door|
-          draw_door(view, door)
+        if @state == :pick_p1
+          draw_hover_point(view) if @hover_point
+          return
         end
-        draw_info(view)
+
+        draw_p1(view)
+
+        if @state == :pick_p2 && @region
+          draw_region_frame(view)
+          draw_preview_doors(view)
+          draw_three_handles(view, false)
+        elsif @state == :ready && @region
+          draw_region_frame(view)
+          draw_preview_doors(view)
+          draw_three_handles(view, true)
+          draw_info(view)
+        end
       rescue StandardError => error
         puts "[TT DoorStandard draw] #{error.class}: #{error.message}"
       end
 
       def getExtents
         bb = Geom::BoundingBox.new
-        @doors.each { |door| door[:corners].each { |point| bb.add(point) } }
+        bb.add(@p1) if @p1
+        bb.add(@p2) if @p2
+        @doors.each do |door|
+          door[:corners].each { |point| bb.add(point) }
+        end
         bb
       rescue StandardError
         Geom::BoundingBox.new
@@ -358,7 +456,26 @@ module TranTuanNoiThat
 
       private
 
-      def detect_region(view, x, y)
+      def reset_all
+        @state = :pick_p1
+        @p1 = nil
+        @p2 = nil
+        @hover_point = nil
+        @face = nil
+        @face_transform = Geom::Transformation.new
+        @origin = nil
+        @normal = nil
+        @u = nil
+        @v = nil
+        @region = nil
+        @doors = []
+        @hover_handle = nil
+      end
+
+      def pick_first_point(view, x, y)
+        @ip.pick(view, x, y)
+        return nil unless @ip.valid?
+
         helper = view.pick_helper
         helper.do_pick(x, y)
         path = helper.path_at(0)
@@ -373,89 +490,125 @@ module TranTuanNoiThat
           Geom::Transformation.new
         end
 
-        points = face.outer_loop.vertices.map { |vertex| vertex.position.transform(transform) }
-        return nil if points.length < 3
-
-        normal = face.normal.transform(transform)
-        return nil if normal.length < 0.000001
-        normal.normalize!
-
-        # Tự chọn phía hướng về camera làm phía mặt cánh.
-        camera_dir = view.camera.direction
-        normal.reverse! if normal.dot(camera_dir) > 0.0
-
-        origin = average_point(points)
-        vertical = project_vector_to_plane(Z_AXIS, normal)
-
-        if vertical.length < 0.1
-          vertical = project_vector_to_plane(Y_AXIS, normal)
-          vertical = project_vector_to_plane(X_AXIS, normal) if vertical.length < 0.1
-        end
-        return nil if vertical.length < 0.000001
-        vertical.normalize!
-        vertical.reverse! if vertical.dot(Z_AXIS) < -0.01
-
-        horizontal = vertical.cross(normal)
-        return nil if horizontal.length < 0.000001
-        horizontal.normalize!
-
-        # Đảm bảo trục ngang đi từ trái sang phải trên màn hình.
-        c_screen = view.screen_coords(origin)
-        h_screen = view.screen_coords(origin.offset(horizontal, 100.mm))
-        horizontal.reverse! if h_screen.x < c_screen.x
-
-        # Tái tạo vertical để bảo đảm trực giao sau khi đảo horizontal.
-        vertical = normal.cross(horizontal)
-        vertical.normalize!
-        vertical.reverse! if vertical.dot(Z_AXIS) < -0.01
-
-        us = points.map { |point| vector_between(origin, point).dot(horizontal) }
-        vs = points.map { |point| vector_between(origin, point).dot(vertical) }
-        u0, u1 = us.minmax
-        v0, v1 = vs.minmax
-        width = u1 - u0
-        height = v1 - v0
-        return nil if width < 20.mm || height < 20.mm
-
-        {
-          face: face,
-          origin: origin,
-          normal: normal,
-          u: horizontal,
-          v: vertical,
-          u0: u0,
-          u1: u1,
-          v0: v0,
-          v1: v1,
-          width: width,
-          height: height
-        }
+        point = @ip.position
+        setup_plane(face, transform, point, view)
+        point
       rescue StandardError
         nil
       end
 
-      def average_point(points)
-        sx = points.inject(0.0) { |sum, point| sum + point.x }
-        sy = points.inject(0.0) { |sum, point| sum + point.y }
-        sz = points.inject(0.0) { |sum, point| sum + point.z }
-        Geom::Point3d.new(sx / points.length, sy / points.length, sz / points.length)
+      def setup_plane(face, transform, origin, view)
+        normal = face.normal.transform(transform)
+        raise 'Không nhận được pháp tuyến Face.' if normal.length < 0.000001
+        normal.normalize!
+
+        # Phía mặt cánh ưu tiên hướng về camera.
+        normal.reverse! if normal.dot(view.camera.direction) > 0.0
+
+        vertical = project_vector_to_plane(Z_AXIS, normal)
+        if vertical.length < 0.1
+          vertical = project_vector_to_plane(Y_AXIS, normal)
+          vertical = project_vector_to_plane(X_AXIS, normal) if vertical.length < 0.1
+        end
+        raise 'Không dựng được trục đứng của khoang.' if vertical.length < 0.000001
+        vertical.normalize!
+        vertical.reverse! if vertical.dot(Z_AXIS) < -0.01
+
+        horizontal = vertical.cross(normal)
+        raise 'Không dựng được trục ngang của khoang.' if horizontal.length < 0.000001
+        horizontal.normalize!
+
+        center_screen = view.screen_coords(origin)
+        horizontal_screen = view.screen_coords(origin.offset(horizontal, 100.mm))
+        horizontal.reverse! if horizontal_screen.x < center_screen.x
+
+        vertical = normal.cross(horizontal)
+        vertical.normalize!
+        vertical.reverse! if vertical.dot(Z_AXIS) < -0.01
+
+        @face = face
+        @face_transform = transform
+        @origin = origin
+        @normal = normal
+        @u = horizontal
+        @v = vertical
       end
 
-      def vector_between(a, b)
-        Geom::Vector3d.new(b.x - a.x, b.y - a.y, b.z - a.z)
+      def pick_second_point(view, x, y)
+        return nil unless @origin && @normal
+
+        @ip.pick(view, x, y)
+        if @ip.valid?
+          picked = @ip.position
+          distance = point_plane_distance(picked, @origin, @normal)
+
+          # Ưu tiên inference/Endpoint thật nếu nằm gần mặt phẳng P1.
+          if distance.abs <= 5.mm
+            return project_point_to_plane(picked, @origin, @normal)
+          end
+        end
+
+        ray = view.pickray(x, y)
+        return nil unless ray && ray.length == 2
+
+        Geom.intersect_line_plane(ray, [@origin, @normal])
+      rescue StandardError
+        nil
       end
 
-      def project_vector_to_plane(vector, normal)
-        dot = vector.dot(normal)
-        Geom::Vector3d.new(
-          vector.x - normal.x * dot,
-          vector.y - normal.y * dot,
-          vector.z - normal.z * dot
-        )
+      def point_plane_distance(point, origin, normal)
+        vector_between(origin, point).dot(normal)
+      end
+
+      def project_point_to_plane(point, origin, normal)
+        distance = point_plane_distance(point, origin, normal)
+        return point if distance.abs < 0.000001
+
+        move = normal.clone
+        move.length = distance.abs
+        move.reverse! if distance > 0.0
+        point.offset(move)
+      rescue StandardError
+        point
+      end
+
+      def build_region_from_points(p1, p2)
+        return @region = nil unless p1 && p2 && @origin && @u && @v
+
+        a = vector_between(@origin, p1)
+        b = vector_between(@origin, p2)
+        ua = a.dot(@u)
+        va = a.dot(@v)
+        ub = b.dot(@u)
+        vb = b.dot(@v)
+
+        u0, u1 = [ua, ub].minmax
+        v0, v1 = [va, vb].minmax
+
+        @region = {
+          face: @face,
+          origin: @origin,
+          normal: @normal,
+          u: @u,
+          v: @v,
+          u0: u0,
+          u1: u1,
+          v0: v0,
+          v1: v1,
+          width: u1 - u0,
+          height: v1 - v0
+        }
+      end
+
+      def valid_region?
+        @region &&
+          @region[:width] >= 20.mm &&
+          @region[:height] >= 20.mm
       end
 
       def adjusted_bounds
         r = @region
+
         if @options['fit_mode'] == 'Phủ ngoài'
           [
             r[:u0] - @options['over_left'].mm,
@@ -475,7 +628,7 @@ module TranTuanNoiThat
 
       def rebuild_preview
         @doors = []
-        return unless @region
+        return unless valid_region?
 
         u0, u1, v0, v1 = adjusted_bounds
         raise 'Khoang quá nhỏ sau khi trừ khe hở/phủ.' unless u1 > u0 && v1 > v0
@@ -483,22 +636,24 @@ module TranTuanNoiThat
         count = @options['door_count']
         gap = @options['gap_middle'].mm
         normal = @flip ? @region[:normal].reverse : @region[:normal]
+
         offset_vector = if @options['offset'].abs > 0.0001
           vector = @region[:normal].clone
           vector.length = @options['offset'].mm.abs
-          vector.reverse! if @options['offset'] < 0
+          vector.reverse! if @options['offset'] < 0.0
           vector
         else
           Geom::Vector3d.new(0, 0, 0)
         end
+
         thickness_vector = normal.clone
         thickness_vector.length = @options['thickness'].mm
 
         if @options['split_direction'] == 'Dọc'
           available = (u1 - u0) - gap * (count - 1)
-          raise 'Khe giữa quá lớn so với chiều rộng khoang.' unless available > 0
-          size = available / count.to_f
+          raise 'Khe giữa quá lớn so với chiều rộng khoang.' unless available > 0.0
 
+          size = available / count.to_f
           count.times do |index|
             a = u0 + index * (size + gap)
             b = a + size
@@ -506,9 +661,9 @@ module TranTuanNoiThat
           end
         else
           available = (v1 - v0) - gap * (count - 1)
-          raise 'Khe giữa quá lớn so với chiều cao khoang.' unless available > 0
-          size = available / count.to_f
+          raise 'Khe giữa quá lớn so với chiều cao khoang.' unless available > 0.0
 
+          size = available / count.to_f
           count.times do |index|
             a = v0 + index * (size + gap)
             b = a + size
@@ -517,7 +672,7 @@ module TranTuanNoiThat
         end
       rescue StandardError => error
         @doors = []
-        Sketchup.status_text = "Tạo Cánh Chuẩn: #{error.message}"
+        Sketchup.status_text = "Tạo Cánh: #{error.message}"
       end
 
       def point_on_plane(u_value, v_value)
@@ -532,8 +687,13 @@ module TranTuanNoiThat
           point_on_plane(u1, v1),
           point_on_plane(u0, v1)
         ]
-        front = front.map { |point| point.offset(offset_vector) } if offset_vector.length > 0.0
+
+        if offset_vector.length > 0.0
+          front = front.map { |point| point.offset(offset_vector) }
+        end
+
         back = front.map { |point| point.offset(thickness_vector) }
+
         {
           index: index,
           front: front,
@@ -544,6 +704,110 @@ module TranTuanNoiThat
         }
       end
 
+      def handle_points
+        return {} unless valid_region?
+
+        u0, u1, v0, v1 = adjusted_bounds
+        vmid = (v0 + v1) * 0.5
+
+        {
+          left: point_on_plane(u0, vmid),
+          center: point_on_plane((u0 + u1) * 0.5, vmid),
+          right: point_on_plane(u1, vmid)
+        }
+      rescue StandardError
+        {}
+      end
+
+      def nearest_handle(view, x, y)
+        best = nil
+        best_distance = SNAP_RADIUS + 1.0
+
+        handle_points.each do |key, point|
+          screen = view.screen_coords(point)
+          dx = screen.x.to_f - x.to_f
+          dy = screen.y.to_f - y.to_f
+          distance = Math.sqrt(dx * dx + dy * dy)
+
+          if distance <= SNAP_RADIUS && distance < best_distance
+            best = key
+            best_distance = distance
+          end
+        end
+
+        best
+      rescue StandardError
+        nil
+      end
+
+      def point_inside_region_screen?(view, x, y)
+        return false unless valid_region?
+
+        u0, u1, v0, v1 = adjusted_bounds
+        points = [
+          point_on_plane(u0, v0),
+          point_on_plane(u1, v0),
+          point_on_plane(u1, v1),
+          point_on_plane(u0, v1)
+        ].map { |point| view.screen_coords(point) }
+
+        min_x, max_x = points.map(&:x).minmax
+        min_y, max_y = points.map(&:y).minmax
+
+        x.to_f >= min_x.to_f &&
+          x.to_f <= max_x.to_f &&
+          y.to_f >= min_y.to_f &&
+          y.to_f <= max_y.to_f
+      rescue StandardError
+        false
+      end
+
+      def draw_hover_point(view)
+        view.draw_points(
+          @hover_point,
+          12,
+          2,
+          Sketchup::Color.new(37, 99, 235)
+        )
+      end
+
+      def draw_p1(view)
+        return unless @p1
+
+        view.draw_points(
+          @p1,
+          14,
+          2,
+          Sketchup::Color.new(37, 99, 235)
+        )
+        screen = view.screen_coords(@p1)
+        view.draw_text(
+          [screen.x + 8, screen.y - 10],
+          'P1',
+          color: Sketchup::Color.new(24, 62, 104)
+        )
+      end
+
+      def draw_region_frame(view)
+        return unless valid_region?
+
+        u0, u1, v0, v1 = adjusted_bounds
+        corners = [
+          point_on_plane(u0, v0),
+          point_on_plane(u1, v0),
+          point_on_plane(u1, v1),
+          point_on_plane(u0, v1)
+        ]
+
+        view.line_width = 3
+        view.drawing_color = Sketchup::Color.new(37, 99, 235)
+        view.draw(GL_LINE_LOOP, corners)
+      end
+
+      def draw_preview_doors(view)
+        @doors.each { |door| draw_door(view, door) }
+      end
+
       def draw_door(view, door)
         alpha = @options['preview_alpha']
         front = door[:front]
@@ -551,7 +815,10 @@ module TranTuanNoiThat
 
         view.drawing_color = Sketchup::Color.new(255, 191, 128, alpha)
         view.draw(GL_QUADS, front)
-        view.drawing_color = Sketchup::Color.new(245, 153, 76, [alpha + 30, 210].min)
+
+        view.drawing_color = Sketchup::Color.new(
+          245, 153, 76, [alpha + 30, 210].min
+        )
         view.draw(GL_QUADS, back)
 
         sides = [
@@ -560,7 +827,10 @@ module TranTuanNoiThat
           [front[2], front[3], back[3], back[2]],
           [front[3], front[0], back[0], back[3]]
         ]
-        view.drawing_color = Sketchup::Color.new(241, 168, 96, [alpha + 15, 210].min)
+
+        view.drawing_color = Sketchup::Color.new(
+          241, 168, 96, [alpha + 15, 210].min
+        )
         sides.each { |quad| view.draw(GL_QUADS, quad) }
 
         edges = [
@@ -568,45 +838,62 @@ module TranTuanNoiThat
           [back[0],back[1]],[back[1],back[2]],[back[2],back[3]],[back[3],back[0]],
           [front[0],back[0]],[front[1],back[1]],[front[2],back[2]],[front[3],back[3]]
         ]
+
         view.line_width = 2
         view.drawing_color = Sketchup::Color.new(198, 103, 32)
         view.draw(GL_LINES, edges.flatten(1))
       end
 
-      def draw_detected_guides(view)
-        u0, u1, v0, v1 = adjusted_bounds
+      def draw_three_handles(view, interactive)
+        styles = {
+          left: [
+            'MÉP TRÁI',
+            Sketchup::Color.new(37, 99, 235)
+          ],
+          center: [
+            'TÂM CHIA',
+            Sketchup::Color.new(234, 88, 12)
+          ],
+          right: [
+            'MÉP PHẢI',
+            Sketchup::Color.new(37, 99, 235)
+          ]
+        }
 
-        if @options['split_direction'] == 'Dọc'
-          edge1 = [point_on_plane(u0, v0), point_on_plane(u0, v1)]
-          edge2 = [point_on_plane(u1, v0), point_on_plane(u1, v1)]
-          center = point_on_plane((u0 + u1) * 0.5, (v0 + v1) * 0.5)
-        else
-          edge1 = [point_on_plane(u0, v0), point_on_plane(u1, v0)]
-          edge2 = [point_on_plane(u0, v1), point_on_plane(u1, v1)]
-          center = point_on_plane((u0 + u1) * 0.5, (v0 + v1) * 0.5)
+        handle_points.each do |key, point|
+          label, base_color = styles[key]
+          hovered = interactive && key == @hover_handle
+          color = hovered ?
+            Sketchup::Color.new(22, 163, 74) :
+            base_color
+
+          size = if key == :center
+            hovered ? 18 : 15
+          else
+            hovered ? 15 : 11
+          end
+
+          view.draw_points(point, size, 2, color)
+
+          screen = view.screen_coords(point)
+          view.draw_text(
+            [screen.x + 9, screen.y - 10],
+            label,
+            color: color
+          )
         end
-
-        view.line_width = 5
-        view.drawing_color = Sketchup::Color.new(37, 99, 235)
-        view.draw(GL_LINES, edge1)
-        view.draw(GL_LINES, edge2)
-
-        view.draw_points(center, 14, 2, Sketchup::Color.new(234, 88, 12))
-
-        screen = view.screen_coords(center)
-        view.draw_text(
-          [screen.x + 10, screen.y - 15],
-          @options['door_count'] == 2 ? 'TÂM CHIA 2 CÁNH' : 'TÂM KHOANG',
-          color: Sketchup::Color.new(170, 65, 10)
-        )
       end
 
       def draw_info(view)
-        center = @region[:origin]
+        center = handle_points[:center]
+        return unless center
+
         screen = view.screen_coords(center)
-        text = "#{@options['door_count']} CÁNH · #{format_mm(@region[:width])} × #{format_mm(@region[:height])} mm · #{@options['fit_mode']}"
+        text =
+          "#{@options['door_count']} CÁNH · "           "#{format_mm(@region[:width])} × #{format_mm(@region[:height])} mm · "           "#{@options['split_direction']}"
+
         view.draw_text(
-          [screen.x + 18, screen.y + 18],
+          [screen.x + 18, screen.y + 22],
           text,
           color: Sketchup::Color.new(24, 62, 104)
         )
@@ -614,7 +901,7 @@ module TranTuanNoiThat
       end
 
       def create_doors
-        raise 'Chưa nhận được khoang.' unless @region
+        raise 'Chưa xác định khoang P1-P2.' unless valid_region?
         raise 'Preview cánh chưa hợp lệ.' if @doors.empty?
 
         model = @model
@@ -625,8 +912,9 @@ module TranTuanNoiThat
         root.name = "Cánh tủ #{@options['door_count']} cánh"
         root.set_attribute(DICT, 'version', VERSION)
         root.set_attribute(DICT, 'settings_json', JSON.generate(@options))
+
         source_pid = begin
-          @region[:face].respond_to?(:persistent_id) ? @region[:face].persistent_id : 0
+          @face.respond_to?(:persistent_id) ? @face.persistent_id : 0
         rescue StandardError
           0
         end
@@ -636,7 +924,6 @@ module TranTuanNoiThat
         tag_name = "Ván #{format('%.1f', @options['thickness']).sub('.0','')}mm"
         board_tag = model.layers[tag_name] || model.layers.add(tag_name)
 
-        created = []
         @doors.each_with_index do |door, index|
           child = root.entities.add_group
           child.name = format('%s %02d', @options['name_prefix'], index + 1)
@@ -658,9 +945,8 @@ module TranTuanNoiThat
           faces << entities.add_face(front[1], front[2], back[2], back[1])
           faces << entities.add_face(front[2], front[3], back[3], back[2])
           faces << entities.add_face(front[3], front[0], back[0], back[3])
-          raise 'Không tạo được hình học cánh.' if faces.compact.length < 6
 
-          created << child
+          raise 'Không tạo được hình học cánh.' if faces.compact.length < 6
         end
 
         model.selection.clear
@@ -668,19 +954,58 @@ module TranTuanNoiThat
         model.commit_operation
         started = false
 
-        Sketchup.status_text = "Đã tạo #{@doors.length} cánh · tiếp tục rê chuột sang khoang khác."
+        Sketchup.status_text =
+          "Đã tạo #{@doors.length} cánh · tiếp tục bắt P1-P2 khoang kế tiếp."
         root
       rescue StandardError
         model.abort_operation if started rescue nil
         raise
       end
 
+      def average_point(points)
+        sx = points.inject(0.0) { |sum, point| sum + point.x }
+        sy = points.inject(0.0) { |sum, point| sum + point.y }
+        sz = points.inject(0.0) { |sum, point| sum + point.z }
+
+        Geom::Point3d.new(
+          sx / points.length,
+          sy / points.length,
+          sz / points.length
+        )
+      end
+
+      def vector_between(a, b)
+        Geom::Vector3d.new(
+          b.x - a.x,
+          b.y - a.y,
+          b.z - a.z
+        )
+      end
+
+      def project_vector_to_plane(vector, normal)
+        dot = vector.dot(normal)
+        Geom::Vector3d.new(
+          vector.x - normal.x * dot,
+          vector.y - normal.y * dot,
+          vector.z - normal.z * dot
+        )
+      end
+
       def format_mm(length)
         format('%.1f', length.to_mm).sub(/\.0\z/, '')
       end
-    end
-  end
 
+      def update_status
+        Sketchup.status_text = case @state
+        when :pick_p1
+          'TẠO CÁNH · Click P1 trên mặt/khoang · TAB cài đặt.'
+        when :pick_p2
+          'Rê và Click P2 chéo đối diện · preview 3D cập nhật theo chuột · ESC quay lại P1.'
+        when :ready
+          'Đã khóa P1-P2 · bấm TÂM CHIA màu cam hoặc click trong preview để tạo · TAB cài đặt.'
+        end
+      end
+    end
   # Tương thích nóng cho UI::Command cũ trong phiên SketchUp đang mở.
   # Source Vẽ Cánh Tủ cũ đã bị gỡ; lệnh cũ nếu còn trên toolbar sẽ gọi tool mới.
   remove_const(:CabinetDoor) if const_defined?(:CabinetDoor, false)
