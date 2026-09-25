@@ -5,7 +5,7 @@ require 'json'
 module TranTuanNoiThat
   module SlatWall
     extend self
-    VERSION = '1.9.147'.freeze
+    VERSION = '1.9.148'.freeze
     KEY = 'TT_VACH_LAM'.freeze
     MAX_SLATS = 2000
     DEFAULTS = {
@@ -115,6 +115,7 @@ module TranTuanNoiThat
           @dialog.execute_script("showError(#{JSON.generate(e.message)});") if @dialog
         end
       end
+      @dialog.add_action_callback('repair_abf') { |_ctx| repair_selected_backings }
       @dialog.set_on_closed { @dialog = nil }
       @dialog.show
     end
@@ -139,9 +140,9 @@ module TranTuanNoiThat
         <small>Chiều cao theo vùng kéo. Vượt khổ ván sẽ chia đều thành các cụm VL. Khoảng cách mép áp dụng cho từng cụm. Tự động dùng khe dự kiến để chọn số lam rồi chia đều; nhập số giữ đúng khe và căn giữa phần dư.</small></section>
         <section class="backed"><label>Độ dày tấm lót<span><input id="backing" type="number" min="0.1" step="0.1"> mm</span></label>
         <label>Hạ âm<span><input id="recess" type="number" min="0" step="0.1"> mm</span></label>
-        <label>Bật CNC<input id="cnc" type="checkbox"></label><label>Tag tấm lót / CNC<input id="tag" type="text" style="width:240px"></label>
+        <label>Bật CNC<input id="cnc" type="checkbox"></label><label>Tag biên dạng CNC<input id="tag" type="text" style="width:240px"></label>
         <small>Hạ âm 0: lam tiếp giáp mặt trước tấm lót. CNC tạo đường biên kín thật trên mặt lót, tương ứng từng lam; lưu độ sâu hạ âm cho mỗi biên dạng.</small></section>
-        <button onclick="apply()">CẬP NHẬT PREVIEW</button><p id="error"></p>
+        <button onclick="apply()">CẬP NHẬT PREVIEW</button><p><button onclick="sketchup.repair_abf()">SỬA TẤM LÓT ABF ĐÃ CHỌN</button></p><p id="error"></p>
         <section><canvas id="preview" width="420" height="170"></canvas><div id="info"></div><small>Hình mô phỏng nhìn chính diện. Click góc thứ hai hoặc thả sau khi kéo để tạo thật. ESC bỏ vùng đang vẽ.</small></section></main>
         <script>
         const keys=#{JSON.generate(DEFAULTS.keys)};
@@ -167,11 +168,13 @@ module TranTuanNoiThat
       group = entities.add_group
       group.name = name
       group.material = material
-      group.layer = tag if tag
+      group.layer = tag || Sketchup.active_model.layers[0]
       pts = box_points(box)
       BOX_FACES.each do |indices|
         face = group.entities.add_face(indices.map { |i| pts[i] })
         raise 'Không tạo được mặt kín cho tấm.' unless face
+        face.layer = Sketchup.active_model.layers[0]
+        face.edges.each { |e| e.layer = Sketchup.active_model.layers[0] }
       end
       group
     end
@@ -214,7 +217,7 @@ module TranTuanNoiThat
         vl = parent.entities.add_group
         vl.name = "VL#{n + index}"
         vl.set_attribute(KEY, 'stock_mm', [o['stock_length'],o['stock_width'],o['stock_thickness']])
-        backing = panel[:backing] ? make_box(vl.entities, panel[:backing], "#{vl.name}_TAM_LOT", backmat, cnc_tag) : nil
+        backing = panel[:backing] ? make_box(vl.entities, panel[:backing], "#{vl.name}_TAM_LOT", backmat) : nil
         panel[:slats].each_with_index do |box, slat_index|
           slat = make_box(vl.entities, box, "#{vl.name}_LAM#{slat_index + 1}", wood)
           slat.set_attribute(KEY, 'size_mm', [box[3],box[4],box[5]])
@@ -222,16 +225,12 @@ module TranTuanNoiThat
           x,y,_z,w,h,_d = box
           front_z = o['backing']
           pts = [[x,y],[x+w,y],[x+w,y+h],[x,y+h]].map { |a,b| Geom::Point3d.new(a.mm,b.mm,front_z.mm) }
-          edges = backing.entities.add_edges(*(pts + [pts.first]))
-          raise 'Không tạo đủ biên dạng CNC.' if edges.empty?
-          edges.each do |edge|
-            edge.layer = cnc_tag
-            ids = edge.get_attribute(KEY, 'profiles', [])
-            edge.set_attribute(KEY, 'profiles', (ids + [slat_index + 1]).uniq)
-            edge.set_attribute(KEY, 'depth_mm', o['recess'])
-          end
+          add_cnc_profile(backing, pts, slat_index + 1, cnc_tag, o['recess'])
         end
         if backing
+          backing.set_attribute('ABF', 'is-board', true)
+          backing.set_attribute(KEY, 'role', 'backing')
+          backing.set_attribute(KEY, 'size_mm', [panel[:width], panel[:height], o['backing']])
           backing.set_attribute(KEY, 'profile_count', cnc_tag ? panel[:slats].length : 0)
           backing.set_attribute(KEY, 'depth_mm', o['recess'])
           backing.set_attribute(KEY, 'cnc_tag', o['tag']) if cnc_tag
@@ -243,6 +242,90 @@ module TranTuanNoiThat
     rescue StandardError
       model.abort_operation if started
       raise
+    end
+
+    def add_cnc_profile(backing, points, number, tag, depth)
+      profile = backing.entities.add_group
+      profile.name = "#{tag.name}_#{number}"
+      profile.layer = tag
+      profile.set_attribute(KEY, 'role', 'cnc_profile')
+      profile.set_attribute(KEY, 'profile', number)
+      profile.set_attribute(KEY, 'depth_mm', depth)
+      edges = profile.entities.add_edges(*(points + [points.first]))
+      raise 'Không tạo đủ biên dạng CNC.' unless edges.length == 4
+      edges.each { |edge| edge.layer = Sketchup.active_model.layers[0] }
+      profile
+    end
+
+    def repair_selected_backings
+      model = Sketchup.active_model
+      found = []
+      walk = lambda do |entities, ancestors|
+        entities.each do |entity|
+          next unless entity.is_a?(Sketchup::Group) || entity.is_a?(Sketchup::ComponentInstance)
+          next if ancestors.include?(entity.definition)
+          raise 'Group đang khóa. Mở khóa trước khi sửa.' if entity.locked?
+          if entity.get_attribute(KEY, 'role') == 'backing' ||
+             (entity.name.to_s.match?(/\AVL\d+_TAM_LOT\z/) && !entity.get_attribute(KEY, 'profile_count').nil?)
+            found << entity
+          else
+            raise 'Group cha có nhiều bản sao. Make Unique group cha trước khi sửa.' if entity.definition.instances.length > 1
+            walk.call(entity.definition.entities, ancestors + [entity.definition])
+          end
+        end
+      end
+      walk.call(model.selection.to_a, [])
+      raise 'Chọn group vách lam hoặc tấm lót cần sửa trước.' if found.empty?
+      raise 'Tấm lót đang khóa.' if found.any?(&:locked?)
+      model.start_operation('TT - Sửa tấm lót nhận ABF', true)
+      started = true
+      found.uniq.each { |backing| repair_backing(backing, model) }
+      model.commit_operation
+      UI.messagebox("Đã sửa cấu trúc #{found.uniq.length} tấm lót. Chạy lại chức năng đánh nhãn ABF để kiểm tra.")
+    rescue StandardError => e
+      model.abort_operation if started
+      UI.messagebox(e.message)
+    end
+
+    def repair_backing(backing, model)
+      backing.make_unique if backing.definition.instances.length > 1
+      edges = backing.entities.grep(Sketchup::Edge)
+      profiles = Hash.new { |h,k| h[k] = [] }
+      edges.each do |edge|
+        Array(edge.get_attribute(KEY, 'profiles', [])).each { |id| profiles[id] << edge }
+      end
+      tag_name = backing.get_attribute(KEY, 'cnc_tag', 'ABF_HANENLAMAM')
+      tag = model.layers[tag_name] || model.layers.add(tag_name)
+      # Copy exact edge segments before merging the old split front face.
+      profiles.each do |number, segments|
+        group = backing.entities.add_group
+        group.name = "#{tag_name}_#{number}"
+        group.layer = tag
+        group.set_attribute(KEY, 'role', 'cnc_profile')
+        group.set_attribute(KEY, 'profile', number)
+        group.set_attribute(KEY, 'depth_mm', backing.get_attribute(KEY, 'depth_mm', 0.0))
+        segments.each do |edge|
+          group.entities.add_line(edge.start.position, edge.end.position).layer = model.layers[0]
+        end
+      end
+      profiles.values.flatten.uniq.each do |edge|
+        next unless edge.valid?
+        faces = edge.faces
+        removable = faces.empty? || (faces.length == 2 && faces[0].normal.parallel?(faces[1].normal))
+        if removable
+          backing.entities.erase_entities(edge)
+        else
+          edge.delete_attribute(KEY, 'profiles')
+          edge.delete_attribute(KEY, 'depth_mm')
+        end
+      end
+      backing.entities.each do |entity|
+        entity.layer = model.layers[0] if entity.is_a?(Sketchup::Face) || entity.is_a?(Sketchup::Edge)
+      end
+      backing.layer = model.layers[0]
+      backing.set_attribute('ABF', 'is-board', true)
+      backing.set_attribute(KEY, 'role', 'backing')
+      true
     end
 
     class Tool

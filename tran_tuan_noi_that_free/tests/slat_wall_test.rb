@@ -48,6 +48,10 @@ module Attrs
  def get_attribute(d,k,default=nil);(@attrs||={}).fetch([d,k],default);end
  def set_attribute(d,k,v);(@attrs||={})[[d,k]]=v;end
 end
+class Sketchup::Face
+ attr_accessor :layer
+ def edges;outer_loop.edges;end
+end
 class Sketchup::Edge
  include Attrs
  attr_accessor :layer
@@ -71,6 +75,7 @@ class Sketchup::Entities
  end
 end
 class Catalog < Hash
+ def [](key);self[0] = Struct.new(:name,:color).new('Layer0',nil) if key==0 && !key?(0);super;end
  def add(name);self[name]=Struct.new(:name,:color).new(name,nil);end
 end
 class TestModel
@@ -87,15 +92,20 @@ check('real builder: VL hierarchy, individual slats, closed CNC paths and custom
  assert(parent.entities.map(&:name)==['VL1','VL2'])
  parent.entities.each_with_index do |vl,i|
   backing=vl.entities.first
-  assert(backing.name.end_with?('TAM_LOT'));assert(backing.layer.name=='ABF_TEST')
+  assert(backing.name.end_with?('TAM_LOT'));assert(backing.layer.name=='Layer0');assert(backing.get_attribute('ABF','is-board')==true)
   count=p[:panels][i][:slats].size
   assert(vl.entities.size==count+1)
   assert(backing.get_attribute(SW::KEY,'profile_count')==count)
-  edges=backing.entities.grep(Sketchup::Edge)
-  assert(edges.size==count*4)
-  edges.each_slice(4) do |loop|
+  profiles=backing.entities.grep(Sketchup::Group)
+  assert(profiles.size==count)
+  assert(backing.entities.grep(Sketchup::Edge).empty?)
+  profiles.each do |profile|
+   assert(profile.layer.name=='ABF_TEST')
+   assert(profile.get_attribute(SW::KEY,'depth_mm')==3)
+   loop=profile.entities.grep(Sketchup::Edge)
+   assert(loop.size==4)
    near(loop.first.start.position.distance(loop.last.end.position),0)
-   assert(loop.all?{|e|e.layer.name=='ABF_TEST' && e.get_attribute(SW::KEY,'depth_mm')==3})
+   assert(loop.all?{|e|e.layer.name=='Layer0'})
   end
   assert(backing.entities.grep(Sketchup::Face).size==6)
  end
@@ -188,3 +198,30 @@ check('drag release creates exactly once; Escape discards pending region') do
  assert(Sketchup.model.commits==1);assert(tool.instance_variable_get(:@p1).nil?)
 end
 puts "TOTAL #{$count} REGRESSIONS PASSED"
+module Attrs
+ def delete_attribute(d,k);(@attrs||={}).delete([d,k]);end
+end
+class Sketchup::Edge
+ def faces;[];end
+end
+class Sketchup::Entities
+ def add_line(a,b);add_edges(a,b).first;end
+ def erase_entities(e);delete(e);end
+end
+check('repair legacy backing moves CNC edges once and preserves board faces') do
+ set_model
+ tag=Sketchup.model.layers.add('ABF_HANENLAMAM')
+ backing=SW.make_box(Sketchup.model.entities,[0,0,0,600,1200,9],'VL1_TAM_LOT',nil,tag)
+ points=[[20,20],[60,20],[60,1180],[20,1180]].map{|a,b|Geom::Point3d.new(a.mm,b.mm,9.mm)}
+ backing.entities.add_edges(*(points+[points.first])).each{|e|e.set_attribute(SW::KEY,'profiles',[1]);e.layer=tag}
+ backing.set_attribute(SW::KEY,'cnc_tag',tag.name);backing.set_attribute(SW::KEY,'profile_count',1)
+ SW.repair_backing(backing,Sketchup.model)
+ assert(backing.layer.name=='Layer0');assert(backing.get_attribute('ABF','is-board'))
+ assert(backing.entities.grep(Sketchup::Face).size==6)
+ assert(backing.entities.grep(Sketchup::Edge).empty?)
+ profiles=backing.entities.grep(Sketchup::Group);assert(profiles.size==1)
+ assert(profiles.first.layer.name=='ABF_HANENLAMAM')
+ assert(profiles.first.entities.grep(Sketchup::Edge).size==4)
+ SW.repair_backing(backing,Sketchup.model)
+ assert(backing.entities.grep(Sketchup::Group).size==1)
+end

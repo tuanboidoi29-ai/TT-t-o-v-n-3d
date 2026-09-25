@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.147",
+  "version": "1.9.148",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Thêm Tạo Vách Lam: hai góc chéo, SHIFT đổi lam đơn/có lót, TAB cài đặt, chia khổ ván, VL1/VL2, hạ âm và biên dạng CNC. Bao gồm sửa tìm/sửa độ dày, highlight, bắt đỉnh bo cong, Scale 4 cạnh và lỗi unlock_direction_lock của tạo cánh. Đã kiểm tra cú pháp và mô phỏng API; chưa xác minh trực tiếp SketchUp/ABF.",
+  "notes": "Sửa cấu trúc tấm lót cho ABF: tấm trên Layer0, thuộc tính ABF is-board; mỗi biên CNC là group con riêng trên Tag ABF tùy chỉnh. Thêm nút SỬA TẤM LÓT ABF ĐÃ CHỌN cho vách 1.9.147. Chưa xác minh trực tiếp trong ABF.",
   "files": [
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -14,7 +14,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "054aa562d28371a73a6ad66acfa8201b295619aed9f92319fddd648e86e5520c"
+      "sha256": "2700612d8b26644b4331b1e31b4d912d66ecabf4d083cbb0ec3c4ec8f88f113b"
     },
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -29,7 +29,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "5b111b13ea59e8e7dfd53603bd2f9c63a9c1fc609641a417bae47e451fa0d34f"
+      "sha256": "4a031b33b091ff13b0db96b734469ac14724d0edd27a823a779aed3b155edc4e"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -279,7 +279,7 @@
     {
       "path": "tran_tuan_noi_that/slat_wall_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/slat_wall_tool.rb",
-      "sha256": "56c39c41f26ce03974913e74463e356d910c6f948a76b6084f2ed08f35a2b36a"
+      "sha256": "36aeccf4c84d988db34f5e032588660f290acd1d472b3912c09a6aefad0e2843"
     },
     {
       "path": "tran_tuan_noi_that/stretch_auto_scan_fix.rb",

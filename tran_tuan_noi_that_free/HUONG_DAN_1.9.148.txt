@@ -1,0 +1,8 @@
+1.9.148 — SỬA TẤM LÓT ABF
+Cập nhật bằng nút Kiểm Tra Cập Nhật trong plugin.
+Vách mới: tấm lót trên Layer0 và có thuộc tính ABF/is-board=true.
+CNC: mỗi biên kín ở một group riêng bên trong tấm lót, Tag ABF_HANENLAMAM hoặc tên tùy chỉnh.
+Vách đã tạo: chọn group vách hoặc tấm lót > mở Tạo Vách Lam > SỬA TẤM LÓT ABF ĐÃ CHỌN.
+Sau đó chạy lại chức năng gán nhãn ABF. Một lần Undo hoàn tác việc sửa.
+Group cha dùng chung nhiều bản sao cần Make Unique trước. Mở khóa group trước khi sửa.
+Không tự tạo nhãn giả hoặc board-index ABF. Đã kiểm tra cú pháp, mô phỏng cấu trúc và sửa vách cũ; chưa chạy trực tiếp SketchUp/ABF.
