@@ -6,7 +6,7 @@ module TranTuanNoiThat
   module TamPro
     extend self
 
-    VERSION = '1.9.145'.freeze
+    VERSION = '1.9.146'.freeze
     EPS = 0.001
     QUICK_NAMES = ['Trái', 'Phải', 'Trên', 'Dưới', 'Trước', 'Sau'].freeze
 
@@ -63,12 +63,67 @@ module TranTuanNoiThat
       nil
     end
 
-    def thickness_info(entity)
-      dims = local_dimensions_mm(entity)
-      return nil unless dims && dims.length == 3
-      return nil unless dims.all? { |value| value.finite? && value > EPS }
-      axis = (0..2).min_by { |index| dims[index] }
-      { axis: axis, thickness: dims[axis], dims: dims }
+    # Measure the actual geometry in world space, including parent scale.
+    # Face frames avoid the inflated axis-aligned box of rotated geometry.
+    def thickness_info(entity, world = nil)
+      world ||= model.edit_transform * entity.transformation
+      faces = entity.definition.entities.grep(Sketchup::Face).select(&:valid?)
+      return nil if faces.empty?
+      return nil if entity.definition.entities.any? { |e| valid_object?(e) }
+      points = faces.flat_map(&:vertices).uniq.map { |v| v.position.transform(world) }
+      frames = []
+      faces.sort_by { |f| -f.area }.first(24).each do |face|
+        edges = face.outer_loop.edges
+        next if edges.length < 2
+        edge = edges.max_by { |e| e.start.position.transform(world).distance(e.end.position.transform(world)) }
+        u = edge.start.position.transform(world).vector_to(edge.end.position.transform(world))
+        next if u.length < 1.0e-9
+        u.normalize!
+        origin = edge.start.position.transform(world)
+        other = face.vertices.map { |v| origin.vector_to(v.position.transform(world)) }.max_by { |v| u.cross(v).length }
+        n = u.cross(other)
+        next if n.length < 1.0e-9
+        n.normalize!
+        v = n.cross(u).normalize
+        basis = Geom::Transformation.axes(origin, u, v, n)
+        inverse = basis.inverse
+        box = Geom::BoundingBox.new
+        points.each { |pt| box.add(pt.transform(inverse)) }
+        dims = [box.width, box.height, box.depth].map { |x| x.to_f * 25.4 }
+        next unless dims.all? { |x| x.finite? && x > EPS }
+        frames << [dims.inject(:*), dims, basis, box]
+      end
+      best = frames.min_by(&:first)
+      return nil unless best
+      _, dims, basis, box = best
+      axis = (0..2).min_by { |i| dims[i] }
+      { axis: axis, thickness: dims[axis], dims: dims, basis: basis, box: box, world: world }
+    end
+
+    # Keep every instance path: a shared definition can have different scales.
+    def board_occurrences(scope)
+      roots = scope.to_s == 'selection' ? selected_objects : model.entities.to_a
+      parent = scope.to_s == 'selection' ? model.edit_transform : Geom::Transformation.new
+      result = []
+      walk = lambda do |items, tr, path, definitions|
+        items.each do |entity|
+          next unless valid_object?(entity)
+          next if definitions.include?(entity.definition)
+          next if entity.hidden? || !entity.layer.visible?
+          world = tr * entity.transformation
+          current_path = path + [entity]
+          info = thickness_info(entity, world)
+          if info
+            result << info.merge(entity: entity, parent_world: tr, path: current_path,
+              name: entity_name(entity), type: entity.is_a?(Sketchup::Group) ? 'Group' : 'Component')
+          else
+            walk.call(entity.definition.entities.to_a, world, current_path, definitions + [entity.definition])
+          end
+        end
+      end
+      prefix = scope.to_s == 'selection' ? (model.active_path || []).to_a : []
+      walk.call(roots, parent, prefix, [])
+      result
     end
 
     def scan_objects
@@ -149,18 +204,7 @@ module TranTuanNoiThat
     # ----------------------------------------------------------------------
 
     def thickness_rows(scope)
-      pool = scope.to_s == 'selection' ? selected_objects : scan_objects
-      pool.map do |entity|
-        info = thickness_info(entity)
-        next unless info
-        {
-          entity: entity,
-          thickness: info[:thickness],
-          dims: info[:dims],
-          name: entity_name(entity),
-          type: entity.is_a?(Sketchup::Group) ? 'Group' : 'Component'
-        }
-      end.compact
+      board_occurrences(scope)
     end
 
     def thickness_values
@@ -168,62 +212,95 @@ module TranTuanNoiThat
     end
 
     def find_matches(scope, target_mm, tolerance)
-      target = target_mm.to_f
+      target = Float(target_mm.to_s.tr(',', '.'))
+      raise 'Độ dày cần tìm phải lớn hơn 0 mm.' unless target.finite? && target > EPS
       tol = [tolerance.to_f.abs, 0.01].max
       thickness_rows(scope).select { |row| (row[:thickness] - target).abs <= tol }
     end
 
-    def highlight_matches(matches)
-      selection = model.selection
-      selection.clear
-      added = 0
-      matches.each do |row|
-        begin
-          selection.add(row[:entity])
-          added += 1 if selection.include?(row[:entity])
-        rescue StandardError
-        end
-      end
-      if added > 0
-        model.active_view.zoom(selection) rescue nil
-        model.active_view.invalidate rescue nil
-      end
-      added
+    def clear_highlight
+      model.select_tool(nil) if @highlight_tool
+      @highlight_tool = nil
+      model.active_view.invalidate
     end
 
-    def change_thickness(entities, new_mm)
+    def highlight_matches(matches)
+      clear_highlight
+      return 0 if matches.empty?
+      @highlight_tool = HighlightTool.new(matches)
+      model.select_tool(@highlight_tool)
+      model.active_view.zoom(@highlight_tool.getExtents)
+      model.active_view.invalidate
+      matches.length
+    end
+
+    class HighlightTool
+      EDGES = [[0,1],[0,2],[1,3],[2,3],[4,5],[4,6],[5,7],[6,7],[0,4],[1,5],[2,6],[3,7]].freeze
+      def initialize(rows)
+        @rows = rows
+      end
+      def corners(row)
+        (0..7).map { |i| row[:box].corner(i).transform(row[:basis]) }
+      end
+      def getExtents
+        box = Geom::BoundingBox.new
+        @rows.each { |r| corners(r).each { |p| box.add(p) } }
+        box
+      end
+      def draw(view)
+        @rows.each do |row|
+          next unless row[:entity].valid?
+          p = corners(row)
+          view.drawing_color = Sketchup::Color.new(255, 145, 20, 75)
+          [[0,1,3,2],[4,5,7,6],[0,1,5,4],[2,3,7,6],[0,2,6,4],[1,3,7,5]].each do |ids|
+            view.draw(GL_QUADS, ids.map { |i| p[i] })
+          end
+          # Screen-space outlines stay visible even inside a cabinet.
+          view.drawing_color = Sketchup::Color.new(255, 130, 0)
+          view.line_width = 3
+          view.draw2d(GL_LINES, EDGES.flat_map { |a,b| [view.screen_coords(p[a]), view.screen_coords(p[b])] })
+        end
+      end
+      def onCancel(_reason, view)
+        TamPro.clear_highlight
+      end
+      def deactivate(view)
+        TamPro.instance_variable_set(:@highlight_tool, nil)
+        view.invalidate
+      end
+    end
+
+    def change_thickness(rows, new_mm)
       target = new_mm.to_f
-      raise 'Độ dày mới phải lớn hơn 0 mm.' unless target > EPS
-
+      raise 'Độ dày mới phải lớn hơn 0 mm.' unless target.finite? && target > EPS
+      # Never modify unselected copies through a shared parent definition.
+      rows.each do |row|
+        raise 'Tấm hoặc group cha đang khóa.' if row[:path].any?(&:locked?)
+        if row[:path][0...-1].any? { |e| e.definition.instances.length > 1 }
+          raise 'Group/Component cha có nhiều bản sao. Hãy Make Unique group cha trước khi sửa độ dày.'
+        end
+      end
+      clear_highlight
       model.start_operation('TT - Đổi độ dày tấm', true)
+      started = true
       changed = 0
-
-      entities.each do |entity|
+      rows.uniq { |r| r[:entity] }.each do |row|
+        entity = row[:entity]
         next unless valid_object?(entity)
-        info = thickness_info(entity)
-        next unless info
-
-        current = info[:thickness].to_f
-        next if current <= EPS
-        ratio = target / current
-        next unless ratio.finite? && ratio > EPS
-
-        bounds = definition_bounds(entity)
-        next unless bounds
-
-        axis = info[:axis]
-        sx = axis == 0 ? ratio : 1.0
-        sy = axis == 1 ? ratio : 1.0
-        sz = axis == 2 ? ratio : 1.0
-        scaling = Geom::Transformation.scaling(bounds.min, sx, sy, sz)
-        entity.transformation = entity.transformation * scaling
+        ratio = target / row[:thickness]
+        next if (ratio - 1.0).abs < 1.0e-9
+        factors = [1.0, 1.0, 1.0]
+        factors[row[:axis]] = ratio
+        basis = row[:basis]
+        stretch = basis * Geom::Transformation.scaling(row[:box].min, *factors) * basis.inverse
+        parent = row[:parent_world]
+        entity.transformation = parent.inverse * stretch * parent * entity.transformation
         changed += 1
       end
-
       model.commit_operation
       changed
     rescue StandardError
-      model.abort_operation rescue nil
+      model.abort_operation if started
       raise
     end
 
@@ -242,7 +319,7 @@ module TranTuanNoiThat
       message = if matches.empty?
         "Không tìm thấy tấm dày #{format_mm(target)} mm."
       elsif added == matches.length
-        "Tìm thấy #{matches.length} tấm. Đã chọn và zoom các tấm tìm được."
+        "Tìm thấy #{matches.length} tấm. Đã làm sáng màu cam và zoom các tấm tìm được. ESC để bỏ sáng."
       else
         "Tìm thấy #{matches.length} tấm; chọn trực tiếp được #{added} tấm trong ngữ cảnh hiện tại. Các tấm lồng sâu vẫn được tính."
       end
@@ -258,7 +335,7 @@ module TranTuanNoiThat
         notify(@dialog_thickness, 'Không có tấm phù hợp để đổi độ dày.', 'warn')
         return
       end
-      changed = change_thickness(matches.map { |row| row[:entity] }, new_value.to_f)
+      changed = change_thickness(matches, new_value.to_f)
       notify(@dialog_thickness, "Đã đổi #{changed}/#{matches.length} tấm sang #{format_mm(new_value)} mm. Ctrl+Z hoàn tác một lần.", 'ok')
       send_thickness_scan
       selection_changed
@@ -292,7 +369,8 @@ module TranTuanNoiThat
       @dialog_thickness.add_action_callback('apply') do |_ctx, scope, target, tolerance, new_value|
         apply_thickness_action(scope, target, tolerance, new_value)
       end
-      @dialog_thickness.set_on_closed { @dialog_thickness = nil }
+      @dialog_thickness.add_action_callback('clear_highlight') { |_ctx| clear_highlight }
+      @dialog_thickness.set_on_closed { clear_highlight; @dialog_thickness = nil }
       @dialog_thickness.show
     rescue StandardError => error
       UI.messagebox("Không mở được Tìm tấm / Sửa độ dày:\n#{error.message}")
@@ -619,9 +697,9 @@ module TranTuanNoiThat
                 <select id="scope"><option value="model">Toàn model</option><option value="selection">Các tấm đang chọn</option></select>
                 <button class="gray" onclick="sketchup.scan()">Quét lại</button>
               </div>
-              <div class="row"><label>Độ dày cần tìm</label><select id="target"></select><span>mm</span></div>
-              <div class="row"><label>Sai số</label><input id="tol" type="number" value="0.15" step="0.05" min="0.01"><span>mm</span></div>
-              <div class="row"><button onclick="findNow()">TÌM + ZOOM</button></div>
+              <div class="row"><label>Độ dày cần tìm</label><input id="target" type="number" list="thicknessList" value="17.5" min="0.01" step="0.1"><datalist id="thicknessList"></datalist><span>mm</span></div>
+              <div class="hint">Nhập độ dày bất kỳ. Đo chiều ngắn nhất của tấm, có tính xoay và scale group cha. Bỏ qua cụm chứa nhiều tấm.</div><div class="row"><label>Sai số</label><input id="tol" type="number" value="0.15" step="0.05" min="0.01"><span>mm</span></div>
+              <div class="row"><button onclick="findNow()">TÌM + LÀM SÁNG</button><button class="gray" onclick="sketchup.clear_highlight()">BỎ SÁNG</button></div>
             </div>
             <div class="card">
               <div class="row"><label>Độ dày mới</label><input id="newT" type="number" value="17.5" step="0.1" min="0.1"><span>mm</span></div>
@@ -632,11 +710,9 @@ module TranTuanNoiThat
           </div>
           <script>#{js}
             TT.setThicknesses=function(values){
-              const sel=document.getElementById('target');
-              const old=sel.value;
+              const sel=document.getElementById('thicknessList');
               sel.innerHTML=(values||[]).map(v=>'<option value="'+v+'">'+v+'</option>').join('');
-              if([...sel.options].some(o=>o.value===old)) sel.value=old;
-              else if([...sel.options].some(o=>o.value==='17.5')) sel.value='17.5';
+
             };
             function vals(){return [document.getElementById('scope').value,document.getElementById('target').value,document.getElementById('tol').value];}
             function findNow(){const v=vals();sketchup.find(v[0],v[1],v[2]);}
@@ -812,3 +888,4 @@ module TranTuanNoiThat
     end
   end
 end
+

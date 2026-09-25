@@ -11,7 +11,7 @@ module TranTuanNoiThat
   NAME = 'TRẦN TUẤN NỘI THẤT'.freeze unless const_defined?(:NAME, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.145'.freeze
+  VERSION = '1.9.147'.freeze
 
   class << self
     def setting(key, default = nil)
@@ -81,6 +81,11 @@ module TranTuanNoiThat
     end
 
     def reload_runtime
+      if const_defined?(:TamPro, false)
+        TamPro.clear_highlight if TamPro.respond_to?(:clear_highlight)
+        dialog = TamPro.instance_variable_get(:@dialog_thickness)
+        dialog.close if dialog
+      end
       reset_layout_runtime
       %w[
         board_tool
@@ -90,6 +95,7 @@ module TranTuanNoiThat
         tam_pro
         bao_gia_tool
         scale_corner_lock
+        slat_wall_tool
         box_tool
         drawer_tool
         round_tool
@@ -200,6 +206,7 @@ module TranTuanNoiThat
       install_tam_pro_ui
       install_bao_gia_ui
       install_scale_corner_lock_ui
+      install_slat_wall_ui
       install_round_ui
       install_stretch_mode_ui
       install_grain_ui
@@ -314,6 +321,14 @@ module TranTuanNoiThat
     rescue StandardError => error
       puts "[TT UI ScaleCornerLock] #{error.class}: #{error.message}"
       false
+    end
+
+    def install_slat_wall_ui
+      return false unless defined?(TranTuanNoiThat::SlatWall)
+      @slat_wall_cmd ||= command('Tạo Vách Lam', 'slat_wall.svg',
+        'Hai góc chéo · SHIFT lam đơn/có lót · TAB thông số · chia khổ ván · biên dạng CNC') { SlatWall.activate }
+      add_feature_command_once(@slat_wall_cmd, :slat_wall_menu_installed)
+      true
     end
 
     def install_round_ui
@@ -438,3 +453,4 @@ module TranTuanNoiThat
 end
 
 TranTuanNoiThat.boot
+

@@ -60,7 +60,7 @@ module TranTuanNoiThat
       def onMouseMove(_flags, x, y, view)
         @last_view, @last_x, @last_y = view, x, y
         @ip.pick(view, x, y)
-        @candidate = candidate_from_ip || nearby(view, x, y)
+        @candidate = nearby(view, x, y) || candidate_from_ip
         view.tooltip = tooltip
         view.invalidate
       rescue StandardError => error
@@ -71,7 +71,7 @@ module TranTuanNoiThat
       def onLButtonDown(_flags, x, y, view)
         @last_view, @last_x, @last_y = view, x, y
         @ip.pick(view, x, y)
-        @candidate = candidate_from_ip || nearby(view, x, y)
+        @candidate = nearby(view, x, y) || candidate_from_ip
         return UI.beep unless @candidate && @candidate[:valid]
         apply_round(@candidate)
         @candidate = nil
@@ -113,12 +113,16 @@ module TranTuanNoiThat
       def repick
         return nil unless @last_view && @last_x && @last_y
         @ip.pick(@last_view, @last_x, @last_y)
-        candidate_from_ip || nearby(@last_view, @last_x, @last_y)
+        nearby(@last_view, @last_x, @last_y) || candidate_from_ip
       end
 
       def candidate_from_ip
         return nil unless @ip.valid? && @ip.vertex
         tr = @ip.transformation || Sketchup.active_model.edit_transform
+        if @last_view && @last_x && @last_y
+          screen = @last_view.screen_coords(@ip.vertex.position.transform(tr))
+          return nil if Math.hypot(screen.x - @last_x, screen.y - @last_y) > Round::SNAP
+        end
         build(@ip.vertex, @ip.face, tr)
       end
 
@@ -128,13 +132,13 @@ module TranTuanNoiThat
         best = nil
         ph.count.times do |i|
           leaf = ph.leaf_at(i)
-          tr = ph.transformation_at(i)
+          tr = Sketchup.active_model.edit_transform * ph.transformation_at(i)
           vertices = if leaf.is_a?(Sketchup::Vertex)
                        [leaf]
                      elsif leaf.is_a?(Sketchup::Edge)
                        leaf.vertices
                      elsif leaf.is_a?(Sketchup::Face)
-                       leaf.outer_loop.vertices
+                       leaf.vertices
                      else
                        []
                      end
@@ -146,7 +150,9 @@ module TranTuanNoiThat
             best = item if best.nil? || d < best[0]
           end
         end
-        best ? build(best[1], best[2], best[3]) : nil
+        return nil unless best
+        item = build(best[1], best[2], best[3])
+        item || invalid(best[1], best[3], 'Đã bắt đỉnh. Đỉnh này chưa có mặt phù hợp để bo khối.')
       rescue StandardError
         nil
       end
@@ -363,3 +369,4 @@ module TranTuanNoiThat
     end
   end
 end
+

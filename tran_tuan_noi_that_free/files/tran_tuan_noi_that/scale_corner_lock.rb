@@ -22,7 +22,7 @@ module TranTuanNoiThat
   module ScaleCornerLock
     extend self
 
-    VERSION = '1.9.145'.freeze
+    VERSION = '1.9.146'.freeze
     PICK_RADIUS = 20.0
     MIN_FACTOR = 0.001
 
@@ -139,7 +139,7 @@ module TranTuanNoiThat
             UI.beep
             return
           end
-          begin_drag(edge, view)
+          begin_drag(edge, view, x, y)
           @dragging = true
           update_scale_preview(view, x, y)
 
@@ -412,7 +412,7 @@ module TranTuanNoiThat
         end
       end
 
-      def begin_drag(key, view)
+      def begin_drag(key, view, x = nil, y = nil)
         @drag_edge = key
         @locked_edge = opposite_edge(key)
         @scale_axis = edge_axis(key)
@@ -430,6 +430,8 @@ module TranTuanNoiThat
         @screen_axis_len2 = @screen_axis.x * @screen_axis.x + @screen_axis.y * @screen_axis.y
         @screen_axis_len2 = 1.0 if @screen_axis_len2 < 1.0
 
+        @pointer_offset_x = x ? x.to_f - @drag_screen.x.to_f : 0.0
+        @pointer_offset_y = y ? y.to_f - @drag_screen.y.to_f : 0.0
         @state = :scale
         Sketchup.set_status_text('Scale', SB_VCB_LABEL)
         Sketchup.set_status_text('1.000', SB_VCB_VALUE)
@@ -454,8 +456,8 @@ module TranTuanNoiThat
       def update_scale_preview(view, x, y)
         return unless @locked_edge && @drag_edge && @screen_axis && @anchor_screen
 
-        px = x.to_f - @anchor_screen.x.to_f
-        py = y.to_f - @anchor_screen.y.to_f
+        px = x.to_f - @pointer_offset_x.to_f - @anchor_screen.x.to_f
+        py = y.to_f - @pointer_offset_y.to_f - @anchor_screen.y.to_f
         numerator = px * @screen_axis.x + py * @screen_axis.y
         @factor = valid_factor(numerator / @screen_axis_len2)
 
@@ -554,6 +556,13 @@ module TranTuanNoiThat
         view.draw(GL_LINES, pairs.flat_map { |a, b| [corners[a], corners[b]] })
       end
 
+      def midpoint_label(key, view)
+        here = view.screen_coords(edge_midpoint_world(key))
+        other = view.screen_coords(edge_midpoint_world(opposite_edge(key)))
+        dx, dy = here.x - other.x, here.y - other.y
+        dx.abs >= dy.abs ? (dx < 0 ? 'TRÁI' : 'PHẢI') : (dy < 0 ? 'TRÊN' : 'DƯỚI')
+      end
+
       def draw_four_midpoints(view)
         %i[u_min u_max v_min v_max].each do |key|
           hovered = key == @hover_edge
@@ -565,7 +574,7 @@ module TranTuanNoiThat
 
           # Chỉ tay nắm TRUNG ĐIỂM là vùng thao tác.
           view.draw_points(
-            midpoint,
+            [midpoint],
             hovered ? 18 : 13,
             2,
             color
@@ -574,7 +583,7 @@ module TranTuanNoiThat
           screen = view.screen_coords(midpoint)
           view.draw_text(
             [screen.x + 10, screen.y - 10],
-            EDGE_NAMES[key],
+            midpoint_label(key, view),
             color: color
           )
         end
@@ -596,13 +605,13 @@ module TranTuanNoiThat
         view.draw(GL_LINES, [locked_mid, drag_mid])
 
         view.draw_points(
-          locked_mid,
+          [locked_mid],
           17,
           2,
           Sketchup::Color.new(230, 45, 45)
         )
         view.draw_points(
-          drag_mid,
+          [drag_mid],
           19,
           2,
           Sketchup::Color.new(40, 130, 240)
@@ -640,3 +649,4 @@ module TranTuanNoiThat
     end
   end
 end
+

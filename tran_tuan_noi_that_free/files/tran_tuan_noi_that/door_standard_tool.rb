@@ -21,7 +21,7 @@ module TranTuanNoiThat
   module DoorStandard
     extend self
 
-    VERSION = '1.9.145'.freeze
+    VERSION = '1.9.146'.freeze
     DICT = 'TT_DOOR_STANDARD'.freeze
     SETTINGS_KEY = 'door_standard_settings_v1'.freeze
     PRESETS_KEY = 'door_standard_presets_v1'.freeze
@@ -979,7 +979,7 @@ module TranTuanNoiThat
       end
 
       def onLButtonDown(_flags, x, y, view)
-        unlock_direction_lock(view) if [:pick_p1, :pick_p2].include?(@state)
+        clear_inference_lock(view) if [:pick_p1, :pick_p2].include?(@state)
 
         case @state
         when :pick_p1
@@ -2188,3 +2188,4 @@ module TranTuanNoiThat
     end
   end
 end
+
