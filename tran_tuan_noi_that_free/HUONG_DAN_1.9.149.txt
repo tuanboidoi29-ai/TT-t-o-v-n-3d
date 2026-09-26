@@ -1,0 +1,23 @@
+1.9.149 — HOÀN THIỆN TẠO VÁCH LAM TRẦN TUẤN NỘI THẤT
+Cập nhật bằng nút Kiểm Tra Cập Nhật trong plugin.
+
+MỚI:
+- TAB đổi NAN DỌC / NAN NGANG ngay khi đang preview.
+- 3 kiểu chia: giữ đúng khe + căn giữa, tự động chia đều khe, hoặc nhập chính xác số lượng nan.
+- Preview và hình học thật dùng cùng một hàm layout để tránh lệch.
+- Group cha được đặt tên VACH_LAM_RxC, Tag TT_VACH_LAM.
+- Từng nan dùng Tag TT_NAN_LAM; Face/Edge bên trong vẫn ở Layer0 theo quy tắc SketchUp.
+- Tấm lót tiếp tục ở Layer0, giữ ABF/is-board=true.
+- CNC vẫn tạo từng biên kín riêng trên Tag ABF_HANENLAMAM hoặc Tag ABF tùy chỉnh.
+- Chọn một vách lam đã tạo rồi mở Tạo Vách Lam: bảng tự nạp thông số cũ và hiện nút ÁP DỤNG VÀO VÁCH ĐÃ CHỌN.
+- Khi sửa bản sao dùng chung Definition, plugin tự Make Unique cho vách được chọn trước khi thay hình học.
+- Tạo mới hoặc cập nhật vách đều là một thao tác Undo.
+- SHIFT đổi LAM ĐƠN / CÓ TẤM LÓT. Phím S mở lại bảng cài đặt.
+
+TƯƠNG THÍCH:
+- Ưu tiên SketchUp 2022; giữ API tương thích SketchUp 2021–2025.
+- Không tự chạy công cụ khi khởi động; toolbar/menu hiện có được giữ nguyên, không tạo icon trùng.
+
+KIỂM THỬ TỰ ĐỘNG:
+- Ruby syntax toàn bộ bản free.
+- Regression VÁCH LAM: dọc/ngang, khe auto/manual, số lượng chính xác, chia khổ, CNC/ABF, 4 hướng kéo, tạo liên tục và Undo.

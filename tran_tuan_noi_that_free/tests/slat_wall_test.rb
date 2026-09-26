@@ -31,6 +31,25 @@ check('auto gaps evenly fill usable width') do
  near(ss.first[0],13);near(ss.last[0]+ss.last[3],968)
  ss.each_cons(2){|a,b|near(b[0]-a[0]-a[3],p[:gap])}
 end
+check('horizontal orientation fills height and keeps full usable length') do
+ p=SW.layout(900,700,SW::DEFAULTS.merge('orientation'=>'horizontal','left'=>10,'right'=>20,'top'=>30,'bottom'=>40))
+ ss=p[:panels][0][:slats]
+ assert(p[:orientation]=='horizontal')
+ assert(ss.all?{|s|s[0]==10 && s[3]==870 && s[4]==40})
+ near(ss.first[1],40)
+ near(ss.last[1]+ss.last[4],670)
+end
+check('count mode uses exact requested quantity and equal computed gaps') do
+ p=SW.layout(1000,1000,SW::DEFAULTS.merge('spacing_mode'=>'count','count'=>8,'width'=>50,'left'=>20,'right'=>20))
+ ss=p[:panels][0][:slats]
+ assert(ss.length==8 && p[:count_per_panel]==8)
+ near(ss.first[0],20);near(ss.last[0]+ss.last[3],980)
+ ss.each_cons(2){|a,b|near(b[0]-a[0]-a[3],p[:gap])}
+end
+check('invalid orientation and impossible count are rejected') do
+ begin;SW.validate(SW::DEFAULTS.merge('orientation'=>'diagonal'));raise 'accepted';rescue RuntimeError=>e;assert(e.message.include?('Hướng lam'));end
+ begin;SW.layout(200,500,SW::DEFAULTS.merge('spacing_mode'=>'count','count'=>10,'width'=>40));raise 'accepted';rescue RuntimeError=>e;assert(e.message.include?('Số lượng'));end
+end
 check('backing contact and recess measured exactly') do
  [0,3,5].each do |depth|
   p=SW.layout(1000,1000,SW::DEFAULTS.merge('mode'=>'backed','recess'=>depth))

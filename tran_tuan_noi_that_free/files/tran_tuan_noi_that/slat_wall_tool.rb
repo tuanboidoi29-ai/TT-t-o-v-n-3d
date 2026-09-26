@@ -5,30 +5,36 @@ require 'json'
 module TranTuanNoiThat
   module SlatWall
     extend self
-    VERSION = '1.9.148'.freeze
+    VERSION = '1.9.149'.freeze
     KEY = 'TT_VACH_LAM'.freeze
     MAX_SLATS = 2000
     DEFAULTS = {
       'mode' => 'single', 'stock_length' => 2440.0, 'stock_width' => 1220.0,
       'stock_thickness' => 17.5, 'width' => 40.0, 'depth' => 17.5,
-      'spacing_mode' => 'auto', 'gap' => 40.0,
+      'orientation' => 'vertical', 'spacing_mode' => 'auto', 'gap' => 40.0, 'count' => 10,
       'left' => 0.0, 'right' => 0.0, 'top' => 0.0, 'bottom' => 0.0,
       'backing' => 9.0, 'recess' => 0.0, 'cnc' => false, 'tag' => 'ABF_HANENLAMAM'
     }.freeze
 
     def validate(raw)
+      raw = {} unless raw.is_a?(Hash)
       o = DEFAULTS.merge(raw.select { |k, _| DEFAULTS.key?(k) })
       %w[stock_length stock_width stock_thickness width depth gap left right top bottom backing recess].each do |key|
         o[key] = Float(o[key].to_s.tr(',', '.'))
         raise 'Thông số phải là số hữu hạn.' unless o[key].finite?
         raise 'Kích thước/khoảng cách không được âm.' if o[key] < 0
       end
+      count_value = Float(o['count'].to_s.tr(',', '.'))
+      raise 'Số lượng lam phải là số hữu hạn.' unless count_value.finite?
+      o['count'] = count_value.round
+      raise 'Số lượng lam phải từ 1 đến 2000.' unless o['count'].between?(1, MAX_SLATS)
       %w[stock_length stock_width stock_thickness width depth backing].each do |key|
         raise 'Khổ ván, rộng/dày lam và dày lót phải lớn hơn 0.' unless o[key] >= 0.1
       end
       raise 'Rộng lam lớn hơn rộng khổ ván.' if o['width'] > o['stock_width']
       raise 'Chế độ không hợp lệ.' unless %w[single backed].include?(o['mode'])
-      raise 'Chế độ khoảng cách không hợp lệ.' unless %w[manual auto].include?(o['spacing_mode'])
+      raise 'Hướng lam không hợp lệ.' unless %w[vertical horizontal].include?(o['orientation'])
+      raise 'Chế độ khoảng cách không hợp lệ.' unless %w[manual auto count].include?(o['spacing_mode'])
       if o['mode'] == 'backed' && o['recess'] >= [o['backing'], o['depth']].min
         raise 'Hạ âm phải nhỏ hơn độ dày tấm lót và độ dày lam.'
       end
@@ -64,13 +70,33 @@ module TranTuanNoiThat
       pw, ph = w / cols, h / rows
       usable_w = pw - o['left'] - o['right']
       usable_h = ph - o['top'] - o['bottom']
-      raise 'Khoảng cách mép làm hết vùng đặt lam.' unless usable_h > 0.1 && usable_w >= o['width']
+      raise 'Khoảng cách mép làm hết vùng đặt lam.' unless usable_w > 0.1 && usable_h > 0.1
+
+      vertical = o['orientation'] == 'vertical'
+      run = vertical ? usable_w : usable_h
+      raise 'Rộng lam lớn hơn vùng còn lại sau khi trừ mép.' if run + 1.0e-9 < o['width']
       nominal_gap = o['gap']
-      count = [( (usable_w + nominal_gap) / (o['width'] + nominal_gap) + 1.0e-9).floor, 1].max
-      gap = count > 1 && o['spacing_mode'] == 'auto' ? (usable_w - count * o['width']) / (count - 1) : nominal_gap
-      used = count * o['width'] + (count - 1) * gap
-      extra = [usable_w - used, 0.0].max / 2.0
-      raise "Quá nhiều lam (#{count * cols * rows}). Tăng rộng/khe lam hoặc tạo từng vùng nhỏ." if count * cols * rows > MAX_SLATS
+
+      case o['spacing_mode']
+      when 'count'
+        count = o['count']
+        used_slats = count * o['width']
+        raise 'Số lượng lam quá lớn so với vùng đặt lam.' if used_slats > run + 1.0e-9
+        gap = count > 1 ? (run - used_slats) / (count - 1) : 0.0
+        extra = count == 1 ? (run - o['width']) / 2.0 : 0.0
+      when 'auto'
+        count = [(((run + nominal_gap) / (o['width'] + nominal_gap)) + 1.0e-9).floor, 1].max
+        gap = count > 1 ? (run - count * o['width']) / (count - 1) : 0.0
+        extra = count == 1 ? (run - o['width']) / 2.0 : 0.0
+      else
+        count = [(((run + nominal_gap) / (o['width'] + nominal_gap)) + 1.0e-9).floor, 1].max
+        gap = nominal_gap
+        used = count * o['width'] + (count - 1) * gap
+        extra = [run - used, 0.0].max / 2.0
+      end
+
+      total = count * cols * rows
+      raise "Quá nhiều lam (#{total}). Giảm số lượng hoặc tạo từng vùng nhỏ." if total > MAX_SLATS
       backed = o['mode'] == 'backed'
       z = backed ? o['backing'] - o['recess'] : 0.0
       panels = []
@@ -78,19 +104,42 @@ module TranTuanNoiThat
         cols.times do |col|
           x, y = col * pw, row * ph
           slats = count.times.map do |i|
-            [x + o['left'] + extra + i * (o['width'] + gap), y + o['bottom'], z,
-             o['width'], usable_h, o['depth']]
+            if vertical
+              [x + o['left'] + extra + i * (o['width'] + gap), y + o['bottom'], z,
+               o['width'], usable_h, o['depth']]
+            else
+              [x + o['left'], y + o['bottom'] + extra + i * (o['width'] + gap), z,
+               usable_w, o['width'], o['depth']]
+            end
           end
           panels << { x: x, y: y, width: pw, height: ph, slats: slats,
                       backing: backed ? [x, y, 0.0, pw, ph, o['backing']] : nil }
         end
       end
       { width: w, height: h, columns: cols, rows: rows, panels: panels,
-        slat_count: count * cols * rows, gap: gap, options: o }
+        slat_count: total, count_per_panel: count, gap: gap, orientation: o['orientation'], options: o }
+    end
+
+    def selected_wall(model = Sketchup.active_model)
+      selected = model.selection.to_a
+      return nil unless selected.length == 1
+      entity = selected.first
+      return nil unless entity.is_a?(Sketchup::Group)
+      return nil if entity.get_attribute(KEY, 'settings').to_s.empty?
+      entity
+    end
+
+    def wall_settings(entity)
+      validate(JSON.parse(entity.get_attribute(KEY, 'settings', '{}')))
+    rescue StandardError
+      settings
     end
 
     def activate
-      Sketchup.active_model.select_tool(Tool.new(settings))
+      model = Sketchup.active_model
+      target = selected_wall(model)
+      options = target ? wall_settings(target) : settings
+      model.select_tool(Tool.new(options, target))
     end
 
     def show_settings(tool)
@@ -116,6 +165,7 @@ module TranTuanNoiThat
         end
       end
       @dialog.add_action_callback('repair_abf') { |_ctx| repair_selected_backings }
+      @dialog.add_action_callback('apply_edit') { |_ctx| @tool.apply_selected_edit if @tool }
       @dialog.set_on_closed { @dialog = nil }
       @dialog.show
     end
@@ -127,29 +177,33 @@ module TranTuanNoiThat
 
     def settings_html
       fields = [['stock_length','Dài khổ ván'],['stock_width','Rộng khổ ván'],['stock_thickness','Dày khổ ván'],
-                ['width','Chiều rộng lam'],['depth','Chiều dày lam'],['gap','Khe lam / khe dự kiến'],
+                ['width','Chiều rộng nan'],['depth','Chiều dày nan'],['gap','Khe nan / khe dự kiến'],
                 ['left','Cách trái'],['right','Cách phải'],['top','Cách trên'],['bottom','Cách dưới']]
       inputs = fields.map { |key, label| "<label>#{label}<span><input id='#{key}' type='number' min='0' step='0.1'> mm</span></label>" }.join
       <<~HTML
         <!doctype html><html lang="vi"><meta charset="utf-8"><style>
-        *{box-sizing:border-box}body{font:14px Arial;margin:0;background:#f4f5f7;color:#202a34}header{padding:17px;background:#223d50;color:white}h2{font-size:18px;margin:0 0 6px}main{padding:14px}section{background:white;padding:14px;border-radius:8px;margin-bottom:12px}label{display:flex;justify-content:space-between;align-items:center;margin:8px 0;gap:10px}input[type=number]{width:105px}input,select{padding:7px;border:1px solid #bbc6cc;border-radius:4px}select{max-width:245px}button{width:100%;padding:12px;background:#c4752a;color:white;border:0;border-radius:5px;font-weight:bold;cursor:pointer}small{display:block;color:#647380;line-height:1.5}canvas{width:100%;height:170px;background:#eef1f4;border-radius:5px}#error{color:#b12828;white-space:pre-line}#info{font-size:12px;line-height:1.5;margin:8px 0}.backed{display:none}
-        </style><header><h2>TRẦN TUẤN · VÁCH LAM</h2>Hai góc chéo · SHIFT đổi chế độ · TAB cài đặt</header><main>
+        *{box-sizing:border-box}body{font:14px Arial;margin:0;background:#f4f5f7;color:#202a34}header{padding:17px;background:#223d50;color:white}h2{font-size:18px;margin:0 0 6px}main{padding:14px}section{background:white;padding:14px;border-radius:8px;margin-bottom:12px}label{display:flex;justify-content:space-between;align-items:center;margin:8px 0;gap:10px}input[type=number]{width:105px}input,select{padding:7px;border:1px solid #bbc6cc;border-radius:4px}select{max-width:245px}button{width:100%;padding:12px;background:#c4752a;color:white;border:0;border-radius:5px;font-weight:bold;cursor:pointer}small{display:block;color:#647380;line-height:1.5}canvas{width:100%;height:170px;background:#eef1f4;border-radius:5px}#error{color:#b12828;white-space:pre-line}#info{font-size:12px;line-height:1.5;margin:8px 0}.backed,.counted{display:none}.edit button{background:#27784a}
+        </style><header><h2>TRẦN TUẤN · TẠO VÁCH LAM</h2>Hai góc chéo · SHIFT lam đơn/có lót · TAB dọc/ngang · S mở bảng</header><main>
         <section><label>Chế độ<select id="mode" onchange="visibility()"><option value="single">Vách lam đơn</option><option value="backed">Vách lam có tấm lót</option></select></label>
+        <label>Hướng nan<select id="orientation"><option value="vertical">Nan dọc</option><option value="horizontal">Nan ngang</option></select></label>
         #{inputs}
-        <label>Khoảng cách<select id="spacing_mode"><option value="manual">Nhập số — giữ đúng khe</option><option value="auto">Tự động — chia đều khe</option></select></label>
-        <small>Chiều cao theo vùng kéo. Vượt khổ ván sẽ chia đều thành các cụm VL. Khoảng cách mép áp dụng cho từng cụm. Tự động dùng khe dự kiến để chọn số lam rồi chia đều; nhập số giữ đúng khe và căn giữa phần dư.</small></section>
+        <label>Kiểu chia<select id="spacing_mode" onchange="visibility()"><option value="manual">Giữ đúng khe + căn giữa</option><option value="auto">Tự động chia đều khe</option><option value="count">Theo số lượng nan</option></select></label>
+        <label class="counted">Số lượng nan / cụm<span><input id="count" type="number" min="1" max="#{MAX_SLATS}" step="1"></span></label>
+        <small>Chiều dài nan bám đúng vùng kéo. Nếu vượt khổ ván, vùng tự chia thành các cụm VL. Mép trái/phải/trên/dưới áp dụng cho từng cụm. Chế độ số lượng tự tính khe để phủ đều vùng còn lại.</small></section>
         <section class="backed"><label>Độ dày tấm lót<span><input id="backing" type="number" min="0.1" step="0.1"> mm</span></label>
         <label>Hạ âm<span><input id="recess" type="number" min="0" step="0.1"> mm</span></label>
         <label>Bật CNC<input id="cnc" type="checkbox"></label><label>Tag biên dạng CNC<input id="tag" type="text" style="width:240px"></label>
-        <small>Hạ âm 0: lam tiếp giáp mặt trước tấm lót. CNC tạo đường biên kín thật trên mặt lót, tương ứng từng lam; lưu độ sâu hạ âm cho mỗi biên dạng.</small></section>
-        <button onclick="apply()">CẬP NHẬT PREVIEW</button><p><button onclick="sketchup.repair_abf()">SỬA TẤM LÓT ABF ĐÃ CHỌN</button></p><p id="error"></p>
-        <section><canvas id="preview" width="420" height="170"></canvas><div id="info"></div><small>Hình mô phỏng nhìn chính diện. Click góc thứ hai hoặc thả sau khi kéo để tạo thật. ESC bỏ vùng đang vẽ.</small></section></main>
+        <small>Tấm lót vẫn giữ Layer0 + ABF/is-board=true. CNC tạo từng biên kín riêng, không phá mặt tấm lót.</small></section>
+        <button onclick="apply()">CẬP NHẬT PREVIEW</button>
+        <p id="editBox" class="edit" style="display:none"><button onclick="sketchup.apply_edit()">ÁP DỤNG VÀO VÁCH ĐÃ CHỌN</button></p>
+        <p><button onclick="sketchup.repair_abf()">SỬA TẤM LÓT ABF ĐÃ CHỌN</button></p><p id="error"></p>
+        <section><canvas id="preview" width="420" height="170"></canvas><div id="info"></div><small>Click góc thứ hai hoặc thả sau khi kéo để tạo thật. ESC bỏ vùng đang vẽ. Khi mở công cụ với một vách lam đã chọn, nút xanh cập nhật chính vách đó trong một Undo.</small></section></main>
         <script>
         const keys=#{JSON.generate(DEFAULTS.keys)};
-        function visibility(){document.querySelectorAll('.backed').forEach(e=>e.style.display=document.getElementById('mode').value==='backed'?'block':'none')}
+        function visibility(){document.querySelectorAll('.backed').forEach(e=>e.style.display=document.getElementById('mode').value==='backed'?'block':'none');document.querySelectorAll('.counted').forEach(e=>e.style.display=document.getElementById('spacing_mode').value==='count'?'flex':'none')}
         function apply(){const o={};keys.forEach(k=>{let e=document.getElementById(k);o[k]=e.type==='checkbox'?e.checked:(e.type==='number'?Number(e.value):e.value)});sketchup.update(JSON.stringify(o))}
         function showError(s){document.getElementById('error').textContent=s}
-        function receive(s){keys.forEach(k=>{let e=document.getElementById(k);if(e.type==='checkbox')e.checked=s.options[k];else e.value=s.options[k]});visibility();showError(s.error||'');const c=document.getElementById('preview'),ctx=c.getContext('2d');ctx.clearRect(0,0,c.width,c.height);const d=s.layout;if(!d)return;let scale=Math.min(392/d.width,142/d.height),ox=(420-d.width*scale)/2,oy=(170-d.height*scale)/2;d.panels.forEach(p=>{if(p.backing){ctx.fillStyle='#b1bac2';ctx.fillRect(ox+p.x*scale,oy+p.y*scale,p.width*scale,p.height*scale)}p.slats.forEach(b=>{ctx.fillStyle='#c58e57';ctx.fillRect(ox+b[0]*scale,oy+b[1]*scale,Math.max(1,b[3]*scale),b[4]*scale)});ctx.strokeStyle='#5c707d';ctx.strokeRect(ox+p.x*scale,oy+p.y*scale,p.width*scale,p.height*scale)});document.getElementById('info').textContent=(s.sample?'Mô phỏng mẫu · ':'Vùng đang vẽ · ')+d.width.toFixed(1)+' × '+d.height.toFixed(1)+' mm · '+d.panels.length+' cụm VL · '+d.slat_count+' lam · khe '+d.gap.toFixed(2)+' mm'}
+        function receive(s){keys.forEach(k=>{let e=document.getElementById(k);if(!e)return;if(e.type==='checkbox')e.checked=s.options[k];else e.value=s.options[k]});visibility();document.getElementById('editBox').style.display=s.editing?'block':'none';showError(s.error||'');const c=document.getElementById('preview'),ctx=c.getContext('2d');ctx.clearRect(0,0,c.width,c.height);const d=s.layout;if(!d)return;let scale=Math.min(392/d.width,142/d.height),ox=(420-d.width*scale)/2,oy=(170-d.height*scale)/2;d.panels.forEach(p=>{if(p.backing){ctx.fillStyle='#b1bac2';ctx.fillRect(ox+p.x*scale,oy+p.y*scale,p.width*scale,p.height*scale)}p.slats.forEach(b=>{ctx.fillStyle='#c58e57';ctx.fillRect(ox+b[0]*scale,oy+b[1]*scale,Math.max(1,b[3]*scale),Math.max(1,b[4]*scale))});ctx.strokeStyle='#5c707d';ctx.strokeRect(ox+p.x*scale,oy+p.y*scale,p.width*scale,p.height*scale)});document.getElementById('info').textContent=(s.editing?'Vách đang chọn · ':(s.sample?'Mô phỏng mẫu · ':'Vùng đang vẽ · '))+d.width.toFixed(1)+' × '+d.height.toFixed(1)+' mm · '+(d.orientation==='vertical'?'nan dọc':'nan ngang')+' · '+d.panels.length+' cụm VL · '+d.slat_count+' nan · khe '+d.gap.toFixed(2)+' mm'}
         window.addEventListener('load',()=>sketchup.ready());
         </script></html>
       HTML
@@ -185,6 +239,10 @@ module TranTuanNoiThat
       m
     end
 
+    def ensure_tag(model, name)
+      model.layers[name] || model.layers.add(name)
+    end
+
     def next_number(model)
       value = model.get_attribute(KEY, 'next_vl', 1).to_i
       pools = [model.entities] + model.definitions.map(&:entities)
@@ -198,28 +256,43 @@ module TranTuanNoiThat
       [value, 1].max
     end
 
-    def create(model, plan, world_transform)
-      raise 'Không có preview hợp lệ.' unless plan && plan[:panels].any?
-      raise 'Đang chỉnh sửa group bị khóa.' if (model.active_path || []).any?(&:locked?)
-      model.start_operation('TT - Tạo vách lam', true)
-      started = true
+    def wall_number(parent)
+      stored = parent.get_attribute(KEY, 'first_vl', nil)
+      return stored.to_i if stored && stored.to_i > 0
+      numbers = parent.entities.grep(Sketchup::Group).map do |entity|
+        match = /\AVL(\d+)\z/.match(entity.name.to_s)
+        match && match[1].to_i
+      end.compact
+      numbers.min
+    end
+
+    def populate_parent(parent, model, plan, first_number)
       o = plan[:options]
-      n = next_number(model)
-      parent = model.active_entities.add_group
-      parent.name = "Vách lam #{o['mode'] == 'backed' ? 'có tấm lót' : 'đơn'}"
-      parent.transformation = model.edit_transform.inverse * world_transform
+      parent_tag = ensure_tag(model, 'TT_VACH_LAM')
+      slat_tag = ensure_tag(model, 'TT_NAN_LAM')
+      parent.name = "VACH_LAM_#{plan[:width].round}x#{plan[:height].round}"
+      parent.layer = parent_tag
+      parent.set_attribute(KEY, 'role', 'wall')
+      parent.set_attribute(KEY, 'version', VERSION)
       parent.set_attribute(KEY, 'settings', JSON.generate(o))
       parent.set_attribute(KEY, 'size_mm', [plan[:width], plan[:height]])
+      parent.set_attribute(KEY, 'first_vl', first_number)
+
       wood = material(model, 'TT Vách lam - Gỗ', [190,140,88])
       backmat = material(model, 'TT Vách lam - Tấm lót', [160,166,174])
-      cnc_tag = o['cnc'] && o['mode'] == 'backed' ? (model.layers[o['tag']] || model.layers.add(o['tag'])) : nil
+      cnc_tag = o['cnc'] && o['mode'] == 'backed' ? ensure_tag(model, o['tag']) : nil
+
       plan[:panels].each_with_index do |panel, index|
         vl = parent.entities.add_group
-        vl.name = "VL#{n + index}"
+        vl.name = "VL#{first_number + index}"
+        vl.layer = parent_tag
+        vl.set_attribute(KEY, 'role', 'panel')
         vl.set_attribute(KEY, 'stock_mm', [o['stock_length'],o['stock_width'],o['stock_thickness']])
         backing = panel[:backing] ? make_box(vl.entities, panel[:backing], "#{vl.name}_TAM_LOT", backmat) : nil
+
         panel[:slats].each_with_index do |box, slat_index|
-          slat = make_box(vl.entities, box, "#{vl.name}_LAM#{slat_index + 1}", wood)
+          slat = make_box(vl.entities, box, "#{vl.name}_LAM#{slat_index + 1}", wood, slat_tag)
+          slat.set_attribute(KEY, 'role', 'slat')
           slat.set_attribute(KEY, 'size_mm', [box[3],box[4],box[5]])
           next unless backing && cnc_tag
           x,y,_z,w,h,_d = box
@@ -227,6 +300,7 @@ module TranTuanNoiThat
           pts = [[x,y],[x+w,y],[x+w,y+h],[x,y+h]].map { |a,b| Geom::Point3d.new(a.mm,b.mm,front_z.mm) }
           add_cnc_profile(backing, pts, slat_index + 1, cnc_tag, o['recess'])
         end
+
         if backing
           backing.set_attribute('ABF', 'is-board', true)
           backing.set_attribute(KEY, 'role', 'backing')
@@ -236,7 +310,37 @@ module TranTuanNoiThat
           backing.set_attribute(KEY, 'cnc_tag', o['tag']) if cnc_tag
         end
       end
-      model.set_attribute(KEY, 'next_vl', n + plan[:panels].length)
+      parent
+    end
+
+    def create(model, plan, world_transform)
+      raise 'Không có preview hợp lệ.' unless plan && plan[:panels].any?
+      raise 'Đang chỉnh sửa group bị khóa.' if (model.active_path || []).any?(&:locked?)
+      model.start_operation('TT - Tạo vách lam', true)
+      started = true
+      first_number = next_number(model)
+      parent = model.active_entities.add_group
+      parent.transformation = model.edit_transform.inverse * world_transform
+      populate_parent(parent, model, plan, first_number)
+      model.set_attribute(KEY, 'next_vl', first_number + plan[:panels].length)
+      model.commit_operation
+      parent
+    rescue StandardError
+      model.abort_operation if started
+      raise
+    end
+
+    def update_existing(parent, plan)
+      raise 'Vách đã chọn không hợp lệ.' unless parent && plan && plan[:panels].any?
+      raise 'Vách đang khóa. Mở khóa trước khi sửa.' if parent.locked?
+      model = Sketchup.active_model
+      model.start_operation('TT - Cập nhật vách lam', true)
+      started = true
+      parent.make_unique if parent.definition.instances.length > 1
+      first_number = wall_number(parent) || next_number(model)
+      children = parent.entities.to_a
+      parent.entities.erase_entities(children) unless children.empty?
+      populate_parent(parent, model, plan, first_number)
       model.commit_operation
       parent
     rescue StandardError
@@ -329,10 +433,13 @@ module TranTuanNoiThat
     end
 
     class Tool
-      def initialize(options)
+      def initialize(options, edit_target = nil)
         @options = options
+        @edit_target = edit_target
         @ip = Sketchup::InputPoint.new
         @first_ip = Sketchup::InputPoint.new
+        @shift_down = false
+        @tab_down = false
         reset
       end
       def activate
@@ -359,20 +466,48 @@ module TranTuanNoiThat
       end
       def status
         mode = @options['mode'] == 'backed' ? 'CÓ TẤM LÓT' : 'LAM ĐƠN'
-        Sketchup.status_text = "TT VÁCH LAM · #{mode} · #{@p1 ? 'rê tới góc chéo, click hoặc thả để tạo' : 'chọn góc đầu hoặc kéo trong không gian'} · SHIFT đổi chế độ · TAB cài đặt · ESC hủy"
+        direction = @options['orientation'] == 'vertical' ? 'NAN DỌC' : 'NAN NGANG'
+        action = @edit_target ? 'đang sửa vách đã chọn; chỉnh thông số rồi bấm ÁP DỤNG' : (@p1 ? 'rê tới góc chéo, click hoặc thả để tạo' : 'chọn góc đầu hoặc kéo trong không gian')
+        Sketchup.status_text = "TT VÁCH LAM · #{mode} · #{direction} · #{action} · SHIFT đổi chế độ · TAB đổi hướng · S mở bảng · ESC hủy"
       end
       def dialog_state
-        sample = @plan.nil?
-        plan = @plan || SlatWall.layout(@options['stock_width'], @options['stock_length'], @options)
-        { options: @options, layout: plan, sample: sample, error: @error }
+        if @edit_target
+          size = Array(@edit_target.get_attribute(KEY, 'size_mm', []))
+          plan = size.length == 2 ? SlatWall.layout(size[0], size[1], @options) : nil
+          { options: @options, layout: plan, sample: false, editing: true, error: @error }
+        else
+          sample = @plan.nil?
+          plan = @plan || SlatWall.layout(@options['stock_width'], @options['stock_length'], @options)
+          { options: @options, layout: plan, sample: sample, editing: false, error: @error }
+        end
       rescue StandardError => e
-        { options: @options, layout: nil, sample: true, error: e.message }
+        { options: @options, layout: nil, sample: true, editing: !@edit_target.nil?, error: e.message }
       end
       def update_settings(options)
         @options = options
         rebuild if @p1 && @p2
         status
         Sketchup.active_model.active_view.invalidate
+      end
+      def apply_selected_edit
+        raise 'Không có vách lam được chọn để cập nhật.' unless @edit_target
+        size = Array(@edit_target.get_attribute(KEY, 'size_mm', []))
+        raise 'Vách cũ thiếu kích thước gốc.' unless size.length == 2
+        plan = SlatWall.layout(size[0], size[1], @options)
+        SlatWall.update_existing(@edit_target, plan)
+        @error = nil
+        SlatWall.save_settings(@options)
+        SlatWall.send_state
+        Sketchup.active_model.selection.clear
+        Sketchup.active_model.selection.add(@edit_target)
+        Sketchup.active_model.active_view.invalidate
+        UI.messagebox('Đã cập nhật vách lam trong một thao tác Undo.')
+        true
+      rescue StandardError => e
+        @error = e.message
+        SlatWall.send_state
+        UI.messagebox("Không cập nhật được vách lam: #{e.message}")
+        false
       end
       def onKeyDown(key, repeat, _flags, view)
         if key == 16
@@ -391,6 +526,16 @@ module TranTuanNoiThat
           view.invalidate
           true
         elsif key == 9
+          return true if @tab_down || repeat.to_i > 1
+          @tab_down = true
+          @options = SlatWall.validate(@options.merge('orientation' => @options['orientation'] == 'vertical' ? 'horizontal' : 'vertical'))
+          SlatWall.save_settings(@options)
+          rebuild if @p1 && @p2
+          SlatWall.send_state
+          status
+          view.invalidate
+          true
+        elsif key == 83
           SlatWall.show_settings(self)
           true
         else
@@ -399,6 +544,7 @@ module TranTuanNoiThat
       end
       def onKeyUp(key, _repeat, _flags, _view)
         @shift_down = false if key == 16
+        @tab_down = false if key == 9
       end
       def onCancel(_reason, view)
         if @p1
