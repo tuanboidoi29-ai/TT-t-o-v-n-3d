@@ -1,0 +1,14 @@
+1.9.151 — FIX TẠO VÁCH LAM NGOÀI KHÔNG GIAN LÀM VIỆC
+Cập nhật bằng nút Kiểm Tra Cập Nhật trong plugin.
+
+SỬA:
+- Khi chuột không bắt được Face/Endpoint/Edge, P1 không còn chiếu lên mặt phẳng đi qua gốc model [0,0,0].
+- P1 tự do được chiếu lên mặt phẳng qua camera.target, tức vùng công trình đang nhìn.
+- Vì vậy có thể tạo Vách Lam trong vùng trống dù model nằm xa gốc tọa độ.
+- Sau P1, P2 tiếp tục chạy trên mặt phẳng vách cố định để preview và hình học thật trùng nhau.
+- Vách tự do vẫn giữ trục Z đứng; mặt vách quay theo hướng nhìn gần nhất.
+- Khi nhìn gần thẳng từ trên/xuống dưới, có fallback hướng ngang ổn định thay vì dùng normal Z.
+
+GIỮ NGUYÊN 1.9.150:
+- Edge CNC nằm trực tiếp trong TAM_LOT để ABF trải không bị tách.
+- Nan dọc/ngang, 3 kiểu chia, sửa vách đã chọn và một Undo.

@@ -160,6 +160,31 @@ class Geom::Transformation
  def yaxis;Geom::Vector3d.new(m[0][1],m[1][1],m[2][1]);end
  def zaxis;Geom::Vector3d.new(m[0][2],m[1][2],m[2][2]);end
 end
+module Geom
+ def self.intersect_line_plane(line,plane)
+  p,d=line;q,n=plane
+  den=d.x*n.x+d.y*n.y+d.z*n.z
+  return nil if den.abs<1.0e-9
+  t=((q.x-p.x)*n.x+(q.y-p.y)*n.y+(q.z-p.z)*n.z)/den
+  Point3d.new(p.x+d.x*t,p.y+d.y*t,p.z+d.z*t)
+ end
+end
+check('free-space first point uses current camera target plane, not model origin') do
+ tool=SW::Tool.new(SW::DEFAULTS)
+ view=TestView.new
+ view.point=nil
+ camera=Struct.new(:eye,:target,:direction,:up).new(
+  Geom::Point3d.new(0,0,-1000.mm),
+  Geom::Point3d.new(500.mm,600.mm,350.mm),
+  Geom::Vector3d.new(0,0,1),
+  Geom::Vector3d.new(0,1,0)
+ )
+ view.define_singleton_method(:camera){camera}
+ view.define_singleton_method(:pickray){|x,y|[Geom::Point3d.new(x.mm,y.mm,-1000.mm),Geom::Vector3d.new(0,0,1)]}
+ p=tool.send(:pick,view,120,240)
+ assert(p)
+ near(p.x,120.mm);near(p.y,240.mm);near(p.z,350.mm)
+end
 check('four diagonal drag directions produce the same dimensions') do
  tool=SW::Tool.new(SW::DEFAULTS)
  [-1,1].product([-1,1]).each do |sx,sy|

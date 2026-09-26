@@ -5,7 +5,7 @@ require 'json'
 module TranTuanNoiThat
   module SlatWall
     extend self
-    VERSION = '1.9.150'.freeze
+    VERSION = '1.9.151'.freeze
     KEY = 'TT_VACH_LAM'.freeze
     MAX_SLATS = 2000
     DEFAULTS = {
@@ -574,6 +574,37 @@ module TranTuanNoiThat
           Sketchup.active_model.select_tool(nil)
         end
       end
+      def free_view_anchor(view)
+        camera = view.camera
+        return camera.target if camera.respond_to?(:target) && camera.target
+        model = Sketchup.active_model
+        bounds = model.bounds if model.respond_to?(:bounds)
+        return bounds.center if bounds && bounds.respond_to?(:valid?) && bounds.valid?
+        Geom::Point3d.new(0,0,0)
+      rescue StandardError
+        Geom::Point3d.new(0,0,0)
+      end
+      def free_wall_normal(view)
+        direction = view.camera.direction
+        normal = Geom::Vector3d.new(-direction.x,-direction.y,0)
+        if normal.length < 1.0e-8
+          camera_up = view.camera.respond_to?(:up) ? view.camera.up : Geom::Vector3d.new(0,1,0)
+          normal = Geom::Vector3d.new(camera_up.x,camera_up.y,0)
+          normal = Geom::Vector3d.new(0,-1,0) if normal.length < 1.0e-8
+        end
+        normal.normalize!
+        normal
+      end
+      def free_space_pick(view, x, y)
+        anchor = free_view_anchor(view)
+        ray = view.pickray(x,y)
+        direction = view.camera.direction
+        point = Geom.intersect_line_plane(ray,[anchor,direction])
+        point ||= Geom.intersect_line_plane(ray,[anchor,free_wall_normal(view)])
+        point
+      rescue StandardError
+        nil
+      end
       def basis_at(point, view)
         normal = nil
         if @ip.valid? && @ip.face
@@ -591,12 +622,7 @@ module TranTuanNoiThat
             end
           end
         end
-        unless normal
-          direction = view.camera.direction
-          normal = Geom::Vector3d.new(-direction.x,-direction.y,0)
-          normal = Geom::Vector3d.new(0,0,direction.z > 0 ? -1 : 1) if normal.length < 1.0e-8
-          normal.normalize!
-        end
+        normal = free_wall_normal(view) unless normal
         normal.reverse! if normal.dot(view.camera.direction) > 0
         up = Geom::Vector3d.new(0,0,1)
         up = Geom::Vector3d.new(0,1,0) if up.cross(normal).length < 0.001
@@ -615,10 +641,7 @@ module TranTuanNoiThat
         elsif @ip.valid?
           @ip.position
         else
-          origin = Geom::Point3d.new(0,0,0)
-          plane = basis_at(origin,view)
-          Geom.intersect_line_plane(view.pickray(x,y),[origin,plane.zaxis]) ||
-            Geom.intersect_line_plane(view.pickray(x,y),[origin,view.camera.direction])
+          free_space_pick(view,x,y)
         end
       end
       def onMouseMove(_flags,x,y,view)
@@ -627,7 +650,7 @@ module TranTuanNoiThat
           @p2 = @hover
           rebuild
         end
-        view.tooltip = @error || (@ip.valid? ? @ip.tooltip : 'Vẽ tự do trong không gian')
+        view.tooltip = @error || (@ip.valid? ? @ip.tooltip : 'Vẽ tự do tại vùng đang nhìn · click P1 rồi P2')
         view.invalidate
       rescue StandardError => e
         @error = e.message
