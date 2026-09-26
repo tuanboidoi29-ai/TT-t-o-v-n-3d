@@ -174,9 +174,6 @@ module TranTuanNoiThat
           File.binwrite(path, bytes)
         end
 
-        # Kiểm tra cú pháp toàn bộ Ruby vừa tải TRƯỚC KHI chép đè file đang chạy.
-        preflight_ruby_syntax!(stage, items)
-
         backup_root = File.join(TranTuanNoiThat::ROOT, 'backup', "#{Time.now.strftime('%Y%m%d_%H%M%S')}_#{Process.pid}")
         items.each do |item|
           relative = item.fetch('path')
@@ -242,24 +239,6 @@ module TranTuanNoiThat
       ensure
         FileUtils.remove_entry(stage) if stage && File.directory?(stage)
       end
-    end
-
-    def preflight_ruby_syntax!(stage, items)
-      return true unless defined?(RubyVM::InstructionSequence)
-
-      Array(items).each do |item|
-        relative = item.fetch('path').to_s
-        next unless relative.end_with?('.rb')
-
-        path = File.join(stage, relative)
-        source = File.binread(path)
-        begin
-          RubyVM::InstructionSequence.compile(source, path, path, 1)
-        rescue SyntaxError => error
-          raise "Tệp Ruby tải về lỗi cú pháp: #{relative}\n#{error.message}"
-        end
-      end
-      true
     end
 
     def normalize(version)
@@ -335,7 +314,7 @@ module TranTuanNoiThat
       raise 'Máy chủ cập nhật không hợp lệ.' unless %w[raw.githubusercontent.com api.github.com].include?(uri.host)
 
       headers = {
-        'User-Agent' => 'TranTuanNoiThat-SketchUp/1.9.149',
+        'User-Agent' => 'TranTuanNoiThat-SketchUp/1.9.145',
         'Cache-Control' => 'no-cache, no-store, max-age=0',
         'Pragma' => 'no-cache'
       }
