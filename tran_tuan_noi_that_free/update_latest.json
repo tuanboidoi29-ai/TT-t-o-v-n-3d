@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.149",
+  "version": "1.9.150",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Hoàn thiện Tạo Vách Lam: TAB đổi nan dọc/ngang; thêm chia theo số lượng; preview và hình học dùng chung layout; Tag TT_VACH_LAM/TT_NAN_LAM; chọn vách cũ để nạp thông số và cập nhật trong một Undo; giữ tấm lót Layer0 + ABF/is-board và CNC biên kín.",
+  "notes": "Fix ABF Vách Lam: biên CNC không còn là group con; Edge biên dạng nằm trực tiếp trong TAM_LOT và mang Tag ABF, nên khi trải/nesting biên dạng đi cùng tấm lót. Nút sửa ABF chuyển vách 1.9.148/1.9.149 sang cấu trúc mới.",
   "files": [
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -14,7 +14,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "833f30a370487dca5e2a009c91c4bdefc3e580fa934b0f91ca03603e7597ecb7"
+      "sha256": "d96c1b05ebe1b5d6c8f9143e2e3b76a50d2c84af8d5e2f60dce7910b29494415"
     },
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -29,7 +29,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "7d9144fe88439567cee4338ea82ed190dd48066e66264902da79d1896d1271e5"
+      "sha256": "8fc8a333e857d43f5e478b4b32896a14c82c3a2798bcd231baa9a38002f573cf"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -279,7 +279,7 @@
     {
       "path": "tran_tuan_noi_that/slat_wall_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/slat_wall_tool.rb",
-      "sha256": "1c6d3505096a7bbbd900948c3714b2127bb59c5263313d53470876ef4e31fad5"
+      "sha256": "95d2236fbc080a8cc25cc368396cd0c549b62af279bb4e3eef55e2448fe8ec94"
     },
     {
       "path": "tran_tuan_noi_that/stretch_auto_scan_fix.rb",

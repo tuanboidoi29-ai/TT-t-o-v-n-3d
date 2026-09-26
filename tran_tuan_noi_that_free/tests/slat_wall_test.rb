@@ -105,7 +105,7 @@ class TestModel
  def definitions;entities.map(&:definition);end
 end
 set_model
-check('real builder: VL hierarchy, individual slats, closed CNC paths and custom tag') do
+check('real builder: VL hierarchy, individual slats, direct CNC edges and custom tag') do
  p=SW.layout(1400,1000,SW::DEFAULTS.merge('mode'=>'backed','cnc'=>true,'tag'=>'ABF_TEST','recess'=>3))
  parent=SW.create(Sketchup.model,p,Geom::Transformation.new)
  assert(parent.entities.map(&:name)==['VL1','VL2'])
@@ -115,16 +115,15 @@ check('real builder: VL hierarchy, individual slats, closed CNC paths and custom
   count=p[:panels][i][:slats].size
   assert(vl.entities.size==count+1)
   assert(backing.get_attribute(SW::KEY,'profile_count')==count)
-  profiles=backing.entities.grep(Sketchup::Group)
-  assert(profiles.size==count)
-  assert(backing.entities.grep(Sketchup::Edge).empty?)
-  profiles.each do |profile|
-   assert(profile.layer.name=='ABF_TEST')
-   assert(profile.get_attribute(SW::KEY,'depth_mm')==3)
-   loop=profile.entities.grep(Sketchup::Edge)
+  assert(backing.entities.grep(Sketchup::Group).empty?)
+  profile_edges=backing.entities.grep(Sketchup::Edge)
+  assert(profile_edges.size==count*4)
+  count.times do |n|
+   loop=profile_edges.select{|e|e.get_attribute(SW::KEY,'profile')==n+1}
    assert(loop.size==4)
-   near(loop.first.start.position.distance(loop.last.end.position),0)
-   assert(loop.all?{|e|e.layer.name=='Layer0'})
+   assert(loop.all?{|e|e.layer.name=='ABF_TEST'})
+   assert(loop.all?{|e|e.get_attribute(SW::KEY,'role')=='cnc_edge'})
+   assert(loop.all?{|e|e.get_attribute(SW::KEY,'depth_mm')==3})
   end
   assert(backing.entities.grep(Sketchup::Face).size==6)
  end
@@ -138,6 +137,7 @@ check('CNC off leaves backing with no machining profile edges') do
  parent=SW.create(Sketchup.model,p,Geom::Transformation.new)
  backing=parent.entities.first.entities.first
  assert(backing.entities.grep(Sketchup::Edge).empty?)
+ assert(backing.entities.grep(Sketchup::Group).empty?)
  assert(backing.get_attribute(SW::KEY,'profile_count')==0)
 end
 set_model
@@ -227,20 +227,29 @@ class Sketchup::Entities
  def add_line(a,b);add_edges(a,b).first;end
  def erase_entities(e);delete(e);end
 end
-check('repair legacy backing moves CNC edges once and preserves board faces') do
+check('repair migrates child CNC group into direct edges that stay inside backing') do
  set_model
  tag=Sketchup.model.layers.add('ABF_HANENLAMAM')
- backing=SW.make_box(Sketchup.model.entities,[0,0,0,600,1200,9],'VL1_TAM_LOT',nil,tag)
+ backing=SW.make_box(Sketchup.model.entities,[0,0,0,600,1200,9],'VL1_TAM_LOT',nil)
  points=[[20,20],[60,20],[60,1180],[20,1180]].map{|a,b|Geom::Point3d.new(a.mm,b.mm,9.mm)}
- backing.entities.add_edges(*(points+[points.first])).each{|e|e.set_attribute(SW::KEY,'profiles',[1]);e.layer=tag}
- backing.set_attribute(SW::KEY,'cnc_tag',tag.name);backing.set_attribute(SW::KEY,'profile_count',1)
+ legacy=backing.entities.add_group
+ legacy.name='ABF_HANENLAMAM_1';legacy.layer=tag
+ legacy.set_attribute(SW::KEY,'role','cnc_profile')
+ legacy.set_attribute(SW::KEY,'profile',1)
+ legacy.set_attribute(SW::KEY,'depth_mm',3)
+ legacy.entities.add_edges(*(points+[points.first]))
+ backing.set_attribute(SW::KEY,'cnc_tag',tag.name);backing.set_attribute(SW::KEY,'profile_count',1);backing.set_attribute(SW::KEY,'depth_mm',3)
  SW.repair_backing(backing,Sketchup.model)
  assert(backing.layer.name=='Layer0');assert(backing.get_attribute('ABF','is-board'))
  assert(backing.entities.grep(Sketchup::Face).size==6)
- assert(backing.entities.grep(Sketchup::Edge).empty?)
- profiles=backing.entities.grep(Sketchup::Group);assert(profiles.size==1)
- assert(profiles.first.layer.name=='ABF_HANENLAMAM')
- assert(profiles.first.entities.grep(Sketchup::Edge).size==4)
+ assert(backing.entities.grep(Sketchup::Group).empty?)
+ profiles=backing.entities.grep(Sketchup::Edge)
+ assert(profiles.size==4)
+ assert(profiles.all?{|e|e.layer.name=='ABF_HANENLAMAM'})
+ assert(profiles.all?{|e|e.get_attribute(SW::KEY,'role')=='cnc_edge'})
+ assert(profiles.all?{|e|e.get_attribute(SW::KEY,'profile')==1})
+ assert(profiles.all?{|e|e.get_attribute(SW::KEY,'depth_mm')==3})
  SW.repair_backing(backing,Sketchup.model)
- assert(backing.entities.grep(Sketchup::Group).size==1)
+ assert(backing.entities.grep(Sketchup::Group).empty?)
+ assert(backing.entities.grep(Sketchup::Edge).size==4)
 end

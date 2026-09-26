@@ -1,0 +1,24 @@
+1.9.150 — FIX TẤM LÓT + BIÊN DẠNG ABF KHÔNG BỊ TÁCH KHI TRẢI
+Cập nhật bằng nút Kiểm Tra Cập Nhật trong plugin.
+
+SỬA LỖI CHÍNH:
+- Không tạo group con riêng cho từng biên CNC nữa.
+- Biên CNC là Edge thật nằm trực tiếp trong chính group TAM_LOT.
+- Các Edge CNC mang Tag ABF_HANENLAMAM hoặc Tag ABF tùy chỉnh.
+- Mỗi Edge lưu profile number + depth_mm để giữ thông tin gia công.
+- Tấm lót vẫn là một board duy nhất, Layer0 + ABF/is-board=true.
+- Khi ABF trải/nesting, tấm lót và biên dạng dùng chung một group nên không bị tách thành hai đối tượng.
+
+SỬA VÁCH ĐÃ TẠO BẰNG 1.9.148 / 1.9.149:
+- Chọn group vách hoặc TAM_LOT.
+- Mở Tạo Vách Lam.
+- Bấm SỬA TẤM LÓT ABF ĐÃ CHỌN.
+- Plugin chuyển các group CNC con thành Edge CNC trực tiếp trong TAM_LOT.
+- Một lần Undo hoàn tác toàn bộ thao tác sửa.
+
+GIỮ NGUYÊN:
+- Nan dọc / ngang.
+- Chia khe auto/manual/theo số lượng.
+- Tấm lót, hạ âm, CNC.
+- Tag TT_VACH_LAM / TT_NAN_LAM.
+- Tạo mới hoặc cập nhật trong một Undo.
