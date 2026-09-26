@@ -6,7 +6,7 @@ module TranTuanNoiThat
   module TamPro
     extend self
 
-    VERSION = '1.9.146'.freeze
+    VERSION = '1.9.149'.freeze
     EPS = 0.001
     QUICK_NAMES = ['Trái', 'Phải', 'Trên', 'Dưới', 'Trước', 'Sau'].freeze
 
@@ -726,7 +726,7 @@ module TranTuanNoiThat
     def rename_html
       css = common_css
       js = common_js
-      quick = QUICK_NAMES.map { |name| %(<button onclick="quick('#{name}')">#{name}</button>) }.join
+      quick = QUICK_NAMES.map { |name| %(<button onclick='quick(#{JSON.generate(name)})'>#{name}</button>) }.join
       <<~HTML
         <!doctype html><html><head><meta charset="UTF-8"><style>#{css}</style></head>
         <body>
