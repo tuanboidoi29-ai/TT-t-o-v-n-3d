@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.151",
+  "version": "1.9.152",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Fix tạo Vách Lam ngoài không gian: P1 tự do dùng mặt phẳng qua camera.target thay vì gốc model, giữ Z đứng và hướng mặt theo camera; tiếp tục giữ Edge CNC trực tiếp trong TAM_LOT để ABF trải không tách.",
+  "notes": "Fix Vách Lam bị khóa hướng: vẽ tự do không dùng P1 làm inference reference; hướng mặt vách cập nhật động theo P1→P2, rê trái/phải/chéo đều xoay theo chuột; giữ Z đứng, camera.target free-space và Edge CNC trong TAM_LOT.",
   "files": [
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -14,7 +14,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "0a5fa44495e6a917884d258b811c97114fdb7be9394c72cb38165f0237d89db1"
+      "sha256": "4dea35e3e3427b6e56d3f5653a5cdc248dca9a28ff0f8b97b12b70e4644afd18"
     },
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -29,7 +29,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "be371125db3342997cb8f66eab9f41e677833a5353073a4a5eb9ff460e7c2d7c"
+      "sha256": "5e9dbbb8eab724bf19a91bd1f6fe57ae2dc3275d61d840f9f2b59ca5973b2274"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -279,7 +279,7 @@
     {
       "path": "tran_tuan_noi_that/slat_wall_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/slat_wall_tool.rb",
-      "sha256": "c37a5b8005f6eecb64734660d9661b75d7487e09fd597575c0a90082536029dc"
+      "sha256": "813ac4ea4b0526ee900bf84a4336d2923eafcefbf2ee66dc74445833d4e361c5"
     },
     {
       "path": "tran_tuan_noi_that/stretch_auto_scan_fix.rb",

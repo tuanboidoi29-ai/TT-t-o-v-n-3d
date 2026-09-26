@@ -185,6 +185,19 @@ check('free-space first point uses current camera target plane, not model origin
  assert(p)
  near(p.x,120.mm);near(p.y,240.mm);near(p.z,350.mm)
 end
+check('free wall basis follows P1-P2 XY direction instead of locking to camera') do
+ tool=SW::Tool.new(SW::DEFAULTS)
+ view=TestView.new
+ p1=Geom::Point3d.new(0,0,0)
+ b1=tool.send(:free_basis_from,p1,Geom::Point3d.new(100.mm,100.mm,500.mm),view)
+ b2=tool.send(:free_basis_from,p1,Geom::Point3d.new(-100.mm,100.mm,500.mm),view)
+ assert(b1 && b2)
+ u1=b1.xaxis;u2=b2.xaxis
+ near(u1.x.abs,u1.y.abs);near(u2.x.abs,u2.y.abs)
+ assert(u1.x>0 && u1.y>0)
+ assert(u2.x<0 && u2.y>0)
+ assert((u1.x-u2.x).abs>0.001)
+end
 check('four diagonal drag directions produce the same dimensions') do
  tool=SW::Tool.new(SW::DEFAULTS)
  [-1,1].product([-1,1]).each do |sx,sy|

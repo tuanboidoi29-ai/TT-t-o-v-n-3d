@@ -5,7 +5,7 @@ require 'json'
 module TranTuanNoiThat
   module SlatWall
     extend self
-    VERSION = '1.9.151'.freeze
+    VERSION = '1.9.152'.freeze
     KEY = 'TT_VACH_LAM'.freeze
     MAX_SLATS = 2000
     DEFAULTS = {
@@ -481,12 +481,13 @@ module TranTuanNoiThat
         @error = nil
         @drag_start = nil
         @hover = nil
+        @free_mode = false
       end
       def status
         mode = @options['mode'] == 'backed' ? 'CÓ TẤM LÓT' : 'LAM ĐƠN'
         direction = @options['orientation'] == 'vertical' ? 'NAN DỌC' : 'NAN NGANG'
         action = @edit_target ? 'đang sửa vách đã chọn; chỉnh thông số rồi bấm ÁP DỤNG' : (@p1 ? 'rê tới góc chéo, click hoặc thả để tạo' : 'chọn góc đầu hoặc kéo trong không gian')
-        Sketchup.status_text = "TT VÁCH LAM · #{mode} · #{direction} · #{action} · SHIFT đổi chế độ · TAB đổi hướng · S mở bảng · ESC hủy"
+        Sketchup.status_text = "TT VÁCH LAM · #{mode} · #{direction} · #{action} · VẼ TỰ DO KHÔNG KHÓA TRỤC · SHIFT đổi chế độ · TAB đổi hướng · S mở bảng · ESC hủy"
       end
       def dialog_state
         if @edit_target
@@ -605,9 +606,22 @@ module TranTuanNoiThat
       rescue StandardError
         nil
       end
+      def free_basis_from(point, candidate, _view)
+        delta = point.vector_to(candidate)
+        horizontal = Geom::Vector3d.new(delta.x, delta.y, 0)
+        return nil if horizontal.length < 1.0e-8
+        u = horizontal.normalize
+        v = Geom::Vector3d.new(0,0,1)
+        normal = u.cross(v)
+        return nil if normal.length < 1.0e-8
+        normal.normalize!
+        Geom::Transformation.axes(point,u,v,normal)
+      rescue StandardError
+        nil
+      end
       def basis_at(point, view)
         normal = nil
-        if @ip.valid? && @ip.face
+        if @ip.valid? && @ip.respond_to?(:face) && @ip.face
           f = @ip.face
           tr = @ip.transformation
           vertices = f.outer_loop.vertices
@@ -631,6 +645,18 @@ module TranTuanNoiThat
         Geom::Transformation.axes(point,u,v,normal)
       end
       def pick(view, x, y)
+        if @p1 && @free_mode
+          # Vẽ tự do: không truyền @first_ip để tránh SketchUp hút P2 theo inference/trục.
+          @ip.pick(view,x,y)
+          point = @ip.valid? ? @ip.position : free_space_pick(view,x,y)
+          return nil unless point
+          dynamic_basis = free_basis_from(@p1,point,view)
+          @basis = dynamic_basis if dynamic_basis
+          return nil unless @basis
+          local = point.transform(@basis.inverse)
+          return Geom::Point3d.new(local.x,local.y,0).transform(@basis)
+        end
+
         @p1 && @first_ip.valid? ? @ip.pick(view,x,y,@first_ip) : @ip.pick(view,x,y)
         if @p1
           normal = @basis.zaxis
@@ -650,7 +676,7 @@ module TranTuanNoiThat
           @p2 = @hover
           rebuild
         end
-        view.tooltip = @error || (@ip.valid? ? @ip.tooltip : 'Vẽ tự do tại vùng đang nhìn · click P1 rồi P2')
+        view.tooltip = @error || (@ip.valid? ? @ip.tooltip : 'Vẽ tự do KHÔNG KHÓA HƯỚNG · P1 → rê P2 để xoay mặt vách')
         view.invalidate
       rescue StandardError => e
         @error = e.message
@@ -668,7 +694,9 @@ module TranTuanNoiThat
           commit(view)
         else
           @p1 = point
-          @first_ip.copy!(@ip) if @ip.valid?
+          picked_face = @ip.valid? && @ip.respond_to?(:face) ? @ip.face : nil
+          @free_mode = picked_face.nil?
+          @first_ip.copy!(@ip) if !@free_mode && @ip.valid? && @first_ip.respond_to?(:copy!)
           @basis = basis_at(point,view)
           @drag_start = [x,y]
           status

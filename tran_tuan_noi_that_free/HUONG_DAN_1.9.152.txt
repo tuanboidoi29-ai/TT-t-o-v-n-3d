@@ -1,0 +1,16 @@
+1.9.152 — BỎ KHÓA HƯỚNG KHI TẠO VÁCH LAM
+Cập nhật bằng nút Kiểm Tra Cập Nhật trong plugin.
+
+SỬA LỖI:
+- Vẽ tự do ngoài không gian không còn chốt mặt phẳng vách theo camera ngay từ P1.
+- P1 chỉ là điểm gốc; hướng ngang của vách được tính liên tục từ P1 → P2.
+- Rê P2 sang trái/phải/chéo thì mặt vách xoay theo đúng hướng rê.
+- Chế độ vẽ tự do không truyền P1 làm inference reference cho InputPoint, tránh hút/khóa P2 theo trục SketchUp.
+- Vẫn bắt Endpoint/Edge/Face khi con trỏ thực sự chạm đối tượng.
+- Trục Z vẫn là chiều đứng của vách.
+- Preview và hình học thật dùng cùng @basis động nên không lệch sau click.
+
+GIỮ NGUYÊN:
+- 1.9.151: tạo được vách ngoài vùng trống theo camera.target.
+- 1.9.150: Edge CNC nằm trực tiếp trong TAM_LOT để ABF trải không tách.
+- Nan dọc/ngang, chia khe auto/manual/theo số lượng, sửa vách và một Undo.
