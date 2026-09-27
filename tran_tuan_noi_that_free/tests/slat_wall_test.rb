@@ -50,16 +50,16 @@ check('invalid orientation and impossible count are rejected') do
  begin;SW.validate(SW::DEFAULTS.merge('orientation'=>'diagonal'));raise 'accepted';rescue RuntimeError=>e;assert(e.message.include?('Hướng lam'));end
  begin;SW.layout(200,500,SW::DEFAULTS.merge('spacing_mode'=>'count','count'=>10,'width'=>40));raise 'accepted';rescue RuntimeError=>e;assert(e.message.include?('Số lượng'));end
 end
-check('backing contact and recess measured exactly') do
+check('backing contact and recess measured exactly at 17.5mm') do
  [0,3,5].each do |depth|
   p=SW.layout(1000,1000,SW::DEFAULTS.merge('mode'=>'backed','recess'=>depth))
-  near(p[:panels][0][:slats][0][2],9-depth)
-  near(p[:panels][0][:backing][5],9)
+  near(p[:panels][0][:slats][0][2],17.5-depth)
+  near(p[:panels][0][:backing][5],17.5)
  end
 end
 check('CNC custom tag normalized; invalid recess and oversize rejected') do
  assert(SW.validate(SW::DEFAULTS.merge('tag'=>'TEST'))['tag']=='ABF_TEST')
- begin;SW.validate(SW::DEFAULTS.merge('mode'=>'backed','recess'=>9));raise 'accepted';rescue RuntimeError=>e;assert(e.message.include?('Hạ âm'));end
+ begin;SW.validate(SW::DEFAULTS.merge('mode'=>'backed','recess'=>17.5));raise 'accepted';rescue RuntimeError=>e;assert(e.message.include?('Hạ âm'));end
  begin;SW.layout(100_000,100_000,SW::DEFAULTS);raise 'accepted';rescue RuntimeError=>e;assert(e.message.include?('200'));end
 end
 # Geometry recording doubles: exercise the production builder, not a copy of it.
