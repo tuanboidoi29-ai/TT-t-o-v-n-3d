@@ -116,6 +116,14 @@ check('real builder: VL hierarchy, individual slats, direct CNC edges and custom
   assert(vl.entities.size==count+1)
   assert(backing.get_attribute(SW::KEY,'profile_count')==count)
   assert(backing.entities.grep(Sketchup::Group).empty?)
+  summary=SW.backing_profile_summary(backing)
+  assert(summary[:nested_count]==0)
+  assert(summary[:profile_count]==count)
+  assert(summary[:edge_count]==count*4)
+  assert(summary[:complete])
+  assert(backing.get_attribute(SW::KEY,'profiles_embedded')==true)
+  assert(backing.get_attribute(SW::KEY,'front_side')=='local_z_positive')
+  assert(backing.get_attribute(SW::KEY,'front_is_right_face')==true)
   profile_edges=backing.entities.grep(Sketchup::Edge)
   assert(profile_edges.size==count*4)
   count.times do |n|
@@ -139,6 +147,18 @@ check('CNC off leaves backing with no machining profile edges') do
  assert(backing.entities.grep(Sketchup::Edge).empty?)
  assert(backing.entities.grep(Sketchup::Group).empty?)
  assert(backing.get_attribute(SW::KEY,'profile_count')==0)
+end
+set_model
+check('backing integrity rejects nested profile objects') do
+ backing=SW.make_box(Sketchup.model.entities,[0,0,0,600,1200,9],'VLX_TAM_LOT',nil)
+ nested=backing.entities.add_group
+ nested.set_attribute(SW::KEY,'role','cnc_profile')
+ begin
+  SW.enforce_backing_integrity(backing,0)
+  raise 'accepted nested CNC object'
+ rescue RuntimeError=>e
+  assert(e.message.include?('group/component'))
+ end
 end
 set_model
 check('creation inside scaled context matches world preview') do
@@ -314,6 +334,10 @@ check('repair migrates child CNC group into direct edges that stay inside backin
  assert(profiles.all?{|e|e.get_attribute(SW::KEY,'role')=='cnc_edge'})
  assert(profiles.all?{|e|e.get_attribute(SW::KEY,'profile')==1})
  assert(profiles.all?{|e|e.get_attribute(SW::KEY,'depth_mm')==3})
+ summary=SW.backing_profile_summary(backing)
+ assert(summary[:nested_count]==0 && summary[:profile_count]==1 && summary[:complete])
+ assert(backing.get_attribute(SW::KEY,'profiles_embedded')==true)
+ assert(backing.get_attribute(SW::KEY,'front_side')=='local_z_positive')
  SW.repair_backing(backing,Sketchup.model)
  assert(backing.entities.grep(Sketchup::Group).empty?)
  assert(backing.entities.grep(Sketchup::Edge).size==4)
