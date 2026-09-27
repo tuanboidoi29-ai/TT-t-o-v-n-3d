@@ -160,6 +160,9 @@ class Geom::Transformation
  def yaxis;Geom::Vector3d.new(m[0][1],m[1][1],m[2][1]);end
  def zaxis;Geom::Vector3d.new(m[0][2],m[1][2],m[2][2]);end
 end
+class Geom::Vector3d
+ def dot(v);x*v.x+y*v.y+z*v.z;end unless method_defined?(:dot)
+end
 module Geom
  def self.intersect_line_plane(line,plane)
   p,d=line;q,n=plane
