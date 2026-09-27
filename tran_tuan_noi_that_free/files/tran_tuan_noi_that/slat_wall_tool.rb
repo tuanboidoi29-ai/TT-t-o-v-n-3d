@@ -5,9 +5,11 @@ require 'json'
 module TranTuanNoiThat
   module SlatWall
     extend self
-    VERSION = '1.9.154'.freeze
+    VERSION = '1.9.155'.freeze
     KEY = 'TT_VACH_LAM'.freeze
     MAX_SLATS = 2000
+    SNAP_RADIUS = 24.0
+    AXIS_SWITCH_RATIO = 1.35
     DEFAULTS = {
       'mode' => 'single', 'stock_length' => 2440.0, 'stock_width' => 1220.0,
       'stock_thickness' => 17.5, 'width' => 40.0, 'depth' => 17.5,
@@ -575,12 +577,14 @@ module TranTuanNoiThat
         @drag_start = nil
         @hover = nil
         @free_mode = false
+        @free_axis = nil
       end
       def status
         mode = @options['mode'] == 'backed' ? 'CÓ TẤM LÓT' : 'LAM ĐƠN'
         direction = @options['orientation'] == 'vertical' ? 'NAN DỌC' : 'NAN NGANG'
-        action = @edit_target ? 'đang sửa vách đã chọn; chỉnh thông số rồi bấm ÁP DỤNG' : (@p1 ? 'rê tới góc chéo, click hoặc thả để tạo' : 'chọn góc đầu hoặc kéo trong không gian')
-        Sketchup.status_text = "TT VÁCH LAM · #{mode} · #{direction} · #{action} · VẼ TỰ DO KHÔNG KHÓA TRỤC · SHIFT đổi chế độ · TAB đổi hướng · S mở bảng · ESC hủy"
+        action = @edit_target ? 'đang sửa vách đã chọn; chỉnh thông số rồi bấm ÁP DỤNG' : (@p1 ? 'rê tới góc chéo, click hoặc thả để tạo' : 'chọn P1 ổn định rồi kéo P2')
+        axis_text = @free_axis ? " · TRỤC #{@free_axis.to_s.upcase}" : ''
+        Sketchup.status_text = "TT VÁCH LAM · #{mode} · #{direction}#{axis_text} · #{action} · P1 SNAP 24px · TỰ NHẬN X/Y · SHIFT đổi chế độ · TAB đổi hướng · S mở bảng · ESC hủy"
       end
       def dialog_state
         if @edit_target
@@ -752,30 +756,77 @@ module TranTuanNoiThat
       rescue StandardError
         false
       end
+
+      def stable_geometry_input_point?(ip, view, x, y)
+        return false unless geometry_input_point?(ip)
+        screen = view.screen_coords(ip.position)
+        Math.hypot(screen.x.to_f - x.to_f, screen.y.to_f - y.to_f) <= SNAP_RADIUS
+      rescue StandardError
+        false
+      end
+
+      def model_axis_for(candidate)
+        delta = @p1.vector_to(candidate)
+        dx = delta.x.abs
+        dy = delta.y.abs
+        return @free_axis if [dx, dy].max < 0.5.mm
+
+        desired = dx >= dy ? :x : :y
+        if @free_axis.nil?
+          @free_axis = desired
+        elsif desired != @free_axis
+          current = @free_axis == :x ? dx : dy
+          other = desired == :x ? dx : dy
+          @free_axis = desired if other > current * AXIS_SWITCH_RATIO
+        end
+        @free_axis
+      rescue StandardError
+        @free_axis
+      end
+
+      def model_axis_basis_from(point, candidate, view)
+        axis_key = model_axis_for(candidate)
+        return nil unless axis_key
+        u = axis_key == :x ? Geom::Vector3d.new(1,0,0) : Geom::Vector3d.new(0,1,0)
+        v = Geom::Vector3d.new(0,0,1)
+        normal = u.cross(v)
+        normal.normalize!
+        if normal.dot(view.camera.direction) > 0
+          u.reverse!
+          normal = u.cross(v)
+          normal.normalize!
+        end
+        Geom::Transformation.axes(point,u,v,normal)
+      rescue StandardError
+        nil
+      end
       def pick(view, x, y)
         if @p1 && @free_mode
-          # Vẽ tự do: không truyền @first_ip để tránh SketchUp hút P2 theo inference/trục.
           @ip.pick(view,x,y)
-          point = geometry_input_point?(@ip) ? @ip.position : free_space_pick(view,x,y)
+          point = stable_geometry_input_point?(@ip,view,x,y) ? @ip.position : free_space_pick(view,x,y)
           return nil unless point
-          dynamic_basis = free_basis_from(@p1,point,view)
+          dynamic_basis = model_axis_basis_from(@p1,point,view)
           @basis = dynamic_basis if dynamic_basis
           return nil unless @basis
-          local = point.transform(@basis.inverse)
-          return Geom::Point3d.new(local.x,local.y,0).transform(@basis)
-        end
 
-        @p1 && @first_ip.valid? ? @ip.pick(view,x,y,@first_ip) : @ip.pick(view,x,y)
-        if @p1
-          normal = @basis.zaxis
-          point = @ip.valid? ? @ip.position : Geom.intersect_line_plane(view.pickray(x,y), [@p1,normal])
-          return nil unless point
-          local = point.transform(@basis.inverse)
-          Geom::Point3d.new(local.x,local.y,0).transform(@basis)
-        elsif geometry_input_point?(@ip)
-          @ip.position
+          delta = @p1.vector_to(point)
+          axis = @free_axis == :x ? Geom::Vector3d.new(1,0,0) : Geom::Vector3d.new(0,1,0)
+          horizontal = delta.dot(axis)
+          vertical = delta.z
+          Geom::Point3d.new(horizontal,vertical,0).transform(@basis)
         else
-          free_space_pick(view,x,y)
+          @p1 && @first_ip.valid? ? @ip.pick(view,x,y,@first_ip) : @ip.pick(view,x,y)
+          if @p1
+            normal = @basis.zaxis
+            point = stable_geometry_input_point?(@ip,view,x,y) ? @ip.position : Geom.intersect_line_plane(view.pickray(x,y), [@p1,normal])
+            return nil unless point
+            local = point.transform(@basis.inverse)
+            Geom::Point3d.new(local.x,local.y,0).transform(@basis)
+          elsif stable_geometry_input_point?(@ip,view,x,y)
+            @ip.position
+          else
+            free_space_pick(view,x,y)
+          end
         end
       end
       def onMouseMove(_flags,x,y,view)
@@ -784,7 +835,9 @@ module TranTuanNoiThat
           @p2 = @hover
           rebuild
         end
-        view.tooltip = @error || (@ip.valid? ? @ip.tooltip : 'Vẽ tự do KHÔNG KHÓA HƯỚNG · P1 → rê P2 để xoay mặt vách')
+        snap = stable_geometry_input_point?(@ip,view,x,y)
+        axis = @free_axis ? " · TRỤC #{@free_axis.to_s.upcase}" : ''
+        view.tooltip = @error || (snap ? @ip.tooltip : "P1/P2 ổn định · tự nhận X/Y#{axis}")
         view.invalidate
       rescue StandardError => e
         @error = e.message
@@ -802,8 +855,9 @@ module TranTuanNoiThat
           commit(view)
         else
           @p1 = point
-          picked_face = geometry_input_point?(@ip) && @ip.respond_to?(:face) ? @ip.face : nil
+          picked_face = stable_geometry_input_point?(@ip,view,x,y) && @ip.respond_to?(:face) ? @ip.face : nil
           @free_mode = picked_face.nil?
+          @free_axis = nil if @free_mode
           @first_ip.copy!(@ip) if !@free_mode && @ip.valid? && @first_ip.respond_to?(:copy!)
           @basis = basis_at(point,view)
           @drag_start = [x,y]
