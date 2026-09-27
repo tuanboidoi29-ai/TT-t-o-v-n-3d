@@ -221,6 +221,36 @@ check('free wall basis follows P1-P2 XY direction instead of locking to camera')
  assert(u2.x<0 && u2.y>0)
  assert((u1.x-u2.x).abs>0.001)
 end
+check('P1 real-geometry snap is limited to 24 screen pixels') do
+ tool=SW::Tool.new(SW::DEFAULTS)
+ view=TestView.new
+ ip=Object.new
+ pos=Geom::Point3d.new(100.mm,100.mm,0)
+ ip.define_singleton_method(:valid?){true}
+ ip.define_singleton_method(:position){pos}
+ ip.define_singleton_method(:vertex){Object.new}
+ ip.define_singleton_method(:edge){nil}
+ ip.define_singleton_method(:face){nil}
+ assert(tool.send(:stable_geometry_input_point?,ip,view,110,110))
+ assert(!tool.send(:stable_geometry_input_point?,ip,view,140,140))
+end
+check('free drawing auto-detects Model X/Y with hysteresis near 45 degrees') do
+ tool=SW::Tool.new(SW::DEFAULTS)
+ tool.instance_variable_set(:@p1,Geom::Point3d.new(0,0,0))
+ assert(tool.send(:model_axis_for,Geom::Point3d.new(100.mm,20.mm,0))==:x)
+ assert(tool.send(:model_axis_for,Geom::Point3d.new(80.mm,100.mm,0))==:x)
+ assert(tool.send(:model_axis_for,Geom::Point3d.new(50.mm,100.mm,0))==:y)
+end
+check('detected free basis is aligned exactly to a Model axis and Z is vertical') do
+ tool=SW::Tool.new(SW::DEFAULTS)
+ tool.instance_variable_set(:@p1,Geom::Point3d.new(0,0,0))
+ view=TestView.new
+ b=tool.send(:model_axis_basis_from,Geom::Point3d.new(0,0,0),Geom::Point3d.new(200.mm,20.mm,500.mm),view)
+ assert(b)
+ u=b.xaxis;v=b.yaxis
+ near(u.y,0);near(u.z,0);near(u.x.abs,1)
+ near(v.x,0);near(v.y,0);near(v.z,1)
+end
 check('four diagonal drag directions produce the same dimensions') do
  tool=SW::Tool.new(SW::DEFAULTS)
  [-1,1].product([-1,1]).each do |sx,sy|
