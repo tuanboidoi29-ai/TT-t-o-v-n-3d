@@ -1,0 +1,23 @@
+1.9.153 — FIX KÉO 2 ĐIỂM + HƯỚNG MẶT TẤM LÓT
+Cập nhật bằng nút Kiểm Tra Cập Nhật trong plugin.
+
+1. KÉO P1 → P2:
+- Vùng trống không còn dùng InputPoint chỉ vì có inference trục.
+- Chỉ snap InputPoint khi thật sự chạm Vertex / Edge / Face.
+- Ngoài hình học, P1/P2 dùng mặt phẳng tự do theo camera.target.
+- Khi rê đã có preview hợp lệ, thả chuột sẽ tạo đúng preview cuối cùng, không pick lại P2 ở thời điểm release.
+- Vẫn hỗ trợ click P1 → click P2.
+- Không khóa trục, không khóa hướng camera.
+
+2. MẶT TẤM LÓT:
+- Toàn bộ face của khối tấm lót được chuẩn hóa outward.
+- Mặt trước tấm lót là local +Z, cùng phía với nan.
+- Hướng +Z của vách tự do được giữ về phía người nhìn nhưng transformation vẫn right-handed, không bị mirror.
+- Nút SỬA TẤM LÓT ABF cũng chuẩn hóa lại face của tấm cũ.
+- Edge CNC vẫn nằm trực tiếp trong TAM_LOT, không bị tách khi ABF trải/nesting.
+
+GIỮ NGUYÊN:
+- Nan dọc/ngang.
+- Chia auto/manual/theo số lượng.
+- Một Undo.
+- Tag TT_VACH_LAM / TT_NAN_LAM và ABF CNC.

@@ -5,7 +5,7 @@ require 'json'
 module TranTuanNoiThat
   module SlatWall
     extend self
-    VERSION = '1.9.152'.freeze
+    VERSION = '1.9.153'.freeze
     KEY = 'TT_VACH_LAM'.freeze
     MAX_SLATS = 2000
     DEFAULTS = {
@@ -197,7 +197,7 @@ module TranTuanNoiThat
         <button onclick="apply()">CẬP NHẬT PREVIEW</button>
         <p id="editBox" class="edit" style="display:none"><button onclick="sketchup.apply_edit()">ÁP DỤNG VÀO VÁCH ĐÃ CHỌN</button></p>
         <p><button onclick="sketchup.repair_abf()">SỬA TẤM LÓT ABF ĐÃ CHỌN</button></p><p id="error"></p>
-        <section><canvas id="preview" width="420" height="170"></canvas><div id="info"></div><small>Click góc thứ hai hoặc thả sau khi kéo để tạo thật. ESC bỏ vùng đang vẽ. Khi mở công cụ với một vách lam đã chọn, nút xanh cập nhật chính vách đó trong một Undo.</small></section></main>
+        <section><canvas id="preview" width="420" height="170"></canvas><div id="info"></div><small>Click P1 → rê thấy preview → click P2, hoặc giữ chuột từ P1 rồi kéo và thả tại P2. Khi thả, plugin tạo đúng preview cuối cùng. ESC bỏ vùng đang vẽ.</small></section></main>
         <script>
         const keys=#{JSON.generate(DEFAULTS.keys)};
         function visibility(){document.querySelectorAll('.backed').forEach(e=>e.style.display=document.getElementById('mode').value==='backed'?'block':'none');document.querySelectorAll('.counted').forEach(e=>e.style.display=document.getElementById('spacing_mode').value==='count'?'flex':'none')}
@@ -218,6 +218,20 @@ module TranTuanNoiThat
         (y + ((i & 2) == 0 ? 0 : h)).mm, (z + ((i & 4) == 0 ? 0 : d)).mm) }
     end
 
+    def orient_outward_faces(group)
+      bounds = group.definition.bounds
+      center = bounds.center
+      group.entities.grep(Sketchup::Face).each do |face|
+        next unless face.respond_to?(:normal) && face.respond_to?(:reverse!) && face.respond_to?(:bounds)
+        outward = center.vector_to(face.bounds.center)
+        next if outward.length < 1.0e-9
+        face.reverse! if face.normal.dot(outward) < 0
+      end
+      group
+    rescue StandardError
+      group
+    end
+
     def make_box(entities, box, name, material, tag = nil)
       group = entities.add_group
       group.name = name
@@ -230,6 +244,7 @@ module TranTuanNoiThat
         face.layer = Sketchup.active_model.layers[0]
         face.edges.each { |e| e.layer = Sketchup.active_model.layers[0] }
       end
+      orient_outward_faces(group)
       group
     end
 
@@ -308,6 +323,7 @@ module TranTuanNoiThat
           backing.set_attribute(KEY, 'profile_count', cnc_tag ? panel[:slats].length : 0)
           backing.set_attribute(KEY, 'depth_mm', o['recess'])
           backing.set_attribute(KEY, 'cnc_tag', o['tag']) if cnc_tag
+          orient_outward_faces(backing)
         end
       end
       parent
@@ -447,6 +463,7 @@ module TranTuanNoiThat
       backing.set_attribute(KEY, 'role', 'backing')
       backing.set_attribute(KEY, 'cnc_tag', tag_name)
       backing.set_attribute(KEY, 'profile_count', profile_numbers.uniq.length) unless profile_numbers.empty?
+      orient_outward_faces(backing)
       true
     end
 
@@ -606,7 +623,7 @@ module TranTuanNoiThat
       rescue StandardError
         nil
       end
-      def free_basis_from(point, candidate, _view)
+      def free_basis_from(point, candidate, view)
         delta = point.vector_to(candidate)
         horizontal = Geom::Vector3d.new(delta.x, delta.y, 0)
         return nil if horizontal.length < 1.0e-8
@@ -615,6 +632,13 @@ module TranTuanNoiThat
         normal = u.cross(v)
         return nil if normal.length < 1.0e-8
         normal.normalize!
+        # Local +Z is the face carrying slats / front of backing.
+        # Keep it toward the viewer without creating a mirrored transformation.
+        if normal.dot(view.camera.direction) > 0
+          u.reverse!
+          normal = u.cross(v)
+          normal.normalize!
+        end
         Geom::Transformation.axes(point,u,v,normal)
       rescue StandardError
         nil
@@ -644,11 +668,19 @@ module TranTuanNoiThat
         v = normal.cross(u).normalize
         Geom::Transformation.axes(point,u,v,normal)
       end
+      def geometry_input_point?(ip)
+        return false unless ip && ip.valid?
+        [:vertex, :edge, :face].any? do |method|
+          ip.respond_to?(method) && !ip.public_send(method).nil?
+        end
+      rescue StandardError
+        false
+      end
       def pick(view, x, y)
         if @p1 && @free_mode
           # Vẽ tự do: không truyền @first_ip để tránh SketchUp hút P2 theo inference/trục.
           @ip.pick(view,x,y)
-          point = @ip.valid? ? @ip.position : free_space_pick(view,x,y)
+          point = geometry_input_point?(@ip) ? @ip.position : free_space_pick(view,x,y)
           return nil unless point
           dynamic_basis = free_basis_from(@p1,point,view)
           @basis = dynamic_basis if dynamic_basis
@@ -664,7 +696,7 @@ module TranTuanNoiThat
           return nil unless point
           local = point.transform(@basis.inverse)
           Geom::Point3d.new(local.x,local.y,0).transform(@basis)
-        elsif @ip.valid?
+        elsif geometry_input_point?(@ip)
           @ip.position
         else
           free_space_pick(view,x,y)
@@ -694,7 +726,7 @@ module TranTuanNoiThat
           commit(view)
         else
           @p1 = point
-          picked_face = @ip.valid? && @ip.respond_to?(:face) ? @ip.face : nil
+          picked_face = geometry_input_point?(@ip) && @ip.respond_to?(:face) ? @ip.face : nil
           @free_mode = picked_face.nil?
           @first_ip.copy!(@ip) if !@free_mode && @ip.valid? && @first_ip.respond_to?(:copy!)
           @basis = basis_at(point,view)
@@ -709,9 +741,24 @@ module TranTuanNoiThat
         start = @drag_start
         @drag_start = nil
         return if Math.hypot(x-start[0],y-start[1]) < 6
-        @p2 = pick(view,x,y)
-        rebuild if @p2
-        commit(view)
+
+        # If mouse-move already produced a valid preview, create exactly that preview.
+        # Do not pick again on button-up because SketchUp inference can change at release time.
+        unless @plan && @p2
+          candidate = pick(view,x,y)
+          candidate ||= @hover
+          @p2 = candidate if candidate
+          rebuild if @p2
+        end
+        if @plan && @p2
+          commit(view)
+        else
+          UI.beep
+          @error ||= 'Không lấy được P2. Rê chuột để thấy preview rồi thả chuột.'
+          view.invalidate
+        end
+      rescue StandardError => e
+        UI.messagebox("Tạo vách lam: #{e.message}")
       end
       def rebuild
         local = @p2.transform(@basis.inverse)

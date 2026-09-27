@@ -220,6 +220,13 @@ check('all six real-box face normals point outward') do
   assert(n.x*out.x+n.y*out.y+n.z*out.z>0)
  end
 end
+check('backing front face points toward positive local depth') do
+ points=SW.box_points([0,0,0,600,1200,9])
+ ids=SW::BOX_FACES[1]
+ a,b,c=ids.first(3).map{|i|points[i]}
+ n=a.vector_to(b).cross(a.vector_to(c));n.normalize!
+ assert(n.z>0.999)
+end
 puts 'SLAT WALL REGRESSIONS COMPLETE'
 module Sketchup
  def self.write_default(*args);true;end
@@ -253,6 +260,23 @@ check('drag release creates exactly once; Escape discards pending region') do
  assert(Sketchup.model.commits==1)
  tool.onLButtonDown(0,0,0,view);tool.onCancel(0,view)
  assert(Sketchup.model.commits==1);assert(tool.instance_variable_get(:@p1).nil?)
+end
+check('drag release commits last valid preview without repicking P2') do
+ set_model;Sketchup.model.selection=Sketchup::Selection.new
+ tool=SW::Tool.new(SW::DEFAULTS.dup);view=TestView.new
+ calls=0
+ tool.define_singleton_method(:pick) do |v,x,y|
+  calls+=1
+  calls==1 ? Geom::Point3d.new(0,0,0) : nil
+ end
+ tool.define_singleton_method(:basis_at){|p,v|Geom::Transformation.new}
+ tool.onLButtonDown(0,0,0,view)
+ tool.instance_variable_set(:@p2,Geom::Point3d.new(1000.mm,2000.mm,0))
+ tool.send(:rebuild)
+ before=calls
+ tool.onLButtonUp(0,1000,2000,view)
+ assert(Sketchup.model.commits==1)
+ assert(calls==before)
 end
 puts "TOTAL #{$count} REGRESSIONS PASSED"
 module Attrs
