@@ -5,7 +5,7 @@ require 'json'
 module TranTuanNoiThat
   module SlatWall
     extend self
-    VERSION = '1.9.153'.freeze
+    VERSION = '1.9.154'.freeze
     KEY = 'TT_VACH_LAM'.freeze
     MAX_SLATS = 2000
     DEFAULTS = {
@@ -193,7 +193,7 @@ module TranTuanNoiThat
         <section class="backed"><label>Độ dày tấm lót<span><input id="backing" type="number" min="0.1" step="0.1"> mm</span></label>
         <label>Hạ âm<span><input id="recess" type="number" min="0" step="0.1"> mm</span></label>
         <label>Bật CNC<input id="cnc" type="checkbox"></label><label>Tag biên dạng CNC<input id="tag" type="text" style="width:240px"></label>
-        <small>Tấm lót vẫn giữ Layer0 + ABF/is-board=true. CNC tạo Edge biên kín trực tiếp trong chính TAM_LOT, mang Tag ABF để khi trải/nesting biên dạng đi cùng tấm lót.</small></section>
+        <small><b>TAM_LOT + toàn bộ biên dạng = MỘT ĐỐI TƯỢNG.</b> Edge CNC nằm trực tiếp trong chính TAM_LOT, không có group biên dạng con. Mặt phải TAM_LOT luôn là mặt trước local +Z, cùng phía với nan.</small></section>
         <button onclick="apply()">CẬP NHẬT PREVIEW</button>
         <p id="editBox" class="edit" style="display:none"><button onclick="sketchup.apply_edit()">ÁP DỤNG VÀO VÁCH ĐÃ CHỌN</button></p>
         <p><button onclick="sketchup.repair_abf()">SỬA TẤM LÓT ABF ĐÃ CHỌN</button></p><p id="error"></p>
@@ -230,6 +230,80 @@ module TranTuanNoiThat
       group
     rescue StandardError
       group
+    end
+
+    # TAM_LOT: local +Z luôn là MẶT PHẢI / MẶT TRƯỚC / phía đặt nan.
+    def orient_backing_front(backing)
+      backing.set_attribute(KEY, 'front_side', 'local_z_positive')
+      backing.set_attribute(KEY, 'front_is_right_face', true)
+      faces = backing.entities.grep(Sketchup::Face)
+      return backing if faces.empty?
+
+      bounds = backing.definition.bounds
+      z_min = bounds.min.z.to_f
+      z_max = bounds.max.z.to_f
+      tolerance = [0.01.mm.to_f, (z_max - z_min).abs * 1.0e-6].max
+
+      faces.each do |face|
+        next unless face.respond_to?(:normal) && face.respond_to?(:reverse!) && face.respond_to?(:vertices)
+        zs = face.vertices.map { |vertex| vertex.position.z.to_f }
+        next if zs.empty?
+
+        if zs.all? { |z| (z - z_max).abs <= tolerance }
+          face.reverse! if face.normal.z.to_f < 0
+          face.set_attribute(KEY, 'side', 'front') if face.respond_to?(:set_attribute)
+        elsif zs.all? { |z| (z - z_min).abs <= tolerance }
+          face.reverse! if face.normal.z.to_f > 0
+          face.set_attribute(KEY, 'side', 'rear') if face.respond_to?(:set_attribute)
+        end
+      end
+
+      orient_outward_faces(backing)
+
+      faces.each do |face|
+        next unless face.respond_to?(:normal) && face.respond_to?(:reverse!) && face.respond_to?(:vertices)
+        zs = face.vertices.map { |vertex| vertex.position.z.to_f }
+        if !zs.empty? && zs.all? { |z| (z - z_max).abs <= tolerance }
+          face.reverse! if face.normal.z.to_f < 0
+        elsif !zs.empty? && zs.all? { |z| (z - z_min).abs <= tolerance }
+          face.reverse! if face.normal.z.to_f > 0
+        end
+      end
+      backing
+    rescue StandardError
+      backing
+    end
+
+    def backing_profile_summary(backing)
+      nested = backing.entities.select do |entity|
+        entity.is_a?(Sketchup::Group) || entity.is_a?(Sketchup::ComponentInstance)
+      end
+      cnc_edges = backing.entities.grep(Sketchup::Edge).select do |edge|
+        edge.get_attribute(KEY, 'role') == 'cnc_edge'
+      end
+      profiles = cnc_edges.group_by { |edge| edge.get_attribute(KEY, 'profile', 0).to_i }
+      {
+        nested_count: nested.length,
+        edge_count: cnc_edges.length,
+        profile_count: profiles.keys.count { |number| number > 0 },
+        complete: profiles.all? { |number, edges| number > 0 && edges.length == 4 }
+      }
+    end
+
+    def enforce_backing_integrity(backing, expected_profiles = nil)
+      summary = backing_profile_summary(backing)
+      raise 'TAM_LOT còn group/component con: biên dạng sẽ bị tách khi trải.' unless summary[:nested_count] == 0
+      raise 'Biên dạng CNC trong TAM_LOT chưa kín đủ 4 cạnh.' unless summary[:complete]
+
+      unless expected_profiles.nil?
+        expected = expected_profiles.to_i
+        raise "Thiếu biên dạng CNC trong TAM_LOT (#{summary[:profile_count]}/#{expected})." unless summary[:profile_count] == expected
+      end
+
+      backing.set_attribute(KEY, 'profiles_embedded', true)
+      backing.set_attribute(KEY, 'profile_count', summary[:profile_count])
+      orient_backing_front(backing)
+      summary
     end
 
     def make_box(entities, box, name, material, tag = nil)
@@ -323,7 +397,8 @@ module TranTuanNoiThat
           backing.set_attribute(KEY, 'profile_count', cnc_tag ? panel[:slats].length : 0)
           backing.set_attribute(KEY, 'depth_mm', o['recess'])
           backing.set_attribute(KEY, 'cnc_tag', o['tag']) if cnc_tag
-          orient_outward_faces(backing)
+          expected_profiles = cnc_tag ? panel[:slats].length : 0
+          enforce_backing_integrity(backing, expected_profiles)
         end
       end
       parent
@@ -462,8 +537,9 @@ module TranTuanNoiThat
       backing.set_attribute('ABF', 'is-board', true)
       backing.set_attribute(KEY, 'role', 'backing')
       backing.set_attribute(KEY, 'cnc_tag', tag_name)
-      backing.set_attribute(KEY, 'profile_count', profile_numbers.uniq.length) unless profile_numbers.empty?
-      orient_outward_faces(backing)
+      repaired_count = profile_numbers.uniq.length
+      backing.set_attribute(KEY, 'profile_count', repaired_count)
+      enforce_backing_integrity(backing, repaired_count)
       true
     end
 
