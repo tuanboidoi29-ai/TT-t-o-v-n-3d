@@ -1,0 +1,20 @@
+1.9.154 — TAM_LOT + BIÊN DẠNG LÀ MỘT ĐỐI TƯỢNG
+
+QUY TẮC BẮT BUỘC:
+- TAM_LOT là một Group duy nhất.
+- Không cho phép group/component biên dạng CNC nằm bên trong TAM_LOT.
+- Mọi Edge CNC nằm trực tiếp trong Entities của chính TAM_LOT.
+- Khi di chuyển, xoay, trải hoặc nesting: tấm lót và toàn bộ biên dạng đi cùng nhau như một chi tiết.
+- Mỗi profile Vách Lam phải đủ 4 Edge kín; nếu thiếu hoặc còn object con thì thao tác tạo/sửa sẽ abort thay vì lưu cấu trúc lỗi.
+
+HƯỚNG MẶT:
+- local +Z của TAM_LOT = MẶT PHẢI / MẶT TRƯỚC / phía đặt nan.
+- local -Z = mặt sau.
+- Sau khi tạo CNC hoặc sửa tấm cũ, plugin ép lại các face trên mặt +Z về normal +Z.
+- Quy tắc mặt trước không phụ thuộc camera ở bước kiểm tra cuối.
+
+ABF:
+- TAM_LOT giữ Layer0 + ABF/is-board=true.
+- Edge CNC giữ Tag ABF_HANENLAMAM hoặc Tag ABF tùy chỉnh.
+- profiles_embedded=true xác nhận cấu trúc đã hợp nhất.
+- Nút SỬA TẤM LÓT ABF chuyển cấu trúc cũ sang cấu trúc một đối tượng và ép lại mặt phải.
