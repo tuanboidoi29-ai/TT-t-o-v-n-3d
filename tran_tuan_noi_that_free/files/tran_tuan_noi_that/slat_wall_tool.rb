@@ -5,7 +5,7 @@ require 'json'
 module TranTuanNoiThat
   module SlatWall
     extend self
-    VERSION = '1.9.156'.freeze
+    VERSION = '1.9.157'.freeze
     KEY = 'TT_VACH_LAM'.freeze
     MAX_SLATS = 2000
     SNAP_RADIUS = 24.0
@@ -227,59 +227,81 @@ module TranTuanNoiThat
         (y + ((i & 2) == 0 ? 0 : h)).mm, (z + ((i & 4) == 0 ? 0 : d)).mm) }
     end
 
-    def orient_outward_faces(group)
-      bounds = group.definition.bounds
-      center = bounds.center
-      group.entities.grep(Sketchup::Face).each do |face|
-        next unless face.respond_to?(:normal) && face.respond_to?(:reverse!) && face.respond_to?(:bounds)
-        outward = center.vector_to(face.bounds.center)
-        next if outward.length < 1.0e-9
-        face.reverse! if face.normal.dot(outward) < 0
+    def direct_shell_faces(group)
+      group.entities.grep(Sketchup::Face)
+    end
+
+    def shell_center(faces)
+      bounds = Geom::BoundingBox.new
+      faces.each do |face|
+        face.vertices.each { |vertex| bounds.add(vertex.position) }
       end
-      group
-    rescue StandardError
+      raise 'Khối không có Face để kiểm tra hướng.' if faces.empty?
+      bounds.center
+    end
+
+    def face_outward_score(face, center)
+      outward = center.vector_to(face.bounds.center)
+      return 1.0 if outward.length < 1.0e-9
+      face.normal.dot(outward)
+    end
+
+    def orient_outward_faces(group, material = nil)
+      faces = direct_shell_faces(group)
+      center = shell_center(faces)
+
+      faces.each do |face|
+        face.reverse! if face_outward_score(face, center) < 0
+        if material
+          face.material = material if face.respond_to?(:material=)
+          face.back_material = nil if face.respond_to?(:back_material=)
+        end
+      end
+
+      wrong = faces.select { |face| face_outward_score(face, center) <= 0 }
+      unless wrong.empty?
+        raise "Còn #{wrong.length} Face bị lộn mặt trong group #{group.name}."
+      end
+      group.set_attribute(KEY, 'faces_outward', true) if group.respond_to?(:set_attribute)
       group
     end
 
-    # TAM_LOT: local +Z luôn là MẶT PHẢI / MẶT TRƯỚC / phía đặt nan.
+    # TAM_LOT: mọi mặt ngoài đều là mặt phải; riêng local +Z là phía nan/phía trước.
     def orient_backing_front(backing)
-      backing.set_attribute(KEY, 'front_side', 'local_z_positive')
-      backing.set_attribute(KEY, 'front_is_right_face', true)
-      faces = backing.entities.grep(Sketchup::Face)
-      return backing if faces.empty?
-
-      bounds = backing.definition.bounds
+      faces = direct_shell_faces(backing)
+      orient_outward_faces(backing, backing.material)
+      bounds = Geom::BoundingBox.new
+      faces.each { |face| face.vertices.each { |vertex| bounds.add(vertex.position) } }
       z_min = bounds.min.z.to_f
       z_max = bounds.max.z.to_f
       tolerance = [0.01.mm.to_f, (z_max - z_min).abs * 1.0e-6].max
 
+      front_faces = []
+      rear_faces = []
       faces.each do |face|
-        next unless face.respond_to?(:normal) && face.respond_to?(:reverse!) && face.respond_to?(:vertices)
         zs = face.vertices.map { |vertex| vertex.position.z.to_f }
         next if zs.empty?
-
         if zs.all? { |z| (z - z_max).abs <= tolerance }
           face.reverse! if face.normal.z.to_f < 0
           face.set_attribute(KEY, 'side', 'front') if face.respond_to?(:set_attribute)
+          front_faces << face
         elsif zs.all? { |z| (z - z_min).abs <= tolerance }
           face.reverse! if face.normal.z.to_f > 0
           face.set_attribute(KEY, 'side', 'rear') if face.respond_to?(:set_attribute)
+          rear_faces << face
         end
       end
 
-      orient_outward_faces(backing)
+      raise 'Không xác định được mặt trước TAM_LOT.' if front_faces.empty?
+      raise 'Không xác định được mặt sau TAM_LOT.' if rear_faces.empty?
+      raise 'Mặt trước TAM_LOT vẫn bị lộn.' unless front_faces.all? { |face| face.normal.z.to_f > 0 }
+      raise 'Mặt sau TAM_LOT vẫn bị lộn.' unless rear_faces.all? { |face| face.normal.z.to_f < 0 }
 
-      faces.each do |face|
-        next unless face.respond_to?(:normal) && face.respond_to?(:reverse!) && face.respond_to?(:vertices)
-        zs = face.vertices.map { |vertex| vertex.position.z.to_f }
-        if !zs.empty? && zs.all? { |z| (z - z_max).abs <= tolerance }
-          face.reverse! if face.normal.z.to_f < 0
-        elsif !zs.empty? && zs.all? { |z| (z - z_min).abs <= tolerance }
-          face.reverse! if face.normal.z.to_f > 0
-        end
-      end
-      backing
-    rescue StandardError
+      # Kiểm tra lần cuối toàn bộ shell sau khi ép +Z/-Z.
+      orient_outward_faces(backing, backing.material)
+      backing.set_attribute(KEY, 'front_side', 'local_z_positive')
+      backing.set_attribute(KEY, 'front_is_right_face', true)
+      backing.set_attribute(KEY, 'faces_verified', true)
       backing
     end
 
@@ -369,7 +391,7 @@ module TranTuanNoiThat
         face.layer = Sketchup.active_model.layers[0]
         face.edges.each { |e| e.layer = Sketchup.active_model.layers[0] }
       end
-      orient_outward_faces(group)
+      orient_outward_faces(group, material)
       group
     end
 
