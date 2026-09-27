@@ -1,0 +1,26 @@
+1.9.156 — FIX TẤM LÓT ABF + MẶT FACE + DÀY 17.5MM
+
+TẤM LÓT:
+- Độ dày mặc định mới: 17.5 mm.
+- Cài đặt cũ 9 mm được migrate một lần sang 17.5 mm.
+- TAM_LOT giữ Layer0.
+- TAM_LOT có ABF/is-board=true.
+- Thêm TRẦN TUẤN NỘI THẤT/do_day_mm=17.5, loai=VAN, chi_tiet=TAM_LOT_VACH_LAM.
+
+ABF GẮN NHÃN:
+- Hình học tấm chính luôn giữ đúng 6 Face sạch.
+- Không đặt Edge CNC trực tiếp lên mặt tấm chính nữa.
+- Tất cả đường CNC nằm trong đúng một Group con chuẩn:
+  _ABF_cuttingLines
+- Group này mang Tag ABF_cuttingLines và ABF/is-cutting-lines=true.
+- Vì group CNC nằm bên trong TAM_LOT nên khi di chuyển/trải/nesting, tấm lót và biên dạng vẫn đi cùng nhau.
+- Không tự tạo board-index hay nhãn giả; ABF tự cấp khi người dùng gắn nhãn.
+
+HƯỚNG FACE:
+- local +Z = mặt phải / mặt trước / phía nan.
+- local -Z = mặt sau.
+- Tạo mới và SỬA TẤM LÓT ABF đều ép lại hướng mặt theo quy tắc này.
+
+SỬA VÁCH CŨ:
+- Nút SỬA TẤM LÓT ABF chuyển Edge CNC trực tiếp hoặc group CNC cũ về _ABF_cuttingLines.
+- Nếu mặt trước từng bị Edge CNC chia nhỏ, plugin dựng lại shell tấm trước khi kiểm tra ABF.
