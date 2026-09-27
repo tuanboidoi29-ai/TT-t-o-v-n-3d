@@ -5,17 +5,18 @@ require 'json'
 module TranTuanNoiThat
   module SlatWall
     extend self
-    VERSION = '1.9.155'.freeze
+    VERSION = '1.9.156'.freeze
     KEY = 'TT_VACH_LAM'.freeze
     MAX_SLATS = 2000
     SNAP_RADIUS = 24.0
     AXIS_SWITCH_RATIO = 1.35
+    ABF_CUTTING_TAG = 'ABF_cuttingLines'.freeze
     DEFAULTS = {
       'mode' => 'single', 'stock_length' => 2440.0, 'stock_width' => 1220.0,
       'stock_thickness' => 17.5, 'width' => 40.0, 'depth' => 17.5,
       'orientation' => 'vertical', 'spacing_mode' => 'auto', 'gap' => 40.0, 'count' => 10,
       'left' => 0.0, 'right' => 0.0, 'top' => 0.0, 'bottom' => 0.0,
-      'backing' => 9.0, 'recess' => 0.0, 'cnc' => false, 'tag' => 'ABF_HANENLAMAM'
+      'backing' => 17.5, 'recess' => 0.0, 'cnc' => false, 'tag' => 'ABF_HANENLAMAM'
     }.freeze
 
     def validate(raw)
@@ -52,7 +53,13 @@ module TranTuanNoiThat
 
     def settings
       raw = JSON.parse(Sketchup.read_default(KEY, 'settings', '{}'))
-      validate(raw)
+      unless Sketchup.read_default(KEY, 'backing_175_v156', '') == 'done'
+        raw['backing'] = 17.5
+        Sketchup.write_default(KEY, 'backing_175_v156', 'done')
+      end
+      result = validate(raw)
+      Sketchup.write_default(KEY, 'settings', JSON.generate(result))
+      result
     rescue StandardError
       DEFAULTS.dup
     end
@@ -194,8 +201,8 @@ module TranTuanNoiThat
         <small>Chiều dài nan bám đúng vùng kéo. Nếu vượt khổ ván, vùng tự chia thành các cụm VL. Mép trái/phải/trên/dưới áp dụng cho từng cụm. Chế độ số lượng tự tính khe để phủ đều vùng còn lại.</small></section>
         <section class="backed"><label>Độ dày tấm lót<span><input id="backing" type="number" min="0.1" step="0.1"> mm</span></label>
         <label>Hạ âm<span><input id="recess" type="number" min="0" step="0.1"> mm</span></label>
-        <label>Bật CNC<input id="cnc" type="checkbox"></label><label>Tag biên dạng CNC<input id="tag" type="text" style="width:240px"></label>
-        <small><b>TAM_LOT + toàn bộ biên dạng = MỘT ĐỐI TƯỢNG.</b> Edge CNC nằm trực tiếp trong chính TAM_LOT, không có group biên dạng con. Mặt phải TAM_LOT luôn là mặt trước local +Z, cùng phía với nan.</small></section>
+        <label>Bật CNC<input id="cnc" type="checkbox"></label><label>Tên công đoạn CNC<input id="tag" type="text" style="width:240px"></label>
+        <small><b>TAM_LOT + biên dạng luôn đi cùng nhau.</b> Hình học tấm chính giữ sạch 6 Face để ABF gắn nhãn; toàn bộ đường CNC nằm trong group chuẩn <b>_ABF_cuttingLines</b> bên trong TAM_LOT. Mặt phải TAM_LOT luôn là mặt trước local +Z, cùng phía với nan. Dày lót mặc định 17,5 mm.</small></section>
         <button onclick="apply()">CẬP NHẬT PREVIEW</button>
         <p id="editBox" class="edit" style="display:none"><button onclick="sketchup.apply_edit()">ÁP DỤNG VÀO VÁCH ĐÃ CHỌN</button></p>
         <p><button onclick="sketchup.repair_abf()">SỬA TẤM LÓT ABF ĐÃ CHỌN</button></p><p id="error"></p>
@@ -276,25 +283,67 @@ module TranTuanNoiThat
       backing
     end
 
+    def abf_cutting_group?(entity)
+      entity.is_a?(Sketchup::Group) &&
+        (entity.get_attribute('ABF', 'is-cutting-lines') == true ||
+         entity.name.to_s == '_ABF_cuttingLines')
+    end
+
+    def abf_auxiliary_group?(entity)
+      return true if abf_cutting_group?(entity)
+      return false unless entity.is_a?(Sketchup::Group)
+      entity.get_attribute('ABF', 'is-label') == true ||
+        entity.get_attribute('ABF', 'is-edge-banding-notation') == true ||
+        entity.get_attribute('ABF', 'is-intersect') == true
+    end
+
+    def ensure_abf_cutting_group(backing)
+      groups = backing.entities.grep(Sketchup::Group).select { |group| abf_cutting_group?(group) }
+      group = groups.first
+      if group.nil?
+        group = backing.entities.add_group
+        group.name = '_ABF_cuttingLines'
+      end
+      tag = ensure_tag(Sketchup.active_model, ABF_CUTTING_TAG)
+      group.layer = tag
+      group.set_attribute('ABF', 'is-cutting-lines', true)
+      group.set_attribute(KEY, 'role', 'cnc_cutting_lines')
+      group
+    end
+
     def backing_profile_summary(backing)
       nested = backing.entities.select do |entity|
         entity.is_a?(Sketchup::Group) || entity.is_a?(Sketchup::ComponentInstance)
       end
-      cnc_edges = backing.entities.grep(Sketchup::Edge).select do |edge|
+      cutting_groups = nested.select { |entity| abf_cutting_group?(entity) }
+      unknown_nested = nested.reject { |entity| abf_auxiliary_group?(entity) }
+      direct_cnc = backing.entities.grep(Sketchup::Edge).select do |edge|
         edge.get_attribute(KEY, 'role') == 'cnc_edge'
+      end
+      cnc_edges = cutting_groups.flat_map do |group|
+        group.entities.grep(Sketchup::Edge).select do |edge|
+          edge.get_attribute(KEY, 'role') == 'cnc_edge'
+        end
       end
       profiles = cnc_edges.group_by { |edge| edge.get_attribute(KEY, 'profile', 0).to_i }
       {
         nested_count: nested.length,
+        cutting_group_count: cutting_groups.length,
+        unknown_nested_count: unknown_nested.length,
+        direct_edge_count: direct_cnc.length,
         edge_count: cnc_edges.length,
         profile_count: profiles.keys.count { |number| number > 0 },
-        complete: profiles.all? { |number, edges| number > 0 && edges.length == 4 }
+        complete: profiles.all? { |number, edges| number > 0 && edges.length == 4 },
+        face_count: backing.entities.grep(Sketchup::Face).length
       }
     end
 
     def enforce_backing_integrity(backing, expected_profiles = nil)
       summary = backing_profile_summary(backing)
-      raise 'TAM_LOT còn group/component con: biên dạng sẽ bị tách khi trải.' unless summary[:nested_count] == 0
+      raise 'TAM_LOT có group con không thuộc chuẩn ABF.' unless summary[:unknown_nested_count] == 0
+      raise 'TAM_LOT có nhiều _ABF_cuttingLines.' if summary[:cutting_group_count] > 1
+      raise 'Edge CNC đang nằm trực tiếp trên mặt tấm, ABF sẽ khó gắn nhãn.' unless summary[:direct_edge_count] == 0
+      raise 'Hình học TAM_LOT phải giữ đúng 6 Face.' unless summary[:face_count] == 6
       raise 'Biên dạng CNC trong TAM_LOT chưa kín đủ 4 cạnh.' unless summary[:complete]
 
       unless expected_profiles.nil?
@@ -371,7 +420,7 @@ module TranTuanNoiThat
 
       wood = material(model, 'TT Vách lam - Gỗ', [190,140,88])
       backmat = material(model, 'TT Vách lam - Tấm lót', [160,166,174])
-      cnc_tag = o['cnc'] && o['mode'] == 'backed' ? ensure_tag(model, o['tag']) : nil
+      cnc_tag = o['cnc'] && o['mode'] == 'backed' ? ensure_tag(model, ABF_CUTTING_TAG) : nil
 
       plan[:panels].each_with_index do |panel, index|
         vl = parent.entities.add_group
@@ -393,12 +442,17 @@ module TranTuanNoiThat
         end
 
         if backing
+          backing.layer = model.layers[0]
           backing.set_attribute('ABF', 'is-board', true)
+          backing.set_attribute('TRẦN TUẤN NỘI THẤT', 'do_day_mm', o['backing'])
+          backing.set_attribute('TRẦN TUẤN NỘI THẤT', 'loai', 'VAN')
+          backing.set_attribute('TRẦN TUẤN NỘI THẤT', 'chi_tiet', 'TAM_LOT_VACH_LAM')
           backing.set_attribute(KEY, 'role', 'backing')
           backing.set_attribute(KEY, 'size_mm', [panel[:width], panel[:height], o['backing']])
           backing.set_attribute(KEY, 'profile_count', cnc_tag ? panel[:slats].length : 0)
           backing.set_attribute(KEY, 'depth_mm', o['recess'])
-          backing.set_attribute(KEY, 'cnc_tag', o['tag']) if cnc_tag
+          backing.set_attribute(KEY, 'cnc_tag', ABF_CUTTING_TAG) if cnc_tag
+          backing.set_attribute(KEY, 'operation_tag', o['tag']) if cnc_tag
           expected_profiles = cnc_tag ? panel[:slats].length : 0
           enforce_backing_integrity(backing, expected_profiles)
         end
@@ -442,10 +496,14 @@ module TranTuanNoiThat
     end
 
     def add_cnc_profile(backing, points, number, tag, depth)
-      edges = backing.entities.add_edges(*(points + [points.first]))
+      cutting = ensure_abf_cutting_group(backing)
+      actual_tag = ensure_tag(Sketchup.active_model, ABF_CUTTING_TAG)
+      cutting.layer = actual_tag
+      cutting.set_attribute(KEY, 'operation_tag', tag.respond_to?(:name) ? tag.name.to_s : tag.to_s)
+      edges = cutting.entities.add_edges(*(points + [points.first]))
       raise 'Không tạo đủ biên dạng CNC.' unless edges.length == 4
       edges.each do |edge|
-        edge.layer = tag
+        edge.layer = actual_tag
         edge.set_attribute(KEY, 'role', 'cnc_edge')
         edge.set_attribute(KEY, 'profile', number)
         edge.set_attribute(KEY, 'profiles', [number])
@@ -484,64 +542,101 @@ module TranTuanNoiThat
       UI.messagebox(e.message)
     end
 
+    def shell_box_mm(backing)
+      points = backing.entities.grep(Sketchup::Face).flat_map do |face|
+        face.vertices.map(&:position)
+      end
+      raise 'TAM_LOT không có hình học tấm.' if points.empty?
+      xs = points.map { |p| p.x.to_f }
+      ys = points.map { |p| p.y.to_f }
+      zs = points.map { |p| p.z.to_f }
+      [xs.min * 25.4, ys.min * 25.4, zs.min * 25.4,
+       (xs.max - xs.min) * 25.4, (ys.max - ys.min) * 25.4, (zs.max - zs.min) * 25.4]
+    end
+
+    def rebuild_backing_shell(backing, box)
+      shell = backing.entities.select do |entity|
+        entity.is_a?(Sketchup::Face) || entity.is_a?(Sketchup::Edge)
+      end
+      shell.each { |entity| backing.entities.erase_entities(entity) if entity.valid? }
+      pts = box_points(box)
+      BOX_FACES.each do |indices|
+        face = backing.entities.add_face(indices.map { |i| pts[i] })
+        raise 'Không dựng lại được mặt tấm lót.' unless face
+        face.layer = Sketchup.active_model.layers[0]
+        face.edges.each { |edge| edge.layer = Sketchup.active_model.layers[0] }
+      end
+      orient_backing_front(backing)
+    end
+
     def repair_backing(backing, model)
       backing.make_unique if backing.definition.instances.length > 1
-      tag_name = backing.get_attribute(KEY, 'cnc_tag', 'ABF_HANENLAMAM')
-      tag = model.layers[tag_name] || model.layers.add(tag_name)
       default_depth = backing.get_attribute(KEY, 'depth_mm', 0.0)
+      shell_box = shell_box_mm(backing)
+      records = []
 
-      # 1. Chuyển cấu trúc 1.9.148/1.9.149: group biên CNC con -> Edge thật trực tiếp trong TAM_LOT.
-      profile_groups = backing.entities.grep(Sketchup::Group).select do |group|
-        group.get_attribute(KEY, 'role') == 'cnc_profile'
+      source_groups = backing.entities.grep(Sketchup::Group).select do |group|
+        group.get_attribute(KEY, 'role') == 'cnc_profile' || abf_cutting_group?(group)
       end
-      profile_groups.each do |group|
-        number = group.get_attribute(KEY, 'profile', 0).to_i
-        depth = group.get_attribute(KEY, 'depth_mm', default_depth)
-        source_edges = group.entities.grep(Sketchup::Edge)
-        raise 'Biên CNC cũ không hợp lệ.' if source_edges.empty?
-        source_edges.each do |edge|
-          new_edge = backing.entities.add_line(edge.start.position, edge.end.position)
-          new_edge.layer = tag
-          new_edge.set_attribute(KEY, 'role', 'cnc_edge')
-          new_edge.set_attribute(KEY, 'profile', number)
-          new_edge.set_attribute(KEY, 'profiles', [number])
-          new_edge.set_attribute(KEY, 'depth_mm', depth)
+      source_groups.each do |group|
+        group_profile = group.get_attribute(KEY, 'profile', 0).to_i
+        group_depth = group.get_attribute(KEY, 'depth_mm', default_depth)
+        group.entities.grep(Sketchup::Edge).each do |edge|
+          number = edge.get_attribute(KEY, 'profile', group_profile).to_i
+          depth = edge.get_attribute(KEY, 'depth_mm', group_depth)
+          records << [edge.start.position, edge.end.position, number, depth]
         end
-        backing.entities.erase_entities(group) if group.valid?
       end
 
-      # 2. Chuẩn hóa các Edge CNC trực tiếp từ các bản cũ.
       direct_profiles = backing.entities.grep(Sketchup::Edge).select do |edge|
         edge.get_attribute(KEY, 'role') == 'cnc_edge' ||
           !Array(edge.get_attribute(KEY, 'profiles', [])).empty?
       end
-      profile_numbers = []
       direct_profiles.each do |edge|
         numbers = Array(edge.get_attribute(KEY, 'profiles', []))
-        number = edge.get_attribute(KEY, 'profile', nil)
-        number = numbers.first if number.nil?
-        number = number.to_i
-        profile_numbers << number if number > 0
-        edge.layer = tag
-        edge.set_attribute(KEY, 'role', 'cnc_edge')
-        edge.set_attribute(KEY, 'profile', number)
-        edge.set_attribute(KEY, 'profiles', [number])
-        edge.set_attribute(KEY, 'depth_mm', edge.get_attribute(KEY, 'depth_mm', default_depth))
+        number = edge.get_attribute(KEY, 'profile', numbers.first || 0).to_i
+        depth = edge.get_attribute(KEY, 'depth_mm', default_depth)
+        records << [edge.start.position, edge.end.position, number, depth]
       end
 
-      # Face/Edge kết cấu tấm vẫn Layer0; riêng Edge CNC giữ Tag ABF để đi cùng tấm khi trải.
+      source_groups.each { |group| backing.entities.erase_entities(group) if group.valid? }
+      direct_profiles.each { |edge| backing.entities.erase_entities(edge) if edge.valid? }
+
+      # Direct CNC edges from 1.9.150-1.9.155 could have split the front face.
+      # Rebuild the physical board shell so ABF sees a clean 6-face board again.
+      rebuild_backing_shell(backing, shell_box) unless backing.entities.grep(Sketchup::Face).length == 6
+
+      unless records.empty?
+        cutting = ensure_abf_cutting_group(backing)
+        tag = ensure_tag(model, ABF_CUTTING_TAG)
+        cutting.layer = tag
+        cutting.set_attribute('ABF', 'is-cutting-lines', true)
+        records.each do |a, b, number, depth|
+          edge = cutting.entities.add_line(a, b)
+          edge.layer = tag
+          edge.set_attribute(KEY, 'role', 'cnc_edge')
+          edge.set_attribute(KEY, 'profile', number)
+          edge.set_attribute(KEY, 'profiles', [number])
+          edge.set_attribute(KEY, 'depth_mm', depth)
+        end
+      end
+
       backing.entities.each do |entity|
         next unless entity.is_a?(Sketchup::Face) || entity.is_a?(Sketchup::Edge)
-        next if entity.is_a?(Sketchup::Edge) && entity.get_attribute(KEY, 'role') == 'cnc_edge'
         entity.layer = model.layers[0]
       end
       backing.layer = model.layers[0]
+      thickness = shell_box[5].round(3)
       backing.set_attribute('ABF', 'is-board', true)
+      backing.set_attribute('TRẦN TUẤN NỘI THẤT', 'do_day_mm', thickness)
+      backing.set_attribute('TRẦN TUẤN NỘI THẤT', 'loai', 'VAN')
+      backing.set_attribute('TRẦN TUẤN NỘI THẤT', 'chi_tiet', 'TAM_LOT_VACH_LAM')
       backing.set_attribute(KEY, 'role', 'backing')
-      backing.set_attribute(KEY, 'cnc_tag', tag_name)
-      repaired_count = profile_numbers.uniq.length
-      backing.set_attribute(KEY, 'profile_count', repaired_count)
-      enforce_backing_integrity(backing, repaired_count)
+      backing.set_attribute(KEY, 'cnc_tag', ABF_CUTTING_TAG)
+
+      profile_numbers = records.map { |record| record[2].to_i }.select { |number| number > 0 }.uniq
+      backing.set_attribute(KEY, 'profile_count', profile_numbers.length)
+      enforce_backing_integrity(backing, profile_numbers.length)
       true
     end
 
