@@ -810,8 +810,7 @@ module TranTuanNoiThat
           return nil unless @basis
 
           delta = @p1.vector_to(point)
-          axis = @free_axis == :x ? Geom::Vector3d.new(1,0,0) : Geom::Vector3d.new(0,1,0)
-          horizontal = delta.dot(axis)
+          horizontal = delta.dot(@basis.xaxis)
           vertical = delta.z
           Geom::Point3d.new(horizontal,vertical,0).transform(@basis)
         else
