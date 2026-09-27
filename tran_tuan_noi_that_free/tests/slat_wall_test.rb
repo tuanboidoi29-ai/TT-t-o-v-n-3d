@@ -67,9 +67,30 @@ module Attrs
  def get_attribute(d,k,default=nil);(@attrs||={}).fetch([d,k],default);end
  def set_attribute(d,k,v);(@attrs||={})[[d,k]]=v;end
 end
+class Geom::Vector3d
+ def dot(v);x*v.x+y*v.y+z*v.z;end unless method_defined?(:dot)
+end
 class Sketchup::Face
- attr_accessor :layer
+ include Attrs
+ attr_accessor :layer,:material,:back_material
  def edges;outer_loop.edges;end
+ def bounds
+  b=Geom::BoundingBox.new
+  vertices.each{|v|b.add(v.position)}
+  b
+ end
+ def normal
+  a=vertices[0].position
+  (1...(vertices.length-1)).each do |i|
+   n=a.vector_to(vertices[i].position).cross(a.vector_to(vertices[i+1].position))
+   return n.normalize if n.length>1.0e-9
+  end
+  Geom::Vector3d.new(0,0,0)
+ end
+ def reverse!
+  vertices.reverse!
+  self
+ end
 end
 class Sketchup::Edge
  include Attrs
@@ -142,6 +163,9 @@ check('real builder: clean ABF board shell with embedded _ABF_cuttingLines') do
    assert(loop.all?{|e|e.get_attribute(SW::KEY,'depth_mm')==3})
   end
   assert(backing.entities.grep(Sketchup::Face).size==6)
+  center=SW.shell_center(backing.entities.grep(Sketchup::Face))
+  assert(backing.entities.grep(Sketchup::Face).all?{|face|SW.face_outward_score(face,center)>0})
+  assert(backing.get_attribute(SW::KEY,'faces_verified')==true)
  end
  assert(Sketchup.model.commits==1)
  parent2=SW.create(Sketchup.model,p,Geom::Transformation.new)
