@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.154",
+  "version": "1.9.155",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Khóa quy tắc TAM_LOT + biên dạng là một đối tượng: Edge CNC nằm trực tiếp trong TAM_LOT, cấm group/component profile con; mỗi profile phải đủ 4 cạnh. Mặt phải TAM_LOT luôn là local +Z (phía nan), mặt sau -Z; tạo/sửa đều ép lại hướng face.",
+  "notes": "Fix bắt điểm Vách Lam: P1 chỉ snap hình học thật trong bán kính 24px, vùng trống không còn nhảy theo inference; sau P1 tự nhận Model X/Y theo hướng kéo gần nhất, có hysteresis chống nhảy trục gần 45°, Z luôn là chiều cao. Giữ nguyên TAM_LOT + biên dạng là một đối tượng và mặt phải local +Z.",
   "files": [
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -14,7 +14,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "5249d1dd616c393b1e84368f91964e69c37e8d4a083acece701d50f10901e612"
+      "sha256": "d5dc247fdd6917b75ef842031f3cc0f2b22e26eb9720388bf1aa23473cb820ed"
     },
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -29,7 +29,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "0fa89c9caa70b905eb8682b4a3564d43df8ae430e51182bdcf9d2833bc6ae4b1"
+      "sha256": "811cf1c449f5353553978ff05659345af6b8740ea594e598e13d2b032da08106"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -279,7 +279,7 @@
     {
       "path": "tran_tuan_noi_that/slat_wall_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/slat_wall_tool.rb",
-      "sha256": "c220418194f4b9a56e7682cb5ad3be65fd9983e2c3f6d3d9804f6688594a8c60"
+      "sha256": "9f2853680849c6af44bab9af2a94502d31cacce123938f69cbb45ee2b9d96fe1"
     },
     {
       "path": "tran_tuan_noi_that/stretch_auto_scan_fix.rb",
