@@ -450,7 +450,7 @@ module TranTuanNoiThat
       dlg = UI::HtmlDialog.new(
         dialog_title: 'TT – VECTOR CNC',
         preferences_key: 'TT_VECTOR_CNC',
-        scrollable: true, resizable: true, width: 520, height: 650,
+        scrollable: true, resizable: true, width: 580, height: 780,
         style: UI::HtmlDialog::STYLE_DIALOG
       )
       dlg.set_html(dialog_html)
@@ -532,56 +532,56 @@ module TranTuanNoiThat
     def dialog_html
       <<~HTML
       <!doctype html><html><head><meta charset="utf-8"><style>
-      *{box-sizing:border-box}body{font-family:Arial,sans-serif;background:#f3f4f6;margin:0;color:#222}
+      *{box-sizing:border-box}
+      body{font-family:Arial,sans-serif;background:#f3f4f6;margin:0;color:#222}
       header{background:#1f1f1f;color:#fff;padding:13px 16px;font-weight:700}
       main{padding:12px}.panel{background:#fff;border:1px solid #ddd;border-radius:9px;padding:10px;margin-bottom:10px}
-      .title{font-weight:700;margin-bottom:8px;color:#9b4d13}.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+      .title{font-weight:700;margin-bottom:8px;color:#9b4d13}
+      .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
       label{font-size:13px}input,select{padding:7px;border:1px solid #bbb;border-radius:5px;width:92px;background:#fff}
       select{width:145px}#name{width:180px}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
       button.card{min-height:54px;background:#fff;border:2px solid #ddd;border-radius:7px;cursor:pointer}
       button.card.active{border-color:#c56b20;background:#fff3e8}
       button.action{padding:9px 12px;border:0;border-radius:6px;background:#c56b20;color:#fff;font-weight:700;cursor:pointer}
-      button.start{width:100%;font-size:15px;padding:12px;background:#186a3b;margin-top:9px}
-      #preview{width:100%;height:190px;border:1px solid #bbb;border-radius:6px;background:#fafafa}
+      button.apply{width:100%;font-size:15px;padding:12px;background:#186a3b;margin-top:9px}
+      button.secondary{background:#555}
+      #preview{width:100%;height:210px;border:1px solid #bbb;border-radius:6px;background:#fafafa}
       #target{font-size:13px;line-height:1.5;background:#f8f8f8;padding:7px;border-radius:5px}
+      .align-grid{display:grid;grid-template-columns:repeat(3,42px);gap:4px}
+      .align-grid button{height:34px;border:1px solid #bbb;background:#fff;border-radius:4px;cursor:pointer;font-size:15px}
+      .align-grid button.active{background:#c56b20;color:#fff;border-color:#c56b20}
       small{display:block;margin-top:8px;line-height:1.4;color:#555}
-      </style></head><body><header>TT – VECTOR CNC · CHỌN KHỐI GROUP / COMPONENT</header><main>
+      </style></head><body><header>TT – VECTOR CNC · ÁP DỤNG VÀO GROUP / COMPONENT ĐANG CHỌN</header><main>
 
       <div class="panel">
-        <div class="title">1. ĐỐI TƯỢNG GIA CÔNG</div>
-        <div id="target">Chưa chọn Group/Component. Chọn một khối trong SketchUp hoặc bắt đầu tool rồi rà vào khối.</div>
+        <div class="title">1. KHỐI ĐANG CHỌN</div>
+        <div id="target">Chưa chọn Group/Component.</div>
+        <div class="row" style="margin-top:8px">
+          <button class="action secondary" onclick="refreshTarget()">LẤY KHỐI ĐANG CHỌN</button>
+        </div>
       </div>
 
       <div class="panel">
-        <div class="title">2. THƯ VIỆN VECTOR</div>
+        <div class="title">2. CHỌN VECTOR MẪU</div>
         <div class="grid" id="grid"></div>
       </div>
 
       <div class="panel">
-        <div class="title">3. XEM TRƯỚC</div>
-        <canvas id="preview" width="470" height="190"></canvas>
+        <div class="title">3. XEM TRƯỚC TRÊN MẶT CNC</div>
+        <canvas id="preview" width="530" height="210"></canvas>
         <div id="previewInfo"></div>
       </div>
 
       <div class="panel">
-        <div class="title">4. THIẾT LẬP CNC</div>
+        <div class="title">4. KÍCH THƯỚC + GIA CÔNG CNC</div>
         <div class="row">
           <label>Rộng vector <input id="w" type="number" value="200" min="0.1"> mm</label>
           <label>Cao vector <input id="h" type="number" value="200" min="0.1"> mm</label>
           <label>Sâu CNC <input id="depth" type="number" value="3" min="0"> mm</label>
         </div>
         <div class="row" style="margin-top:8px">
-          <label>Cách X <input id="offsetX" type="number" value="20"> mm</label>
-          <label>Cách Y <input id="offsetY" type="number" value="20"> mm</label>
-          <label>Vị trí
-            <select id="anchor">
-              <option value="center">Tâm khối</option>
-              <option value="left_bottom">Trái - Dưới</option>
-              <option value="right_bottom">Phải - Dưới</option>
-              <option value="left_top">Trái - Trên</option>
-              <option value="right_top">Phải - Trên</option>
-            </select>
-          </label>
+          <label>Viền rộng <input id="borderWidth" type="number" value="0" min="0"> mm</label>
+          <label>Làm mịn <input id="smoothness" type="number" value="72" min="12" max="240" step="12"> đoạn</label>
           <label>Chạy dao
             <select id="cutMode">
               <option value="inside">Trong biên</option>
@@ -590,19 +590,53 @@ module TranTuanNoiThat
             </select>
           </label>
         </div>
-        <button class="action start" onclick="startPlacement()">BẮT ĐẦU ĐẶT VECTOR</button>
-        <small>Tool nhận trực tiếp Group/Component, tự chọn mặt lớn nhất để gia công. Khi khối đang chọn, bảng sẽ hiện Dài × Rộng × Dày. Cách X/Y được tính theo vị trí neo đã chọn.</small>
       </div>
 
       <div class="panel">
-        <div class="title">5. THƯ VIỆN RIÊNG</div>
+        <div class="title">5. CĂN CHỈNH VECTOR</div>
+        <div class="row">
+          <div class="align-grid">
+            <button data-anchor="left_top" onclick="setAnchor('left_top')" title="Trái - Trên">↖</button>
+            <button data-anchor="top" onclick="setAnchor('top')" title="Giữa - Trên">↑</button>
+            <button data-anchor="right_top" onclick="setAnchor('right_top')" title="Phải - Trên">↗</button>
+            <button data-anchor="left" onclick="setAnchor('left')" title="Trái - Giữa">←</button>
+            <button data-anchor="center" onclick="setAnchor('center')" title="Căn giữa">●</button>
+            <button data-anchor="right" onclick="setAnchor('right')" title="Phải - Giữa">→</button>
+            <button data-anchor="left_bottom" onclick="setAnchor('left_bottom')" title="Trái - Dưới">↙</button>
+            <button data-anchor="bottom" onclick="setAnchor('bottom')" title="Giữa - Dưới">↓</button>
+            <button data-anchor="right_bottom" onclick="setAnchor('right_bottom')" title="Phải - Dưới">↘</button>
+          </div>
+          <div>
+            <div class="row">
+              <label>Cách/Dịch X <input id="offsetX" type="number" value="20"> mm</label>
+              <label>Cách/Dịch Y <input id="offsetY" type="number" value="20"> mm</label>
+            </div>
+            <small>Ở mép Trái/Phải/Trên/Dưới, X/Y là cách mép. Ở Căn giữa, X/Y là độ dịch khỏi tâm.</small>
+          </div>
+        </div>
+        <input id="anchor" type="hidden" value="center">
+      </div>
+
+      <div class="panel">
+        <button class="action apply" onclick="applySelected()">ÁP DỤNG VECTOR VÀO KHỐI ĐANG CHỌN</button>
+        <div class="row" style="margin-top:8px">
+          <button class="action secondary" onclick="startPlacement()">RÀ / ĐẶT TRÊN KHỐI KHÁC</button>
+        </div>
+        <small>ÁP DỤNG: tool tự đọc Dài × Rộng × Dày, tự chọn mặt CNC lớn nhất của khối và tạo vector thật bên trong Group/Component. Một lần áp dụng = một Undo.</small>
+      </div>
+
+      <div class="panel">
+        <div class="title">6. THƯ VIỆN RIÊNG</div>
         <div class="row"><input id="name" placeholder="Tên mẫu mới"><button class="action" onclick="save()">LƯU MẪU ABF_</button><button class="action" onclick="importVector()">NHẬP SVG/DXF/JSON</button></div>
       </div>
 
       </main><script>
       let selected=null,rows=[],selectedTemplate=null,targetInfo=null;
+
       function val(id){return parseFloat(document.getElementById(id).value)||0}
+      function intval(id){return parseInt(document.getElementById(id).value||'0',10)||0}
       function esc(s){return String(s||'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}
+
       function renderLibrary(data){
         rows=data;let g=document.getElementById('grid');g.innerHTML='';
         data.forEach(r=>{
@@ -613,6 +647,7 @@ module TranTuanNoiThat
           g.appendChild(b)
         });
       }
+
       function setSelectedTemplate(t){
         selectedTemplate=t;
         if(!t)return;
@@ -620,22 +655,69 @@ module TranTuanNoiThat
         document.getElementById('h').value=t.height||200;
         drawPreview();
       }
+
       function setTargetInfo(info){
         targetInfo=info;
         let el=document.getElementById('target');
-        if(!info){el.textContent='Chưa chọn Group/Component. Chọn một khối trong SketchUp hoặc bắt đầu tool rồi rà vào khối.'}
+        if(!info){el.textContent='Chưa chọn Group/Component.'}
         else{
           let face=info.face_length?('<br>Mặt CNC tự động: <b>'+Number(info.face_length).toFixed(1)+' × '+Number(info.face_width).toFixed(1)+' mm</b>'):'';
           el.innerHTML='<b>'+esc(info.name||'Đối tượng')+'</b><br>Dài: <b>'+Number(info.length).toFixed(1)+' mm</b> · Rộng: <b>'+Number(info.width).toFixed(1)+' mm</b> · Dày: <b>'+Number(info.thickness).toFixed(1)+' mm</b>'+face;
         }
         drawPreview();
       }
+
+      function setAnchor(value){
+        document.getElementById('anchor').value=value;
+        document.querySelectorAll('.align-grid button').forEach(b=>b.classList.toggle('active',b.dataset.anchor===value));
+        pushSettings();
+      }
+
+      function currentSettings(){
+        return [
+          val('w'),val('h'),val('depth'),val('offsetX'),val('offsetY'),
+          val('borderWidth'),intval('smoothness'),
+          document.getElementById('anchor').value,
+          document.getElementById('cutMode').value
+        ];
+      }
+
       function pushSettings(){
         if(window.sketchup&&window.sketchup.update_settings){
-          window.sketchup.update_settings(val('w'),val('h'),val('depth'),val('offsetX'),val('offsetY'),document.getElementById('anchor').value,document.getElementById('cutMode').value)
+          window.sketchup.update_settings(...currentSettings());
         }
-        drawPreview()
+        drawPreview();
       }
+
+      function previewPoints(){
+        if(!selectedTemplate)return [];
+        let smooth=Math.max(12,Math.min(240,intval('smoothness')||72));
+        if(selectedTemplate.id==='circle'||selectedTemplate.id==='oval'){
+          let pts=[];
+          for(let i=0;i<smooth;i++){
+            let a=2*Math.PI*i/smooth;
+            pts.push([Math.cos(a),Math.sin(a)*(selectedTemplate.id==='oval'?0.6:1)]);
+          }
+          return pts;
+        }
+        return selectedTemplate.points||[];
+      }
+
+      function anchorCenter(objW,objH,w,h,dx,dy,anchor){
+        let cx=objW/2+dx,cy=objH/2+dy;
+        if(anchor==='left'){cx=w/2+dx;cy=objH/2+dy}
+        if(anchor==='right'){cx=objW-w/2-dx;cy=objH/2+dy}
+        if(anchor==='top'){cx=objW/2+dx;cy=objH-h/2-dy}
+        if(anchor==='bottom'){cx=objW/2+dx;cy=h/2+dy}
+        if(anchor==='left_bottom'){cx=w/2+dx;cy=h/2+dy}
+        if(anchor==='right_bottom'){cx=objW-w/2-dx;cy=h/2+dy}
+        if(anchor==='left_top'){cx=w/2+dx;cy=objH-h/2-dy}
+        if(anchor==='right_top'){cx=objW-w/2-dx;cy=objH-h/2-dy}
+        cx=Math.max(w/2,Math.min(objW-w/2,cx));
+        cy=Math.max(h/2,Math.min(objH-h/2,cy));
+        return [cx,cy];
+      }
+
       function drawPreview(){
         let c=document.getElementById('preview'),ctx=c.getContext('2d'),W=c.width,H=c.height;
         ctx.clearRect(0,0,W,H);ctx.fillStyle='#fafafa';ctx.fillRect(0,0,W,H);
@@ -644,32 +726,51 @@ module TranTuanNoiThat
         let margin=24,scale=Math.min((W-2*margin)/objW,(H-2*margin)/objH);
         let rw=objW*scale,rh=objH*scale,ox=(W-rw)/2,oy=(H-rh)/2;
         ctx.strokeStyle='#555';ctx.lineWidth=2;ctx.strokeRect(ox,oy,rw,rh);
-        if(selectedTemplate&&selectedTemplate.points){
-          let pts=selectedTemplate.points,w=val('w'),h=val('h'),dx=val('offsetX'),dy=val('offsetY');
-          let anchor=document.getElementById('anchor').value;
-          let cx=objW/2+dx,cy=objH/2+dy;
-          if(anchor==='left_bottom'){cx=w/2+dx;cy=h/2+dy}
-          if(anchor==='right_bottom'){cx=objW-w/2-dx;cy=h/2+dy}
-          if(anchor==='left_top'){cx=w/2+dx;cy=objH-h/2-dy}
-          if(anchor==='right_top'){cx=objW-w/2-dx;cy=objH-h/2-dy}
-          cx=Math.max(w/2,Math.min(objW-w/2,cx));cy=Math.max(h/2,Math.min(objH-h/2,cy));
+
+        if(selectedTemplate){
+          let pts=previewPoints(),w=val('w'),h=val('h'),dx=val('offsetX'),dy=val('offsetY');
+          let anchor=document.getElementById('anchor').value,[cx,cy]=anchorCenter(objW,objH,w,h,dx,dy,anchor);
           let pcx=ox+cx*scale,pcy=oy+(objH-cy)*scale,pxScale=w*scale/2,pyScale=h*scale/2;
-          ctx.beginPath();pts.forEach((p,i)=>{let x=pcx+p[0]*pxScale,y=pcy-p[1]*pyScale;i?ctx.lineTo(x,y):ctx.moveTo(x,y)});
-          ctx.closePath();
+
+          function trace(){
+            ctx.beginPath();
+            pts.forEach((p,i)=>{let x=pcx+p[0]*pxScale,y=pcy-p[1]*pyScale;i?ctx.lineTo(x,y):ctx.moveTo(x,y)});
+            ctx.closePath();
+          }
+
+          let border=val('borderWidth');
+          if(border>0){
+            trace();ctx.strokeStyle='rgba(197,107,32,.25)';ctx.lineWidth=Math.max(2,border*scale*2);ctx.stroke();
+          }
+          trace();
           let mode=document.getElementById('cutMode').value;
-          ctx.setLineDash(mode==='on'?[]:(mode==='inside'?[5,3]:[2,3]));
+          ctx.setLineDash(mode==='on'?[]:(mode==='inside'?[6,3]:[2,3]));
           ctx.strokeStyle='#c56b20';ctx.lineWidth=2;ctx.stroke();ctx.setLineDash([]);
         }
-        document.getElementById('previewInfo').textContent=selectedTemplate?((selectedTemplate.name||'')+' · '+val('w')+' × '+val('h')+' mm'):'Chọn một vector để xem trước.';
+
+        let extra=' · Viền '+val('borderWidth')+' mm · Mịn '+intval('smoothness');
+        document.getElementById('previewInfo').textContent=selectedTemplate?((selectedTemplate.name||'')+' · '+val('w')+' × '+val('h')+' mm'+extra):'Chọn một vector để xem trước.';
+      }
+
+      function refreshTarget(){window.sketchup.refresh_target()}
+      function applySelected(){
+        if(!selected){alert('Chưa chọn vector.');return}
+        window.sketchup.apply_selected(selected,...currentSettings())
       }
       function startPlacement(){
         if(!selected){alert('Chưa chọn vector.');return}
-        window.sketchup.start(selected,val('w'),val('h'),val('depth'),val('offsetX'),val('offsetY'),document.getElementById('anchor').value,document.getElementById('cutMode').value)
+        window.sketchup.start(selected,...currentSettings())
       }
       function save(){if(!selected)return;let n=document.getElementById('name').value.trim();if(!n)return;window.sketchup.save(selected,n,val('w'),val('h'))}
       function importVector(){window.sketchup.import()}
-      ['w','h','depth','offsetX','offsetY','anchor','cutMode'].forEach(id=>document.addEventListener('DOMContentLoaded',()=>document.getElementById(id).addEventListener('input',pushSettings)));
-      document.addEventListener('DOMContentLoaded',()=>window.sketchup.ready())
+
+      document.addEventListener('DOMContentLoaded',()=>{
+        ['w','h','depth','offsetX','offsetY','borderWidth','smoothness','cutMode'].forEach(id=>{
+          let el=document.getElementById(id);el.addEventListener('input',pushSettings);el.addEventListener('change',pushSettings)
+        });
+        setAnchor('center');
+        window.sketchup.ready();
+      })
       </script></body></html>
       HTML
     end
