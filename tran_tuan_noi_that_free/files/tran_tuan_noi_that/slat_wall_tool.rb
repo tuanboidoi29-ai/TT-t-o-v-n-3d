@@ -5,7 +5,7 @@ require 'json'
 module TranTuanNoiThat
   module SlatWall
     extend self
-    VERSION = '1.9.157'.freeze
+    VERSION = '1.9.158'.freeze
     KEY = 'TT_VACH_LAM'.freeze
     MAX_SLATS = 2000
     SNAP_RADIUS = 24.0
@@ -202,7 +202,7 @@ module TranTuanNoiThat
         <section class="backed"><label>Độ dày tấm lót<span><input id="backing" type="number" min="0.1" step="0.1"> mm</span></label>
         <label>Hạ âm<span><input id="recess" type="number" min="0" step="0.1"> mm</span></label>
         <label>Bật CNC<input id="cnc" type="checkbox"></label><label>Tên công đoạn CNC<input id="tag" type="text" style="width:240px"></label>
-        <small><b>TAM_LOT + biên dạng luôn đi cùng nhau.</b> Hình học tấm chính giữ sạch 6 Face để ABF gắn nhãn; toàn bộ đường CNC nằm trong group chuẩn <b>_ABF_cuttingLines</b> bên trong TAM_LOT. Mặt phải TAM_LOT luôn là mặt trước local +Z, cùng phía với nan. Dày lót mặc định 17,5 mm.</small></section>
+        <small><b>BIÊN DẠNG LAM LUÔN NẰM TRONG TAM_LOT.</b> Mỗi nan sinh một vòng 4 cạnh trong <b>TAM_LOT → _ABF_cuttingLines</b>. Không còn biên dạng nằm ngang hàng với TAM_LOT/VL. Hình học tấm chính vẫn sạch 6 Face để ABF gắn nhãn. Dày lót mặc định 17,5 mm.</small></section>
         <button onclick="apply()">CẬP NHẬT PREVIEW</button>
         <p id="editBox" class="edit" style="display:none"><button onclick="sketchup.apply_edit()">ÁP DỤNG VÀO VÁCH ĐÃ CHỌN</button></p>
         <p><button onclick="sketchup.repair_abf()">SỬA TẤM LÓT ABF ĐÃ CHỌN</button></p><p id="error"></p>
@@ -442,7 +442,8 @@ module TranTuanNoiThat
 
       wood = material(model, 'TT Vách lam - Gỗ', [190,140,88])
       backmat = material(model, 'TT Vách lam - Tấm lót', [160,166,174])
-      cnc_tag = o['cnc'] && o['mode'] == 'backed' ? ensure_tag(model, ABF_CUTTING_TAG) : nil
+      profile_enabled = o['mode'] == 'backed'
+      cnc_tag = profile_enabled ? ensure_tag(model, ABF_CUTTING_TAG) : nil
 
       plan[:panels].each_with_index do |panel, index|
         vl = parent.entities.add_group
@@ -456,11 +457,12 @@ module TranTuanNoiThat
           slat = make_box(vl.entities, box, "#{vl.name}_LAM#{slat_index + 1}", wood, slat_tag)
           slat.set_attribute(KEY, 'role', 'slat')
           slat.set_attribute(KEY, 'size_mm', [box[3],box[4],box[5]])
-          next unless backing && cnc_tag
+          next unless backing && profile_enabled
           x,y,_z,w,h,_d = box
           front_z = o['backing']
           pts = [[x,y],[x+w,y],[x+w,y+h],[x,y+h]].map { |a,b| Geom::Point3d.new(a.mm,b.mm,front_z.mm) }
-          add_cnc_profile(backing, pts, slat_index + 1, cnc_tag, o['recess'])
+          depth = o['cnc'] ? o['recess'] : 0.0
+          add_cnc_profile(backing, pts, slat_index + 1, cnc_tag, depth)
         end
 
         if backing
@@ -471,11 +473,12 @@ module TranTuanNoiThat
           backing.set_attribute('TRẦN TUẤN NỘI THẤT', 'chi_tiet', 'TAM_LOT_VACH_LAM')
           backing.set_attribute(KEY, 'role', 'backing')
           backing.set_attribute(KEY, 'size_mm', [panel[:width], panel[:height], o['backing']])
-          backing.set_attribute(KEY, 'profile_count', cnc_tag ? panel[:slats].length : 0)
-          backing.set_attribute(KEY, 'depth_mm', o['recess'])
-          backing.set_attribute(KEY, 'cnc_tag', ABF_CUTTING_TAG) if cnc_tag
-          backing.set_attribute(KEY, 'operation_tag', o['tag']) if cnc_tag
-          expected_profiles = cnc_tag ? panel[:slats].length : 0
+          backing.set_attribute(KEY, 'profile_count', profile_enabled ? panel[:slats].length : 0)
+          backing.set_attribute(KEY, 'depth_mm', o['cnc'] ? o['recess'] : 0.0)
+          backing.set_attribute(KEY, 'cnc_tag', ABF_CUTTING_TAG) if profile_enabled
+          backing.set_attribute(KEY, 'operation_tag', o['tag']) if o['cnc']
+          backing.set_attribute(KEY, 'profiles_source', 'slats')
+          expected_profiles = profile_enabled ? panel[:slats].length : 0
           enforce_backing_integrity(backing, expected_profiles)
         end
       end
@@ -534,31 +537,99 @@ module TranTuanNoiThat
       edges
     end
 
+    def migrate_sibling_profiles_into_backing(backing, panel, model)
+      return [] unless panel && panel.respond_to?(:entities)
+      cutting = ensure_abf_cutting_group(backing)
+      tag = ensure_tag(model, ABF_CUTTING_TAG)
+      records = []
+
+      panel.entities.grep(Sketchup::Group).each do |group|
+        next if group.equal?(backing)
+        role = group.get_attribute(KEY, 'role')
+        name = group.name.to_s
+        next unless role == 'cnc_profile' || role == 'cnc_cutting_lines' ||
+                    name == '_ABF_cuttingLines' || name.match?(/LAM_PROFILE/i)
+        group.entities.grep(Sketchup::Edge).each do |edge|
+          number = edge.get_attribute(KEY, 'profile', 0).to_i
+          depth = edge.get_attribute(KEY, 'depth_mm', backing.get_attribute(KEY, 'depth_mm', 0.0))
+          records << [edge.start.position, edge.end.position, number, depth]
+        end
+        panel.entities.erase_entities(group) if group.valid?
+      end
+
+      records.each do |a,b,number,depth|
+        edge = cutting.entities.add_line(a,b)
+        edge.layer = tag
+        edge.set_attribute(KEY, 'role', 'cnc_edge')
+        edge.set_attribute(KEY, 'profile', number)
+        edge.set_attribute(KEY, 'profiles', [number])
+        edge.set_attribute(KEY, 'depth_mm', depth)
+      end
+      records
+    end
+
+    def rebuild_profiles_from_panel_slats(backing, panel, model)
+      return 0 unless panel && panel.respond_to?(:entities)
+      slats = panel.entities.grep(Sketchup::Group).select do |group|
+        group.get_attribute(KEY, 'role') == 'slat' || group.name.to_s.match?(/_LAM\d+\z/)
+      end
+      return 0 if slats.empty?
+
+      cutting = ensure_abf_cutting_group(backing)
+      old_edges = cutting.entities.grep(Sketchup::Edge)
+      cutting.entities.erase_entities(old_edges) unless old_edges.empty?
+      tag = ensure_tag(model, ABF_CUTTING_TAG)
+      front_z = backing.definition.bounds.max.z
+
+      slats.each_with_index do |slat,index|
+        b = slat.definition.bounds
+        pts = [
+          Geom::Point3d.new(b.min.x,b.min.y,front_z),
+          Geom::Point3d.new(b.max.x,b.min.y,front_z),
+          Geom::Point3d.new(b.max.x,b.max.y,front_z),
+          Geom::Point3d.new(b.min.x,b.max.y,front_z)
+        ]
+        edges = cutting.entities.add_edges(*(pts + [pts.first]))
+        edges.each do |edge|
+          edge.layer = tag
+          edge.set_attribute(KEY, 'role', 'cnc_edge')
+          edge.set_attribute(KEY, 'profile', index + 1)
+          edge.set_attribute(KEY, 'profiles', [index + 1])
+          edge.set_attribute(KEY, 'depth_mm', backing.get_attribute(KEY, 'depth_mm', 0.0))
+        end
+      end
+      backing.set_attribute(KEY, 'profiles_source', 'slats')
+      slats.length
+    end
+
     def repair_selected_backings
       model = Sketchup.active_model
       found = []
-      walk = lambda do |entities, ancestors|
+      walk = lambda do |entities, ancestors, panel|
         entities.each do |entity|
           next unless entity.is_a?(Sketchup::Group) || entity.is_a?(Sketchup::ComponentInstance)
           next if ancestors.include?(entity.definition)
           raise 'Group đang khóa. Mở khóa trước khi sửa.' if entity.locked?
+          current_panel = entity.get_attribute(KEY, 'role') == 'panel' || entity.name.to_s.match?(/\AVL\d+\z/) ? entity : panel
           if entity.get_attribute(KEY, 'role') == 'backing' ||
-             (entity.name.to_s.match?(/\AVL\d+_TAM_LOT\z/) && !entity.get_attribute(KEY, 'profile_count').nil?)
-            found << entity
+             entity.name.to_s.match?(/\AVL\d+_TAM_LOT\z/)
+            found << [entity, current_panel]
           else
             raise 'Group cha có nhiều bản sao. Make Unique group cha trước khi sửa.' if entity.definition.instances.length > 1
-            walk.call(entity.definition.entities, ancestors + [entity.definition])
+            walk.call(entity.definition.entities, ancestors + [entity.definition], current_panel)
           end
         end
       end
-      walk.call(model.selection.to_a, [])
+      walk.call(model.selection.to_a, [], nil)
       raise 'Chọn group vách lam hoặc tấm lót cần sửa trước.' if found.empty?
-      raise 'Tấm lót đang khóa.' if found.any?(&:locked?)
+      raise 'Tấm lót đang khóa.' if found.any? { |pair| pair[0].locked? }
       model.start_operation('TT - Sửa tấm lót nhận ABF', true)
       started = true
-      found.uniq.each { |backing| repair_backing(backing, model) }
+      found.uniq.each do |backing, panel|
+        repair_backing(backing, model, panel)
+      end
       model.commit_operation
-      UI.messagebox("Đã sửa cấu trúc #{found.uniq.length} tấm lót. Chạy lại chức năng đánh nhãn ABF để kiểm tra.")
+      UI.messagebox("Đã đưa biên dạng lam vào trong TAM_LOT cho #{found.uniq.length} tấm lót.")
     rescue StandardError => e
       model.abort_operation if started
       UI.messagebox(e.message)
@@ -591,8 +662,9 @@ module TranTuanNoiThat
       orient_backing_front(backing)
     end
 
-    def repair_backing(backing, model)
+    def repair_backing(backing, model, panel = nil)
       backing.make_unique if backing.definition.instances.length > 1
+      migrate_sibling_profiles_into_backing(backing, panel, model) if panel
       default_depth = backing.get_attribute(KEY, 'depth_mm', 0.0)
       shell_box = shell_box_mm(backing)
       records = []
@@ -657,6 +729,10 @@ module TranTuanNoiThat
       backing.set_attribute(KEY, 'cnc_tag', ABF_CUTTING_TAG)
 
       profile_numbers = records.map { |record| record[2].to_i }.select { |number| number > 0 }.uniq
+      if panel
+        rebuilt = rebuild_profiles_from_panel_slats(backing, panel, model)
+        profile_numbers = (1..rebuilt).to_a if rebuilt > 0
+      end
       backing.set_attribute(KEY, 'profile_count', profile_numbers.length)
       enforce_backing_integrity(backing, profile_numbers.length)
       true
