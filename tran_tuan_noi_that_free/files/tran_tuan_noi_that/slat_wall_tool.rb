@@ -5,7 +5,7 @@ require 'json'
 module TranTuanNoiThat
   module SlatWall
     extend self
-    VERSION = '1.9.158'.freeze
+    VERSION = '1.9.159'.freeze
     KEY = 'TT_VACH_LAM'.freeze
     MAX_SLATS = 2000
     SNAP_RADIUS = 24.0
@@ -107,7 +107,8 @@ module TranTuanNoiThat
       total = count * cols * rows
       raise "Quá nhiều lam (#{total}). Giảm số lượng hoặc tạo từng vùng nhỏ." if total > MAX_SLATS
       backed = o['mode'] == 'backed'
-      z = backed ? o['backing'] - o['recess'] : 0.0
+      # ABF convention: mặt phải/phía nan = z=0; chiều dày tấm lót đi về âm Z.
+      z = backed ? -o['recess'] : 0.0
       panels = []
       rows.times do |row|
         cols.times do |col|
@@ -122,7 +123,7 @@ module TranTuanNoiThat
             end
           end
           panels << { x: x, y: y, width: pw, height: ph, slats: slats,
-                      backing: backed ? [x, y, 0.0, pw, ph, o['backing']] : nil }
+                      backing: backed ? [x, y, -o['backing'], pw, ph, o['backing']] : nil }
         end
       end
       { width: w, height: h, columns: cols, rows: rows, panels: panels,
@@ -202,7 +203,7 @@ module TranTuanNoiThat
         <section class="backed"><label>Độ dày tấm lót<span><input id="backing" type="number" min="0.1" step="0.1"> mm</span></label>
         <label>Hạ âm<span><input id="recess" type="number" min="0" step="0.1"> mm</span></label>
         <label>Bật CNC<input id="cnc" type="checkbox"></label><label>Tên công đoạn CNC<input id="tag" type="text" style="width:240px"></label>
-        <small><b>BIÊN DẠNG LAM LUÔN NẰM TRONG TAM_LOT.</b> Mỗi nan sinh một vòng 4 cạnh trong <b>TAM_LOT → _ABF_cuttingLines</b>. Không còn biên dạng nằm ngang hàng với TAM_LOT/VL. Hình học tấm chính vẫn sạch 6 Face để ABF gắn nhãn. Dày lót mặc định 17,5 mm.</small></section>
+        <small><b>BIÊN DẠNG LAM LUÔN NẰM TRONG TAM_LOT.</b> Theo chuẩn ABF: mặt phải/phía nan = z=0, tấm lót 17,5 đi về z=-17,5; toàn bộ vòng biên dạng nằm trong <b>TAM_LOT → _ABF_cuttingLines</b> tại đúng mặt z=-17,5 để khi trải đi cùng tấm.</small></section>
         <button onclick="apply()">CẬP NHẬT PREVIEW</button>
         <p id="editBox" class="edit" style="display:none"><button onclick="sketchup.apply_edit()">ÁP DỤNG VÀO VÁCH ĐÃ CHỌN</button></p>
         <p><button onclick="sketchup.repair_abf()">SỬA TẤM LÓT ABF ĐÃ CHỌN</button></p><p id="error"></p>
@@ -459,8 +460,8 @@ module TranTuanNoiThat
           slat.set_attribute(KEY, 'size_mm', [box[3],box[4],box[5]])
           next unless backing && profile_enabled
           x,y,_z,w,h,_d = box
-          front_z = o['backing']
-          pts = [[x,y],[x+w,y],[x+w,y+h],[x,y+h]].map { |a,b| Geom::Point3d.new(a.mm,b.mm,front_z.mm) }
+          cut_z = -o['backing']
+          pts = [[x,y],[x+w,y],[x+w,y+h],[x,y+h]].map { |a,b| Geom::Point3d.new(a.mm,b.mm,cut_z.mm) }
           depth = o['cnc'] ? o['recess'] : 0.0
           add_cnc_profile(backing, pts, slat_index + 1, cnc_tag, depth)
         end
@@ -568,6 +569,15 @@ module TranTuanNoiThat
       records
     end
 
+    def normalize_panel_slats_to_front(panel, old_front_mm)
+      return if panel.nil? || old_front_mm.abs < 0.001
+      shift = Geom::Transformation.translation(Geom::Vector3d.new(0,0,(-old_front_mm).mm))
+      panel.entities.grep(Sketchup::Group).each do |group|
+        next unless group.get_attribute(KEY, 'role') == 'slat' || group.name.to_s.match?(/_LAM\d+\z/)
+        group.transform!(shift)
+      end
+    end
+
     def rebuild_profiles_from_panel_slats(backing, panel, model)
       return 0 unless panel && panel.respond_to?(:entities)
       slats = panel.entities.grep(Sketchup::Group).select do |group|
@@ -579,15 +589,15 @@ module TranTuanNoiThat
       old_edges = cutting.entities.grep(Sketchup::Edge)
       cutting.entities.erase_entities(old_edges) unless old_edges.empty?
       tag = ensure_tag(model, ABF_CUTTING_TAG)
-      front_z = backing.definition.bounds.max.z
+      cut_z = backing.definition.bounds.min.z
 
       slats.each_with_index do |slat,index|
         b = slat.definition.bounds
         pts = [
-          Geom::Point3d.new(b.min.x,b.min.y,front_z),
-          Geom::Point3d.new(b.max.x,b.min.y,front_z),
-          Geom::Point3d.new(b.max.x,b.max.y,front_z),
-          Geom::Point3d.new(b.min.x,b.max.y,front_z)
+          Geom::Point3d.new(b.min.x,b.min.y,cut_z),
+          Geom::Point3d.new(b.max.x,b.min.y,cut_z),
+          Geom::Point3d.new(b.max.x,b.max.y,cut_z),
+          Geom::Point3d.new(b.min.x,b.max.y,cut_z)
         ]
         edges = cutting.entities.add_edges(*(pts + [pts.first]))
         edges.each do |edge|
@@ -667,6 +677,9 @@ module TranTuanNoiThat
       migrate_sibling_profiles_into_backing(backing, panel, model) if panel
       default_depth = backing.get_attribute(KEY, 'depth_mm', 0.0)
       shell_box = shell_box_mm(backing)
+      old_front_mm = shell_box[2] + shell_box[5]
+      thickness_mm = shell_box[5]
+      normalized_box = [shell_box[0], shell_box[1], -thickness_mm, shell_box[3], shell_box[4], thickness_mm]
       records = []
 
       source_groups = backing.entities.grep(Sketchup::Group).select do |group|
@@ -696,9 +709,15 @@ module TranTuanNoiThat
       source_groups.each { |group| backing.entities.erase_entities(group) if group.valid? }
       direct_profiles.each { |edge| backing.entities.erase_entities(edge) if edge.valid? }
 
-      # Direct CNC edges from 1.9.150-1.9.155 could have split the front face.
-      # Rebuild the physical board shell so ABF sees a clean 6-face board again.
-      rebuild_backing_shell(backing, shell_box) unless backing.entities.grep(Sketchup::Face).length == 6
+      # Chuẩn hóa mọi tấm cũ về quy ước ABF: mặt phải z=0, dày đi về -Z.
+      # Đồng thời dựng lại shell sạch 6 Face nếu các bản cũ từng chia mặt.
+      rebuild_backing_shell(backing, normalized_box)
+      normalize_panel_slats_to_front(panel, old_front_mm) if panel
+
+      cut_z = (-thickness_mm).mm
+      records = records.map do |a,b,number,depth|
+        [Geom::Point3d.new(a.x,a.y,cut_z), Geom::Point3d.new(b.x,b.y,cut_z), number, depth]
+      end
 
       unless records.empty?
         cutting = ensure_abf_cutting_group(backing)
@@ -720,7 +739,7 @@ module TranTuanNoiThat
         entity.layer = model.layers[0]
       end
       backing.layer = model.layers[0]
-      thickness = shell_box[5].round(3)
+      thickness = thickness_mm.round(3)
       backing.set_attribute('ABF', 'is-board', true)
       backing.set_attribute('TRẦN TUẤN NỘI THẤT', 'do_day_mm', thickness)
       backing.set_attribute('TRẦN TUẤN NỘI THẤT', 'loai', 'VAN')
