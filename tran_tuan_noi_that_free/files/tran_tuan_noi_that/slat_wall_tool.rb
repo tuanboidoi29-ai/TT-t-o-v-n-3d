@@ -5,11 +5,11 @@ require 'json'
 module TranTuanNoiThat
   module SlatWall
     extend self
-    VERSION = '1.9.163'.freeze
+    VERSION = '1.9.164'.freeze
     KEY = 'TT_VACH_LAM'.freeze
     MAX_SLATS = 2000
     SNAP_RADIUS = 24.0
-    AXIS_SWITCH_RATIO = 1.35
+    AXIS_SWITCH_RATIO = 1.25
     ABF_CUTTING_TAG = 'ABF_cuttingLines'.freeze
     ABF_INTERSECT_NAME = '_ABF_Intersect'.freeze
     DEFAULTS = {
@@ -891,13 +891,14 @@ module TranTuanNoiThat
         @free_axis = nil
         @p1_locked = false
         @raw_p2 = nil
+        @p1_plane_normal = nil
       end
       def status
         mode = @options['mode'] == 'backed' ? 'CÓ TẤM LÓT' : 'LAM ĐƠN'
         direction = @options['orientation'] == 'vertical' ? 'NAN DỌC' : 'NAN NGANG'
         action = @edit_target ? 'đang sửa vách đã chọn; chỉnh thông số rồi bấm ÁP DỤNG' : (@p1 ? 'P1 ĐÃ CỐ ĐỊNH · bắt góc chéo P2 bất kỳ' : 'chọn P1')
         axis_text = @free_axis ? " · TỰ NHẬN TRỤC #{@free_axis.to_s.upcase}" : ''
-        Sketchup.status_text = "TT VÁCH LAM · #{mode} · #{direction}#{axis_text} · #{action} · P1 không đổi · P2 tự nhận hướng · SHIFT đổi chế độ · TAB đổi hướng · S mở bảng · ESC hủy"
+        Sketchup.status_text = "TT VÁCH LAM · #{mode} · #{direction}#{axis_text} · #{action} · SNAP CHỈ ENDPOINT/ĐẦU EDGE 24px · KHÔNG SNAP FACE · SHIFT đổi chế độ · TAB đổi hướng · S mở bảng · ESC hủy"
       end
       def dialog_state
         if @edit_target
@@ -1006,11 +1007,11 @@ module TranTuanNoiThat
         normal.normalize!
         normal
       end
-      def free_space_pick(view, x, y, anchor = nil)
+      def free_space_pick(view, x, y, anchor = nil, locked_normal = nil)
         anchor ||= free_view_anchor(view)
         ray = view.pickray(x,y)
-        direction = view.camera.direction
-        point = Geom.intersect_line_plane(ray,[anchor,direction])
+        normal = locked_normal || view.camera.direction
+        point = Geom.intersect_line_plane(ray,[anchor,normal])
         point ||= Geom.intersect_line_plane(ray,[anchor,free_wall_normal(view)])
         point
       rescue StandardError
@@ -1061,21 +1062,53 @@ module TranTuanNoiThat
         v = normal.cross(u).normalize
         Geom::Transformation.axes(point,u,v,normal)
       end
-      def geometry_input_point?(ip)
-        return false unless ip && ip.valid?
-        [:vertex, :edge, :face].any? do |method|
-          ip.respond_to?(method) && !ip.public_send(method).nil?
-        end
+      def inputpoint_transform(ip)
+        tr = ip.respond_to?(:transformation) ? ip.transformation : nil
+        tr || Geom::Transformation.new
       rescue StandardError
-        false
+        Geom::Transformation.new
+      end
+
+      def endpoint_snap_point(ip, view, x, y)
+        return nil unless ip && ip.valid?
+        tr = inputpoint_transform(ip)
+        candidates = []
+
+        if ip.respond_to?(:vertex) && (vertex = ip.vertex)
+          begin
+            candidates << vertex.position.transform(tr)
+          rescue StandardError
+            candidates << ip.position if ip.respond_to?(:position)
+          end
+        end
+
+        if ip.respond_to?(:edge) && (edge = ip.edge)
+          begin
+            candidates << edge.start.position.transform(tr)
+            candidates << edge.end.position.transform(tr)
+          rescue StandardError
+            # Ignore malformed edge candidates.
+          end
+        end
+
+        candidates.compact!
+        return nil if candidates.empty?
+        candidates.uniq! { |point| [point.x.to_f.round(8), point.y.to_f.round(8), point.z.to_f.round(8)] }
+
+        best = candidates.min_by do |point|
+          screen = view.screen_coords(point)
+          Math.hypot(screen.x.to_f - x.to_f, screen.y.to_f - y.to_f)
+        end
+        return nil unless best
+        screen = view.screen_coords(best)
+        distance = Math.hypot(screen.x.to_f - x.to_f, screen.y.to_f - y.to_f)
+        distance <= SNAP_RADIUS ? best : nil
+      rescue StandardError
+        nil
       end
 
       def stable_geometry_input_point?(ip, view, x, y)
-        return false unless geometry_input_point?(ip)
-        screen = view.screen_coords(ip.position)
-        Math.hypot(screen.x.to_f - x.to_f, screen.y.to_f - y.to_f) <= SNAP_RADIUS
-      rescue StandardError
-        false
+        !endpoint_snap_point(ip, view, x, y).nil?
       end
 
       def model_axis_for(candidate)
@@ -1085,20 +1118,25 @@ module TranTuanNoiThat
         dy = delta.y.abs
         return @free_axis if [dx, dy].max < 0.5.mm
 
-        max_value = [dx, dy].max
-        difference = (dx - dy).abs
-        if difference <= max_value * 0.05 && @free_axis
-          @free_axis
-        else
+        if @free_axis.nil?
           @free_axis = dx >= dy ? :x : :y
+        elsif @free_axis == :x
+          @free_axis = :y if dy > dx * AXIS_SWITCH_RATIO
+        else
+          @free_axis = :x if dx > dy * AXIS_SWITCH_RATIO
         end
+        @free_axis
       rescue StandardError
         @free_axis
       end
 
-      def lock_first_point(point)
+      def lock_first_point(point, view = nil)
         @p1 = Geom::Point3d.new(point.x, point.y, point.z)
         @p1_locked = true
+        @p1_plane_normal = if view && view.respond_to?(:camera)
+          direction = view.camera.direction
+          Geom::Vector3d.new(direction.x, direction.y, direction.z).normalize
+        end
         @p2 = nil
         @raw_p2 = nil
         @basis = nil
@@ -1108,18 +1146,14 @@ module TranTuanNoiThat
         @p1
       end
 
-      def model_axis_basis_from(point, candidate, view)
+      def model_axis_basis_from(point, candidate, _view)
         axis_key = model_axis_for(candidate)
         return nil unless axis_key
+        # Hệ trục cố định theo Model Axis, tuyệt đối không đảo theo camera.
         u = axis_key == :x ? Geom::Vector3d.new(1,0,0) : Geom::Vector3d.new(0,1,0)
         v = Geom::Vector3d.new(0,0,1)
         normal = u.cross(v)
         normal.normalize!
-        if normal.dot(view.camera.direction) > 0
-          u.reverse!
-          normal = u.cross(v)
-          normal.normalize!
-        end
         Geom::Transformation.axes(point,u,v,normal)
       rescue StandardError
         nil
@@ -1149,7 +1183,8 @@ module TranTuanNoiThat
         if @p1_locked && @p1
           # P1 đã khóa: tuyệt đối không pick lại P1 và không dùng @first_ip làm inference reference.
           @ip.pick(view,x,y)
-          raw = stable_geometry_input_point?(@ip,view,x,y) ? @ip.position : free_space_pick(view,x,y,@p1)
+          raw = endpoint_snap_point(@ip,view,x,y)
+          raw ||= free_space_pick(view,x,y,@p1,@p1_plane_normal)
           return nil unless raw
           @raw_p2 = Geom::Point3d.new(raw.x, raw.y, raw.z)
 
@@ -1164,7 +1199,7 @@ module TranTuanNoiThat
           Geom::Point3d.new(horizontal,vertical,0).transform(@basis)
         else
           @ip.pick(view,x,y)
-          stable_geometry_input_point?(@ip,view,x,y) ? @ip.position : free_space_pick(view,x,y)
+          endpoint_snap_point(@ip,view,x,y) || free_space_pick(view,x,y)
         end
       end
       def onMouseMove(_flags,x,y,view)
@@ -1176,9 +1211,9 @@ module TranTuanNoiThat
         snap = stable_geometry_input_point?(@ip,view,x,y)
         axis = @free_axis ? " · TRỤC #{@free_axis.to_s.upcase}" : ''
         if @p1_locked
-          view.tooltip = @error || (snap ? "P1 cố định → P2: #{@ip.tooltip}#{axis}" : "P1 cố định → bắt góc chéo P2 bất kỳ#{axis}")
+          view.tooltip = @error || (snap ? "P1 cố định → P2 Endpoint#{axis}" : "P1 cố định → P2 tự do#{axis}")
         else
-          view.tooltip = @error || (snap ? "Chọn P1: #{@ip.tooltip}" : 'Chọn P1')
+          view.tooltip = @error || (snap ? 'Chọn P1 Endpoint' : 'Chọn P1 tự do')
         end
         view.invalidate
       rescue StandardError => e
@@ -1196,7 +1231,7 @@ module TranTuanNoiThat
           rebuild
           commit(view)
         else
-          lock_first_point(point)
+          lock_first_point(point, view)
           @drag_start = [x,y]
           status
         end
