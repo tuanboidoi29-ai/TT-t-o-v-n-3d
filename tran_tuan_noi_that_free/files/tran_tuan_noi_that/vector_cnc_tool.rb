@@ -955,8 +955,8 @@ module TranTuanNoiThat
         faces.max_by do |face|
           area = transformed_face_area(face,transform)
           normal = transformed_face_normal(face,transform)
-          alignment = normal.length > 0 ? normal.normalize.dot(direction).abs : 0.0
-          area * (0.35 + alignment)
+          facing = normal.length > 0 ? [-normal.normalize.dot(direction),0.0].max : 0.0
+          area * (0.35 + facing)
         end
       end
 
