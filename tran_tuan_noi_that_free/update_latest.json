@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.167",
+  "version": "1.9.168",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Sửa hình học nan chéo: tạo thanh chéo dài rồi cắt giao đúng với khung vách, đầu nan phẳng theo mép trái/phải/trên/dưới thay vì đóng đầu vuông góc gây răng cưa. Nan chéo vẫn giữ cùng bề rộng, preview/hình học thật/ABF-Aspire dùng cùng polygon 4 cạnh đã cắt.",
+  "notes": "Đổi thao tác Vách Lam sang AUTO-first: gọi tool là AUTO; TAB mở Cài đặt; SHIFT xoay nan. Rê vào Face nằm trong Group/Component thì tự nhận biên dạng và preview nan ngay, click 1 lần để tạo; Face rời ngoài Model không nhận. Hỗ trợ Face lồi/bo tròn như hình tròn, oval, đa giác lồi; nan được cắt theo biên Face. Vùng trống vẫn dùng P1-P2. Face nguồn không bị sửa.",
   "files": [
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -14,7 +14,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "33d7ea117c77aa7b9e279ca745125c6eef732f9c67b1b72f00df584fcdd320f1"
+      "sha256": "de929f55e41bab81a7df389050ff525e608896c3cfbce6601280f6cfa1502ccc"
     },
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -29,7 +29,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "9b643ab385cf930080689477d74cf47e72a7876da8a0dd5f65f2d3612dab3df1"
+      "sha256": "45b7ae3abc2e6d0ef337645f20d3debb083d0a18d46d0390514222e9071662e4"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -279,7 +279,7 @@
     {
       "path": "tran_tuan_noi_that/slat_wall_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/slat_wall_tool.rb",
-      "sha256": "d456c1fc71fa720b011ce8ff485cf7f9500f87f49822dd6a371ce7dbc7777a90"
+      "sha256": "37fbffe45ba2ae5cbe7b3f4c62cc554c3588b81f29d1669243afaad0fce886cd"
     },
     {
       "path": "tran_tuan_noi_that/stretch_auto_scan_fix.rb",
