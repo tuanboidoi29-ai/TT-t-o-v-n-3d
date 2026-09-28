@@ -17,7 +17,7 @@ module TranTuanNoiThat
   }.freeze unless const_defined?(:LOCKED_FEATURE_BASELINES, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.169'.freeze
+  VERSION = '1.9.170'.freeze
 
   class << self
     def setting(key, default = nil)
