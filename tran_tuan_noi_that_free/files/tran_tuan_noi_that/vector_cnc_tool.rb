@@ -581,7 +581,8 @@ module TranTuanNoiThat
         let el=document.getElementById('target');
         if(!info){el.textContent='Chưa chọn Group/Component. Chọn một khối trong SketchUp hoặc bắt đầu tool rồi rà vào khối.'}
         else{
-          el.innerHTML='<b>'+esc(info.name||'Đối tượng')+'</b><br>Dài: <b>'+Number(info.length).toFixed(1)+' mm</b> · Rộng: <b>'+Number(info.width).toFixed(1)+' mm</b> · Dày: <b>'+Number(info.thickness).toFixed(1)+' mm</b>';
+          let face=info.face_length?('<br>Mặt CNC tự động: <b>'+Number(info.face_length).toFixed(1)+' × '+Number(info.face_width).toFixed(1)+' mm</b>'):'';
+          el.innerHTML='<b>'+esc(info.name||'Đối tượng')+'</b><br>Dài: <b>'+Number(info.length).toFixed(1)+' mm</b> · Rộng: <b>'+Number(info.width).toFixed(1)+' mm</b> · Dày: <b>'+Number(info.thickness).toFixed(1)+' mm</b>'+face;
         }
         drawPreview();
       }
@@ -594,16 +595,26 @@ module TranTuanNoiThat
       function drawPreview(){
         let c=document.getElementById('preview'),ctx=c.getContext('2d'),W=c.width,H=c.height;
         ctx.clearRect(0,0,W,H);ctx.fillStyle='#fafafa';ctx.fillRect(0,0,W,H);
-        let objW=targetInfo?Math.max(1,Number(targetInfo.length)):600;
-        let objH=targetInfo?Math.max(1,Number(targetInfo.width)):400;
+        let objW=targetInfo?Math.max(1,Number(targetInfo.face_length||targetInfo.length)):600;
+        let objH=targetInfo?Math.max(1,Number(targetInfo.face_width||targetInfo.width)):400;
         let margin=24,scale=Math.min((W-2*margin)/objW,(H-2*margin)/objH);
         let rw=objW*scale,rh=objH*scale,ox=(W-rw)/2,oy=(H-rh)/2;
         ctx.strokeStyle='#555';ctx.lineWidth=2;ctx.strokeRect(ox,oy,rw,rh);
         if(selectedTemplate&&selectedTemplate.points){
-          let pts=selectedTemplate.points,w=val('w'),h=val('h');
-          let pxScale=w*scale/2,pyScale=h*scale/2,cx=W/2,cy=H/2;
-          ctx.beginPath();pts.forEach((p,i)=>{let x=cx+p[0]*pxScale,y=cy-p[1]*pyScale;i?ctx.lineTo(x,y):ctx.moveTo(x,y)});
-          ctx.closePath();ctx.strokeStyle='#c56b20';ctx.lineWidth=2;ctx.stroke();
+          let pts=selectedTemplate.points,w=val('w'),h=val('h'),dx=val('offsetX'),dy=val('offsetY');
+          let anchor=document.getElementById('anchor').value;
+          let cx=objW/2+dx,cy=objH/2+dy;
+          if(anchor==='left_bottom'){cx=w/2+dx;cy=h/2+dy}
+          if(anchor==='right_bottom'){cx=objW-w/2-dx;cy=h/2+dy}
+          if(anchor==='left_top'){cx=w/2+dx;cy=objH-h/2-dy}
+          if(anchor==='right_top'){cx=objW-w/2-dx;cy=objH-h/2-dy}
+          cx=Math.max(w/2,Math.min(objW-w/2,cx));cy=Math.max(h/2,Math.min(objH-h/2,cy));
+          let pcx=ox+cx*scale,pcy=oy+(objH-cy)*scale,pxScale=w*scale/2,pyScale=h*scale/2;
+          ctx.beginPath();pts.forEach((p,i)=>{let x=pcx+p[0]*pxScale,y=pcy-p[1]*pyScale;i?ctx.lineTo(x,y):ctx.moveTo(x,y)});
+          ctx.closePath();
+          let mode=document.getElementById('cutMode').value;
+          ctx.setLineDash(mode==='on'?[]:(mode==='inside'?[5,3]:[2,3]));
+          ctx.strokeStyle='#c56b20';ctx.lineWidth=2;ctx.stroke();ctx.setLineDash([]);
         }
         document.getElementById('previewInfo').textContent=selectedTemplate?((selectedTemplate.name||'')+' · '+val('w')+' × '+val('h')+' mm'):'Chọn một vector để xem trước.';
       }
