@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.163",
+  "version": "1.9.164",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Nâng cấp bắt điểm Vách Lam: P1 khóa tuyệt đối sau click; P2 bắt góc chéo bất kỳ. Hướng vách tự nhận Model X/Y từ P1→P2; sau khi nhận trục, P2 được chiếu lên mặt phẳng đứng XZ hoặc YZ qua P1. Gần 45° có dead-band 5%; Z luôn là chiều cao.",
+  "notes": "Ổn định bắt điểm Vách Lam: P1/P2 chỉ snap Vertex/Endpoint hoặc đầu Edge thật trong bán kính 24px; bỏ snap Face và inference trượt trên mặt/edge. P1 khóa cả tọa độ và mặt phẳng nhìn tại thời điểm click. Model X/Y không đảo theo camera; đổi trục có hysteresis 1.25 để tránh rung gần 45°. Nếu không có endpoint thật thì dùng mặt phẳng làm việc cố định.",
   "files": [
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -14,7 +14,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "2d85cd7da4a145dfda6442781b6dd1cd302198aee2c5d10495f91b506e6bdd58"
+      "sha256": "d063ea779964ddd4c37013db5c542c5c675a4ff371aaec2075ac16e8a15e3d63"
     },
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -29,7 +29,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "32488c83e70bcbe283c33a69c23823a7d87350662d1af33e80196c5b68b38e1b"
+      "sha256": "0245fe21572636a21c67648b1272800ff52d5490b064f87f8d52ad0e44c41f84"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -279,7 +279,7 @@
     {
       "path": "tran_tuan_noi_that/slat_wall_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/slat_wall_tool.rb",
-      "sha256": "6fa3af1cbddaba3d0b15e6141ac1f94b9deae874dd009a29f296a3210c0aae72"
+      "sha256": "488dfc24f05aacc61abf2dc1c091d082d2088d04386f9573082d5a1b14b82e94"
     },
     {
       "path": "tran_tuan_noi_that/stretch_auto_scan_fix.rb",
