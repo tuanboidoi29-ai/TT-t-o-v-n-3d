@@ -362,6 +362,35 @@ check('detected free basis is aligned exactly to a Model axis and Z is vertical'
  near(u.y,0);near(u.z,0);near(u.x,1)
  near(v.x,0);near(v.y,0);near(v.z,1)
 end
+check('SHIFT plane modes expose XZ YZ diagonal right diagonal left and XY') do
+ tool=SW::Tool.new(SW::DEFAULTS)
+ expected=[:auto,:xz,:yz,:diag_right,:diag_left,:xy]
+ assert(SW::PLANE_MODES==expected)
+
+ xz=tool.send(:fixed_plane_axes,:xz)
+ near(xz[0].x,1);near(xz[0].y,0);near(xz[1].z,1)
+ yz=tool.send(:fixed_plane_axes,:yz)
+ near(yz[0].x,0);near(yz[0].y,1);near(yz[1].z,1)
+ dr=tool.send(:fixed_plane_axes,:diag_right)
+ assert(dr[0].x>0 && dr[0].y>0);near(dr[0].x.abs,dr[0].y.abs)
+ dl=tool.send(:fixed_plane_axes,:diag_left)
+ assert(dl[0].x>0 && dl[0].y<0);near(dl[0].x.abs,dl[0].y.abs)
+ xy=tool.send(:fixed_plane_axes,:xy)
+ near(xy[0].x,1);near(xy[0].y,0);near(xy[1].x,0);near(xy[1].y,1)
+end
+check('cycling SHIFT plane mode never moves locked P1') do
+ tool=SW::Tool.new(SW::DEFAULTS)
+ p1=Geom::Point3d.new(250.mm,350.mm,450.mm)
+ tool.send(:lock_first_point,p1)
+ original=tool.instance_variable_get(:@p1)
+ view=TestView.new
+ 6.times do
+  tool.send(:cycle_plane_mode,view)
+  locked=tool.instance_variable_get(:@p1)
+  near(locked.x,original.x);near(locked.y,original.y);near(locked.z,original.z)
+ end
+ assert(tool.instance_variable_get(:@plane_mode)==:auto)
+end
 check('four diagonal drag directions produce the same dimensions') do
  tool=SW::Tool.new(SW::DEFAULTS)
  [-1,1].product([-1,1]).each do |sx,sy|
