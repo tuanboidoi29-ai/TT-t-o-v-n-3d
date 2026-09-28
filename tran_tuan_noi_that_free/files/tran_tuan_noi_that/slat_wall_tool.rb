@@ -5,7 +5,7 @@ require 'json'
 module TranTuanNoiThat
   module SlatWall
     extend self
-    VERSION = '1.9.166'.freeze
+    VERSION = '1.9.167'.freeze
     KEY = 'TT_VACH_LAM'.freeze
     MAX_SLATS = 2000
     SNAP_RADIUS = 24.0
@@ -93,15 +93,110 @@ module TranTuanNoiThat
       [count, gap, extra]
     end
 
-    def diagonal_run(width, height, slat_width, angle_deg)
+    def diagonal_run(width, height, _slat_width, angle_deg)
       angle = angle_deg * Math::PI / 180.0
       nx = -Math.sin(angle)
       ny = Math.cos(angle)
-      half = slat_width / 2.0
-      inset_w = width - 2.0 * nx.abs * half
-      inset_h = height - 2.0 * ny.abs * half
-      raise 'Rộng nan quá lớn để xoay chéo trong vùng hiện tại.' if inset_w <= 0.1 || inset_h <= 0.1
-      nx.abs * inset_w + ny.abs * inset_h + slat_width
+      nx.abs * width + ny.abs * height
+    end
+
+    def diagonal_spacing_values(run, options)
+      width = options['width']
+      nominal_gap = options['gap']
+      case options['spacing_mode']
+      when 'count'
+        count = options['count']
+        raise 'Số lượng nan chéo quá lớn so với vùng.' if count * width > run + 1.0e-9
+        gap = (run - count * width) / (count + 1)
+        extra = gap
+      when 'auto'
+        count = [(((run + nominal_gap) / (width + nominal_gap)) + 1.0e-9).floor, 1].max
+        gap = (run - count * width) / (count + 1)
+        extra = gap
+      else
+        count = [(((run + nominal_gap) / (width + nominal_gap)) + 1.0e-9).floor, 1].max
+        gap = nominal_gap
+        used = count * width + (count - 1) * gap
+        extra = [run - used, 0.0].max / 2.0
+      end
+      raise 'Không đủ khoảng biên để tạo nan chéo sạch.' if extra < -1.0e-9
+      [count, gap, [extra,0.0].max]
+    end
+
+    def clip_polygon_boundary(poly, axis, boundary, keep_greater)
+      return [] if poly.empty?
+      inside = lambda do |point|
+        value = point[axis]
+        keep_greater ? value >= boundary - 1.0e-8 : value <= boundary + 1.0e-8
+      end
+      output = []
+      poly.each_with_index do |current,index|
+        previous = poly[(index - 1) % poly.length]
+        current_inside = inside.call(current)
+        previous_inside = inside.call(previous)
+
+        if current_inside != previous_inside
+          denom = current[axis] - previous[axis]
+          unless denom.abs < 1.0e-12
+            t = (boundary - previous[axis]) / denom
+            output << [
+              previous[0] + (current[0] - previous[0]) * t,
+              previous[1] + (current[1] - previous[1]) * t
+            ]
+          end
+        end
+        output << current if current_inside
+      end
+      output
+    end
+
+    def simplify_polygon(poly)
+      cleaned = []
+      poly.each do |point|
+        unless cleaned.any? && Math.hypot(point[0]-cleaned[-1][0], point[1]-cleaned[-1][1]) < 1.0e-6
+          cleaned << point
+        end
+      end
+      if cleaned.length > 1 && Math.hypot(cleaned[0][0]-cleaned[-1][0], cleaned[0][1]-cleaned[-1][1]) < 1.0e-6
+        cleaned.pop
+      end
+
+      changed = true
+      while changed && cleaned.length > 3
+        changed = false
+        cleaned.length.times do |i|
+          a = cleaned[(i-1) % cleaned.length]
+          b = cleaned[i]
+          c = cleaned[(i+1) % cleaned.length]
+          cross = (b[0]-a[0])*(c[1]-b[1]) - (b[1]-a[1])*(c[0]-b[0])
+          if cross.abs < 1.0e-7
+            cleaned.delete_at(i)
+            changed = true
+            break
+          end
+        end
+      end
+      cleaned
+    end
+
+    def clip_strip_to_rect(c, half, dx, dy, nx, ny, x0, y0, x1, y1)
+      corners = [[x0,y0],[x1,y0],[x1,y1],[x0,y1]]
+      t_values = corners.map { |x,y| x*dx + y*dy }
+      span = (x1-x0).abs + (y1-y0).abs + half*4.0
+      t0 = t_values.min - span
+      t1 = t_values.max + span
+
+      poly = [
+        [nx*(c-half)+dx*t0, ny*(c-half)+dy*t0],
+        [nx*(c-half)+dx*t1, ny*(c-half)+dy*t1],
+        [nx*(c+half)+dx*t1, ny*(c+half)+dy*t1],
+        [nx*(c+half)+dx*t0, ny*(c+half)+dy*t0]
+      ]
+      poly = clip_polygon_boundary(poly,0,x0,true)
+      poly = clip_polygon_boundary(poly,0,x1,false)
+      poly = clip_polygon_boundary(poly,1,y0,true)
+      poly = clip_polygon_boundary(poly,1,y1,false)
+      simplify_polygon(poly)
     end
 
     def diagonal_slats(x0, y0, x1, y1, z, options, angle_deg, count, gap, extra)
@@ -112,60 +207,31 @@ module TranTuanNoiThat
       ny = dx
       half = options['width'] / 2.0
 
-      ix0 = x0 + nx.abs * half
-      ix1 = x1 - nx.abs * half
-      iy0 = y0 + ny.abs * half
-      iy1 = y1 - ny.abs * half
-      raise 'Vùng quá nhỏ để xoay nan chéo.' if ix1 <= ix0 || iy1 <= iy0
-
-      projections = [[ix0,iy0],[ix1,iy0],[ix1,iy1],[ix0,iy1]].map { |x,y| x*nx + y*ny }
+      corners = [[x0,y0],[x1,y0],[x1,y1],[x0,y1]]
+      projections = corners.map { |x,y| x*nx + y*ny }
       cmin = projections.min
-      first_c = cmin + extra
+      first_c = cmin + extra + half
       boxes = []
       polygons = []
       lengths = []
 
       count.times do |i|
         c = first_c + i * (options['width'] + gap)
-        t_low = -Float::INFINITY
-        t_high = Float::INFINITY
+        polygon = clip_strip_to_rect(c, half, dx, dy, nx, ny, x0, y0, x1, y1)
+        next if polygon.length < 4
+        # Với nan 45° trong khung chữ nhật, profile sạch phải là tứ giác.
+        # Bỏ profile suy biến ở đúng góc để tránh đầu răng cưa/zero-edge.
+        next unless polygon.length == 4
 
-        if dx.abs > 1.0e-9
-          a = (ix0 - nx*c) / dx
-          b = (ix1 - nx*c) / dx
-          t_low = [t_low, [a,b].min].max
-          t_high = [t_high, [a,b].max].min
-        elsif nx*c < ix0 - 1.0e-9 || nx*c > ix1 + 1.0e-9
-          next
-        end
+        t_values = polygon.map { |x,y| x*dx + y*dy }
+        length = t_values.max - t_values.min
+        next unless length > 0.1
 
-        if dy.abs > 1.0e-9
-          a = (iy0 - ny*c) / dy
-          b = (iy1 - ny*c) / dy
-          t_low = [t_low, [a,b].min].max
-          t_high = [t_high, [a,b].max].min
-        elsif ny*c < iy0 - 1.0e-9 || ny*c > iy1 + 1.0e-9
-          next
-        end
-        next unless t_high > t_low + 0.1
-
-        ax = nx*c + dx*t_low
-        ay = ny*c + dy*t_low
-        bx = nx*c + dx*t_high
-        by = ny*c + dy*t_high
-        polygon = [
-          [ax + nx*half, ay + ny*half],
-          [bx + nx*half, by + ny*half],
-          [bx - nx*half, by - ny*half],
-          [ax - nx*half, ay - ny*half]
-        ]
-        length = t_high - t_low
-        cx = (ax + bx) / 2.0
-        cy = (ay + by) / 2.0
-        boxes << [cx - length/2.0, cy - half, z, length, options['width'], options['depth']]
+        boxes << [0.0, 0.0, z, length, options['width'], options['depth']]
         polygons << polygon
         lengths << length
       end
+      raise 'Không tạo được nan chéo sạch trong vùng đã chọn.' if polygons.empty?
       [boxes, polygons, lengths]
     end
 
@@ -191,7 +257,11 @@ module TranTuanNoiThat
       else
         diagonal_run(usable_w, usable_h, o['width'], angle_deg)
       end
-      count, gap, extra = spacing_values(run, o)
+      count, gap, extra = if orientation == 'diag_right' || orientation == 'diag_left'
+        diagonal_spacing_values(run, o)
+      else
+        spacing_values(run, o)
+      end
 
       total = count * cols * rows
       raise "Quá nhiều lam (#{total}). Giảm số lượng hoặc tạo từng vùng nhỏ." if total > MAX_SLATS
@@ -226,8 +296,10 @@ module TranTuanNoiThat
                       backing: backed ? [x, y, -o['backing'], pw, ph, o['backing']] : nil }
         end
       end
+      actual_total = panels.sum { |panel| panel[:slats].length }
       { width: w, height: h, columns: cols, rows: rows, panels: panels,
-        slat_count: total, count_per_panel: count, gap: gap, orientation: o['orientation'], options: o }
+        slat_count: actual_total, count_per_panel: panels.first ? panels.first[:slats].length : 0,
+        gap: gap, orientation: o['orientation'], options: o }
     end
 
     def selected_wall(model = Sketchup.active_model)
@@ -1037,7 +1109,7 @@ module TranTuanNoiThat
         }[@options['orientation']] || @options['orientation'].to_s
         action = @edit_target ? 'đang sửa vách đã chọn; chỉnh thông số rồi bấm ÁP DỤNG' : (@p1 ? 'P1 ĐÃ CỐ ĐỊNH · bắt góc chéo P2 bất kỳ' : 'chọn P1')
         axis_text = @free_axis ? " · TỰ NHẬN TRỤC #{@free_axis.to_s.upcase}" : ''
-        Sketchup.status_text = "TT VÁCH LAM · #{mode} · #{direction}#{axis_text} · #{action} · SHIFT XOAY NAN · TAB DỌC/NGANG · SNAP ENDPOINT 24px · ESC hủy"
+        Sketchup.status_text = "TT VÁCH LAM · #{mode} · #{direction}#{axis_text} · #{action} · SHIFT XOAY NAN · NAN CHÉO CẮT GỌN THEO KHUNG · SNAP ENDPOINT 24px · ESC hủy"
       end
       def dialog_state
         if @edit_target
