@@ -5,14 +5,14 @@ require 'json'
 module TranTuanNoiThat
   module SlatWall
     extend self
-    VERSION = '1.9.165'.freeze
+    VERSION = '1.9.166'.freeze
     KEY = 'TT_VACH_LAM'.freeze
     MAX_SLATS = 2000
     SNAP_RADIUS = 24.0
     AXIS_SWITCH_RATIO = 1.25
     ABF_CUTTING_TAG = 'ABF_cuttingLines'.freeze
     ABF_INTERSECT_NAME = '_ABF_Intersect'.freeze
-    PLANE_MODES = [:auto, :xz, :yz, :diag_right, :diag_left, :xy].freeze
+    SLAT_ORIENTATIONS = %w[vertical horizontal diag_right diag_left].freeze
     DEFAULTS = {
       'mode' => 'single', 'stock_length' => 2440.0, 'stock_width' => 1220.0,
       'stock_thickness' => 17.5, 'width' => 40.0, 'depth' => 17.5,
@@ -38,7 +38,7 @@ module TranTuanNoiThat
       end
       raise 'Rộng lam lớn hơn rộng khổ ván.' if o['width'] > o['stock_width']
       raise 'Chế độ không hợp lệ.' unless %w[single backed].include?(o['mode'])
-      raise 'Hướng lam không hợp lệ.' unless %w[vertical horizontal].include?(o['orientation'])
+      raise 'Hướng lam không hợp lệ.' unless SLAT_ORIENTATIONS.include?(o['orientation'])
       raise 'Chế độ khoảng cách không hợp lệ.' unless %w[manual auto count].include?(o['spacing_mode'])
       if o['mode'] == 'backed' && o['recess'] >= [o['backing'], o['depth']].min
         raise 'Hạ âm phải nhỏ hơn độ dày tấm lót và độ dày lam.'
@@ -70,6 +70,105 @@ module TranTuanNoiThat
       Sketchup.write_default(KEY, 'settings', JSON.generate(options))
     end
 
+    def spacing_values(run, options)
+      raise 'Rộng lam lớn hơn vùng còn lại sau khi trừ mép.' if run + 1.0e-9 < options['width']
+      nominal_gap = options['gap']
+      case options['spacing_mode']
+      when 'count'
+        count = options['count']
+        used_slats = count * options['width']
+        raise 'Số lượng lam quá lớn so với vùng đặt lam.' if used_slats > run + 1.0e-9
+        gap = count > 1 ? (run - used_slats) / (count - 1) : 0.0
+        extra = count == 1 ? (run - options['width']) / 2.0 : 0.0
+      when 'auto'
+        count = [(((run + nominal_gap) / (options['width'] + nominal_gap)) + 1.0e-9).floor, 1].max
+        gap = count > 1 ? (run - count * options['width']) / (count - 1) : 0.0
+        extra = count == 1 ? (run - options['width']) / 2.0 : 0.0
+      else
+        count = [(((run + nominal_gap) / (options['width'] + nominal_gap)) + 1.0e-9).floor, 1].max
+        gap = nominal_gap
+        used = count * options['width'] + (count - 1) * gap
+        extra = [run - used, 0.0].max / 2.0
+      end
+      [count, gap, extra]
+    end
+
+    def diagonal_run(width, height, slat_width, angle_deg)
+      angle = angle_deg * Math::PI / 180.0
+      nx = -Math.sin(angle)
+      ny = Math.cos(angle)
+      half = slat_width / 2.0
+      inset_w = width - 2.0 * nx.abs * half
+      inset_h = height - 2.0 * ny.abs * half
+      raise 'Rộng nan quá lớn để xoay chéo trong vùng hiện tại.' if inset_w <= 0.1 || inset_h <= 0.1
+      nx.abs * inset_w + ny.abs * inset_h + slat_width
+    end
+
+    def diagonal_slats(x0, y0, x1, y1, z, options, angle_deg, count, gap, extra)
+      angle = angle_deg * Math::PI / 180.0
+      dx = Math.cos(angle)
+      dy = Math.sin(angle)
+      nx = -dy
+      ny = dx
+      half = options['width'] / 2.0
+
+      ix0 = x0 + nx.abs * half
+      ix1 = x1 - nx.abs * half
+      iy0 = y0 + ny.abs * half
+      iy1 = y1 - ny.abs * half
+      raise 'Vùng quá nhỏ để xoay nan chéo.' if ix1 <= ix0 || iy1 <= iy0
+
+      projections = [[ix0,iy0],[ix1,iy0],[ix1,iy1],[ix0,iy1]].map { |x,y| x*nx + y*ny }
+      cmin = projections.min
+      first_c = cmin + extra
+      boxes = []
+      polygons = []
+      lengths = []
+
+      count.times do |i|
+        c = first_c + i * (options['width'] + gap)
+        t_low = -Float::INFINITY
+        t_high = Float::INFINITY
+
+        if dx.abs > 1.0e-9
+          a = (ix0 - nx*c) / dx
+          b = (ix1 - nx*c) / dx
+          t_low = [t_low, [a,b].min].max
+          t_high = [t_high, [a,b].max].min
+        elsif nx*c < ix0 - 1.0e-9 || nx*c > ix1 + 1.0e-9
+          next
+        end
+
+        if dy.abs > 1.0e-9
+          a = (iy0 - ny*c) / dy
+          b = (iy1 - ny*c) / dy
+          t_low = [t_low, [a,b].min].max
+          t_high = [t_high, [a,b].max].min
+        elsif ny*c < iy0 - 1.0e-9 || ny*c > iy1 + 1.0e-9
+          next
+        end
+        next unless t_high > t_low + 0.1
+
+        ax = nx*c + dx*t_low
+        ay = ny*c + dy*t_low
+        bx = nx*c + dx*t_high
+        by = ny*c + dy*t_high
+        polygon = [
+          [ax + nx*half, ay + ny*half],
+          [bx + nx*half, by + ny*half],
+          [bx - nx*half, by - ny*half],
+          [ax - nx*half, ay - ny*half]
+        ]
+        length = t_high - t_low
+        cx = (ax + bx) / 2.0
+        cy = (ay + by) / 2.0
+        boxes << [cx - length/2.0, cy - half, z, length, options['width'], options['depth']]
+        polygons << polygon
+        lengths << length
+      end
+      [boxes, polygons, lengths]
+    end
+
     # Pure millimetre layout; shared by viewport, dialog and real geometry.
     def layout(width, height, options)
       o = validate(options)
@@ -83,28 +182,16 @@ module TranTuanNoiThat
       usable_h = ph - o['top'] - o['bottom']
       raise 'Khoảng cách mép làm hết vùng đặt lam.' unless usable_w > 0.1 && usable_h > 0.1
 
-      vertical = o['orientation'] == 'vertical'
-      run = vertical ? usable_w : usable_h
-      raise 'Rộng lam lớn hơn vùng còn lại sau khi trừ mép.' if run + 1.0e-9 < o['width']
-      nominal_gap = o['gap']
-
-      case o['spacing_mode']
-      when 'count'
-        count = o['count']
-        used_slats = count * o['width']
-        raise 'Số lượng lam quá lớn so với vùng đặt lam.' if used_slats > run + 1.0e-9
-        gap = count > 1 ? (run - used_slats) / (count - 1) : 0.0
-        extra = count == 1 ? (run - o['width']) / 2.0 : 0.0
-      when 'auto'
-        count = [(((run + nominal_gap) / (o['width'] + nominal_gap)) + 1.0e-9).floor, 1].max
-        gap = count > 1 ? (run - count * o['width']) / (count - 1) : 0.0
-        extra = count == 1 ? (run - o['width']) / 2.0 : 0.0
+      orientation = o['orientation']
+      angle_deg = orientation == 'diag_right' ? 45.0 : (orientation == 'diag_left' ? -45.0 : nil)
+      run = if orientation == 'vertical'
+        usable_w
+      elsif orientation == 'horizontal'
+        usable_h
       else
-        count = [(((run + nominal_gap) / (o['width'] + nominal_gap)) + 1.0e-9).floor, 1].max
-        gap = nominal_gap
-        used = count * o['width'] + (count - 1) * gap
-        extra = [run - used, 0.0].max / 2.0
+        diagonal_run(usable_w, usable_h, o['width'], angle_deg)
       end
+      count, gap, extra = spacing_values(run, o)
 
       total = count * cols * rows
       raise "Quá nhiều lam (#{total}). Giảm số lượng hoặc tạo từng vùng nhỏ." if total > MAX_SLATS
@@ -115,16 +202,27 @@ module TranTuanNoiThat
       rows.times do |row|
         cols.times do |col|
           x, y = col * pw, row * ph
-          slats = count.times.map do |i|
-            if vertical
+          slat_polygons = nil
+          slat_lengths = nil
+          if orientation == 'vertical'
+            slats = count.times.map do |i|
               [x + o['left'] + extra + i * (o['width'] + gap), y + o['bottom'], z,
                o['width'], usable_h, o['depth']]
-            else
+            end
+          elsif orientation == 'horizontal'
+            slats = count.times.map do |i|
               [x + o['left'], y + o['bottom'] + extra + i * (o['width'] + gap), z,
                usable_w, o['width'], o['depth']]
             end
+          else
+            slats, slat_polygons, slat_lengths = diagonal_slats(
+              x + o['left'], y + o['bottom'],
+              x + pw - o['right'], y + ph - o['top'],
+              z, o, angle_deg, count, gap, extra
+            )
           end
           panels << { x: x, y: y, width: pw, height: ph, slats: slats,
+                      slat_polygons: slat_polygons, slat_lengths: slat_lengths,
                       backing: backed ? [x, y, -o['backing'], pw, ph, o['backing']] : nil }
         end
       end
@@ -195,9 +293,9 @@ module TranTuanNoiThat
       <<~HTML
         <!doctype html><html lang="vi"><meta charset="utf-8"><style>
         *{box-sizing:border-box}body{font:14px Arial;margin:0;background:#f4f5f7;color:#202a34}header{padding:17px;background:#223d50;color:white}h2{font-size:18px;margin:0 0 6px}main{padding:14px}section{background:white;padding:14px;border-radius:8px;margin-bottom:12px}label{display:flex;justify-content:space-between;align-items:center;margin:8px 0;gap:10px}input[type=number]{width:105px}input,select{padding:7px;border:1px solid #bbc6cc;border-radius:4px}select{max-width:245px}button{width:100%;padding:12px;background:#c4752a;color:white;border:0;border-radius:5px;font-weight:bold;cursor:pointer}small{display:block;color:#647380;line-height:1.5}canvas{width:100%;height:170px;background:#eef1f4;border-radius:5px}#error{color:#b12828;white-space:pre-line}#info{font-size:12px;line-height:1.5;margin:8px 0}.backed,.counted{display:none}.edit button{background:#27784a}
-        </style><header><h2>TRẦN TUẤN · TẠO VÁCH LAM</h2>Hai góc chéo · SHIFT quay mặt vách: Auto/XZ/YZ/chéo phải/chéo trái/XY · TAB đổi nan dọc/ngang · S mở bảng</header><main>
+        </style><header><h2>TRẦN TUẤN · TẠO VÁCH LAM</h2>Hai góc chéo · SHIFT xoay nan: Dọc → Ngang → Chéo phải → Chéo trái · TAB đổi nhanh Dọc/Ngang · S mở bảng</header><main>
         <section><label>Chế độ<select id="mode" onchange="visibility()"><option value="single">Vách lam đơn</option><option value="backed">Vách lam có tấm lót</option></select></label>
-        <label>Hướng nan<select id="orientation"><option value="vertical">Nan dọc</option><option value="horizontal">Nan ngang</option></select></label>
+        <label>Hướng nan<select id="orientation"><option value="vertical">Nan dọc</option><option value="horizontal">Nan ngang</option><option value="diag_right">Chéo phải 45°</option><option value="diag_left">Chéo trái 45°</option></select></label>
         #{inputs}
         <label>Kiểu chia<select id="spacing_mode" onchange="visibility()"><option value="manual">Giữ đúng khe + căn giữa</option><option value="auto">Tự động chia đều khe</option><option value="count">Theo số lượng nan</option></select></label>
         <label class="counted">Số lượng nan / cụm<span><input id="count" type="number" min="1" max="#{MAX_SLATS}" step="1"></span></label>
@@ -215,7 +313,7 @@ module TranTuanNoiThat
         function visibility(){document.querySelectorAll('.backed').forEach(e=>e.style.display=document.getElementById('mode').value==='backed'?'block':'none');document.querySelectorAll('.counted').forEach(e=>e.style.display=document.getElementById('spacing_mode').value==='count'?'flex':'none')}
         function apply(){const o={};keys.forEach(k=>{let e=document.getElementById(k);o[k]=e.type==='checkbox'?e.checked:(e.type==='number'?Number(e.value):e.value)});sketchup.update(JSON.stringify(o))}
         function showError(s){document.getElementById('error').textContent=s}
-        function receive(s){keys.forEach(k=>{let e=document.getElementById(k);if(!e)return;if(e.type==='checkbox')e.checked=s.options[k];else e.value=s.options[k]});visibility();document.getElementById('editBox').style.display=s.editing?'block':'none';showError(s.error||'');const c=document.getElementById('preview'),ctx=c.getContext('2d');ctx.clearRect(0,0,c.width,c.height);const d=s.layout;if(!d)return;let scale=Math.min(392/d.width,142/d.height),ox=(420-d.width*scale)/2,oy=(170-d.height*scale)/2;d.panels.forEach(p=>{if(p.backing){ctx.fillStyle='#b1bac2';ctx.fillRect(ox+p.x*scale,oy+p.y*scale,p.width*scale,p.height*scale)}p.slats.forEach(b=>{ctx.fillStyle='#c58e57';ctx.fillRect(ox+b[0]*scale,oy+b[1]*scale,Math.max(1,b[3]*scale),Math.max(1,b[4]*scale))});ctx.strokeStyle='#5c707d';ctx.strokeRect(ox+p.x*scale,oy+p.y*scale,p.width*scale,p.height*scale)});document.getElementById('info').textContent=(s.editing?'Vách đang chọn · ':(s.sample?'Mô phỏng mẫu · ':'Vùng đang vẽ · '))+d.width.toFixed(1)+' × '+d.height.toFixed(1)+' mm · '+(d.orientation==='vertical'?'nan dọc':'nan ngang')+' · '+d.panels.length+' cụm VL · '+d.slat_count+' nan · khe '+d.gap.toFixed(2)+' mm'}
+        function receive(s){keys.forEach(k=>{let e=document.getElementById(k);if(!e)return;if(e.type==='checkbox')e.checked=s.options[k];else e.value=s.options[k]});visibility();document.getElementById('editBox').style.display=s.editing?'block':'none';showError(s.error||'');const c=document.getElementById('preview'),ctx=c.getContext('2d');ctx.clearRect(0,0,c.width,c.height);const d=s.layout;if(!d)return;let scale=Math.min(392/d.width,142/d.height),ox=(420-d.width*scale)/2,oy=(170-d.height*scale)/2;d.panels.forEach(p=>{if(p.backing){ctx.fillStyle='#b1bac2';ctx.fillRect(ox+p.x*scale,oy+p.y*scale,p.width*scale,p.height*scale)}p.slats.forEach((b,i)=>{ctx.fillStyle='#c58e57';let poly=p.slat_polygons&&p.slat_polygons[i];if(poly){ctx.beginPath();poly.forEach((pt,j)=>{let X=ox+pt[0]*scale,Y=oy+pt[1]*scale;j?ctx.lineTo(X,Y):ctx.moveTo(X,Y)});ctx.closePath();ctx.fill()}else{ctx.fillRect(ox+b[0]*scale,oy+b[1]*scale,Math.max(1,b[3]*scale),Math.max(1,b[4]*scale))}});ctx.strokeStyle='#5c707d';ctx.strokeRect(ox+p.x*scale,oy+p.y*scale,p.width*scale,p.height*scale)});document.getElementById('info').textContent=(s.editing?'Vách đang chọn · ':(s.sample?'Mô phỏng mẫu · ':'Vùng đang vẽ · '))+d.width.toFixed(1)+' × '+d.height.toFixed(1)+' mm · '+({vertical:'nan dọc',horizontal:'nan ngang',diag_right:'chéo phải 45°',diag_left:'chéo trái 45°'}[d.orientation]||d.orientation)+' · '+d.panels.length+' cụm VL · '+d.slat_count+' nan · khe '+d.gap.toFixed(2)+' mm'}
         window.addEventListener('load',()=>sketchup.ready());
         </script></html>
       HTML
@@ -228,6 +326,31 @@ module TranTuanNoiThat
       x,y,z,w,h,d = box
       (0..7).map { |i| Geom::Point3d.new((x + ((i & 1) == 0 ? 0 : w)).mm,
         (y + ((i & 2) == 0 ? 0 : h)).mm, (z + ((i & 4) == 0 ? 0 : d)).mm) }
+    end
+
+    PRISM_FACES = [[0,1,2,3],[4,5,6,7],[0,4,5,1],[1,5,6,2],[2,6,7,3],[3,7,4,0]].freeze
+    PRISM_EDGES = [[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]].freeze
+
+    def slat_prism_points(polygon, z, depth)
+      base = polygon.map { |x,y| Geom::Point3d.new(x.mm,y.mm,z.mm) }
+      top = polygon.map { |x,y| Geom::Point3d.new(x.mm,y.mm,(z + depth).mm) }
+      base + top
+    end
+
+    def make_polygon_prism(entities, polygon, z, depth, name, material, tag = nil)
+      group = entities.add_group
+      group.name = name
+      group.material = material
+      group.layer = tag || Sketchup.active_model.layers[0]
+      points = slat_prism_points(polygon, z, depth)
+      PRISM_FACES.each do |indices|
+        face = group.entities.add_face(indices.map { |i| points[i] })
+        raise 'Không tạo được mặt kín cho nan chéo.' unless face
+        face.layer = Sketchup.active_model.layers[0]
+        face.edges.each { |edge| edge.layer = Sketchup.active_model.layers[0] }
+      end
+      orient_outward_faces(group, material)
+      group
     end
 
     def direct_shell_faces(group)
@@ -576,13 +699,24 @@ module TranTuanNoiThat
         backing = panel[:backing] ? make_box(vl.entities, panel[:backing], "#{vl.name}_TAM_LOT", backmat) : nil
 
         panel[:slats].each_with_index do |box, slat_index|
-          slat = make_box(vl.entities, box, "#{vl.name}_LAM#{slat_index + 1}", wood, slat_tag)
+          polygon = panel[:slat_polygons] && panel[:slat_polygons][slat_index]
+          if polygon
+            slat = make_polygon_prism(vl.entities, polygon, box[2], box[5], "#{vl.name}_LAM#{slat_index + 1}", wood, slat_tag)
+            length = panel[:slat_lengths][slat_index]
+            slat.set_attribute(KEY, 'size_mm', [o['width'], length, box[5]])
+          else
+            slat = make_box(vl.entities, box, "#{vl.name}_LAM#{slat_index + 1}", wood, slat_tag)
+            slat.set_attribute(KEY, 'size_mm', [box[3],box[4],box[5]])
+          end
           slat.set_attribute(KEY, 'role', 'slat')
-          slat.set_attribute(KEY, 'size_mm', [box[3],box[4],box[5]])
           next unless backing && profile_enabled
-          x,y,_z,w,h,_d = box
           face_z = backing_front_z(backing)
-          pts = [[x,y],[x+w,y],[x+w,y+h],[x,y+h]].map { |a,b| Geom::Point3d.new(a.mm,b.mm,face_z) }
+          if polygon
+            pts = polygon.map { |a,b| Geom::Point3d.new(a.mm,b.mm,face_z) }
+          else
+            x,y,_z,w,h,_d = box
+            pts = [[x,y],[x+w,y],[x+w,y+h],[x,y+h]].map { |a,b| Geom::Point3d.new(a.mm,b.mm,face_z) }
+          end
           depth = o['cnc'] ? o['recess'] : 0.0
           add_abf_intersect_profile(backing, pts, slat_index + 1, o['tag'], depth, slat)
         end
@@ -893,15 +1027,17 @@ module TranTuanNoiThat
         @p1_locked = false
         @raw_p2 = nil
         @p1_plane_normal = nil
-        @plane_mode ||= :auto
+        @plane_mode = :auto
       end
       def status
         mode = @options['mode'] == 'backed' ? 'CÓ TẤM LÓT' : 'LAM ĐƠN'
-        direction = @options['orientation'] == 'vertical' ? 'NAN DỌC' : 'NAN NGANG'
+        direction = {
+          'vertical'=>'NAN DỌC','horizontal'=>'NAN NGANG',
+          'diag_right'=>'NAN CHÉO PHẢI 45°','diag_left'=>'NAN CHÉO TRÁI 45°'
+        }[@options['orientation']] || @options['orientation'].to_s
         action = @edit_target ? 'đang sửa vách đã chọn; chỉnh thông số rồi bấm ÁP DỤNG' : (@p1 ? 'P1 ĐÃ CỐ ĐỊNH · bắt góc chéo P2 bất kỳ' : 'chọn P1')
-        plane_text = plane_mode_label
-        axis_text = @plane_mode == :auto && @free_axis ? " · TỰ NHẬN TRỤC #{@free_axis.to_s.upcase}" : ''
-        Sketchup.status_text = "TT VÁCH LAM · #{mode} · #{direction} · MẶT #{plane_text}#{axis_text} · #{action} · SHIFT QUAY MẶT · TAB ĐỔI NAN · SNAP ENDPOINT 24px · ESC hủy"
+        axis_text = @free_axis ? " · TỰ NHẬN TRỤC #{@free_axis.to_s.upcase}" : ''
+        Sketchup.status_text = "TT VÁCH LAM · #{mode} · #{direction}#{axis_text} · #{action} · SHIFT XOAY NAN · TAB DỌC/NGANG · SNAP ENDPOINT 24px · ESC hủy"
       end
       def dialog_state
         if @edit_target
@@ -942,11 +1078,25 @@ module TranTuanNoiThat
         UI.messagebox("Không cập nhật được vách lam: #{e.message}")
         false
       end
+      def cycle_slat_orientation(view)
+        current = SLAT_ORIENTATIONS.index(@options['orientation']) || 0
+        next_orientation = SLAT_ORIENTATIONS[(current + 1) % SLAT_ORIENTATIONS.length]
+        @options = SlatWall.validate(@options.merge('orientation' => next_orientation))
+        SlatWall.save_settings(@options)
+        rebuild if @p1 && @p2
+        SlatWall.send_state
+        status
+        view.invalidate
+      rescue StandardError => e
+        @error = e.message
+        view.invalidate
+      end
+
       def onKeyDown(key, repeat, _flags, view)
         if key == 16
           return true if @shift_down || repeat.to_i > 1
           @shift_down = true
-          cycle_plane_mode(view)
+          cycle_slat_orientation(view)
           true
         elsif key == 9
           return true if @tab_down || repeat.to_i > 1
@@ -1340,15 +1490,27 @@ module TranTuanNoiThat
         @plan = SlatWall.layout(w,h,@options)
         @draw_transform = @basis * Geom::Transformation.translation(Geom::Vector3d.new([local.x,0].min,[local.y,0].min,0))
         @preview_boxes = @plan[:panels].flat_map do |panel|
-          boxes = panel[:slats].map { |box| [box,false] }
-          boxes.unshift([panel[:backing],true]) if panel[:backing]
-          boxes.map { |box,backing| [SlatWall.box_points(box).map { |p| p.transform(@draw_transform) },backing] }
+          items = panel[:slats].each_with_index.map do |box,index|
+            polygon = panel[:slat_polygons] && panel[:slat_polygons][index]
+            points = if polygon
+              SlatWall.slat_prism_points(polygon, box[2], box[5])
+            else
+              SlatWall.box_points(box)
+            end
+            [points.map { |p| p.transform(@draw_transform) }, false, !!polygon]
+          end
+          if panel[:backing]
+            items.unshift([SlatWall.box_points(panel[:backing]).map { |p| p.transform(@draw_transform) }, true, false])
+          end
+          items
         end
         @preview_mesh = {}
-        @preview_boxes.each do |points,backing|
+        @preview_boxes.each do |points,backing,polygonal|
           mesh = (@preview_mesh[backing] ||= { faces: [], edges: [] })
-          mesh[:faces].concat(BOX_FACES.flat_map { |ids| ids.map { |i| points[i] } })
-          mesh[:edges].concat(BOX_EDGES.flat_map { |a,b| [points[a],points[b]] })
+          faces = polygonal ? PRISM_FACES : BOX_FACES
+          edges = polygonal ? PRISM_EDGES : BOX_EDGES
+          mesh[:faces].concat(faces.flat_map { |ids| ids.map { |i| points[i] } })
+          mesh[:edges].concat(edges.flat_map { |a,b| [points[a],points[b]] })
         end
         @error = nil
       rescue StandardError => e
@@ -1384,16 +1546,18 @@ module TranTuanNoiThat
           view.draw(GL_LINES,mesh[:edges])
         end
         if @p1
-          axis = @plane_mode == :auto && @free_axis ? " · TRỤC #{@free_axis.to_s.upcase}" : ''
-          plane = " · #{plane_mode_label}"
-          text = @error || (@plan && "P1 CỐ ĐỊNH#{plane}#{axis} · #{@plan[:width].round(1)} × #{@plan[:height].round(1)} mm · #{@plan[:panels].length} cụm VL · #{@plan[:slat_count]} lam")
+          axis = @free_axis ? " · TRỤC #{@free_axis.to_s.upcase}" : ''
+          orient = {
+            'vertical'=>'DỌC','horizontal'=>'NGANG','diag_right'=>'CHÉO PHẢI','diag_left'=>'CHÉO TRÁI'
+          }[@options['orientation']]
+          text = @error || (@plan && "P1 CỐ ĐỊNH · NAN #{orient}#{axis} · #{@plan[:width].round(1)} × #{@plan[:height].round(1)} mm · #{@plan[:panels].length} cụm VL · #{@plan[:slat_count]} lam")
           view.draw_text([20,35],text.to_s,color: Sketchup::Color.new(155,80,20))
         end
       end
       def getExtents
         box = Geom::BoundingBox.new
         box.add(@p1) if @p1
-        @preview_boxes.each { |points,_| points.each { |p| box.add(p) } }
+        @preview_boxes.each { |points,_,_| points.each { |p| box.add(p) } }
         box
       end
     end
