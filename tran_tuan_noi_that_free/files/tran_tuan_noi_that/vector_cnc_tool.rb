@@ -792,9 +792,11 @@ module TranTuanNoiThat
         @depth = [(@settings['depth'] || DEFAULT_DEPTH).to_f,0.0].max
         @offset_x = @settings['offset_x'].to_f
         @offset_y = @settings['offset_y'].to_f
+        @border_width = [@settings['border_width'].to_f,0.0].max
+        @smoothness = VectorCNC.clamp_smoothness(@settings['smoothness'])
         @anchor = @settings['anchor'].to_s
         @cut_mode = @settings['cut_mode'].to_s
-        @anchor = 'center' unless %w[center left_bottom right_bottom left_top right_top].include?(@anchor)
+        @anchor = 'center' unless %w[center left right top bottom left_bottom right_bottom left_top right_top].include?(@anchor)
         @cut_mode = 'inside' unless %w[inside on outside].include?(@cut_mode)
       end
 
@@ -830,6 +832,7 @@ module TranTuanNoiThat
         @face_boundary = []
         @target_box = []
         @polygon_world = []
+        @border_polygon_world = []
         @center = nil
         @guides = []
         @error = nil
@@ -1022,7 +1025,17 @@ module TranTuanNoiThat
 
         ox = @offset_x.mm
         oy = @offset_y.mm
+        center_x = (min_x+max_x)/2.0
+        center_y = (min_y+max_y)/2.0
         cx,cy,rx,ry = case @anchor
+        when 'left'
+          [min_x+half_w+ox,center_y+oy,min_x,center_y]
+        when 'right'
+          [max_x-half_w-ox,center_y+oy,max_x,center_y]
+        when 'top'
+          [center_x+ox,max_y-half_h-oy,center_x,max_y]
+        when 'bottom'
+          [center_x+ox,min_y+half_h+oy,center_x,min_y]
         when 'left_bottom'
           [min_x+half_w+ox,min_y+half_h+oy,min_x,min_y]
         when 'right_bottom'
@@ -1032,7 +1045,7 @@ module TranTuanNoiThat
         when 'right_top'
           [max_x-half_w-ox,max_y-half_h-oy,max_x,max_y]
         else
-          [(min_x+max_x)/2.0+ox,(min_y+max_y)/2.0+oy,(min_x+max_x)/2.0,(min_y+max_y)/2.0]
+          [center_x+ox,center_y+oy,center_x,center_y]
         end
 
         cx = [[cx,min_x+half_w].max,max_x-half_w].min
@@ -1050,9 +1063,23 @@ module TranTuanNoiThat
         @face_boundary = geometry[:local].map { |point| Geom::Point3d.new(point.x,point.y,0).transform(@basis) }
         @target_box = target_box_points(@target_definition,@target_transform)
 
-        points = VectorCNC.scaled_points(@template,@width,@height)
+        points = VectorCNC.scaled_points(@template,@width,@height,@smoothness)
         @polygon_world = points.map do |px,py|
           Geom::Point3d.new(center_local.x+px.mm,center_local.y+py.mm,0).transform(@basis)
+        end
+
+        if @border_width > 0
+          border_points = VectorCNC.scaled_points(
+            @template,
+            @width + @border_width*2.0,
+            @height + @border_width*2.0,
+            @smoothness
+          )
+          @border_polygon_world = border_points.map do |px,py|
+            Geom::Point3d.new(center_local.x+px.mm,center_local.y+py.mm,0).transform(@basis)
+          end
+        else
+          @border_polygon_world = []
         end
 
         ref_world = reference_local.transform(@basis)
@@ -1072,6 +1099,7 @@ module TranTuanNoiThat
         true
       rescue StandardError => e
         @polygon_world = []
+        @border_polygon_world = []
         @guides = []
         @error = e.message
         false
@@ -1146,6 +1174,13 @@ module TranTuanNoiThat
         UI.messagebox(e.message)
       end
 
+      def apply_selected
+        view = Sketchup.active_model.active_view
+        raise 'Hãy chọn một Group hoặc Component trước khi bấm ÁP DỤNG.' unless use_selected_target(view)
+        raise(@error || 'Không tạo được preview trên khối đang chọn.') if @polygon_world.length < 3
+        create_vector
+      end
+
       def create_vector
         raise(@error || 'Chưa nhận Group/Component hợp lệ.') unless @target_instance && @target_definition && @machining_face && @polygon_world.length >= 3
         raise 'Component/Group đang dùng chung nhiều instance. Hãy Make Unique trước.' if shared_definition?(@target_definition)
@@ -1167,6 +1202,8 @@ module TranTuanNoiThat
         group.set_attribute(KEY,'width_mm',@width)
         group.set_attribute(KEY,'height_mm',@height)
         group.set_attribute(KEY,'depth_mm',@depth)
+        group.set_attribute(KEY,'border_width_mm',@border_width)
+        group.set_attribute(KEY,'smoothness',@smoothness)
         group.set_attribute(KEY,'offset_x_mm',@offset_x)
         group.set_attribute(KEY,'offset_y_mm',@offset_y)
         group.set_attribute(KEY,'anchor',@anchor)
@@ -1220,6 +1257,13 @@ module TranTuanNoiThat
           view.line_width = 2
           view.draw(GL_LINE_LOOP,@face_boundary)
         end
+        if @border_polygon_world.length > 2
+          view.drawing_color = Sketchup::Color.new(210,150,80)
+          view.line_width = 1
+          view.line_stipple = '.' if view.respond_to?(:line_stipple=)
+          view.draw(GL_LINE_LOOP,@border_polygon_world)
+          view.line_stipple = '' if view.respond_to?(:line_stipple=)
+        end
         if @polygon_world.length > 2
           view.drawing_color = Sketchup::Color.new(40,180,80)
           view.line_width = 3
@@ -1238,7 +1282,7 @@ module TranTuanNoiThat
         else
           'Chưa nhận khối'
         end
-        text = @error || "#{target} · #{@template['name']} #{@width.round(1)}×#{@height.round(1)} · CNC #{@depth.round(1)} mm · #{@cut_mode.upcase}"
+        text = @error || "#{target} · #{@template['name']} #{@width.round(1)}×#{@height.round(1)} · viền #{@border_width.round(1)} · mịn #{@smoothness} · CNC #{@depth.round(1)} mm · #{@cut_mode.upcase}"
         view.draw_text([20,35],text,color: Sketchup::Color.new(145,75,20))
       end
 
@@ -1247,6 +1291,7 @@ module TranTuanNoiThat
         @target_box.each { |point| box.add(point) }
         @face_boundary.each { |point| box.add(point) }
         @polygon_world.each { |point| box.add(point) }
+        @border_polygon_world.each { |point| box.add(point) }
         box
       end
 
