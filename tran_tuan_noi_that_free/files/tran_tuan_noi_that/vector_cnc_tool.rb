@@ -349,7 +349,8 @@ module TranTuanNoiThat
       cfg['cut_mode'] = cfg['cut_mode'].to_s
       raise 'Rộng/Cao vector phải lớn hơn 0.' unless cfg['width'] > 0 && cfg['height'] > 0
       raise 'Sâu CNC không được âm.' if cfg['depth'] < 0
-      Sketchup.active_model.select_tool(PlacementTool.new(tpl,cfg))
+      @active_tool = PlacementTool.new(tpl,cfg)
+      Sketchup.active_model.select_tool(@active_tool)
       true
     end
 
@@ -430,6 +431,16 @@ module TranTuanNoiThat
         })
       rescue StandardError => e
         UI.messagebox(e.message)
+      end
+      dlg.add_action_callback('update_settings') do |_ctx,w,h,depth,offset_x,offset_y,anchor,cut_mode|
+        next unless @active_tool
+        @active_tool.update_settings(
+          'width'=>w.to_f,'height'=>h.to_f,'depth'=>depth.to_f,
+          'offset_x'=>offset_x.to_f,'offset_y'=>offset_y.to_f,
+          'anchor'=>anchor.to_s,'cut_mode'=>cut_mode.to_s
+        )
+      rescue StandardError => e
+        puts "[VECTOR CNC settings] #{e.class}: #{e.message}"
       end
       dlg.add_action_callback('save') do |_ctx,id,name,w,h|
         item = library.find { |row| row['id'].to_s == id.to_s }
@@ -574,6 +585,12 @@ module TranTuanNoiThat
         }
         drawPreview();
       }
+      function pushSettings(){
+        if(window.sketchup&&window.sketchup.update_settings){
+          window.sketchup.update_settings(val('w'),val('h'),val('depth'),val('offsetX'),val('offsetY'),document.getElementById('anchor').value,document.getElementById('cutMode').value)
+        }
+        drawPreview()
+      }
       function drawPreview(){
         let c=document.getElementById('preview'),ctx=c.getContext('2d'),W=c.width,H=c.height;
         ctx.clearRect(0,0,W,H);ctx.fillStyle='#fafafa';ctx.fillRect(0,0,W,H);
@@ -596,7 +613,7 @@ module TranTuanNoiThat
       }
       function save(){if(!selected)return;let n=document.getElementById('name').value.trim();if(!n)return;window.sketchup.save(selected,n,val('w'),val('h'))}
       function importVector(){window.sketchup.import()}
-      ['w','h','offsetX','offsetY','anchor','cutMode'].forEach(id=>document.addEventListener('DOMContentLoaded',()=>document.getElementById(id).addEventListener('input',drawPreview)));
+      ['w','h','depth','offsetX','offsetY','anchor','cutMode'].forEach(id=>document.addEventListener('DOMContentLoaded',()=>document.getElementById(id).addEventListener('input',pushSettings)));
       document.addEventListener('DOMContentLoaded',()=>window.sketchup.ready())
       </script></body></html>
       HTML
