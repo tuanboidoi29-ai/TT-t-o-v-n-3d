@@ -396,6 +396,20 @@ check('SHIFT slat orientations are vertical horizontal diagonal-right diagonal-l
  p2=SW.layout(900,700,SW::DEFAULTS.merge('orientation'=>'diag_left','width'=>40,'gap'=>40))
  assert(p2[:panels].first[:slat_polygons].all?{|poly|poly.length==4})
 end
+check('diagonal slat ends are clipped flush to the rectangular frame') do
+ %w[diag_right diag_left].each do |orientation|
+  p=SW.layout(900,700,SW::DEFAULTS.merge('orientation'=>orientation,'width'=>40,'gap'=>40))
+  polys=p[:panels].first[:slat_polygons]
+  assert(!polys.empty?)
+  polys.each do |poly|
+   assert(poly.length==4)
+   poly.each do |x,y|
+    on_boundary=(x.abs<1.0e-5)||((x-900).abs<1.0e-5)||(y.abs<1.0e-5)||((y-700).abs<1.0e-5)
+    assert(on_boundary)
+   end
+  end
+ end
+end
 check('cycling SHIFT rotates slats only and never moves locked P1 or wall plane') do
  tool=SW::Tool.new(SW::DEFAULTS)
  p1=Geom::Point3d.new(250.mm,350.mm,450.mm)
