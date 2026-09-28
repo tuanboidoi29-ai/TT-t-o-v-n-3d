@@ -5,7 +5,7 @@ require 'json'
 module TranTuanNoiThat
   module SlatWall
     extend self
-    VERSION = '1.9.162'.freeze
+    VERSION = '1.9.163'.freeze
     KEY = 'TT_VACH_LAM'.freeze
     MAX_SLATS = 2000
     SNAP_RADIUS = 24.0
@@ -889,13 +889,15 @@ module TranTuanNoiThat
         @hover = nil
         @free_mode = false
         @free_axis = nil
+        @p1_locked = false
+        @raw_p2 = nil
       end
       def status
         mode = @options['mode'] == 'backed' ? 'CÓ TẤM LÓT' : 'LAM ĐƠN'
         direction = @options['orientation'] == 'vertical' ? 'NAN DỌC' : 'NAN NGANG'
-        action = @edit_target ? 'đang sửa vách đã chọn; chỉnh thông số rồi bấm ÁP DỤNG' : (@p1 ? 'rê tới góc chéo, click hoặc thả để tạo' : 'chọn P1 ổn định rồi kéo P2')
-        axis_text = @free_axis ? " · TRỤC #{@free_axis.to_s.upcase}" : ''
-        Sketchup.status_text = "TT VÁCH LAM · #{mode} · #{direction}#{axis_text} · #{action} · P1 SNAP 24px · TỰ NHẬN X/Y · SHIFT đổi chế độ · TAB đổi hướng · S mở bảng · ESC hủy"
+        action = @edit_target ? 'đang sửa vách đã chọn; chỉnh thông số rồi bấm ÁP DỤNG' : (@p1 ? 'P1 ĐÃ CỐ ĐỊNH · bắt góc chéo P2 bất kỳ' : 'chọn P1')
+        axis_text = @free_axis ? " · TỰ NHẬN TRỤC #{@free_axis.to_s.upcase}" : ''
+        Sketchup.status_text = "TT VÁCH LAM · #{mode} · #{direction}#{axis_text} · #{action} · P1 không đổi · P2 tự nhận hướng · SHIFT đổi chế độ · TAB đổi hướng · S mở bảng · ESC hủy"
       end
       def dialog_state
         if @edit_target
@@ -1004,8 +1006,8 @@ module TranTuanNoiThat
         normal.normalize!
         normal
       end
-      def free_space_pick(view, x, y)
-        anchor = free_view_anchor(view)
+      def free_space_pick(view, x, y, anchor = nil)
+        anchor ||= free_view_anchor(view)
         ray = view.pickray(x,y)
         direction = view.camera.direction
         point = Geom.intersect_line_plane(ray,[anchor,direction])
@@ -1077,22 +1079,33 @@ module TranTuanNoiThat
       end
 
       def model_axis_for(candidate)
+        return @free_axis unless @p1
         delta = @p1.vector_to(candidate)
         dx = delta.x.abs
         dy = delta.y.abs
         return @free_axis if [dx, dy].max < 0.5.mm
 
-        desired = dx >= dy ? :x : :y
-        if @free_axis.nil?
-          @free_axis = desired
-        elsif desired != @free_axis
-          current = @free_axis == :x ? dx : dy
-          other = desired == :x ? dx : dy
-          @free_axis = desired if other > current * AXIS_SWITCH_RATIO
+        max_value = [dx, dy].max
+        difference = (dx - dy).abs
+        if difference <= max_value * 0.05 && @free_axis
+          @free_axis
+        else
+          @free_axis = dx >= dy ? :x : :y
         end
-        @free_axis
       rescue StandardError
         @free_axis
+      end
+
+      def lock_first_point(point)
+        @p1 = Geom::Point3d.new(point.x, point.y, point.z)
+        @p1_locked = true
+        @p2 = nil
+        @raw_p2 = nil
+        @basis = nil
+        @free_axis = nil
+        @free_mode = true
+        @first_ip.clear if @first_ip.respond_to?(:clear)
+        @p1
       end
 
       def model_axis_basis_from(point, candidate, view)
@@ -1112,31 +1125,24 @@ module TranTuanNoiThat
         nil
       end
       def pick(view, x, y)
-        if @p1 && @free_mode
+        if @p1_locked && @p1
+          # P1 đã khóa: tuyệt đối không pick lại P1 và không dùng @first_ip làm inference reference.
           @ip.pick(view,x,y)
-          point = stable_geometry_input_point?(@ip,view,x,y) ? @ip.position : free_space_pick(view,x,y)
-          return nil unless point
-          dynamic_basis = model_axis_basis_from(@p1,point,view)
+          raw = stable_geometry_input_point?(@ip,view,x,y) ? @ip.position : free_space_pick(view,x,y,@p1)
+          return nil unless raw
+          @raw_p2 = Geom::Point3d.new(raw.x, raw.y, raw.z)
+
+          dynamic_basis = model_axis_basis_from(@p1,@raw_p2,view)
           @basis = dynamic_basis if dynamic_basis
           return nil unless @basis
 
-          delta = @p1.vector_to(point)
+          delta = @p1.vector_to(@raw_p2)
           horizontal = delta.dot(@basis.xaxis)
           vertical = delta.z
           Geom::Point3d.new(horizontal,vertical,0).transform(@basis)
         else
-          @p1 && @first_ip.valid? ? @ip.pick(view,x,y,@first_ip) : @ip.pick(view,x,y)
-          if @p1
-            normal = @basis.zaxis
-            point = stable_geometry_input_point?(@ip,view,x,y) ? @ip.position : Geom.intersect_line_plane(view.pickray(x,y), [@p1,normal])
-            return nil unless point
-            local = point.transform(@basis.inverse)
-            Geom::Point3d.new(local.x,local.y,0).transform(@basis)
-          elsif stable_geometry_input_point?(@ip,view,x,y)
-            @ip.position
-          else
-            free_space_pick(view,x,y)
-          end
+          @ip.pick(view,x,y)
+          stable_geometry_input_point?(@ip,view,x,y) ? @ip.position : free_space_pick(view,x,y)
         end
       end
       def onMouseMove(_flags,x,y,view)
@@ -1147,7 +1153,11 @@ module TranTuanNoiThat
         end
         snap = stable_geometry_input_point?(@ip,view,x,y)
         axis = @free_axis ? " · TRỤC #{@free_axis.to_s.upcase}" : ''
-        view.tooltip = @error || (snap ? @ip.tooltip : "P1/P2 ổn định · tự nhận X/Y#{axis}")
+        if @p1_locked
+          view.tooltip = @error || (snap ? "P1 cố định → P2: #{@ip.tooltip}#{axis}" : "P1 cố định → bắt góc chéo P2 bất kỳ#{axis}")
+        else
+          view.tooltip = @error || (snap ? "Chọn P1: #{@ip.tooltip}" : 'Chọn P1')
+        end
         view.invalidate
       rescue StandardError => e
         @error = e.message
@@ -1164,12 +1174,7 @@ module TranTuanNoiThat
           rebuild
           commit(view)
         else
-          @p1 = point
-          picked_face = stable_geometry_input_point?(@ip,view,x,y) && @ip.respond_to?(:face) ? @ip.face : nil
-          @free_mode = picked_face.nil?
-          @free_axis = nil if @free_mode
-          @first_ip.copy!(@ip) if !@free_mode && @ip.valid? && @first_ip.respond_to?(:copy!)
-          @basis = basis_at(point,view)
+          lock_first_point(point)
           @drag_start = [x,y]
           status
         end
@@ -1250,7 +1255,8 @@ module TranTuanNoiThat
           view.draw(GL_LINES,mesh[:edges])
         end
         if @p1
-          text = @error || (@plan && "#{@plan[:width].round(1)} × #{@plan[:height].round(1)} mm · #{@plan[:panels].length} cụm VL · #{@plan[:slat_count]} lam")
+          axis = @free_axis ? " · TRỤC #{@free_axis.to_s.upcase}" : ''
+          text = @error || (@plan && "P1 CỐ ĐỊNH#{axis} · #{@plan[:width].round(1)} × #{@plan[:height].round(1)} mm · #{@plan[:panels].length} cụm VL · #{@plan[:slat_count]} lam")
           view.draw_text([20,35],text.to_s,color: Sketchup::Color.new(155,80,20))
         end
       end
