@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.160",
+  "version": "1.9.161",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Fix biên dạng lam phải nằm gọn trên chính Face TAM_LOT: tấm lót vẫn dày -17.5→0, nhưng toàn bộ Edge trong TAM_LOT/_ABF_cuttingLines được chiếu đồng phẳng lên mặt phải/front Face z=0. Thêm kiểm tra profiles_on_face/profile_face; nếu lệch khỏi Face >0.01mm thì abort. Sửa vách cũ cũng chiếu lại toàn bộ profile lên đúng Face.",
+  "notes": "Fix Aspire không nhận biên dạng lam: không dùng _ABF_cuttingLines làm rãnh lam nữa. Mỗi lam tạo một _ABF_Intersect riêng gồm 1 Face + 4 Edge, gắn Tag công đoạn (mặc định ABF_HANENLAMAM), ABF/is-intersect=true, intersect-offset=0, setting-name và intersect-group-b-id. Face trước TAM_LOT được đánh ABF/is-cnced-face=true. Profile vẫn nằm đồng phẳng trên Face TAM_LOT; sửa vách cũ sẽ migrate cấu trúc cũ sang ABF_Intersect.",
   "files": [
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -14,7 +14,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "1983f237cc93534efb05840735464759b9f06d80c7eee0b8cd3f4e0c0e1eb79d"
+      "sha256": "d741da83a447e6548342dea31e51b2cd4c35b0a7e79632884fac05323e62e495"
     },
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -29,7 +29,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "698444d60754c5dc1fe616825f2f6378185a4fd6ded772729bbb105907121f98"
+      "sha256": "d928acf9571842576213ba073c36af5801cc5c750bc4e1a3c457801fec3a18d7"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -279,7 +279,7 @@
     {
       "path": "tran_tuan_noi_that/slat_wall_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/slat_wall_tool.rb",
-      "sha256": "28c71f52b3b9d35cdbf36f472431fa2fe6326af2365c172d7bcf18b8ecfe4cc7"
+      "sha256": "bfcf02b131b93fc26b6807edfc8869eb61a1de61bafa654beb9399c3346213f4"
     },
     {
       "path": "tran_tuan_noi_that/stretch_auto_scan_fix.rb",
