@@ -2,6 +2,8 @@
 load File.join(__dir__, 'upgrade_146_test.rb')
 load ROOT+'/slat_wall_tool.rb'
 SW=TranTuanNoiThat::SlatWall
+GL_TRIANGLES=4 unless defined?(GL_TRIANGLES)
+GL_LINE_LOOP=2 unless defined?(GL_LINE_LOOP)
 check('single mode; no backing; picked height controls every slat') do
  p=SW.layout(1000,2200,SW::DEFAULTS)
  assert(p[:panels].size==1)
@@ -38,6 +40,34 @@ check('horizontal orientation fills height and keeps full usable length') do
  assert(ss.all?{|s|s[0]==10 && s[3]==870 && s[4]==40})
  near(ss.first[1],40)
  near(ss.last[1]+ss.last[4],670)
+end
+check('AUTO polygon layout fills a circular grouped-face shape') do
+ circle=32.times.map do |i|
+  a=2.0*Math::PI*i/32.0
+  [500.0+500.0*Math.cos(a),500.0+500.0*Math.sin(a)]
+ end
+ %w[vertical horizontal diag_right diag_left].each do |orientation|
+  p=SW.layout_polygon(circle,SW::DEFAULTS.merge('orientation'=>orientation,'width'=>40,'gap'=>40))
+  assert(p[:source_shape]=='face')
+  assert(p[:options]['mode']=='single')
+  assert(p[:slat_count]>0)
+  p[:panels].first[:slat_polygons].each do |poly|
+   assert(poly.length>=3)
+   poly.each do |x,y|
+    r=Math.sqrt((x-500.0)**2+(y-500.0)**2)
+    assert(r<=500.1)
+   end
+  end
+ end
+end
+check('AUTO polygon layout rejects concave source face instead of creating wrong slats') do
+ concave=[[0,0],[800,0],[800,600],[400,300],[0,600]]
+ begin
+  SW.layout_polygon(concave,SW::DEFAULTS)
+  raise 'accepted concave face'
+ rescue RuntimeError=>e
+  assert(e.message.include?('lõm'))
+ end
 end
 check('count mode uses exact requested quantity and equal computed gaps') do
  p=SW.layout(1000,1000,SW::DEFAULTS.merge('spacing_mode'=>'count','count'=>8,'width'=>50,'left'=>20,'right'=>20))
@@ -284,6 +314,33 @@ check('free wall basis follows P1-P2 XY direction instead of locking to camera')
  assert(u1.x>0 && u1.y>0)
  assert(u2.x<0 && u2.y>0)
  assert((u1.x-u2.x).abs>0.001)
+end
+check('AUTO recognizes Face only when it belongs to Group or Component definition') do
+ tool=SW::Tool.new(SW::DEFAULTS)
+ vs=[
+  Sketchup::Vertex.new(Geom::Point3d.new(0,0,0)),
+  Sketchup::Vertex.new(Geom::Point3d.new(100.mm,0,0)),
+  Sketchup::Vertex.new(Geom::Point3d.new(100.mm,100.mm,0)),
+  Sketchup::Vertex.new(Geom::Point3d.new(0,100.mm,0))
+ ]
+ face=Sketchup::Face.new(vs)
+ raw_owner=Object.new
+ raw_parent=Struct.new(:parent).new(raw_owner)
+ face.define_singleton_method(:parent){raw_parent}
+ assert(!tool.send(:grouped_component_face?,face))
+
+ definition=Sketchup::Definition.new(Sketchup::Entities.new)
+ grouped_parent=Struct.new(:parent).new(definition)
+ face.define_singleton_method(:parent){grouped_parent}
+ assert(tool.send(:grouped_component_face?,face))
+
+ view=TestView.new
+ camera=Struct.new(:direction).new(Geom::Vector3d.new(0,0,-1))
+ view.define_singleton_method(:camera){camera}
+ polygon,tr,boundary=tool.send(:face_auto_geometry,face,Geom::Transformation.new,view)
+ assert(polygon.length==4)
+ assert(boundary.length==4)
+ assert(tr)
 end
 check('P1 endpoint snap is limited to 24px and ignores Face-only inference') do
  tool=SW::Tool.new(SW::DEFAULTS)
