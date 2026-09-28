@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.165",
+  "version": "1.9.166",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Thêm SHIFT quay mặt đặt Vách Lam theo vòng: Tự động → XZ → YZ → chéo phải 45° → chéo trái 45° → XY trên/dưới → Tự động. P1 luôn giữ nguyên khi đổi mặt; P2/preview được chiếu lên mặt phẳng mới. TAB vẫn chỉ đổi nan dọc/ngang; chế độ Lam đơn/Có tấm lót giữ trong bảng cài đặt.",
+  "notes": "SHIFT giờ xoay chính thanh nan trên mặt vách, không quay mặt vách: Dọc → Ngang → Chéo phải 45° → Chéo trái 45° → Dọc. P1/P2 và mặt phẳng vách giữ nguyên. Nan chéo được tính chiều dài để nằm gọn trong khung; preview, hình học thật và ABF/Aspire profile dùng cùng polygon 4 cạnh.",
   "files": [
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -14,7 +14,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "e1b059bd3e679cc8ae2e07ce4696d4a155cafe78d8110132f42ba506048fd42a"
+      "sha256": "18be21a7ac63ef765fcbc33cf743fa35b5b0b18713f964eb7dc447f436378c2c"
     },
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -29,7 +29,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "a9063218f0672db92935548f50456241387b18d515c595169f600755d5711e17"
+      "sha256": "391902d38cebbd18050042b90ed1f073bb688b1865502270ea65f64ce8f8cf38"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -279,7 +279,7 @@
     {
       "path": "tran_tuan_noi_that/slat_wall_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/slat_wall_tool.rb",
-      "sha256": "3af17d8bcb2e12b99b432b36dd6d332c0193bcb0330a67954458b4166fe613d9"
+      "sha256": "263ac5b31adbebe5cf459448dd4ffac24694a2360b91c65b52745e560a7a3fad"
     },
     {
       "path": "tran_tuan_noi_that/stretch_auto_scan_fix.rb",
