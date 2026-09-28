@@ -8,7 +8,7 @@ module TranTuanNoiThat
   module VectorCNC
     extend self
 
-    VERSION = '1.0.0'.freeze
+    VERSION = '1.0.1'.freeze
     KEY = 'TT_VECTOR_CNC'.freeze
     DATA_DIR = File.join(TranTuanNoiThat::ROOT, 'data', 'vector_cnc').freeze
     LIBRARY_FILE = File.join(DATA_DIR, 'library.json').freeze
@@ -455,6 +455,8 @@ module TranTuanNoiThat
         @face = nil
         @definition = nil
         @face_transform = nil
+        @pick_path = nil
+        @owner_instance = nil
         @basis = nil
         @center = nil
         @polygon_world = []
@@ -465,16 +467,90 @@ module TranTuanNoiThat
       end
 
       def status_text
-        "VECTOR CNC #{@template['name']} · rà Face trong Group/Component · nhập W x H · lăn chuột co giãn · click tạo"
+        "VECTOR CNC #{@template['name']} · PickHelper nhận Face lồng Group/Component · nhập W x H · lăn chuột co giãn · click tạo"
       end
 
-      def grouped_face_info
-        face = @ip.respond_to?(:face) ? @ip.face : nil
-        return nil unless face
-        entities = face.respond_to?(:parent) ? face.parent : nil
-        definition = entities && entities.respond_to?(:parent) ? entities.parent : nil
-        return nil unless definition && definition.respond_to?(:entities) && definition.respond_to?(:instances)
-        [face,definition,entities]
+      def face_entity?(entity)
+        return false unless entity
+        return entity.is_a?(Sketchup::Face) if defined?(Sketchup::Face)
+        entity.respond_to?(:outer_loop) && entity.respond_to?(:parent)
+      rescue StandardError
+        false
+      end
+
+      def instance_entity?(entity)
+        return false unless entity
+        return true if defined?(Sketchup::Group) && entity.is_a?(Sketchup::Group)
+        return true if defined?(Sketchup::ComponentInstance) && entity.is_a?(Sketchup::ComponentInstance)
+        entity.respond_to?(:definition) && entity.respond_to?(:transformation)
+      rescue StandardError
+        false
+      end
+
+      def pick_grouped_face(view,x,y)
+        ph = view.pick_helper
+        count = ph.do_pick(x,y,6)
+        return nil if count.to_i <= 0
+
+        candidates = []
+        ph.count.times do |index|
+          leaf = ph.leaf_at(index)
+          path = ph.path_at(index)
+          next unless face_entity?(leaf)
+          path = Array(path)
+          instances = path[0...-1].select { |entity| instance_entity?(entity) }
+
+          # Khi đang edit bên trong Group/Component, PickHelper có thể chỉ trả Face.
+          if instances.empty?
+            active_path = Sketchup.active_model.respond_to?(:active_path) ? Array(Sketchup.active_model.active_path) : []
+            instances = active_path.select { |entity| instance_entity?(entity) }
+          end
+          next if instances.empty?
+
+          transform = begin
+            ph.transformation_at(index)
+          rescue StandardError
+            nil
+          end
+          transform ||= begin
+            instances.inject(Geom::Transformation.new) { |memo,instance| memo * instance.transformation }
+          rescue StandardError
+            Geom::Transformation.new
+          end
+
+          owner_instance = instances.last
+          definition = owner_instance.respond_to?(:definition) ? owner_instance.definition : nil
+          definition ||= begin
+            entities = leaf.parent
+            entities.respond_to?(:parent) ? entities.parent : nil
+          rescue StandardError
+            nil
+          end
+          next unless definition && definition.respond_to?(:entities)
+
+          candidates << {
+            face: leaf,
+            definition: definition,
+            transform: transform,
+            path: path,
+            instances: instances,
+            owner_instance: owner_instance,
+            depth: (ph.respond_to?(:depth_at) ? ph.depth_at(index).to_f : index.to_f)
+          }
+        end
+        return nil if candidates.empty?
+
+        # Ưu tiên Face sâu nhất/đúng dưới con trỏ trong chuỗi lồng.
+        candidates.max_by { |row| [row[:path].length, row[:depth]] }
+      rescue StandardError
+        nil
+      end
+
+      def shared_instance_conflict(info)
+        Array(info[:instances]).find do |instance|
+          definition = instance.respond_to?(:definition) ? instance.definition : nil
+          definition && definition.respond_to?(:instances) && definition.instances.length > 1
+        end
       rescue StandardError
         nil
       end
@@ -506,28 +582,52 @@ module TranTuanNoiThat
         Geom::Transformation.axes(a,u,v,normal)
       end
 
+      def cursor_on_face_plane(view,x,y,face,transform)
+        world = face.outer_loop.vertices.map { |v| v.position.transform(transform) }
+        return nil if world.length < 3
+        a = world[0]
+        normal = nil
+        b = world[1]
+        world.drop(2).each do |c|
+          n = a.vector_to(b).cross(a.vector_to(c))
+          if n.length > 1.0e-8
+            normal = n.normalize
+            break
+          end
+        end
+        return nil unless normal
+        Geom.intersect_line_plane(view.pickray(x,y),[a,normal])
+      rescue StandardError
+        nil
+      end
+
       def update_hover(view,x,y)
         @ip.pick(view,x,y)
-        info = grouped_face_info
+        info = pick_grouped_face(view,x,y)
         unless info
           reset_hover
-          @error = 'Chỉ nhận Face nằm trong Group/Component.'
+          @error = 'Rê vào Face nằm trong Group/Component để hiện preview.'
           return false
         end
-        face,definition,_entities = info
-        if definition.instances.length > 1
+        conflict = shared_instance_conflict(info)
+        if conflict
           reset_hover
           @error = 'Component có nhiều bản sao. Hãy Make Unique trước để tránh sửa nhầm.'
           return false
         end
-        transform = @ip.respond_to?(:transformation) && @ip.transformation ? @ip.transformation : Geom::Transformation.new
+
+        face = info[:face]
+        definition = info[:definition]
+        transform = info[:transform]
         basis = face_basis(face,transform,view)
         inverse = basis.inverse
         face_world = face.outer_loop.vertices.map { |v| v.position.transform(transform) }
         local_face = face_world.map { |p| p.transform(inverse) }
         min_x,max_x = local_face.map(&:x).minmax
         min_y,max_y = local_face.map(&:y).minmax
-        cursor_world = @ip.position
+        cursor_world = cursor_on_face_plane(view,x,y,face,transform)
+        cursor_world ||= @ip.position if @ip.valid?
+        raise 'Không xác định được vị trí chuột trên Face.' unless cursor_world
         cursor_local = cursor_world.transform(inverse)
         cx = [[cursor_local.x,min_x].max,max_x].min
         cy = [[cursor_local.y,min_y].max,max_y].min
@@ -552,6 +652,8 @@ module TranTuanNoiThat
         @face = face
         @definition = definition
         @face_transform = transform
+        @pick_path = info[:path]
+        @owner_instance = info[:owner_instance]
         @basis = basis
         @center = center_world
         @error = nil
@@ -602,7 +704,12 @@ module TranTuanNoiThat
 
       def create_vector
         raise(@error || 'Chưa rà vào Face hợp lệ.') unless @face && @definition && @face_transform && @polygon_world.length >= 3
-        raise 'Component có nhiều bản sao. Hãy Make Unique trước.' if @definition.instances.length > 1
+        conflict = Array(@pick_path && @pick_path[0...-1]).find do |entity|
+          next false unless instance_entity?(entity)
+          definition = entity.definition
+          definition.respond_to?(:instances) && definition.instances.length > 1
+        end
+        raise 'Component có nhiều bản sao. Hãy Make Unique trước.' if conflict
 
         model = Sketchup.active_model
         model.start_operation('TT - VECTOR CNC', true)
@@ -640,7 +747,14 @@ module TranTuanNoiThat
         raise
       end
 
-      def onLButtonDown(_flags,_x,_y,view)
+      def onLButtonDown(_flags,x,y,view)
+        unless @face && @definition && @polygon_world.length >= 3
+          update_hover(view,x,y)
+          UI.beep
+          Sketchup.status_text = @error || status_text
+          view.invalidate
+          return
+        end
         create_vector
         view.invalidate
       rescue StandardError => e
