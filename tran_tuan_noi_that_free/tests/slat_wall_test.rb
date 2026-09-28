@@ -280,12 +280,46 @@ check('P1 real-geometry snap is limited to 24 screen pixels') do
  assert(tool.send(:stable_geometry_input_point?,ip,view,110,110))
  assert(!tool.send(:stable_geometry_input_point?,ip,view,140,140))
 end
-check('free drawing auto-detects Model X/Y with hysteresis near 45 degrees') do
+check('P1 stays fixed while arbitrary diagonal P2 auto-detects X or Y') do
  tool=SW::Tool.new(SW::DEFAULTS)
- tool.instance_variable_set(:@p1,Geom::Point3d.new(0,0,0))
+ origin=Geom::Point3d.new(125.mm,275.mm,40.mm)
+ tool.send(:lock_first_point,origin)
+ locked=tool.instance_variable_get(:@p1)
+ near(locked.x,125.mm);near(locked.y,275.mm);near(locked.z,40.mm)
+
+ cases=[
+  [Geom::Point3d.new(1125.mm,325.mm,2040.mm),:x],
+  [Geom::Point3d.new(-875.mm,225.mm,2040.mm),:x],
+  [Geom::Point3d.new(175.mm,1275.mm,-960.mm),:y],
+  [Geom::Point3d.new(75.mm,-725.mm,-960.mm),:y]
+ ]
+ cases.each do |p2,axis|
+  assert(tool.send(:model_axis_for,p2)==axis)
+  current=tool.instance_variable_get(:@p1)
+  near(current.x,125.mm);near(current.y,275.mm);near(current.z,40.mm)
+ end
+ assert(tool.instance_variable_get(:@p1_locked)==true)
+end
+check('P2 construction plane follows detected Model axis through locked P1') do
+ tool=SW::Tool.new(SW::DEFAULTS)
+ p1=Geom::Point3d.new(100.mm,200.mm,300.mm)
+ tool.send(:lock_first_point,p1)
+
+ tool.instance_variable_set(:@free_axis,:x)
+ plane=tool.send(:axis_construction_plane)
+ near(plane[0].x,p1.x);near(plane[0].y,p1.y);near(plane[0].z,p1.z)
+ near(plane[1].x,0);near(plane[1].y,1);near(plane[1].z,0)
+
+ tool.instance_variable_set(:@free_axis,:y)
+ plane=tool.send(:axis_construction_plane)
+ near(plane[1].x,1);near(plane[1].y,0);near(plane[1].z,0)
+end
+check('near 45 degrees keeps current axis only inside 5 percent dead band') do
+ tool=SW::Tool.new(SW::DEFAULTS)
+ tool.send(:lock_first_point,Geom::Point3d.new(0,0,0))
  assert(tool.send(:model_axis_for,Geom::Point3d.new(100.mm,20.mm,0))==:x)
- assert(tool.send(:model_axis_for,Geom::Point3d.new(80.mm,100.mm,0))==:x)
- assert(tool.send(:model_axis_for,Geom::Point3d.new(50.mm,100.mm,0))==:y)
+ assert(tool.send(:model_axis_for,Geom::Point3d.new(100.mm,97.mm,0))==:x)
+ assert(tool.send(:model_axis_for,Geom::Point3d.new(80.mm,100.mm,0))==:y)
 end
 check('detected free basis is aligned exactly to a Model axis and Z is vertical') do
  tool=SW::Tool.new(SW::DEFAULTS)
