@@ -5,7 +5,7 @@ require 'json'
 module TranTuanNoiThat
   module SlatWall
     extend self
-    VERSION = '1.9.159'.freeze
+    VERSION = '1.9.160'.freeze
     KEY = 'TT_VACH_LAM'.freeze
     MAX_SLATS = 2000
     SNAP_RADIUS = 24.0
@@ -203,7 +203,7 @@ module TranTuanNoiThat
         <section class="backed"><label>Độ dày tấm lót<span><input id="backing" type="number" min="0.1" step="0.1"> mm</span></label>
         <label>Hạ âm<span><input id="recess" type="number" min="0" step="0.1"> mm</span></label>
         <label>Bật CNC<input id="cnc" type="checkbox"></label><label>Tên công đoạn CNC<input id="tag" type="text" style="width:240px"></label>
-        <small><b>BIÊN DẠNG LAM LUÔN NẰM TRONG TAM_LOT.</b> Theo chuẩn ABF: mặt phải/phía nan = z=0, tấm lót 17,5 đi về z=-17,5; toàn bộ vòng biên dạng nằm trong <b>TAM_LOT → _ABF_cuttingLines</b> tại đúng mặt z=-17,5 để khi trải đi cùng tấm.</small></section>
+        <small><b>BIÊN DẠNG LAM NẰM GỌN TRÊN MẶT FACE TAM_LOT.</b> Tấm lót dày 17,5 đi từ z=-17,5 đến mặt phải z=0; toàn bộ vòng biên dạng trong <b>TAM_LOT → _ABF_cuttingLines</b> được ép đồng phẳng ngay trên mặt phải z=0. Khi trải tấm, đường biên dạng phải nằm trực tiếp trên Face tấm lót.</small></section>
         <button onclick="apply()">CẬP NHẬT PREVIEW</button>
         <p id="editBox" class="edit" style="display:none"><button onclick="sketchup.apply_edit()">ÁP DỤNG VÀO VÁCH ĐÃ CHỌN</button></p>
         <p><button onclick="sketchup.repair_abf()">SỬA TẤM LÓT ABF ĐÃ CHỌN</button></p><p id="error"></p>
@@ -320,6 +320,18 @@ module TranTuanNoiThat
         entity.get_attribute('ABF', 'is-intersect') == true
     end
 
+    def backing_front_z(backing)
+      faces = backing.entities.grep(Sketchup::Face)
+      raise 'TAM_LOT không có Face.' if faces.empty?
+      bounds = backing.definition.bounds
+      z = bounds.max.z
+      front = faces.select do |face|
+        face.vertices.all? { |v| (v.position.z.to_f - z.to_f).abs <= 0.01.mm.to_f }
+      end
+      raise 'Không tìm thấy mặt phải/phía trước của TAM_LOT.' if front.empty?
+      z
+    end
+
     def ensure_abf_cutting_group(backing)
       groups = backing.entities.grep(Sketchup::Group).select { |group| abf_cutting_group?(group) }
       group = groups.first
@@ -369,12 +381,22 @@ module TranTuanNoiThat
       raise 'Hình học TAM_LOT phải giữ đúng 6 Face.' unless summary[:face_count] == 6
       raise 'Biên dạng CNC trong TAM_LOT chưa kín đủ 4 cạnh.' unless summary[:complete]
 
+      face_z = backing_front_z(backing)
+      cutting_groups = backing.entities.grep(Sketchup::Group).select { |group| abf_cutting_group?(group) }
+      off_face = cutting_groups.flat_map { |group| group.entities.grep(Sketchup::Edge) }.any? do |edge|
+        (edge.start.position.z.to_f - face_z.to_f).abs > 0.01.mm.to_f ||
+          (edge.end.position.z.to_f - face_z.to_f).abs > 0.01.mm.to_f
+      end
+      raise 'Biên dạng lam chưa nằm đồng phẳng trên mặt Face TAM_LOT.' if off_face
+
       unless expected_profiles.nil?
         expected = expected_profiles.to_i
         raise "Thiếu biên dạng CNC trong TAM_LOT (#{summary[:profile_count]}/#{expected})." unless summary[:profile_count] == expected
       end
 
       backing.set_attribute(KEY, 'profiles_embedded', true)
+      backing.set_attribute(KEY, 'profiles_on_face', true)
+      backing.set_attribute(KEY, 'profile_face', 'front_right')
       backing.set_attribute(KEY, 'profile_count', summary[:profile_count])
       orient_backing_front(backing)
       summary
@@ -460,8 +482,8 @@ module TranTuanNoiThat
           slat.set_attribute(KEY, 'size_mm', [box[3],box[4],box[5]])
           next unless backing && profile_enabled
           x,y,_z,w,h,_d = box
-          cut_z = -o['backing']
-          pts = [[x,y],[x+w,y],[x+w,y+h],[x,y+h]].map { |a,b| Geom::Point3d.new(a.mm,b.mm,cut_z.mm) }
+          face_z = backing_front_z(backing)
+          pts = [[x,y],[x+w,y],[x+w,y+h],[x,y+h]].map { |a,b| Geom::Point3d.new(a.mm,b.mm,face_z) }
           depth = o['cnc'] ? o['recess'] : 0.0
           add_cnc_profile(backing, pts, slat_index + 1, cnc_tag, depth)
         end
@@ -589,15 +611,15 @@ module TranTuanNoiThat
       old_edges = cutting.entities.grep(Sketchup::Edge)
       cutting.entities.erase_entities(old_edges) unless old_edges.empty?
       tag = ensure_tag(model, ABF_CUTTING_TAG)
-      cut_z = backing.definition.bounds.min.z
+      face_z = backing_front_z(backing)
 
       slats.each_with_index do |slat,index|
         b = slat.definition.bounds
         pts = [
-          Geom::Point3d.new(b.min.x,b.min.y,cut_z),
-          Geom::Point3d.new(b.max.x,b.min.y,cut_z),
-          Geom::Point3d.new(b.max.x,b.max.y,cut_z),
-          Geom::Point3d.new(b.min.x,b.max.y,cut_z)
+          Geom::Point3d.new(b.min.x,b.min.y,face_z),
+          Geom::Point3d.new(b.max.x,b.min.y,face_z),
+          Geom::Point3d.new(b.max.x,b.max.y,face_z),
+          Geom::Point3d.new(b.min.x,b.max.y,face_z)
         ]
         edges = cutting.entities.add_edges(*(pts + [pts.first]))
         edges.each do |edge|
@@ -714,9 +736,9 @@ module TranTuanNoiThat
       rebuild_backing_shell(backing, normalized_box)
       normalize_panel_slats_to_front(panel, old_front_mm) if panel
 
-      cut_z = (-thickness_mm).mm
+      face_z = backing_front_z(backing)
       records = records.map do |a,b,number,depth|
-        [Geom::Point3d.new(a.x,a.y,cut_z), Geom::Point3d.new(b.x,b.y,cut_z), number, depth]
+        [Geom::Point3d.new(a.x,a.y,face_z), Geom::Point3d.new(b.x,b.y,face_z), number, depth]
       end
 
       unless records.empty?
