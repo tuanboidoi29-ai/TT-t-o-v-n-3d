@@ -97,4 +97,56 @@ check('invalid open vector is rejected') do
   end
 end
 
+check('PickHelper resolves nested Face and instance transformation from outside group') do
+  unless defined?(Sketchup::Face)
+    Sketchup.const_set(:Face, Class.new)
+  end
+  face = Sketchup::Face.new
+  entities = Sketchup::Entities.new
+  definition = Sketchup::Definition.new(entities)
+  instance = Sketchup::ComponentInstance.new(definition,Geom::Transformation.translation(Geom::Vector3d.new(10.mm,20.mm,30.mm)))
+
+  picker = Object.new
+  picker.define_singleton_method(:do_pick){|x,y,aperture=0|1}
+  picker.define_singleton_method(:count){1}
+  picker.define_singleton_method(:leaf_at){|i|face}
+  picker.define_singleton_method(:path_at){|i|[instance,face]}
+  picker.define_singleton_method(:transformation_at){|i|instance.transformation}
+  picker.define_singleton_method(:depth_at){|i|1.0}
+
+  view = Object.new
+  view.define_singleton_method(:pick_helper){picker}
+
+  tool = V::PlacementTool.new(V.builtin_template('square'),200,200,3)
+  info = tool.send(:pick_grouped_face,view,100,100)
+  assert(info)
+  assert(info[:face].equal?(face))
+  assert(info[:definition].equal?(definition))
+  assert(info[:owner_instance].equal?(instance))
+  p = Geom::Point3d.new(0,0,0).transform(info[:transform])
+  near(p.x,10.mm);near(p.y,20.mm);near(p.z,30.mm)
+end
+
+check('PickHelper rejects top-level Face with no Group or Component path') do
+  unless defined?(Sketchup::Face)
+    Sketchup.const_set(:Face, Class.new)
+  end
+  face = Sketchup::Face.new
+  picker = Object.new
+  picker.define_singleton_method(:do_pick){|x,y,aperture=0|1}
+  picker.define_singleton_method(:count){1}
+  picker.define_singleton_method(:leaf_at){|i|face}
+  picker.define_singleton_method(:path_at){|i|[face]}
+  picker.define_singleton_method(:transformation_at){|i|Geom::Transformation.new}
+  picker.define_singleton_method(:depth_at){|i|0.0}
+  view = Object.new
+  view.define_singleton_method(:pick_helper){picker}
+  model = TestModel.new([])
+  model.active_path=[]
+  Sketchup.model=model
+
+  tool = V::PlacementTool.new(V.builtin_template('square'),200,200,3)
+  assert(tool.send(:pick_grouped_face,view,50,50).nil?)
+end
+
 puts "VECTOR CNC REGRESSIONS COMPLETE (#{$count})"
