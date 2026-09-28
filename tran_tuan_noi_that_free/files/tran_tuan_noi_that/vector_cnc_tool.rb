@@ -620,251 +620,350 @@ module TranTuanNoiThat
     end
 
     class PlacementTool
-      def initialize(template,width,height,depth)
+      BOX_EDGES = [[0,1],[1,3],[3,2],[2,0],[4,5],[5,7],[7,6],[6,4],[0,4],[1,5],[2,6],[3,7]].freeze
+
+      def initialize(template, settings = {})
         @template = template
-        @width = [width.to_f,0.1].max
-        @height = [height.to_f,0.1].max
-        @depth = [depth.to_f,0.0].max
+        @settings = DEFAULT_CNC.merge(settings.transform_keys(&:to_s))
         @ip = Sketchup::InputPoint.new
-        reset_hover
+        reset_target
+        sync_settings
+      end
+
+      def sync_settings
+        @width = [(@settings['width'] || @template['width']).to_f,0.1].max
+        @height = [(@settings['height'] || @template['height']).to_f,0.1].max
+        @depth = [(@settings['depth'] || DEFAULT_DEPTH).to_f,0.0].max
+        @offset_x = @settings['offset_x'].to_f
+        @offset_y = @settings['offset_y'].to_f
+        @anchor = @settings['anchor'].to_s
+        @cut_mode = @settings['cut_mode'].to_s
+        @anchor = 'center' unless %w[center left_bottom right_bottom left_top right_top].include?(@anchor)
+        @cut_mode = 'inside' unless %w[inside on outside].include?(@cut_mode)
       end
 
       def activate
+        view = Sketchup.active_model.active_view
+        use_selected_target(view)
         Sketchup.status_text = status_text
         Sketchup.vcb_label = 'Rộng x Cao'
         Sketchup.vcb_value = "#{@width.round(1)} x #{@height.round(1)}"
+        view.invalidate
       end
 
       def deactivate(view)
         view.invalidate
       end
 
-      def reset_hover
-        @face = nil
-        @definition = nil
-        @face_transform = nil
-        @pick_path = nil
-        @owner_instance = nil
+      def update_settings(settings)
+        @settings = @settings.merge(settings.transform_keys(&:to_s))
+        sync_settings
+        rebuild_preview if @target_instance && @machining_face
+        Sketchup.vcb_value = "#{@width.round(1)} x #{@height.round(1)}"
+        Sketchup.active_model.active_view.invalidate
+      end
+
+      def reset_target
+        @target_instance = nil
+        @target_definition = nil
+        @target_transform = nil
+        @target_path = []
+        @target_info = nil
+        @machining_face = nil
         @basis = nil
-        @center = nil
-        @polygon_world = []
         @face_boundary = []
-        @face_size = nil
-        @guide = nil
+        @target_box = []
+        @polygon_world = []
+        @center = nil
+        @guides = []
         @error = nil
       end
 
       def status_text
-        "VECTOR CNC #{@template['name']} · PickHelper nhận Face lồng Group/Component · nhập W x H · lăn chuột co giãn · click tạo"
-      end
-
-      def face_entity?(entity)
-        return false unless entity
-        return entity.is_a?(Sketchup::Face) if defined?(Sketchup::Face)
-        entity.respond_to?(:outer_loop) && entity.respond_to?(:parent)
-      rescue StandardError
-        false
+        if @target_instance && @target_info
+          "VECTOR CNC #{@template['name']} · #{@target_info['name']} #{@target_info['length']}×#{@target_info['width']}×#{@target_info['thickness']} mm · #{@cut_mode.upcase} · click tạo"
+        else
+          "VECTOR CNC #{@template['name']} · rà/chọn Group hoặc Component · tool tự đọc Dài×Rộng×Dày và chọn mặt CNC"
+        end
       end
 
       def instance_entity?(entity)
-        return false unless entity
-        return true if defined?(Sketchup::Group) && entity.is_a?(Sketchup::Group)
-        return true if defined?(Sketchup::ComponentInstance) && entity.is_a?(Sketchup::ComponentInstance)
-        entity.respond_to?(:definition) && entity.respond_to?(:transformation)
+        VectorCNC.instance_entity?(entity)
+      end
+
+      def composed_transform(instances)
+        Array(instances).inject(Geom::Transformation.new) do |memo,instance|
+          memo * instance.transformation
+        end
       rescue StandardError
+        Geom::Transformation.new
+      end
+
+      def world_transform_for_selected(instance)
+        model = Sketchup.active_model
+        parents = model.respond_to?(:active_path) ? Array(model.active_path) : []
+        composed_transform(parents + [instance])
+      end
+
+      def use_selected_target(view)
+        target = Sketchup.active_model.selection.to_a.find { |entity| instance_entity?(entity) }
+        return false unless target
+        info = {
+          instance: target,
+          definition: target.definition,
+          transform: world_transform_for_selected(target),
+          path: [target]
+        }
+        set_target(info,view)
+      rescue StandardError => e
+        @error = e.message
         false
       end
 
-      def pick_grouped_face(view,x,y)
+      def pick_target_instance(view,x,y)
         ph = view.pick_helper
         count = ph.do_pick(x,y,6)
         return nil if count.to_i <= 0
-
         candidates = []
-        ph.count.times do |index|
-          leaf = ph.leaf_at(index)
-          path = ph.path_at(index)
-          next unless face_entity?(leaf)
-          path = Array(path)
-          instances = path[0...-1].select { |entity| instance_entity?(entity) }
 
-          # Khi đang edit bên trong Group/Component, PickHelper có thể chỉ trả Face.
+        ph.count.times do |index|
+          path = Array(ph.path_at(index))
+          leaf = ph.leaf_at(index)
+          instances = path.select { |entity| instance_entity?(entity) }
+          instances << leaf if instance_entity?(leaf) && !instances.include?(leaf)
+
           if instances.empty?
-            active_path = Sketchup.active_model.respond_to?(:active_path) ? Array(Sketchup.active_model.active_path) : []
-            instances = active_path.select { |entity| instance_entity?(entity) }
+            active = Sketchup.active_model.respond_to?(:active_path) ? Array(Sketchup.active_model.active_path) : []
+            instances = active.select { |entity| instance_entity?(entity) }
           end
           next if instances.empty?
 
+          target = instances.last
+          definition = target.definition
           transform = begin
             ph.transformation_at(index)
           rescue StandardError
             nil
           end
-          transform ||= begin
-            instances.inject(Geom::Transformation.new) { |memo,instance| memo * instance.transformation }
-          rescue StandardError
-            Geom::Transformation.new
-          end
-
-          owner_instance = instances.last
-          definition = owner_instance.respond_to?(:definition) ? owner_instance.definition : nil
-          definition ||= begin
-            entities = leaf.parent
-            entities.respond_to?(:parent) ? entities.parent : nil
-          rescue StandardError
-            nil
-          end
-          next unless definition && definition.respond_to?(:entities)
+          transform ||= composed_transform(instances)
 
           candidates << {
-            face: leaf,
+            instance: target,
             definition: definition,
             transform: transform,
-            path: path,
-            instances: instances,
-            owner_instance: owner_instance,
+            path: instances,
             depth: (ph.respond_to?(:depth_at) ? ph.depth_at(index).to_f : index.to_f)
           }
         end
         return nil if candidates.empty?
-
-        # Ưu tiên Face sâu nhất/đúng dưới con trỏ trong chuỗi lồng.
-        candidates.max_by { |row| [row[:path].length, row[:depth]] }
+        candidates.max_by { |row| [row[:path].length,row[:depth]] }
       rescue StandardError
         nil
       end
 
-      def shared_instance_conflict(info)
-        Array(info[:instances]).find do |instance|
-          definition = instance.respond_to?(:definition) ? instance.definition : nil
-          definition && definition.respond_to?(:instances) && definition.instances.length > 1
-        end
+      def shared_definition?(definition)
+        definition.respond_to?(:instances) && definition.instances.length > 1
       rescue StandardError
-        nil
+        false
+      end
+
+      def face_entities(definition)
+        if defined?(Sketchup::Face)
+          definition.entities.grep(Sketchup::Face)
+        else
+          definition.entities.select { |entity| entity.respond_to?(:outer_loop) && entity.respond_to?(:normal) }
+        end
+      end
+
+      def transformed_face_area(face, transform)
+        face.area(transform).to_f
+      rescue StandardError
+        face.respond_to?(:area) ? face.area.to_f : 0.0
+      end
+
+      def transformed_face_normal(face, transform)
+        normal = face.normal.transform(transform)
+        normal.normalize!
+        normal
+      rescue StandardError
+        face.normal
+      end
+
+      def choose_machining_face(definition, transform, view)
+        faces = face_entities(definition)
+        raise 'Khối không có Face trực tiếp để gia công CNC.' if faces.empty?
+        direction = view.camera.direction
+        faces.max_by do |face|
+          area = transformed_face_area(face,transform)
+          normal = transformed_face_normal(face,transform)
+          alignment = normal.length > 0 ? normal.normalize.dot(direction).abs : 0.0
+          area * (0.35 + alignment)
+        end
       end
 
       def face_basis(face, transform, view)
-        pts = face.outer_loop.vertices.map { |v| v.position.transform(transform) }
-        raise 'Face không đủ điểm.' if pts.length < 3
-        a,b = pts[0],pts[1]
+        points = face.outer_loop.vertices.map { |vertex| vertex.position.transform(transform) }
+        raise 'Mặt CNC không đủ điểm.' if points.length < 3
+        a,b = points[0],points[1]
         normal = nil
-        pts.drop(2).each do |c|
+        points.drop(2).each do |c|
           n = a.vector_to(b).cross(a.vector_to(c))
           if n.length > 1.0e-8
             normal = n.normalize
             break
           end
         end
-        raise 'Không nhận được pháp tuyến Face.' unless normal
+        raise 'Không xác định được mặt phẳng CNC.' unless normal
         normal.reverse! if normal.dot(view.camera.direction) > 0
-        axis = Geom::Vector3d.new(0,0,1)
-        dot = axis.dot(normal)
-        v = Geom::Vector3d.new(axis.x-normal.x*dot,axis.y-normal.y*dot,axis.z-normal.z*dot)
-        axis = Geom::Vector3d.new(0,1,0) if v.length < 1.0e-6
-        if v.length < 1.0e-6
+
+        candidates = [Geom::Vector3d.new(0,0,1),Geom::Vector3d.new(0,1,0),Geom::Vector3d.new(1,0,0)]
+        v = nil
+        candidates.each do |axis|
           dot = axis.dot(normal)
-          v = Geom::Vector3d.new(axis.x-normal.x*dot,axis.y-normal.y*dot,axis.z-normal.z*dot)
+          projected = Geom::Vector3d.new(axis.x-normal.x*dot,axis.y-normal.y*dot,axis.z-normal.z*dot)
+          if projected.length > 1.0e-6
+            v = projected.normalize
+            break
+          end
         end
-        v.normalize!
-        u = v.cross(normal); u.normalize!
+        raise 'Không xác định được trục Dài/Rộng của mặt CNC.' unless v
+        u = v.cross(normal)
+        u.normalize!
         Geom::Transformation.axes(a,u,v,normal)
       end
 
-      def cursor_on_face_plane(view,x,y,face,transform)
-        world = face.outer_loop.vertices.map { |v| v.position.transform(transform) }
-        return nil if world.length < 3
-        a = world[0]
-        normal = nil
-        b = world[1]
-        world.drop(2).each do |c|
-          n = a.vector_to(b).cross(a.vector_to(c))
-          if n.length > 1.0e-8
-            normal = n.normalize
-            break
-          end
-        end
-        return nil unless normal
-        Geom.intersect_line_plane(view.pickray(x,y),[a,normal])
+      def target_box_points(definition, transform)
+        bounds = definition.bounds
+        8.times.map { |i| bounds.corner(i).transform(transform) }
       rescue StandardError
-        nil
+        []
       end
 
-      def update_hover(view,x,y)
-        @ip.pick(view,x,y)
-        info = pick_grouped_face(view,x,y)
-        unless info
-          reset_hover
-          @error = 'Rê vào Face nằm trong Group/Component để hiện preview.'
-          return false
-        end
-        conflict = shared_instance_conflict(info)
-        if conflict
-          reset_hover
-          @error = 'Component có nhiều bản sao. Hãy Make Unique trước để tránh sửa nhầm.'
-          return false
-        end
-
-        face = info[:face]
-        definition = info[:definition]
-        transform = info[:transform]
+      def face_geometry(face, transform, view)
         basis = face_basis(face,transform,view)
         inverse = basis.inverse
-        face_world = face.outer_loop.vertices.map { |v| v.position.transform(transform) }
-        local_face = face_world.map { |p| p.transform(inverse) }
-        min_x,max_x = local_face.map(&:x).minmax
-        min_y,max_y = local_face.map(&:y).minmax
-        cursor_world = cursor_on_face_plane(view,x,y,face,transform)
-        cursor_world ||= @ip.position if @ip.valid?
-        raise 'Không xác định được vị trí chuột trên Face.' unless cursor_world
-        cursor_local = cursor_world.transform(inverse)
-        cx = [[cursor_local.x,min_x].max,max_x].min
-        cy = [[cursor_local.y,min_y].max,max_y].min
-        center_local = Geom::Point3d.new(cx,cy,0)
-        center_world = center_local.transform(basis)
+        world = face.outer_loop.vertices.map { |vertex| vertex.position.transform(transform) }
+        local = world.map { |point| point.transform(inverse) }
+        min_x,max_x = local.map(&:x).minmax
+        min_y,max_y = local.map(&:y).minmax
+        {
+          basis: basis, inverse: inverse, world: world, local: local,
+          min_x: min_x, max_x: max_x, min_y: min_y, max_y: max_y,
+          width_mm: (max_x-min_x).to_f*25.4,
+          height_mm: (max_y-min_y).to_f*25.4
+        }
+      end
 
-        points = VectorCNC.scaled_points(@template,@width,@height)
-        @polygon_world = points.map { |px,py| Geom::Point3d.new(cx+px.mm,cy+py.mm,0).transform(basis) }
-        @face_boundary = local_face.map { |p| Geom::Point3d.new(p.x,p.y,0).transform(basis) }
-        @face_size = [(max_x-min_x).to_f*25.4,(max_y-min_y).to_f*25.4]
-        face_center_local = Geom::Point3d.new((min_x+max_x)/2.0,(min_y+max_y)/2.0,0)
-        dx = (cx-face_center_local.x).to_f*25.4
-        dy = (cy-face_center_local.y).to_f*25.4
-        if dx.abs >= dy.abs
-          guide_end = Geom::Point3d.new(cx,face_center_local.y,0)
-          @guide = [face_center_local.transform(basis),guide_end.transform(basis),"X #{dx.round(1)} mm"]
+      def center_for_anchor(geometry)
+        min_x,max_x = geometry[:min_x],geometry[:max_x]
+        min_y,max_y = geometry[:min_y],geometry[:max_y]
+        half_w = @width.mm/2.0
+        half_h = @height.mm/2.0
+        face_w = max_x-min_x
+        face_h = max_y-min_y
+        raise "Vector rộng #{@width.round(1)} mm lớn hơn mặt CNC #{(face_w.to_f*25.4).round(1)} mm." if half_w*2 > face_w + 0.01.mm
+        raise "Vector cao #{@height.round(1)} mm lớn hơn mặt CNC #{(face_h.to_f*25.4).round(1)} mm." if half_h*2 > face_h + 0.01.mm
+
+        ox = @offset_x.mm
+        oy = @offset_y.mm
+        cx,cy,rx,ry = case @anchor
+        when 'left_bottom'
+          [min_x+half_w+ox,min_y+half_h+oy,min_x,min_y]
+        when 'right_bottom'
+          [max_x-half_w-ox,min_y+half_h+oy,max_x,min_y]
+        when 'left_top'
+          [min_x+half_w+ox,max_y-half_h-oy,min_x,max_y]
+        when 'right_top'
+          [max_x-half_w-ox,max_y-half_h-oy,max_x,max_y]
         else
-          guide_end = Geom::Point3d.new(face_center_local.x,cy,0)
-          @guide = [face_center_local.transform(basis),guide_end.transform(basis),"Y #{dy.round(1)} mm"]
+          [(min_x+max_x)/2.0+ox,(min_y+max_y)/2.0+oy,(min_x+max_x)/2.0,(min_y+max_y)/2.0]
         end
 
-        @face = face
-        @definition = definition
-        @face_transform = transform
-        @pick_path = info[:path]
-        @owner_instance = info[:owner_instance]
-        @basis = basis
-        @center = center_world
+        cx = [[cx,min_x+half_w].max,max_x-half_w].min
+        cy = [[cy,min_y+half_h].max,max_y-half_h].min
+        [Geom::Point3d.new(cx,cy,0),Geom::Point3d.new(rx,ry,0)]
+      end
+
+      def rebuild_preview
+        return false unless @target_instance && @machining_face
+        view = Sketchup.active_model.active_view
+        geometry = face_geometry(@machining_face,@target_transform,view)
+        @basis = geometry[:basis]
+        center_local,reference_local = center_for_anchor(geometry)
+        @center = center_local.transform(@basis)
+        @face_boundary = geometry[:local].map { |point| Geom::Point3d.new(point.x,point.y,0).transform(@basis) }
+        @target_box = target_box_points(@target_definition,@target_transform)
+
+        points = VectorCNC.scaled_points(@template,@width,@height)
+        @polygon_world = points.map do |px,py|
+          Geom::Point3d.new(center_local.x+px.mm,center_local.y+py.mm,0).transform(@basis)
+        end
+
+        ref_world = reference_local.transform(@basis)
+        x_mid = Geom::Point3d.new(center_local.x,reference_local.y,0).transform(@basis)
+        @guides = [
+          [ref_world,x_mid,"X #{@offset_x.round(1)} mm"],
+          [x_mid,@center,"Y #{@offset_y.round(1)} mm"]
+        ]
+
+        face_info = {
+          'face_length'=>geometry[:width_mm].round(3),
+          'face_width'=>geometry[:height_mm].round(3)
+        }
+        @target_info = VectorCNC.instance_dimensions(@target_instance,@target_transform).merge(face_info)
+        VectorCNC.send_target_info(@target_info)
         @error = nil
         true
       rescue StandardError => e
-        reset_hover
+        @polygon_world = []
+        @guides = []
+        @error = e.message
+        false
+      end
+
+      def set_target(info,view)
+        definition = info[:definition]
+        if shared_definition?(definition)
+          raise 'Component/Group đang dùng chung nhiều instance. Hãy Make Unique trước để tránh sửa nhầm.'
+        end
+
+        @target_instance = info[:instance]
+        @target_definition = definition
+        @target_transform = info[:transform]
+        @target_path = Array(info[:path])
+        @machining_face = choose_machining_face(definition,@target_transform,view)
+        rebuild_preview
+      end
+
+      def update_hover(view,x,y)
+        info = pick_target_instance(view,x,y)
+        unless info
+          @error = 'Rê vào Group hoặc Component để nhận khối.'
+          return false
+        end
+        if @target_instance.equal?(info[:instance]) && @target_transform == info[:transform]
+          return true
+        end
+        set_target(info,view)
+      rescue StandardError => e
         @error = e.message
         false
       end
 
       def onMouseMove(_flags,x,y,view)
         update_hover(view,x,y)
-        face_text = @face_size ? " · FACE #{@face_size[0].round(1)} x #{@face_size[1].round(1)} mm" : ''
-        view.tooltip = @error || "#{@template['name']} · #{@width.round(1)} x #{@height.round(1)} mm#{face_text}"
-        Sketchup.status_text = @error || (status_text + face_text)
+        view.tooltip = @error || "#{@target_info && @target_info['name']} · #{@width.round(1)}×#{@height.round(1)} mm · #{@cut_mode}"
+        Sketchup.status_text = @error || status_text
         view.invalidate
       end
 
-      def onMouseWheel(_flags,delta,x,y,view)
+      def onMouseWheel(_flags,delta,_x,_y,view)
         factor = delta.to_i > 0 ? 1.05 : 0.95
         @width = [@width*factor,0.1].max
         @height = [@height*factor,0.1].max
-        update_hover(view,x,y)
+        @settings['width'] = @width
+        @settings['height'] = @height
+        rebuild_preview
         Sketchup.vcb_value = "#{@width.round(1)} x #{@height.round(1)}"
         view.invalidate
         true
@@ -872,18 +971,19 @@ module TranTuanNoiThat
 
       def onUserText(text,view)
         raw = text.to_s.strip.downcase.tr('×','x')
-        nums = raw.scan(/[-+]?\d+(?:[\.,]\d+)?/).map { |v| v.tr(',','.').to_f }
+        nums = raw.scan(/[-+]?\d+(?:[\.,]\d+)?/).map { |value| value.tr(',','.').to_f }
         if nums.length >= 2
-          @width = nums[0]
-          @height = nums[1]
+          @width,@height = nums[0],nums[1]
         elsif nums.length == 1
-          ratio = @height / @width
+          ratio = @height/@width
           @width = nums[0]
-          @height = @width * ratio
+          @height = @width*ratio
         else
           raise 'Nhập kích thước dạng 500x300.'
         end
         raise 'Kích thước phải lớn hơn 0.' unless @width > 0 && @height > 0
+        @settings['width'],@settings['height'] = @width,@height
+        rebuild_preview
         Sketchup.vcb_value = "#{@width.round(1)} x #{@height.round(1)}"
         view.invalidate
       rescue StandardError => e
@@ -891,18 +991,13 @@ module TranTuanNoiThat
       end
 
       def create_vector
-        raise(@error || 'Chưa rà vào Face hợp lệ.') unless @face && @definition && @face_transform && @polygon_world.length >= 3
-        conflict = Array(@pick_path && @pick_path[0...-1]).find do |entity|
-          next false unless instance_entity?(entity)
-          definition = entity.definition
-          definition.respond_to?(:instances) && definition.instances.length > 1
-        end
-        raise 'Component có nhiều bản sao. Hãy Make Unique trước.' if conflict
+        raise(@error || 'Chưa nhận Group/Component hợp lệ.') unless @target_instance && @target_definition && @machining_face && @polygon_world.length >= 3
+        raise 'Component/Group đang dùng chung nhiều instance. Hãy Make Unique trước.' if shared_definition?(@target_definition)
 
         model = Sketchup.active_model
-        model.start_operation('TT - VECTOR CNC', true)
+        model.start_operation('TT - VECTOR CNC',true)
         started = true
-        parent_entities = @face.parent
+        parent_entities = @target_definition.entities
         group = parent_entities.add_group
         group.name = '_ABF_Intersect'
         tag_name = @template['name'].to_s.start_with?('ABF_') ? @template['name'] : VectorCNC.abf_name(@template['name'])
@@ -911,24 +1006,33 @@ module TranTuanNoiThat
         group.set_attribute('ABF','is-intersect',true)
         group.set_attribute('ABF','intersect-offset',0.0)
         group.set_attribute('ABF','setting-name',tag_name.sub(/\AABF_/,'').downcase.tr('_',' '))
-        group.set_attribute('ABF','intersect-group-b-id',@face.respond_to?(:persistent_id) ? @face.persistent_id : @face.object_id)
+        group.set_attribute('ABF','intersect-group-b-id',@machining_face.respond_to?(:persistent_id) ? @machining_face.persistent_id : @machining_face.object_id)
         group.set_attribute(KEY,'template',tag_name)
         group.set_attribute(KEY,'width_mm',@width)
         group.set_attribute(KEY,'height_mm',@height)
         group.set_attribute(KEY,'depth_mm',@depth)
+        group.set_attribute(KEY,'offset_x_mm',@offset_x)
+        group.set_attribute(KEY,'offset_y_mm',@offset_y)
+        group.set_attribute(KEY,'anchor',@anchor)
+        group.set_attribute(KEY,'cut_mode',@cut_mode)
+        if @target_info
+          group.set_attribute(KEY,'target_length_mm',@target_info['length'])
+          group.set_attribute(KEY,'target_width_mm',@target_info['width'])
+          group.set_attribute(KEY,'target_thickness_mm',@target_info['thickness'])
+        end
 
-        inverse = @face_transform.inverse
-        local_points = @polygon_world.map { |p| p.transform(inverse) }
+        inverse = @target_transform.inverse
+        local_points = @polygon_world.map { |point| point.transform(inverse) }
         face = group.entities.add_face(local_points)
         raise 'Không tạo được Face vector kín.' unless face
-        face.reverse! if face.normal.z < 0 rescue nil
         face.layer = tag
         face.edges.each { |edge| edge.layer = tag }
-        @face.set_attribute('ABF','is-cnced-face',true)
+        @machining_face.set_attribute('ABF','is-cnced-face',true)
+
         model.commit_operation
         started = false
         model.selection.clear
-        model.selection.add(group)
+        model.selection.add(@target_instance)
         group
       rescue StandardError
         model.abort_operation if started
@@ -936,8 +1040,8 @@ module TranTuanNoiThat
       end
 
       def onLButtonDown(_flags,x,y,view)
-        unless @face && @definition && @polygon_world.length >= 3
-          update_hover(view,x,y)
+        update_hover(view,x,y) unless @target_instance
+        unless @target_instance && @polygon_world.length >= 3
           UI.beep
           Sketchup.status_text = @error || status_text
           view.invalidate
@@ -950,7 +1054,11 @@ module TranTuanNoiThat
       end
 
       def draw(view)
-        @ip.draw(view) if @ip.valid?
+        if @target_box.length == 8
+          view.drawing_color = Sketchup::Color.new(60,120,220)
+          view.line_width = 2
+          view.draw(GL_LINES,BOX_EDGES.flat_map { |a,b| [@target_box[a],@target_box[b]] })
+        end
         if @face_boundary.length > 2
           view.drawing_color = Sketchup::Color.new(255,130,0)
           view.line_width = 2
@@ -958,26 +1066,31 @@ module TranTuanNoiThat
         end
         if @polygon_world.length > 2
           view.drawing_color = Sketchup::Color.new(40,180,80)
-          view.line_width = 2
+          view.line_width = 3
           view.draw(GL_LINE_LOOP,@polygon_world)
           view.draw_points([@center],7,3,Sketchup::Color.new(255,100,0)) if @center
         end
-        if @guide
-          a,b,label = @guide
+        @guides.each do |a,b,label|
           view.drawing_color = Sketchup::Color.new(50,120,220)
           view.line_width = 1
           view.draw(GL_LINES,[a,b])
           view.draw_text(b,label,color: Sketchup::Color.new(50,100,190))
         end
-        face_text = @face_size ? " · FACE #{@face_size[0].round(1)} x #{@face_size[1].round(1)}" : ''
-        text = @error || "#{@template['name']} · VECTOR #{@width.round(1)} x #{@height.round(1)} mm · sâu #{@depth.round(1)} mm#{face_text}"
+
+        target = if @target_info
+          "#{@target_info['name']} · #{@target_info['length']}×#{@target_info['width']}×#{@target_info['thickness']} mm"
+        else
+          'Chưa nhận khối'
+        end
+        text = @error || "#{target} · #{@template['name']} #{@width.round(1)}×#{@height.round(1)} · CNC #{@depth.round(1)} mm · #{@cut_mode.upcase}"
         view.draw_text([20,35],text,color: Sketchup::Color.new(145,75,20))
       end
 
       def getExtents
         box = Geom::BoundingBox.new
-        @face_boundary.each { |p| box.add(p) }
-        @polygon_world.each { |p| box.add(p) }
+        @target_box.each { |point| box.add(point) }
+        @face_boundary.each { |point| box.add(point) }
+        @polygon_world.each { |point| box.add(point) }
         box
       end
 
