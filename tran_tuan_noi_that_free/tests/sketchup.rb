@@ -23,6 +23,8 @@ module Geom
     def length=(n);f=n/length;@x*=f;@y*=f;@z*=f;end
     def normalize!;self.length=1.0;self;end
     def reverse!;@x=-x;@y=-y;@z=-z;self;end
+    def dot(o);x*o.x+y*o.y+z*o.z;end
+    def cross(o);self.class.new(y*o.z-z*o.y,z*o.x-x*o.z,x*o.y-y*o.x);end
   end
   class Transformation
     attr_reader :m
@@ -49,6 +51,9 @@ module Geom
     def min;Point3d.new(*3.times.map{|i|@points.map{|p|p.to_a[i]}.min});end
     def max;Point3d.new(*3.times.map{|i|@points.map{|p|p.to_a[i]}.max});end
     def corner(i);Point3d.new(*3.times.map{|a|(i & (1<<a))==0 ? min.to_a[a] : max.to_a[a]});end
+    def width;max.x-min.x;end
+    def height;max.y-min.y;end
+    def depth;max.z-min.z;end
   end
 end
 module UI
@@ -93,8 +98,8 @@ module Sketchup
     end
   end
   class Definition
-    attr_accessor :entities,:instances
-    def initialize(entities);@entities=entities;@instances=[];end
+    attr_accessor :entities,:instances,:name
+    def initialize(entities);@entities=entities;@instances=[];@name='Definition';end
     def bounds
       b=Geom::BoundingBox.new
       entities.each do |e|
@@ -105,10 +110,10 @@ module Sketchup
     end
   end
   class ComponentInstance
-    attr_accessor :definition,:transformation,:locked,:visible
+    attr_accessor :definition,:transformation,:locked,:visible,:name
     attr_reader :layer
     def initialize(defn,tr=Geom::Transformation.new)
-      @definition=defn;defn.instances << self;@transformation=tr;@locked=false;@visible=true;@layer=Layer.new
+      @definition=defn;defn.instances << self;@transformation=tr;@locked=false;@visible=true;@layer=Layer.new;@name=''
     end
     def valid?;true;end
     def persistent_id;object_id;end
