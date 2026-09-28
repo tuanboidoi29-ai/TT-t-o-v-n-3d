@@ -5,7 +5,7 @@ require 'json'
 module TranTuanNoiThat
   module SlatWall
     extend self
-    VERSION = '1.9.167'.freeze
+    VERSION = '1.9.168'.freeze
     KEY = 'TT_VACH_LAM'.freeze
     MAX_SLATS = 2000
     SNAP_RADIUS = 24.0
@@ -235,6 +235,137 @@ module TranTuanNoiThat
       [boxes, polygons, lengths]
     end
 
+    def polygon_area_2d(polygon)
+      return 0.0 if polygon.length < 3
+      polygon.each_with_index.sum do |point,index|
+        nxt = polygon[(index + 1) % polygon.length]
+        point[0] * nxt[1] - nxt[0] * point[1]
+      end / 2.0
+    end
+
+    def normalize_polygon_2d(polygon)
+      cleaned = simplify_polygon(polygon.map { |point| [point[0].to_f, point[1].to_f] })
+      cleaned.reverse! if polygon_area_2d(cleaned) < 0
+      cleaned
+    end
+
+    def convex_polygon_2d?(polygon)
+      poly = normalize_polygon_2d(polygon)
+      return false if poly.length < 3
+      sign = nil
+      poly.length.times do |i|
+        a = poly[i]
+        b = poly[(i + 1) % poly.length]
+        c = poly[(i + 2) % poly.length]
+        cross = (b[0]-a[0])*(c[1]-b[1]) - (b[1]-a[1])*(c[0]-b[0])
+        next if cross.abs < 1.0e-7
+        current = cross > 0 ? 1 : -1
+        sign ||= current
+        return false if current != sign
+      end
+      true
+    end
+
+    def clip_polygon_projection(poly, nx, ny, boundary, keep_greater)
+      return [] if poly.empty?
+      inside = lambda do |point|
+        value = point[0]*nx + point[1]*ny
+        keep_greater ? value >= boundary - 1.0e-8 : value <= boundary + 1.0e-8
+      end
+      result = []
+      poly.each_with_index do |current,index|
+        previous = poly[(index - 1) % poly.length]
+        current_inside = inside.call(current)
+        previous_inside = inside.call(previous)
+        if current_inside != previous_inside
+          pv = previous[0]*nx + previous[1]*ny
+          cv = current[0]*nx + current[1]*ny
+          denom = cv - pv
+          unless denom.abs < 1.0e-12
+            t = (boundary - pv) / denom
+            result << [
+              previous[0] + (current[0]-previous[0]) * t,
+              previous[1] + (current[1]-previous[1]) * t
+            ]
+          end
+        end
+        result << current if current_inside
+      end
+      simplify_polygon(result)
+    end
+
+    def slat_direction_vectors(orientation)
+      angle = case orientation
+      when 'vertical' then 90.0
+      when 'horizontal' then 0.0
+      when 'diag_right' then 45.0
+      when 'diag_left' then -45.0
+      else 90.0
+      end
+      rad = angle * Math::PI / 180.0
+      dx = Math.cos(rad)
+      dy = Math.sin(rad)
+      nx = -dy
+      ny = dx
+      [dx,dy,nx,ny]
+    end
+
+    def layout_polygon(polygon, options)
+      o = validate(options)
+      # Face có sẵn đóng vai trò biên dạng; không nhân thêm TAM_LOT lên Face nguồn.
+      o = o.merge('mode' => 'single')
+      poly = normalize_polygon_2d(polygon)
+      raise 'Face phải có biên kín ít nhất 3 cạnh.' if poly.length < 3
+      raise 'AUTO Face hiện yêu cầu biên dạng lồi/bo tròn, chưa nhận Face lõm.' unless convex_polygon_2d?(poly)
+
+      xs = poly.map { |point| point[0] }
+      ys = poly.map { |point| point[1] }
+      width = xs.max - xs.min
+      height = ys.max - ys.min
+      raise 'Face quá nhỏ để tạo nan.' if width <= 0.1 || height <= 0.1
+
+      dx,dy,nx,ny = slat_direction_vectors(o['orientation'])
+      projections = poly.map { |x,y| x*nx + y*ny }
+      pmin = projections.min
+      pmax = projections.max
+      run = pmax - pmin
+      count, gap, extra = diagonal_spacing_values(run, o)
+      half = o['width'] / 2.0
+      first_center = pmin + extra + half
+
+      polygons = []
+      boxes = []
+      lengths = []
+      count.times do |i|
+        center = first_center + i * (o['width'] + gap)
+        clipped = clip_polygon_projection(poly, nx, ny, center-half, true)
+        clipped = clip_polygon_projection(clipped, nx, ny, center+half, false)
+        clipped = normalize_polygon_2d(clipped)
+        next if clipped.length < 3
+        area = polygon_area_2d(clipped).abs
+        next if area < [o['width'] * 0.5, 0.5].max
+        t_values = clipped.map { |x,y| x*dx + y*dy }
+        length = t_values.max - t_values.min
+        next if length <= 0.1
+        polygons << clipped
+        lengths << length
+        boxes << [0.0,0.0,0.0,length,o['width'],o['depth']]
+      end
+      raise 'Không tạo được nan bên trong Face này với thông số hiện tại.' if polygons.empty?
+      raise "Quá nhiều nan (#{polygons.length})." if polygons.length > MAX_SLATS
+
+      panel = {
+        x: 0.0, y: 0.0, width: width, height: height,
+        slats: boxes, slat_polygons: polygons, slat_lengths: lengths, backing: nil
+      }
+      {
+        width: width, height: height, columns: 1, rows: 1, panels: [panel],
+        slat_count: polygons.length, count_per_panel: polygons.length,
+        gap: gap, orientation: o['orientation'], options: o,
+        source_shape: 'face'
+      }
+    end
+
     # Pure millimetre layout; shared by viewport, dialog and real geometry.
     def layout(width, height, options)
       o = validate(options)
@@ -400,8 +531,24 @@ module TranTuanNoiThat
         (y + ((i & 2) == 0 ? 0 : h)).mm, (z + ((i & 4) == 0 ? 0 : d)).mm) }
     end
 
-    PRISM_FACES = [[0,1,2,3],[4,5,6,7],[0,4,5,1],[1,5,6,2],[2,6,7,3],[3,7,4,0]].freeze
-    PRISM_EDGES = [[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]].freeze
+    def polygon_prism_topology(vertex_count)
+      raise 'Biên dạng nan phải có ít nhất 3 điểm.' if vertex_count < 3
+      faces = []
+      faces << (0...vertex_count).to_a
+      faces << (vertex_count...(vertex_count*2)).to_a
+      vertex_count.times do |i|
+        j = (i + 1) % vertex_count
+        faces << [i,j,vertex_count+j,vertex_count+i]
+      end
+      edges = []
+      vertex_count.times do |i|
+        j = (i + 1) % vertex_count
+        edges << [i,j]
+        edges << [vertex_count+i,vertex_count+j]
+        edges << [i,vertex_count+i]
+      end
+      [faces, edges.uniq]
+    end
 
     def slat_prism_points(polygon, z, depth)
       base = polygon.map { |x,y| Geom::Point3d.new(x.mm,y.mm,z.mm) }
@@ -415,9 +562,10 @@ module TranTuanNoiThat
       group.material = material
       group.layer = tag || Sketchup.active_model.layers[0]
       points = slat_prism_points(polygon, z, depth)
-      PRISM_FACES.each do |indices|
+      faces, = polygon_prism_topology(polygon.length)
+      faces.each do |indices|
         face = group.entities.add_face(indices.map { |i| points[i] })
-        raise 'Không tạo được mặt kín cho nan chéo.' unless face
+        raise 'Không tạo được mặt kín cho nan theo biên dạng.' unless face
         face.layer = Sketchup.active_model.layers[0]
         face.edges.each { |edge| edge.layer = Sketchup.active_model.layers[0] }
       end
