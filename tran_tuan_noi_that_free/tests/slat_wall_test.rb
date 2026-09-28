@@ -162,7 +162,9 @@ check('real builder: clean ABF board shell with embedded _ABF_cuttingLines') do
   assert(profile_edges.size==count*4)
   near(backing.definition.bounds.min.z,-17.5.mm)
   near(backing.definition.bounds.max.z,0)
-  assert(profile_edges.all?{|e|near(e.start.position.z,-17.5.mm);near(e.end.position.z,-17.5.mm);true})
+  assert(profile_edges.all?{|e|near(e.start.position.z,0);near(e.end.position.z,0);true})
+  assert(backing.get_attribute(SW::KEY,'profiles_on_face')==true)
+  assert(backing.get_attribute(SW::KEY,'profile_face')=='front_right')
   count.times do |n|
    loop=profile_edges.select{|e|e.get_attribute(SW::KEY,'profile')==n+1}
    assert(loop.size==4)
@@ -193,7 +195,8 @@ check('backed mode always embeds every slat profile inside TAM_LOT even when CNC
  assert(cutting.name=='_ABF_cuttingLines')
  assert(cutting.definition.entities.grep(Sketchup::Edge).size==count*4)
  assert(cutting.definition.entities.grep(Sketchup::Edge).all?{|e|e.get_attribute(SW::KEY,'depth_mm')==0.0})
- assert(cutting.definition.entities.grep(Sketchup::Edge).all?{|e|near(e.start.position.z,-17.5.mm);near(e.end.position.z,-17.5.mm);true})
+ assert(cutting.definition.entities.grep(Sketchup::Edge).all?{|e|near(e.start.position.z,0);near(e.end.position.z,0);true})
+ assert(backing.get_attribute(SW::KEY,'profiles_on_face')==true)
  assert(backing.entities.grep(Sketchup::Face).size==6)
  assert(backing.get_attribute(SW::KEY,'profile_count')==count)
  assert(backing.get_attribute(SW::KEY,'profiles_source')=='slats')
@@ -201,7 +204,7 @@ check('backed mode always embeds every slat profile inside TAM_LOT even when CNC
 end
 set_model
 check('backing integrity accepts standard cutting group but rejects unknown nested objects') do
- backing=SW.make_box(Sketchup.model.entities,[0,0,0,600,1200,17.5],'VLX_TAM_LOT',nil)
+ backing=SW.make_box(Sketchup.model.entities,[0,0,-17.5,600,1200,17.5],'VLX_TAM_LOT',nil)
  standard=SW.ensure_abf_cutting_group(backing)
  assert(SW.abf_cutting_group?(standard))
  SW.enforce_backing_integrity(backing,0)
@@ -434,7 +437,8 @@ check('repair migrates legacy CNC geometry into one standard ABF cutting-lines g
  assert(summary[:profile_count]==1 && summary[:complete])
  near(backing.definition.bounds.min.z,-17.5.mm)
  near(backing.definition.bounds.max.z,0)
- assert(cutting.entities.grep(Sketchup::Edge).all?{|e|near(e.start.position.z,-17.5.mm);near(e.end.position.z,-17.5.mm);true})
+ assert(cutting.entities.grep(Sketchup::Edge).all?{|e|near(e.start.position.z,0);near(e.end.position.z,0);true})
+ assert(backing.get_attribute(SW::KEY,'profiles_on_face')==true)
  SW.repair_backing(backing,Sketchup.model)
  groups=backing.entities.grep(Sketchup::Group).select{|g|SW.abf_cutting_group?(g)}
  assert(groups.size==1)
