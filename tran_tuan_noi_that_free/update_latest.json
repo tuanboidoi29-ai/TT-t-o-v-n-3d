@@ -1,21 +1,11 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.168",
+  "version": "1.9.169",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Đổi thao tác Vách Lam sang AUTO-first: gọi tool là AUTO; TAB mở Cài đặt; SHIFT xoay nan. Rê vào Face nằm trong Group/Component thì tự nhận biên dạng và preview nan ngay, click 1 lần để tạo; Face rời ngoài Model không nhận. Hỗ trợ Face lồi/bo tròn như hình tròn, oval, đa giác lồi; nan được cắt theo biên Face. Vùng trống vẫn dùng P1-P2. Face nguồn không bị sửa.",
+  "notes": "Tách TT - VECTOR CNC thành module riêng để không sửa chồng VÁCH LAM. Khóa SHA-256 slat_wall_tool.rb baseline 1.9.168. VECTOR CNC có thư viện tròn/vuông/chữ nhật/tam giác/tam giác vuông/hình thoi/lục giác/bát giác/oval/ngôi sao; lưu mẫu ABF_<tên>; nhập SVG/DXF/JSON; rà Face trong Group/Component hiện kích thước, preview vector, dóng ngang/dọc kèm khoảng cách, nhập trực tiếp WxH, lăn chuột co giãn, click tạo _ABF_Intersect thật vào đúng group. Component nhiều instance bị chặn để tránh sửa nhầm.",
   "files": [
-    {
-      "path": "TT_TranTuan_UpdateLoader.rb",
-      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TT_TranTuan_UpdateLoader.rb",
-      "sha256": "d873a103796542b0d3ca6ff864f4a9105173f8fa3baafbd8526e7cb65de0de7d"
-    },
-    {
-      "path": "TranTuanNoiThat.rb",
-      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "de929f55e41bab81a7df389050ff525e608896c3cfbce6601280f6cfa1502ccc"
-    },
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bao_gia_tool.rb",
@@ -29,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "45b7ae3abc2e6d0ef337645f20d3debb083d0a18d46d0390514222e9071662e4"
+      "sha256": "a6d20b38d796e1efc7d3b86fdd4d7c0e5b52ddfd735d2a18f6ee3135b06c5de8"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -62,14 +52,14 @@
       "sha256": "8a3a095f8a34e48bbd3589b58560987add76f40ef68103d9238f58c621ed0292"
     },
     {
-      "path": "tran_tuan_noi_that/grain_production_v350.rb",
-      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/grain_production_v350.rb",
-      "sha256": "26b79694b3ebf5b186e54457c187f0699347217c250a45ac683ca18ce338965e"
-    },
-    {
       "path": "tran_tuan_noi_that/grain_production_v350_hotfix.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/grain_production_v350_hotfix.rb",
       "sha256": "5c4753cd782aa9307515a50343f52ffc013f829288ede6048cf8ff6dd95f6db2"
+    },
+    {
+      "path": "tran_tuan_noi_that/grain_production_v350.rb",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/grain_production_v350.rb",
+      "sha256": "26b79694b3ebf5b186e54457c187f0699347217c250a45ac683ca18ce338965e"
     },
     {
       "path": "tran_tuan_noi_that/grain_reload_v351_fix.rb",
@@ -185,6 +175,11 @@
       "path": "tran_tuan_noi_that/icons/ve_van.svg",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/icons/ve_van.svg",
       "sha256": "9bf444623417da290dfa75895229bb8eb84d2e68c1597cd315963d9be8e80447"
+    },
+    {
+      "path": "tran_tuan_noi_that/icons/vector_cnc.svg",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/icons/vector_cnc.svg",
+      "sha256": "fe309d3c2167124ec9e27d76d637e8725f4e830221af5a855b5b3f7574da3139"
     },
     {
       "path": "tran_tuan_noi_that/layout_stats_tool.rb",
@@ -320,6 +315,21 @@
       "path": "tran_tuan_noi_that/updater.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/updater.rb",
       "sha256": "5a9f28ec74267dae197146b9e8b783645801dcad91fa56b5666db39d44223b94"
+    },
+    {
+      "path": "tran_tuan_noi_that/vector_cnc_tool.rb",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/vector_cnc_tool.rb",
+      "sha256": "ffa7b3593e41f6a947dfd8d33a20eed88550558f095caf36f4b4a6bf6fda7ab7"
+    },
+    {
+      "path": "TranTuanNoiThat.rb",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
+      "sha256": "154145c533ed49288f6db1b51285faeae0421ffa1f7f872c2b6c564621342646"
+    },
+    {
+      "path": "TT_TranTuan_UpdateLoader.rb",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TT_TranTuan_UpdateLoader.rb",
+      "sha256": "d873a103796542b0d3ca6ff864f4a9105173f8fa3baafbd8526e7cb65de0de7d"
     }
   ],
   "stretch_mode_version": "1.0.1",
