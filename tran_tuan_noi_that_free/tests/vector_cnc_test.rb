@@ -199,4 +199,17 @@ check('selected apply rejects when no Group or Component is selected') do
   end
 end
 
+check('VECTOR CNC HtmlDialog has non-blank static UI and apply controls') do
+  html=V.dialog_html
+  assert(html.length>5000)
+  assert(html.include?('VECTOR CNC UI đã nạp'))
+  assert(html.include?('ÁP DỤNG VECTOR VÀO KHỐI ĐANG CHỌN'))
+  assert(html.include?('borderWidth'))
+  assert(html.include?('smoothness'))
+  assert(html.include?('align-grid'))
+  V.ensure_data
+  File.write(V::UI_FILE,html,encoding:'UTF-8')
+  assert(File.size(V::UI_FILE)>5000)
+end
+
 puts "VECTOR CNC REGRESSIONS COMPLETE (#{$count})"
