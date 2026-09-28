@@ -97,56 +97,106 @@ check('invalid open vector is rejected') do
   end
 end
 
-check('PickHelper resolves nested Face and instance transformation from outside group') do
-  unless defined?(Sketchup::Face)
-    Sketchup.const_set(:Face, Class.new)
+def box_definition(length_mm,width_mm,thickness_mm)
+  xs=[0,length_mm.mm];ys=[0,width_mm.mm];zs=[0,thickness_mm.mm]
+  verts={}
+  xs.each_with_index do |x,ix|
+    ys.each_with_index do |y,iy|
+      zs.each_with_index do |z,iz|
+        verts[[ix,iy,iz]]=Sketchup::Vertex.new(Geom::Point3d.new(x,y,z))
+      end
+    end
   end
-  face = Sketchup::Face.new
-  entities = Sketchup::Entities.new
-  definition = Sketchup::Definition.new(entities)
-  instance = Sketchup::ComponentInstance.new(definition,Geom::Transformation.translation(Geom::Vector3d.new(10.mm,20.mm,30.mm)))
-
-  picker = Object.new
-  picker.define_singleton_method(:do_pick){|x,y,aperture=0|1}
-  picker.define_singleton_method(:count){1}
-  picker.define_singleton_method(:leaf_at){|i|face}
-  picker.define_singleton_method(:path_at){|i|[instance,face]}
-  picker.define_singleton_method(:transformation_at){|i|instance.transformation}
-  picker.define_singleton_method(:depth_at){|i|1.0}
-
-  view = Object.new
-  view.define_singleton_method(:pick_helper){picker}
-
-  tool = V::PlacementTool.new(V.builtin_template('square'),200,200,3)
-  info = tool.send(:pick_grouped_face,view,100,100)
-  assert(info)
-  assert(info[:face].equal?(face))
-  assert(info[:definition].equal?(definition))
-  assert(info[:owner_instance].equal?(instance))
-  p = Geom::Point3d.new(0,0,0).transform(info[:transform])
-  near(p.x,10.mm);near(p.y,20.mm);near(p.z,30.mm)
+  edges=Sketchup::Entities.new
+  [
+    [[0,0,0],[1,0,0]],[[0,1,0],[1,1,0]],[[0,0,1],[1,0,1]],[[0,1,1],[1,1,1]],
+    [[0,0,0],[0,1,0]],[[1,0,0],[1,1,0]],[[0,0,1],[0,1,1]],[[1,0,1],[1,1,1]],
+    [[0,0,0],[0,0,1]],[[1,0,0],[1,0,1]],[[0,1,0],[0,1,1]],[[1,1,0],[1,1,1]]
+  ].each{|a,b|edges << Sketchup::Edge.new(verts[a],verts[b])}
+  definition=Sketchup::Definition.new(edges)
+  definition.name='TEST_BOX'
+  definition
 end
 
-check('PickHelper rejects top-level Face with no Group or Component path') do
-  unless defined?(Sketchup::Face)
-    Sketchup.const_set(:Face, Class.new)
-  end
-  face = Sketchup::Face.new
-  picker = Object.new
-  picker.define_singleton_method(:do_pick){|x,y,aperture=0|1}
-  picker.define_singleton_method(:count){1}
-  picker.define_singleton_method(:leaf_at){|i|face}
-  picker.define_singleton_method(:path_at){|i|[face]}
-  picker.define_singleton_method(:transformation_at){|i|Geom::Transformation.new}
-  picker.define_singleton_method(:depth_at){|i|0.0}
-  view = Object.new
-  view.define_singleton_method(:pick_helper){picker}
-  model = TestModel.new([])
-  model.active_path=[]
-  Sketchup.model=model
+check('object dimensions read length width thickness from selected Group Component') do
+  definition=box_definition(1000,500,18)
+  instance=Sketchup::ComponentInstance.new(definition,Geom::Transformation.new)
+  instance.name='VAN_TEST'
+  info=V.instance_dimensions(instance)
+  near(info['length'],1000,0.01)
+  near(info['width'],500,0.01)
+  near(info['thickness'],18,0.01)
+  assert(info['name']=='VAN_TEST')
 
-  tool = V::PlacementTool.new(V.builtin_template('square'),200,200,3)
-  assert(tool.send(:pick_grouped_face,view,50,50).nil?)
+  model=TestModel.new([instance])
+  model.selection=[instance]
+  Sketchup.model=model
+  selected=V.selected_target_info
+  near(selected['length'],1000,0.01)
+  near(selected['width'],500,0.01)
+  near(selected['thickness'],18,0.01)
+end
+
+check('circle oval smoothness changes segment count but square keeps exact corners') do
+  circle=V.builtin_template('circle')
+  assert(V.scaled_points(circle,200,200,24).length==24)
+  assert(V.scaled_points(circle,200,200,144).length==144)
+  oval=V.builtin_template('oval')
+  assert(V.scaled_points(oval,300,180,96).length==96)
+  square=V.builtin_template('square')
+  assert(V.scaled_points(square,200,200,144).length==4)
+end
+
+check('CNC settings preserve border smoothness cut mode and alignment') do
+  settings=V.cnc_settings(300,180,4,20,30,8,120,'right_top','outside')
+  near(settings['width'],300)
+  near(settings['height'],180)
+  near(settings['depth'],4)
+  near(settings['border_width'],8)
+  assert(settings['smoothness']==120)
+  assert(settings['anchor']=='right_top')
+  assert(settings['cut_mode']=='outside')
+end
+
+check('nine point alignment computes left right top bottom and center') do
+  tpl=V.builtin_template('square')
+  geom={min_x:0.0,max_x:1000.mm,min_y:0.0,max_y:500.mm}
+
+  cases={
+    'left'=>[120,280],
+    'right'=>[880,280],
+    'top'=>[520,420],
+    'bottom'=>[520,80],
+    'left_top'=>[120,420],
+    'right_top'=>[880,420],
+    'left_bottom'=>[120,80],
+    'right_bottom'=>[880,80],
+    'center'=>[520,280]
+  }
+  cases.each do |anchor,(x_mm,y_mm)|
+    tool=V::PlacementTool.new(tpl,{
+      'width'=>200,'height'=>100,'offset_x'=>20,'offset_y'=>30,
+      'border_width'=>5,'smoothness'=>72,'anchor'=>anchor,'cut_mode'=>'inside'
+    })
+    center,_reference=tool.send(:center_for_anchor,geom)
+    near(center.x*25.4,x_mm,0.01)
+    near(center.y*25.4,y_mm,0.01)
+  end
+end
+
+check('selected apply rejects when no Group or Component is selected') do
+  model=TestModel.new([])
+  model.selection=[]
+  Sketchup.model=model
+  tool=V::PlacementTool.new(V.builtin_template('circle'),{
+    'width'=>200,'height'=>200,'border_width'=>2,'smoothness'=>96
+  })
+  begin
+    tool.apply_selected
+    raise 'accepted empty selection'
+  rescue RuntimeError=>e
+    assert(e.message.include?('chọn một Group') || e.message.include?('Group hoặc Component'))
+  end
 end
 
 puts "VECTOR CNC REGRESSIONS COMPLETE (#{$count})"
