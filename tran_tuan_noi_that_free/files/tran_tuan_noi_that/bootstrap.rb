@@ -10,7 +10,10 @@ module TranTuanNoiThat
   ROOT = __dir__.freeze unless const_defined?(:ROOT, false)
   NAME = 'TRẦN TUẤN NỘI THẤT'.freeze unless const_defined?(:NAME, false)
   LOCKED_FEATURE_BASELINES = {
-    'slat_wall_tool.rb' => '1.9.168'
+    'slat_wall_tool.rb' => {
+      version: '1.9.168',
+      sha256: '37fbffe45ba2ae5cbe7b3f4c62cc554c3588b81f29d1669243afaad0fce886cd'
+    }
   }.freeze unless const_defined?(:LOCKED_FEATURE_BASELINES, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
@@ -70,6 +73,18 @@ module TranTuanNoiThat
       false
     end
 
+    def verify_locked_features
+      LOCKED_FEATURE_BASELINES.each do |filename, spec|
+        path = File.join(ROOT, filename)
+        raise "Thiếu file khóa #{filename}." unless File.file?(path)
+        actual = Digest::SHA256.file(path).hexdigest
+        expected = spec[:sha256].to_s
+        next if actual == expected
+        raise "Tính năng khóa #{filename} đã bị sửa ngoài chủ đích. Mong đợi #{spec[:version]} / #{expected[0,12]}, nhận #{actual[0,12]}."
+      end
+      true
+    end
+
     def reset_layout_runtime
       # Drop patched singleton methods and aliases before loading the 1.9.55 chain.
       [:LayoutTechnical, :LayoutStats].each do |name|
@@ -118,6 +133,8 @@ module TranTuanNoiThat
         settings
         updater
       ].each { |stem| raise "Không nạp được #{stem}" unless runtime_load(stem) }
+
+      verify_locked_features
 
       %w[
         round_smooth_fix
