@@ -556,7 +556,7 @@ module TranTuanNoiThat
     def send_library
       return unless @dialog
       payload = library.map do |row|
-        row.merge('points'=>row['points'].length, 'custom'=>!row['builtin'])
+        row.merge('point_count'=>row['points'].length, 'custom'=>!row['builtin'])
       end
       @dialog.execute_script("renderLibrary(#{JSON.generate(payload)})")
     rescue StandardError
