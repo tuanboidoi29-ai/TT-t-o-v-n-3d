@@ -150,6 +150,9 @@ check('real builder: clean ABF board shell with embedded _ABF_cuttingLines') do
   assert(summary[:face_count]==6)
   cutting=backing.entities.grep(Sketchup::Group).find{|g|SW.abf_cutting_group?(g)}
   assert(cutting)
+  assert(vl.entities.include?(backing))
+  assert(!vl.entities.include?(cutting))
+  assert(backing.entities.include?(cutting))
   assert(cutting.name=='_ABF_cuttingLines')
   assert(cutting.layer.name=='ABF_cuttingLines')
   assert(cutting.get_attribute('ABF','is-cutting-lines')==true)
@@ -172,15 +175,22 @@ check('real builder: clean ABF board shell with embedded _ABF_cuttingLines') do
  assert(parent2.entities.first.name=='VL3')
 end
 set_model
-check('CNC off leaves backing with no machining profile edges') do
+check('backed mode always embeds every slat profile inside TAM_LOT even when CNC depth is off') do
  p=SW.layout(500,700,SW::DEFAULTS.merge('mode'=>'backed','cnc'=>false))
  assert(p[:panels][0][:backing][5]==17.5)
+ count=p[:panels][0][:slats].size
  parent=SW.create(Sketchup.model,p,Geom::Transformation.new)
  backing=parent.entities.first.entities.first
  assert(backing.entities.grep(Sketchup::Edge).empty?)
- assert(backing.entities.grep(Sketchup::Group).empty?)
+ groups=backing.entities.grep(Sketchup::Group)
+ assert(groups.size==1)
+ cutting=groups.first
+ assert(cutting.name=='_ABF_cuttingLines')
+ assert(cutting.definition.entities.grep(Sketchup::Edge).size==count*4)
+ assert(cutting.definition.entities.grep(Sketchup::Edge).all?{|e|e.get_attribute(SW::KEY,'depth_mm')==0.0})
  assert(backing.entities.grep(Sketchup::Face).size==6)
- assert(backing.get_attribute(SW::KEY,'profile_count')==0)
+ assert(backing.get_attribute(SW::KEY,'profile_count')==count)
+ assert(backing.get_attribute(SW::KEY,'profiles_source')=='slats')
  assert(backing.get_attribute('TRẦN TUẤN NỘI THẤT','do_day_mm')==17.5)
 end
 set_model
