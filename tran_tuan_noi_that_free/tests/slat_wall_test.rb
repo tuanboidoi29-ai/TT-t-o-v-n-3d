@@ -188,7 +188,7 @@ check('backing integrity rejects _ABF_cuttingLines as slat machining and unknown
  rescue RuntimeError=>e
   assert(e.message.include?('_ABF_cuttingLines'))
  end
- backing.entities.erase_entities(cutting)
+ backing.entities.delete(cutting)
  nested=backing.entities.add_group
  nested.name='BAD'
  begin
