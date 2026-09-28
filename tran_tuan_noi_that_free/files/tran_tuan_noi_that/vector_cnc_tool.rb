@@ -459,6 +459,7 @@ module TranTuanNoiThat
         @center = nil
         @polygon_world = []
         @face_boundary = []
+        @face_size = nil
         @guide = nil
         @error = nil
       end
@@ -536,6 +537,7 @@ module TranTuanNoiThat
         points = VectorCNC.scaled_points(@template,@width,@height)
         @polygon_world = points.map { |px,py| Geom::Point3d.new(cx+px.mm,cy+py.mm,0).transform(basis) }
         @face_boundary = local_face.map { |p| Geom::Point3d.new(p.x,p.y,0).transform(basis) }
+        @face_size = [(max_x-min_x).to_f*25.4,(max_y-min_y).to_f*25.4]
         face_center_local = Geom::Point3d.new((min_x+max_x)/2.0,(min_y+max_y)/2.0,0)
         dx = (cx-face_center_local.x).to_f*25.4
         dy = (cy-face_center_local.y).to_f*25.4
@@ -562,8 +564,9 @@ module TranTuanNoiThat
 
       def onMouseMove(_flags,x,y,view)
         update_hover(view,x,y)
-        view.tooltip = @error || "#{@template['name']} · #{@width.round(1)} x #{@height.round(1)} mm"
-        Sketchup.status_text = @error || status_text
+        face_text = @face_size ? " · FACE #{@face_size[0].round(1)} x #{@face_size[1].round(1)} mm" : ''
+        view.tooltip = @error || "#{@template['name']} · #{@width.round(1)} x #{@height.round(1)} mm#{face_text}"
+        Sketchup.status_text = @error || (status_text + face_text)
         view.invalidate
       end
 
@@ -664,7 +667,8 @@ module TranTuanNoiThat
           view.draw(GL_LINES,[a,b])
           view.draw_text(b,label,color: Sketchup::Color.new(50,100,190))
         end
-        text = @error || "#{@template['name']} · #{@width.round(1)} x #{@height.round(1)} mm · sâu #{@depth.round(1)} mm"
+        face_text = @face_size ? " · FACE #{@face_size[0].round(1)} x #{@face_size[1].round(1)}" : ''
+        text = @error || "#{@template['name']} · VECTOR #{@width.round(1)} x #{@height.round(1)} mm · sâu #{@depth.round(1)} mm#{face_text}"
         view.draw_text([20,35],text,color: Sketchup::Color.new(145,75,20))
       end
 
