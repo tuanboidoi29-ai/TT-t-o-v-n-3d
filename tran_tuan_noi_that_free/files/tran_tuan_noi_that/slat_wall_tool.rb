@@ -1447,7 +1447,13 @@ module TranTuanNoiThat
         return false unless face
         entities = face.respond_to?(:parent) ? face.parent : nil
         owner = entities && entities.respond_to?(:parent) ? entities.parent : nil
-        owner.is_a?(Sketchup::ComponentDefinition)
+        return false unless owner
+        if defined?(Sketchup::ComponentDefinition)
+          return true if owner.is_a?(Sketchup::ComponentDefinition)
+        end
+        # Fallback cho test double và các bản SketchUp: definition có entities + instances,
+        # trong khi Model không có instances.
+        owner.respond_to?(:entities) && owner.respond_to?(:instances)
       rescue StandardError
         false
       end
@@ -1618,57 +1624,6 @@ module TranTuanNoiThat
 
       def stable_geometry_input_point?(ip, view, x, y)
         !endpoint_snap_point(ip, view, x, y).nil?
-      end
-
-      def plane_mode_label(mode = @plane_mode)
-        {
-          auto: 'TỰ ĐỘNG',
-          xz: 'NGANG XZ',
-          yz: 'DỌC YZ',
-          diag_right: 'CHÉO PHẢI 45°',
-          diag_left: 'CHÉO TRÁI 45°',
-          xy: 'TRÊN/DƯỚI XY'
-        }[mode] || mode.to_s.upcase
-      end
-
-      def cycle_plane_mode(view)
-        index = PLANE_MODES.index(@plane_mode) || 0
-        @plane_mode = PLANE_MODES[(index + 1) % PLANE_MODES.length]
-        @free_axis = nil if @plane_mode == :auto
-
-        if @p1 && @raw_p2
-          @basis = construction_basis_from(@p1, @raw_p2, view)
-          if @basis
-            projected = orthogonal_project_to_construction_plane(@raw_p2)
-            local = projected.transform(@basis.inverse)
-            @p2 = Geom::Point3d.new(local.x, local.y, 0).transform(@basis)
-            rebuild
-          end
-        end
-        status
-        SlatWall.send_state
-        view.invalidate
-      rescue StandardError => e
-        @error = e.message
-        view.invalidate
-      end
-
-      def fixed_plane_axes(mode)
-        z = Geom::Vector3d.new(0,0,1)
-        case mode
-        when :xz
-          [Geom::Vector3d.new(1,0,0), z]
-        when :yz
-          [Geom::Vector3d.new(0,1,0), z]
-        when :diag_right
-          [Geom::Vector3d.new(1,1,0).normalize, z]
-        when :diag_left
-          [Geom::Vector3d.new(1,-1,0).normalize, z]
-        when :xy
-          [Geom::Vector3d.new(1,0,0), Geom::Vector3d.new(0,1,0)]
-        else
-          nil
-        end
       end
 
       def model_axis_for(candidate)
