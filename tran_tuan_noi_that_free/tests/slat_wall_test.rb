@@ -74,8 +74,8 @@ class Geom::Vector3d
 end
 class Sketchup::Face
  include Attrs
- attr_accessor :layer,:material,:back_material
- def edges;outer_loop.edges;end
+ attr_accessor :layer,:material,:back_material,:mock_edges
+ def edges;@mock_edges || [];end
  def bounds
   b=Geom::BoundingBox.new
   vertices.each{|v|b.add(v.position)}
@@ -108,7 +108,15 @@ class Sketchup::Entities
   g=Sketchup::Group.new(Sketchup::Definition.new(Sketchup::Entities.new));g.name='';self<<g;g
  end
  def add_face(points)
-  f=Sketchup::Face.new(points.map{|p|Sketchup::Vertex.new(p)});self<<f;f
+  vertices=points.map{|p|Sketchup::Vertex.new(p)}
+  edges=vertices.each_with_index.map do |v,i|
+   Sketchup::Edge.new(v,vertices[(i+1)%vertices.length])
+  end
+  f=Sketchup::Face.new(vertices)
+  f.mock_edges=edges
+  edges.each{|e|self<<e}
+  self<<f
+  f
  end
  def add_edges(*points)
   points.each_cons(2).map do |a,b|
