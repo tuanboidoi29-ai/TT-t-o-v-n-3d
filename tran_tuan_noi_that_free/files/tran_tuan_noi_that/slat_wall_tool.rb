@@ -496,7 +496,7 @@ module TranTuanNoiThat
       <<~HTML
         <!doctype html><html lang="vi"><meta charset="utf-8"><style>
         *{box-sizing:border-box}body{font:14px Arial;margin:0;background:#f4f5f7;color:#202a34}header{padding:17px;background:#223d50;color:white}h2{font-size:18px;margin:0 0 6px}main{padding:14px}section{background:white;padding:14px;border-radius:8px;margin-bottom:12px}label{display:flex;justify-content:space-between;align-items:center;margin:8px 0;gap:10px}input[type=number]{width:105px}input,select{padding:7px;border:1px solid #bbc6cc;border-radius:4px}select{max-width:245px}button{width:100%;padding:12px;background:#c4752a;color:white;border:0;border-radius:5px;font-weight:bold;cursor:pointer}small{display:block;color:#647380;line-height:1.5}canvas{width:100%;height:170px;background:#eef1f4;border-radius:5px}#error{color:#b12828;white-space:pre-line}#info{font-size:12px;line-height:1.5;margin:8px 0}.backed,.counted{display:none}.edit button{background:#27784a}
-        </style><header><h2>TRẦN TUẤN · TẠO VÁCH LAM</h2>Hai góc chéo · SHIFT xoay nan: Dọc → Ngang → Chéo phải → Chéo trái · TAB đổi nhanh Dọc/Ngang · S mở bảng</header><main>
+        </style><header><h2>TRẦN TUẤN · TẠO VÁCH LAM</h2>AUTO Face trong Group/Component · SHIFT xoay nan · TAB mở Cài đặt · vùng trống vẫn dùng P1-P2</header><main>
         <section><label>Chế độ<select id="mode" onchange="visibility()"><option value="single">Vách lam đơn</option><option value="backed">Vách lam có tấm lót</option></select></label>
         <label>Hướng nan<select id="orientation"><option value="vertical">Nan dọc</option><option value="horizontal">Nan ngang</option><option value="diag_right">Chéo phải 45°</option><option value="diag_left">Chéo trái 45°</option></select></label>
         #{inputs}
@@ -510,7 +510,7 @@ module TranTuanNoiThat
         <button onclick="apply()">CẬP NHẬT PREVIEW</button>
         <p id="editBox" class="edit" style="display:none"><button onclick="sketchup.apply_edit()">ÁP DỤNG VÀO VÁCH ĐÃ CHỌN</button></p>
         <p><button onclick="sketchup.repair_abf()">SỬA TẤM LÓT ABF ĐÃ CHỌN</button></p><p id="error"></p>
-        <section><canvas id="preview" width="420" height="170"></canvas><div id="info"></div><small>Click P1 → rê thấy preview → click P2, hoặc giữ chuột từ P1 rồi kéo và thả tại P2. Khi thả, plugin tạo đúng preview cuối cùng. ESC bỏ vùng đang vẽ.</small></section></main>
+        <section><canvas id="preview" width="420" height="170"></canvas><div id="info"></div><small><b>AUTO:</b> rê vào Face nằm trong Group/Component → preview nan xuất hiện ngay → click 1 lần để tạo. Face rời ngoài model không nhận. Nếu rê vùng trống, vẫn dùng P1 → P2. TAB mở Cài đặt; SHIFT xoay nan.</small></section></main>
         <script>
         const keys=#{JSON.generate(DEFAULTS.keys)};
         function visibility(){document.querySelectorAll('.backed').forEach(e=>e.style.display=document.getElementById('mode').value==='backed'?'block':'none');document.querySelectorAll('.counted').forEach(e=>e.style.display=document.getElementById('spacing_mode').value==='count'?'flex':'none')}
@@ -1248,6 +1248,11 @@ module TranTuanNoiThat
         @raw_p2 = nil
         @p1_plane_normal = nil
         @plane_mode = :auto
+        @auto_face = nil
+        @auto_face_transform = nil
+        @auto_face_key = nil
+        @face_boundary_world = []
+        @auto_face_detected = false
       end
       def status
         mode = @options['mode'] == 'backed' ? 'CÓ TẤM LÓT' : 'LAM ĐƠN'
@@ -1255,9 +1260,16 @@ module TranTuanNoiThat
           'vertical'=>'NAN DỌC','horizontal'=>'NAN NGANG',
           'diag_right'=>'NAN CHÉO PHẢI 45°','diag_left'=>'NAN CHÉO TRÁI 45°'
         }[@options['orientation']] || @options['orientation'].to_s
-        action = @edit_target ? 'đang sửa vách đã chọn; chỉnh thông số rồi bấm ÁP DỤNG' : (@p1 ? 'P1 ĐÃ CỐ ĐỊNH · bắt góc chéo P2 bất kỳ' : 'chọn P1')
-        axis_text = @free_axis ? " · TỰ NHẬN TRỤC #{@free_axis.to_s.upcase}" : ''
-        Sketchup.status_text = "TT VÁCH LAM · #{mode} · #{direction}#{axis_text} · #{action} · SHIFT XOAY NAN · NAN CHÉO CẮT GỌN THEO KHUNG · SNAP ENDPOINT 24px · ESC hủy"
+        action = if @edit_target
+          'đang sửa vách đã chọn'
+        elsif @auto_face_detected
+          'AUTO FACE · CLICK TẠO'
+        elsif @p1
+          'P1 CỐ ĐỊNH · bắt P2'
+        else
+          'AUTO · rê Face trong Group/Component; vùng trống dùng P1-P2'
+        end
+        Sketchup.status_text = "TT VÁCH LAM · #{mode} · #{direction} · #{action} · SHIFT XOAY NAN · TAB CÀI ĐẶT · SNAP ENDPOINT 24px · ESC hủy"
       end
       def dialog_state
         if @edit_target
@@ -1267,16 +1279,21 @@ module TranTuanNoiThat
         else
           sample = @plan.nil?
           plan = @plan || SlatWall.layout(@options['stock_width'], @options['stock_length'], @options)
-          { options: @options, layout: plan, sample: sample, editing: false, error: @error }
+          { options: @options, layout: plan, sample: sample, editing: false, auto_face: @auto_face_detected, error: @error }
         end
       rescue StandardError => e
         { options: @options, layout: nil, sample: true, editing: !@edit_target.nil?, error: e.message }
       end
       def update_settings(options)
         @options = options
-        rebuild if @p1 && @p2
+        view = Sketchup.active_model.active_view
+        if @auto_face && @auto_face_transform
+          rebuild_auto_face_preview(view)
+        elsif @p1 && @p2
+          rebuild
+        end
         status
-        Sketchup.active_model.active_view.invalidate
+        view.invalidate
       end
       def apply_selected_edit
         raise 'Không có vách lam được chọn để cập nhật.' unless @edit_target
@@ -1303,7 +1320,11 @@ module TranTuanNoiThat
         next_orientation = SLAT_ORIENTATIONS[(current + 1) % SLAT_ORIENTATIONS.length]
         @options = SlatWall.validate(@options.merge('orientation' => next_orientation))
         SlatWall.save_settings(@options)
-        rebuild if @p1 && @p2
+        if @auto_face && @auto_face_transform
+          rebuild_auto_face_preview(view)
+        elsif @p1 && @p2
+          rebuild
+        end
         SlatWall.send_state
         status
         view.invalidate
@@ -1321,10 +1342,7 @@ module TranTuanNoiThat
         elsif key == 9
           return true if @tab_down || repeat.to_i > 1
           @tab_down = true
-          @options = SlatWall.validate(@options.merge('orientation' => @options['orientation'] == 'vertical' ? 'horizontal' : 'vertical'))
-          SlatWall.save_settings(@options)
-          rebuild if @p1 && @p2
-          SlatWall.send_state
+          SlatWall.show_settings(self)
           status
           view.invalidate
           true
@@ -1425,6 +1443,134 @@ module TranTuanNoiThat
         v = normal.cross(u).normalize
         Geom::Transformation.axes(point,u,v,normal)
       end
+      def grouped_component_face?(face)
+        return false unless face
+        entities = face.respond_to?(:parent) ? face.parent : nil
+        owner = entities && entities.respond_to?(:parent) ? entities.parent : nil
+        owner.is_a?(Sketchup::ComponentDefinition)
+      rescue StandardError
+        false
+      end
+
+      def face_world_vertices(face, transform)
+        face.outer_loop.vertices.map { |vertex| vertex.position.transform(transform) }
+      end
+
+      def face_basis_from_points(points, view)
+        raise 'Face không đủ điểm.' if points.length < 3
+        origin = points.first
+        normal = nil
+        a = points[0]
+        b = points[1]
+        points.drop(2).each do |c|
+          candidate = a.vector_to(b).cross(a.vector_to(c))
+          if candidate.length > 1.0e-8
+            normal = candidate.normalize
+            break
+          end
+        end
+        raise 'Không xác định được mặt phẳng Face.' unless normal
+        normal.reverse! if normal.dot(view.camera.direction) > 0
+
+        candidates = [
+          Geom::Vector3d.new(0,0,1),
+          Geom::Vector3d.new(0,1,0),
+          Geom::Vector3d.new(1,0,0)
+        ]
+        v = nil
+        candidates.each do |axis|
+          dot = axis.dot(normal)
+          projected = Geom::Vector3d.new(
+            axis.x - normal.x*dot,
+            axis.y - normal.y*dot,
+            axis.z - normal.z*dot
+          )
+          if projected.length > 1.0e-6
+            v = projected.normalize
+            break
+          end
+        end
+        raise 'Không xác định được trục Face.' unless v
+        u = v.cross(normal)
+        u.normalize!
+        Geom::Transformation.axes(origin,u,v,normal)
+      end
+
+      def face_auto_geometry(face, transform, view)
+        raise 'AUTO chỉ nhận Face nằm trong Group hoặc Component.' unless grouped_component_face?(face)
+        if face.respond_to?(:loops) && face.loops.length > 1
+          raise 'AUTO Face chưa nhận biên dạng có lỗ bên trong.'
+        end
+        world = face_world_vertices(face, transform)
+        basis = face_basis_from_points(world, view)
+        inverse = basis.inverse
+        local = world.map { |point| point.transform(inverse) }
+        max_z = local.map { |point| point.z.abs }.max || 0.0
+        raise 'Face không phẳng.' if max_z > 0.05.mm
+
+        min_x = local.map(&:x).min
+        min_y = local.map(&:y).min
+        polygon = local.map { |point| [(point.x-min_x)*25.4, (point.y-min_y)*25.4] }
+        draw_transform = basis * Geom::Transformation.translation(Geom::Vector3d.new(min_x,min_y,0))
+        boundary = polygon.map do |x,y|
+          Geom::Point3d.new(x.mm,y.mm,0).transform(draw_transform)
+        end
+        [polygon, draw_transform, boundary]
+      end
+
+      def auto_face_key(face, transform)
+        tr = transform.respond_to?(:to_a) ? transform.to_a.map { |v| v.to_f.round(8) } : []
+        [face.object_id, tr, JSON.generate(@options)].hash
+      end
+
+      def rebuild_auto_face_preview(view)
+        return false unless @auto_face && @auto_face_transform
+        polygon, draw_transform, boundary = face_auto_geometry(@auto_face,@auto_face_transform,view)
+        @plan = SlatWall.layout_polygon(polygon,@options)
+        @draw_transform = draw_transform
+        @face_boundary_world = boundary
+        build_preview_geometry
+        @error = nil
+        @auto_face_detected = true
+        true
+      rescue StandardError => e
+        @plan = nil
+        @preview_boxes = []
+        @preview_mesh = {}
+        @face_boundary_world = []
+        @error = e.message
+        @auto_face_detected = true
+        false
+      end
+
+      def detect_auto_face(view,x,y)
+        @ip.pick(view,x,y)
+        face = @ip.respond_to?(:face) ? @ip.face : nil
+        unless face && grouped_component_face?(face)
+          @auto_face = nil
+          @auto_face_transform = nil
+          @auto_face_key = nil
+          @auto_face_detected = false
+          @face_boundary_world = []
+          return false
+        end
+        transform = inputpoint_transform(@ip)
+        key = auto_face_key(face,transform)
+        if key != @auto_face_key
+          @auto_face = face
+          @auto_face_transform = transform
+          @auto_face_key = key
+          rebuild_auto_face_preview(view)
+        else
+          @auto_face_detected = true
+        end
+        true
+      rescue StandardError => e
+        @auto_face_detected = true
+        @error = e.message
+        false
+      end
+
       def inputpoint_transform(ip)
         tr = ip.respond_to?(:transformation) ? ip.transformation : nil
         tr || Geom::Transformation.new
@@ -1561,16 +1707,6 @@ module TranTuanNoiThat
       end
 
       def construction_basis_from(point, candidate, _view)
-        if @plane_mode && @plane_mode != :auto
-          axes = fixed_plane_axes(@plane_mode)
-          return nil unless axes
-          u, v = axes
-          normal = u.cross(v)
-          return nil if normal.length < 1.0e-8
-          normal.normalize!
-          return Geom::Transformation.axes(point,u,v,normal)
-        end
-
         axis_key = model_axis_for(candidate)
         return nil unless axis_key
         u = axis_key == :x ? Geom::Vector3d.new(1,0,0) : Geom::Vector3d.new(0,1,0)
@@ -1588,14 +1724,6 @@ module TranTuanNoiThat
 
       def axis_construction_plane
         return nil unless @p1
-        if @plane_mode && @plane_mode != :auto
-          axes = fixed_plane_axes(@plane_mode)
-          return nil unless axes
-          normal = axes[0].cross(axes[1])
-          return nil if normal.length < 1.0e-8
-          normal.normalize!
-          return [@p1, normal]
-        end
         return nil unless @free_axis
         normal = @free_axis == :x ? Geom::Vector3d.new(0,1,0) : Geom::Vector3d.new(1,0,0)
         [@p1, normal]
@@ -1645,6 +1773,27 @@ module TranTuanNoiThat
         end
       end
       def onMouseMove(_flags,x,y,view)
+        if !@p1 && detect_auto_face(view,x,y)
+          @hover = nil
+          view.tooltip = @error || 'AUTO FACE · Click để tạo nan theo biên dạng'
+          SlatWall.send_state
+          status
+          view.invalidate
+          return
+        end
+
+        if !@p1
+          @auto_face_detected = false
+          @auto_face = nil
+          @auto_face_transform = nil
+          @auto_face_key = nil
+          @face_boundary_world = []
+          @plan = nil
+          @preview_boxes = []
+          @preview_mesh = {}
+          @error = nil
+        end
+
         @hover = pick(view,x,y)
         if @p1 && @hover
           @p2 = @hover
@@ -1655,8 +1804,9 @@ module TranTuanNoiThat
         if @p1_locked
           view.tooltip = @error || (snap ? "P1 cố định → P2 Endpoint#{axis}" : "P1 cố định → P2 tự do#{axis}")
         else
-          view.tooltip = @error || (snap ? 'Chọn P1 Endpoint' : 'Chọn P1 tự do')
+          view.tooltip = @error || (snap ? 'AUTO không có Face · Chọn P1 Endpoint' : 'AUTO không có Face · Chọn P1 tự do')
         end
+        status
         view.invalidate
       rescue StandardError => e
         @error = e.message
@@ -1666,6 +1816,11 @@ module TranTuanNoiThat
         view.invalidate
       end
       def onLButtonDown(_flags,x,y,view)
+        if !@p1 && @auto_face_detected
+          return UI.beep unless @plan && @draw_transform
+          commit(view)
+          return
+        end
         point = pick(view,x,y)
         return UI.beep unless point
         if @p1
@@ -1704,11 +1859,7 @@ module TranTuanNoiThat
       rescue StandardError => e
         UI.messagebox("Tạo vách lam: #{e.message}")
       end
-      def rebuild
-        local = @p2.transform(@basis.inverse)
-        w,h = local.x.abs.to_f * 25.4, local.y.abs.to_f * 25.4
-        @plan = SlatWall.layout(w,h,@options)
-        @draw_transform = @basis * Geom::Transformation.translation(Geom::Vector3d.new([local.x,0].min,[local.y,0].min,0))
+      def build_preview_geometry
         @preview_boxes = @plan[:panels].flat_map do |panel|
           items = panel[:slats].each_with_index.map do |box,index|
             polygon = panel[:slat_polygons] && panel[:slat_polygons][index]
@@ -1717,21 +1868,42 @@ module TranTuanNoiThat
             else
               SlatWall.box_points(box)
             end
-            [points.map { |p| p.transform(@draw_transform) }, false, !!polygon]
+            [points.map { |p| p.transform(@draw_transform) }, false, polygon ? polygon.length : nil]
           end
           if panel[:backing]
-            items.unshift([SlatWall.box_points(panel[:backing]).map { |p| p.transform(@draw_transform) }, true, false])
+            items.unshift([SlatWall.box_points(panel[:backing]).map { |p| p.transform(@draw_transform) }, true, nil])
           end
           items
         end
+
         @preview_mesh = {}
-        @preview_boxes.each do |points,backing,polygonal|
-          mesh = (@preview_mesh[backing] ||= { faces: [], edges: [] })
-          faces = polygonal ? PRISM_FACES : BOX_FACES
-          edges = polygonal ? PRISM_EDGES : BOX_EDGES
-          mesh[:faces].concat(faces.flat_map { |ids| ids.map { |i| points[i] } })
-          mesh[:edges].concat(edges.flat_map { |a,b| [points[a],points[b]] })
+        @preview_boxes.each do |points,backing,polygon_count|
+          mesh = (@preview_mesh[backing] ||= { quads: [], triangles: [], edges: [] })
+          if polygon_count
+            faces, edges = SlatWall.polygon_prism_topology(polygon_count)
+            faces.each do |ids|
+              if ids.length == 4
+                mesh[:quads].concat(ids.map { |i| points[i] })
+              else
+                (1...(ids.length-1)).each do |i|
+                  mesh[:triangles].concat([points[ids[0]],points[ids[i]],points[ids[i+1]]])
+                end
+              end
+            end
+            mesh[:edges].concat(edges.flat_map { |a,b| [points[a],points[b]] })
+          else
+            mesh[:quads].concat(BOX_FACES.flat_map { |ids| ids.map { |i| points[i] } })
+            mesh[:edges].concat(BOX_EDGES.flat_map { |a,b| [points[a],points[b]] })
+          end
         end
+      end
+
+      def rebuild
+        local = @p2.transform(@basis.inverse)
+        w,h = local.x.abs.to_f * 25.4, local.y.abs.to_f * 25.4
+        @plan = SlatWall.layout(w,h,@options)
+        @draw_transform = @basis * Geom::Transformation.translation(Geom::Vector3d.new([local.x,0].min,[local.y,0].min,0))
+        build_preview_geometry
         @error = nil
       rescue StandardError => e
         @plan = nil
@@ -1760,17 +1932,24 @@ module TranTuanNoiThat
         view.draw_points([@hover],8,3,Sketchup::Color.new(255,150,40)) if @hover
         @preview_mesh.each do |backing,mesh|
           view.drawing_color = backing ? Sketchup::Color.new(125,160,190,90) : Sketchup::Color.new(221,163,108,155)
-          view.draw(GL_QUADS,mesh[:faces])
+          view.draw(GL_QUADS,mesh[:quads]) unless mesh[:quads].empty?
+          view.draw(GL_TRIANGLES,mesh[:triangles]) unless mesh[:triangles].empty?
           view.drawing_color = backing ? Sketchup::Color.new(90,120,145) : Sketchup::Color.new(156,91,40)
           view.line_width = 1
-          view.draw(GL_LINES,mesh[:edges])
+          view.draw(GL_LINES,mesh[:edges]) unless mesh[:edges].empty?
         end
-        if @p1
+        if @face_boundary_world && @face_boundary_world.length > 2
+          view.drawing_color = Sketchup::Color.new(255,110,20)
+          view.line_width = 2
+          view.draw(GL_LINE_LOOP,@face_boundary_world)
+        end
+        if @p1 || @auto_face_detected
           axis = @free_axis ? " · TRỤC #{@free_axis.to_s.upcase}" : ''
           orient = {
             'vertical'=>'DỌC','horizontal'=>'NGANG','diag_right'=>'CHÉO PHẢI','diag_left'=>'CHÉO TRÁI'
           }[@options['orientation']]
-          text = @error || (@plan && "P1 CỐ ĐỊNH · NAN #{orient}#{axis} · #{@plan[:width].round(1)} × #{@plan[:height].round(1)} mm · #{@plan[:panels].length} cụm VL · #{@plan[:slat_count]} lam")
+          prefix = @auto_face_detected ? 'AUTO FACE' : 'P1 CỐ ĐỊNH'
+          text = @error || (@plan && "#{prefix} · NAN #{orient}#{axis} · #{@plan[:width].round(1)} × #{@plan[:height].round(1)} mm · #{@plan[:slat_count]} lam")
           view.draw_text([20,35],text.to_s,color: Sketchup::Color.new(155,80,20))
         end
       end
@@ -1778,6 +1957,7 @@ module TranTuanNoiThat
         box = Geom::BoundingBox.new
         box.add(@p1) if @p1
         @preview_boxes.each { |points,_,_| points.each { |p| box.add(p) } }
+        @face_boundary_world.each { |point| box.add(point) } if @face_boundary_world
         box
       end
     end
