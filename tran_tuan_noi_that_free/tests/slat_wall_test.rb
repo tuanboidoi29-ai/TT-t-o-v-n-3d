@@ -267,18 +267,47 @@ check('free wall basis follows P1-P2 XY direction instead of locking to camera')
  assert(u2.x<0 && u2.y>0)
  assert((u1.x-u2.x).abs>0.001)
 end
-check('P1 real-geometry snap is limited to 24 screen pixels') do
+check('P1 endpoint snap is limited to 24px and ignores Face-only inference') do
  tool=SW::Tool.new(SW::DEFAULTS)
  view=TestView.new
- ip=Object.new
  pos=Geom::Point3d.new(100.mm,100.mm,0)
+ vertex=Sketchup::Vertex.new(pos)
+ ip=Object.new
  ip.define_singleton_method(:valid?){true}
  ip.define_singleton_method(:position){pos}
- ip.define_singleton_method(:vertex){Object.new}
+ ip.define_singleton_method(:vertex){vertex}
  ip.define_singleton_method(:edge){nil}
  ip.define_singleton_method(:face){nil}
- assert(tool.send(:stable_geometry_input_point?,ip,view,110,110))
- assert(!tool.send(:stable_geometry_input_point?,ip,view,140,140))
+ ip.define_singleton_method(:transformation){Geom::Transformation.new}
+ snap=tool.send(:endpoint_snap_point,ip,view,110,110)
+ assert(snap)
+ near(snap.x,100.mm);near(snap.y,100.mm)
+ assert(tool.send(:endpoint_snap_point,ip,view,140,140).nil?)
+
+ face_ip=Object.new
+ face_ip.define_singleton_method(:valid?){true}
+ face_ip.define_singleton_method(:position){pos}
+ face_ip.define_singleton_method(:vertex){nil}
+ face_ip.define_singleton_method(:edge){nil}
+ face_ip.define_singleton_method(:face){Object.new}
+ assert(tool.send(:endpoint_snap_point,face_ip,view,100,100).nil?)
+end
+check('edge snap chooses the nearest real endpoint, never a sliding edge inference point') do
+ tool=SW::Tool.new(SW::DEFAULTS)
+ view=TestView.new
+ a=Sketchup::Vertex.new(Geom::Point3d.new(100.mm,100.mm,0))
+ b=Sketchup::Vertex.new(Geom::Point3d.new(200.mm,100.mm,0))
+ edge=Sketchup::Edge.new(a,b)
+ ip=Object.new
+ ip.define_singleton_method(:valid?){true}
+ ip.define_singleton_method(:position){Geom::Point3d.new(150.mm,100.mm,0)}
+ ip.define_singleton_method(:vertex){nil}
+ ip.define_singleton_method(:edge){edge}
+ ip.define_singleton_method(:transformation){Geom::Transformation.new}
+ snap=tool.send(:endpoint_snap_point,ip,view,102,100)
+ assert(snap)
+ near(snap.x,100.mm);near(snap.y,100.mm)
+ assert(tool.send(:endpoint_snap_point,ip,view,150,100).nil?)
 end
 check('P1 stays fixed while arbitrary diagonal P2 auto-detects X or Y') do
  tool=SW::Tool.new(SW::DEFAULTS)
@@ -314,12 +343,14 @@ check('P2 construction plane follows detected Model axis through locked P1') do
  plane=tool.send(:axis_construction_plane)
  near(plane[1].x,1);near(plane[1].y,0);near(plane[1].z,0)
 end
-check('near 45 degrees keeps current axis only inside 5 percent dead band') do
+check('axis hysteresis prevents X/Y chatter near diagonal but still switches clearly') do
  tool=SW::Tool.new(SW::DEFAULTS)
  tool.send(:lock_first_point,Geom::Point3d.new(0,0,0))
  assert(tool.send(:model_axis_for,Geom::Point3d.new(100.mm,20.mm,0))==:x)
- assert(tool.send(:model_axis_for,Geom::Point3d.new(100.mm,97.mm,0))==:x)
- assert(tool.send(:model_axis_for,Geom::Point3d.new(80.mm,100.mm,0))==:y)
+ assert(tool.send(:model_axis_for,Geom::Point3d.new(100.mm,110.mm,0))==:x)
+ assert(tool.send(:model_axis_for,Geom::Point3d.new(80.mm,110.mm,0))==:y)
+ assert(tool.send(:model_axis_for,Geom::Point3d.new(100.mm,110.mm,0))==:y)
+ assert(tool.send(:model_axis_for,Geom::Point3d.new(140.mm,100.mm,0))==:x)
 end
 check('detected free basis is aligned exactly to a Model axis and Z is vertical') do
  tool=SW::Tool.new(SW::DEFAULTS)
@@ -328,7 +359,7 @@ check('detected free basis is aligned exactly to a Model axis and Z is vertical'
  b=tool.send(:model_axis_basis_from,Geom::Point3d.new(0,0,0),Geom::Point3d.new(200.mm,20.mm,500.mm),view)
  assert(b)
  u=b.xaxis;v=b.yaxis
- near(u.y,0);near(u.z,0);near(u.x.abs,1)
+ near(u.y,0);near(u.z,0);near(u.x,1)
  near(v.x,0);near(v.y,0);near(v.z,1)
 end
 check('four diagonal drag directions produce the same dimensions') do
