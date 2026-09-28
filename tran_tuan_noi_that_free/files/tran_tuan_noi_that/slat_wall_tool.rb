@@ -1124,6 +1124,27 @@ module TranTuanNoiThat
       rescue StandardError
         nil
       end
+
+      def axis_construction_plane
+        return nil unless @p1 && @free_axis
+        normal = @free_axis == :x ? Geom::Vector3d.new(0,1,0) : Geom::Vector3d.new(1,0,0)
+        [@p1, normal]
+      end
+
+      def project_p2_to_detected_plane(view, x, y, raw)
+        plane = axis_construction_plane
+        return raw unless plane
+        projected = Geom.intersect_line_plane(view.pickray(x,y), plane)
+        return projected if projected
+        # Nếu tia nhìn song song mặt phẳng, giữ cao độ P2 thật và chiếu tọa độ ngang về trục đã nhận.
+        if @free_axis == :x
+          Geom::Point3d.new(raw.x, @p1.y, raw.z)
+        else
+          Geom::Point3d.new(@p1.x, raw.y, raw.z)
+        end
+      rescue StandardError
+        raw
+      end
       def pick(view, x, y)
         if @p1_locked && @p1
           # P1 đã khóa: tuyệt đối không pick lại P1 và không dùng @first_ip làm inference reference.
@@ -1136,6 +1157,7 @@ module TranTuanNoiThat
           @basis = dynamic_basis if dynamic_basis
           return nil unless @basis
 
+          @raw_p2 = project_p2_to_detected_plane(view,x,y,@raw_p2)
           delta = @p1.vector_to(@raw_p2)
           horizontal = delta.dot(@basis.xaxis)
           vertical = delta.z
