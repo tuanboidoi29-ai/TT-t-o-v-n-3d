@@ -384,7 +384,7 @@ module TranTuanNoiThat
         'width'=>sorted[1].round(3),
         'thickness'=>sorted[2].round(3),
         'axes'=>dims.map { |v| v.round(3) },
-        'name'=>(instance.respond_to?(:name) && !instance.name.to_s.empty? ? instance.name.to_s : definition.name.to_s)
+        'name'=>(instance.respond_to?(:name) && !instance.name.to_s.empty? ? instance.name.to_s : (definition.respond_to?(:name) ? definition.name.to_s : 'Group/Component'))
       }
     end
 
