@@ -8,7 +8,7 @@ module TranTuanNoiThat
   module VectorCNC
     extend self
 
-    VERSION = '1.1.0'.freeze
+    VERSION = '1.1.1'.freeze
     KEY = 'TT_VECTOR_CNC'.freeze
     DATA_DIR = File.join(TranTuanNoiThat::ROOT, 'data', 'vector_cnc').freeze
     LIBRARY_FILE = File.join(DATA_DIR, 'library.json').freeze
@@ -18,6 +18,8 @@ module TranTuanNoiThat
       'depth' => 3.0,
       'offset_x' => 20.0,
       'offset_y' => 20.0,
+      'border_width' => 0.0,
+      'smoothness' => 72,
       'anchor' => 'center',
       'cut_mode' => 'inside'
     }.freeze
@@ -166,8 +168,24 @@ module TranTuanNoiThat
       true
     end
 
-    def scaled_points(template, width, height)
-      unit = template['points']
+    def clamp_smoothness(value)
+      [[value.to_i, 12].max, 240].min
+    end
+
+    def points_for_template(template, smoothness = nil)
+      segments = clamp_smoothness(smoothness || 72)
+      case template['id'].to_s
+      when 'circle'
+        circle_points(segments)
+      when 'oval'
+        circle_points(segments).map { |x,y| [x, y*0.6] }
+      else
+        template['points']
+      end
+    end
+
+    def scaled_points(template, width, height, smoothness = nil)
+      unit = points_for_template(template,smoothness)
       sx = width.to_f / 2.0
       sy = height.to_f / 2.0
       unit.map { |x,y| [x.to_f*sx, y.to_f*sy] }
@@ -345,6 +363,8 @@ module TranTuanNoiThat
       cfg['depth'] = (cfg['depth'] || DEFAULT_DEPTH).to_f
       cfg['offset_x'] = cfg['offset_x'].to_f
       cfg['offset_y'] = cfg['offset_y'].to_f
+      cfg['border_width'] = [cfg['border_width'].to_f,0.0].max
+      cfg['smoothness'] = clamp_smoothness(cfg['smoothness'])
       cfg['anchor'] = cfg['anchor'].to_s
       cfg['cut_mode'] = cfg['cut_mode'].to_s
       raise 'Rộng/Cao vector phải lớn hơn 0.' unless cfg['width'] > 0 && cfg['height'] > 0
