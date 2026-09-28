@@ -128,7 +128,7 @@ class TestModel
  def definitions;entities.map(&:definition);end
 end
 set_model
-check('real builder: clean ABF board shell with embedded _ABF_cuttingLines') do
+check('real builder: every slat becomes ABF Intersect for Aspire') do
  p=SW.layout(1400,1000,SW::DEFAULTS.merge('mode'=>'backed','cnc'=>true,'tag'=>'ABF_TEST','recess'=>3))
  parent=SW.create(Sketchup.model,p,Geom::Transformation.new)
  assert(parent.entities.map(&:name)==['VL1','VL2'])
@@ -137,82 +137,63 @@ check('real builder: clean ABF board shell with embedded _ABF_cuttingLines') do
   assert(backing.name.end_with?('TAM_LOT'))
   assert(backing.layer.name=='Layer0')
   assert(backing.get_attribute('ABF','is-board')==true)
-  assert(backing.get_attribute('TRẦN TUẤN NỘI THẤT','do_day_mm')==17.5)
-  assert(backing.get_attribute('TRẦN TUẤN NỘI THẤT','loai')=='VAN')
   count=p[:panels][i][:slats].size
-  assert(vl.entities.size==count+1)
-  assert(backing.get_attribute(SW::KEY,'profile_count')==count)
   summary=SW.backing_profile_summary(backing)
-  assert(summary[:cutting_group_count]==1)
+  assert(summary[:cutting_group_count]==0)
+  assert(summary[:intersect_group_count]==count)
   assert(summary[:unknown_nested_count]==0)
   assert(summary[:direct_edge_count]==0)
   assert(summary[:profile_count]==count)
   assert(summary[:edge_count]==count*4)
   assert(summary[:complete])
   assert(summary[:face_count]==6)
-  cutting=backing.entities.grep(Sketchup::Group).find{|g|SW.abf_cutting_group?(g)}
-  assert(cutting)
-  assert(vl.entities.include?(backing))
-  assert(!vl.entities.include?(cutting))
-  assert(backing.entities.include?(cutting))
-  assert(cutting.name=='_ABF_cuttingLines')
-  assert(cutting.layer.name=='ABF_cuttingLines')
-  assert(cutting.get_attribute('ABF','is-cutting-lines')==true)
-  profile_edges=cutting.entities.grep(Sketchup::Edge)
-  assert(profile_edges.size==count*4)
+  intersects=backing.entities.grep(Sketchup::Group).select{|g|SW.abf_intersect_group?(g)}
+  assert(intersects.size==count)
+  assert(intersects.all?{|g|g.name=='_ABF_Intersect'})
+  assert(intersects.all?{|g|g.layer.name=='ABF_TEST'})
+  assert(intersects.all?{|g|g.get_attribute('ABF','is-intersect')==true})
+  assert(intersects.all?{|g|g.get_attribute('ABF','intersect-offset')==0.0})
+  assert(intersects.all?{|g|g.entities.grep(Sketchup::Face).size==1})
+  assert(intersects.all?{|g|g.entities.grep(Sketchup::Edge).size==4})
+  assert(intersects.all?{|g|g.entities.grep(Sketchup::Edge).all?{|e|near(e.start.position.z,0);near(e.end.position.z,0);true}})
+  cnc_face=SW.backing_front_face(backing)
+  assert(cnc_face.get_attribute('ABF','is-cnced-face')==true)
+  assert(backing.get_attribute(SW::KEY,'profile_type')=='ABF_Intersect')
+  assert(backing.get_attribute(SW::KEY,'profiles_on_face')==true)
   near(backing.definition.bounds.min.z,-17.5.mm)
   near(backing.definition.bounds.max.z,0)
-  assert(profile_edges.all?{|e|near(e.start.position.z,0);near(e.end.position.z,0);true})
-  assert(backing.get_attribute(SW::KEY,'profiles_on_face')==true)
-  assert(backing.get_attribute(SW::KEY,'profile_face')=='front_right')
-  count.times do |n|
-   loop=profile_edges.select{|e|e.get_attribute(SW::KEY,'profile')==n+1}
-   assert(loop.size==4)
-   assert(loop.all?{|e|e.layer.name=='ABF_cuttingLines'})
-   assert(loop.all?{|e|e.get_attribute(SW::KEY,'role')=='cnc_edge'})
-   assert(loop.all?{|e|e.get_attribute(SW::KEY,'depth_mm')==3})
-  end
-  assert(backing.entities.grep(Sketchup::Face).size==6)
-  center=SW.shell_center(backing.entities.grep(Sketchup::Face))
-  assert(backing.entities.grep(Sketchup::Face).all?{|face|SW.face_outward_score(face,center)>0})
-  assert(backing.get_attribute(SW::KEY,'faces_verified')==true)
  end
  assert(Sketchup.model.commits==1)
- parent2=SW.create(Sketchup.model,p,Geom::Transformation.new)
- assert(parent2.entities.first.name=='VL3')
 end
 set_model
-check('backed mode always embeds every slat profile inside TAM_LOT even when CNC depth is off') do
+check('backed mode keeps ABF Intersect profiles even when depth is zero') do
  p=SW.layout(500,700,SW::DEFAULTS.merge('mode'=>'backed','cnc'=>false))
- assert(p[:panels][0][:backing][5]==17.5)
  count=p[:panels][0][:slats].size
  parent=SW.create(Sketchup.model,p,Geom::Transformation.new)
  backing=parent.entities.first.entities.first
- assert(backing.entities.grep(Sketchup::Edge).empty?)
- groups=backing.entities.grep(Sketchup::Group)
- assert(groups.size==1)
- cutting=groups.first
- assert(cutting.name=='_ABF_cuttingLines')
- assert(cutting.definition.entities.grep(Sketchup::Edge).size==count*4)
- assert(cutting.definition.entities.grep(Sketchup::Edge).all?{|e|e.get_attribute(SW::KEY,'depth_mm')==0.0})
- assert(cutting.definition.entities.grep(Sketchup::Edge).all?{|e|near(e.start.position.z,0);near(e.end.position.z,0);true})
- assert(backing.get_attribute(SW::KEY,'profiles_on_face')==true)
- assert(backing.entities.grep(Sketchup::Face).size==6)
- assert(backing.get_attribute(SW::KEY,'profile_count')==count)
- assert(backing.get_attribute(SW::KEY,'profiles_source')=='slats')
- assert(backing.get_attribute('TRẦN TUẤN NỘI THẤT','do_day_mm')==17.5)
+ intersects=backing.entities.grep(Sketchup::Group).select{|g|SW.abf_intersect_group?(g)}
+ assert(intersects.size==count)
+ assert(intersects.all?{|g|g.entities.grep(Sketchup::Face).size==1})
+ assert(intersects.all?{|g|g.entities.grep(Sketchup::Edge).size==4})
+ assert(intersects.all?{|g|g.get_attribute(SW::KEY,'depth_mm')==0.0})
+ assert(SW.backing_front_face(backing).get_attribute('ABF','is-cnced-face')==true)
 end
 set_model
-check('backing integrity accepts standard cutting group but rejects unknown nested objects') do
+check('backing integrity rejects _ABF_cuttingLines as slat machining and unknown nested objects') do
  backing=SW.make_box(Sketchup.model.entities,[0,0,-17.5,600,1200,17.5],'VLX_TAM_LOT',nil)
- standard=SW.ensure_abf_cutting_group(backing)
- assert(SW.abf_cutting_group?(standard))
- SW.enforce_backing_integrity(backing,0)
- nested=backing.entities.add_group
- nested.set_attribute(SW::KEY,'role','cnc_profile')
+ cutting=SW.ensure_abf_cutting_group(backing)
  begin
   SW.enforce_backing_integrity(backing,0)
-  raise 'accepted unknown nested CNC object'
+  raise 'accepted cutting lines as slat machining'
+ rescue RuntimeError=>e
+  assert(e.message.include?('_ABF_cuttingLines'))
+ end
+ backing.entities.erase_entities(cutting)
+ nested=backing.entities.add_group
+ nested.name='BAD'
+ begin
+  SW.enforce_backing_integrity(backing,0)
+  raise 'accepted unknown group'
  rescue RuntimeError=>e
   assert(e.message.include?('không thuộc chuẩn ABF'))
  end
@@ -399,7 +380,7 @@ class Sketchup::Entities
  def add_line(a,b);add_edges(a,b).first;end
  def erase_entities(e);delete(e);end
 end
-check('repair migrates legacy CNC geometry into one standard ABF cutting-lines group') do
+check('repair migrates legacy profile into ABF Intersect with Face') do
  set_model
  tag=Sketchup.model.layers.add('ABF_HANENLAMAM')
  backing=SW.make_box(Sketchup.model.entities,[0,0,0,600,1200,17.5],'VL1_TAM_LOT',nil)
@@ -410,37 +391,26 @@ check('repair migrates legacy CNC geometry into one standard ABF cutting-lines g
  legacy.set_attribute(SW::KEY,'profile',1)
  legacy.set_attribute(SW::KEY,'depth_mm',3)
  legacy.entities.add_edges(*(points+[points.first]))
- backing.set_attribute(SW::KEY,'cnc_tag',tag.name)
+ backing.set_attribute(SW::KEY,'operation_tag','ABF_HANENLAMAM')
  backing.set_attribute(SW::KEY,'profile_count',1)
  backing.set_attribute(SW::KEY,'depth_mm',3)
  SW.repair_backing(backing,Sketchup.model)
  assert(backing.layer.name=='Layer0')
  assert(backing.get_attribute('ABF','is-board'))
- assert(backing.get_attribute('TRẦN TUẤN NỘI THẤT','do_day_mm')==17.5)
  assert(backing.entities.grep(Sketchup::Face).size==6)
- groups=backing.entities.grep(Sketchup::Group)
- assert(groups.size==1)
- cutting=groups.first
- assert(cutting.name=='_ABF_cuttingLines')
- assert(cutting.layer.name=='ABF_cuttingLines')
- assert(cutting.get_attribute('ABF','is-cutting-lines')==true)
- assert(backing.entities.grep(Sketchup::Edge).empty?)
- profiles=cutting.entities.grep(Sketchup::Edge)
- assert(profiles.size==4)
- assert(profiles.all?{|e|e.layer.name=='ABF_cuttingLines'})
- assert(profiles.all?{|e|e.get_attribute(SW::KEY,'role')=='cnc_edge'})
- assert(profiles.all?{|e|e.get_attribute(SW::KEY,'profile')==1})
- assert(profiles.all?{|e|e.get_attribute(SW::KEY,'depth_mm')==3})
+ intersects=backing.entities.grep(Sketchup::Group).select{|g|SW.abf_intersect_group?(g)}
+ assert(intersects.size==1)
+ profile=intersects.first
+ assert(profile.name=='_ABF_Intersect')
+ assert(profile.layer.name=='ABF_HANENLAMAM')
+ assert(profile.get_attribute('ABF','is-intersect')==true)
+ assert(profile.entities.grep(Sketchup::Edge).size==4)
+ assert(profile.entities.grep(Sketchup::Face).size==1)
+ assert(profile.entities.grep(Sketchup::Edge).all?{|e|near(e.start.position.z,0);near(e.end.position.z,0);true})
+ assert(SW.backing_front_face(backing).get_attribute('ABF','is-cnced-face')==true)
  summary=SW.backing_profile_summary(backing)
- assert(summary[:cutting_group_count]==1)
- assert(summary[:direct_edge_count]==0)
+ assert(summary[:cutting_group_count]==0)
+ assert(summary[:intersect_group_count]==1)
  assert(summary[:profile_count]==1 && summary[:complete])
- near(backing.definition.bounds.min.z,-17.5.mm)
- near(backing.definition.bounds.max.z,0)
- assert(cutting.entities.grep(Sketchup::Edge).all?{|e|near(e.start.position.z,0);near(e.end.position.z,0);true})
- assert(backing.get_attribute(SW::KEY,'profiles_on_face')==true)
- SW.repair_backing(backing,Sketchup.model)
- groups=backing.entities.grep(Sketchup::Group).select{|g|SW.abf_cutting_group?(g)}
- assert(groups.size==1)
- assert(groups.first.entities.grep(Sketchup::Edge).size==4)
+ assert(backing.get_attribute(SW::KEY,'profile_type')=='ABF_Intersect')
 end
