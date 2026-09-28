@@ -8,12 +8,19 @@ module TranTuanNoiThat
   module VectorCNC
     extend self
 
-    VERSION = '1.0.1'.freeze
+    VERSION = '1.1.0'.freeze
     KEY = 'TT_VECTOR_CNC'.freeze
     DATA_DIR = File.join(TranTuanNoiThat::ROOT, 'data', 'vector_cnc').freeze
     LIBRARY_FILE = File.join(DATA_DIR, 'library.json').freeze
     DEFAULT_SIZE = 200.0
     DEFAULT_DEPTH = 3.0
+    DEFAULT_CNC = {
+      'depth' => 3.0,
+      'offset_x' => 20.0,
+      'offset_y' => 20.0,
+      'anchor' => 'center',
+      'cut_mode' => 'inside'
+    }.freeze
     MAX_POINTS = 720
 
     BUILTINS = [
@@ -330,19 +337,69 @@ module TranTuanNoiThat
       model.layers[name] || model.layers.add(name)
     end
 
-    def activate_template(template, width = nil, height = nil, depth = nil)
+    def activate_template(template, settings = {})
       tpl = sanitize_template(template)
-      w = (width || tpl['width']).to_f
-      h = (height || tpl['height']).to_f
-      d = (depth || DEFAULT_DEPTH).to_f
-      Sketchup.active_model.select_tool(PlacementTool.new(tpl,w,h,d))
+      cfg = DEFAULT_CNC.merge(settings.transform_keys(&:to_s))
+      cfg['width'] = (cfg['width'] || tpl['width']).to_f
+      cfg['height'] = (cfg['height'] || tpl['height']).to_f
+      cfg['depth'] = (cfg['depth'] || DEFAULT_DEPTH).to_f
+      cfg['offset_x'] = cfg['offset_x'].to_f
+      cfg['offset_y'] = cfg['offset_y'].to_f
+      cfg['anchor'] = cfg['anchor'].to_s
+      cfg['cut_mode'] = cfg['cut_mode'].to_s
+      raise 'Rộng/Cao vector phải lớn hơn 0.' unless cfg['width'] > 0 && cfg['height'] > 0
+      raise 'Sâu CNC không được âm.' if cfg['depth'] < 0
+      Sketchup.active_model.select_tool(PlacementTool.new(tpl,cfg))
       true
+    end
+
+    def instance_entity?(entity)
+      (defined?(Sketchup::Group) && entity.is_a?(Sketchup::Group)) ||
+        (defined?(Sketchup::ComponentInstance) && entity.is_a?(Sketchup::ComponentInstance)) ||
+        (entity.respond_to?(:definition) && entity.respond_to?(:transformation))
+    rescue StandardError
+      false
+    end
+
+    def instance_scale(transform, axis)
+      origin = Geom::Point3d.new(0,0,0).transform(transform)
+      point = Geom::Point3d.new(axis[0],axis[1],axis[2]).transform(transform)
+      origin.distance(point)
+    rescue StandardError
+      1.0
+    end
+
+    def instance_dimensions(instance, world_transform = nil)
+      definition = instance.definition
+      bounds = definition.bounds
+      transform = world_transform || instance.transformation
+      sx = instance_scale(transform,[1,0,0])
+      sy = instance_scale(transform,[0,1,0])
+      sz = instance_scale(transform,[0,0,1])
+      dims = [bounds.width.to_f*25.4*sx, bounds.height.to_f*25.4*sy, bounds.depth.to_f*25.4*sz]
+      sorted = dims.sort.reverse
+      {
+        'length'=>sorted[0].round(3),
+        'width'=>sorted[1].round(3),
+        'thickness'=>sorted[2].round(3),
+        'axes'=>dims.map { |v| v.round(3) },
+        'name'=>(instance.respond_to?(:name) && !instance.name.to_s.empty? ? instance.name.to_s : definition.name.to_s)
+      }
+    end
+
+    def selected_target_info
+      selection = Sketchup.active_model.selection.to_a
+      target = selection.find { |entity| instance_entity?(entity) }
+      target ? instance_dimensions(target) : nil
+    rescue StandardError
+      nil
     end
 
     def show
       @dialog ||= build_dialog
       @dialog.show
       send_library
+      send_target_info(selected_target_info)
     rescue StandardError => e
       UI.messagebox("VECTOR CNC: #{e.message}")
     end
@@ -355,10 +412,22 @@ module TranTuanNoiThat
         style: UI::HtmlDialog::STYLE_DIALOG
       )
       dlg.set_html(dialog_html)
-      dlg.add_action_callback('ready') { send_library }
-      dlg.add_action_callback('select') do |_ctx,id,w,h,depth|
+      dlg.add_action_callback('ready') do
+        send_library
+        send_target_info(selected_target_info)
+      end
+      dlg.add_action_callback('select') do |_ctx,id|
         item = library.find { |row| row['id'].to_s == id.to_s }
-        activate_template(item,w,h,depth) if item
+        @dialog.execute_script("setSelectedTemplate(#{JSON.generate(item)})") if item
+      end
+      dlg.add_action_callback('start') do |_ctx,id,w,h,depth,offset_x,offset_y,anchor,cut_mode|
+        item = library.find { |row| row['id'].to_s == id.to_s }
+        raise 'Chưa chọn mẫu vector.' unless item
+        activate_template(item,{
+          'width'=>w.to_f,'height'=>h.to_f,'depth'=>depth.to_f,
+          'offset_x'=>offset_x.to_f,'offset_y'=>offset_y.to_f,
+          'anchor'=>anchor.to_s,'cut_mode'=>cut_mode.to_s
+        })
       rescue StandardError => e
         UI.messagebox(e.message)
       end
@@ -386,6 +455,13 @@ module TranTuanNoiThat
         UI.messagebox("Không nhập được vector:\n#{e.message}")
       end
       dlg
+    end
+
+    def send_target_info(info)
+      return unless @dialog
+      @dialog.execute_script("setTargetInfo(#{JSON.generate(info)})")
+    rescue StandardError
+      false
     end
 
     def send_library
