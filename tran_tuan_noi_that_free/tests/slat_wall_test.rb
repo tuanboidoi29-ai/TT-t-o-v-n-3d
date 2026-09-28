@@ -424,14 +424,18 @@ puts 'SLAT WALL REGRESSIONS COMPLETE'
 module Sketchup
  def self.write_default(*args);true;end
 end
-check('SHIFT switches once per key press and switches back on next press') do
+check('SHIFT cycles placement plane once per physical key press') do
  tool=SW::Tool.new(SW::DEFAULTS.dup);view=TestView.new
+ assert(tool.instance_variable_get(:@plane_mode)==:auto)
+ original_mode=tool.instance_variable_get(:@options)['mode']
  tool.onKeyDown(16,1,0,view)
- assert(tool.instance_variable_get(:@options)['mode']=='backed')
+ assert(tool.instance_variable_get(:@plane_mode)==:xz)
+ assert(tool.instance_variable_get(:@options)['mode']==original_mode)
  tool.onKeyDown(16,1,0,view)
- assert(tool.instance_variable_get(:@options)['mode']=='backed')
+ assert(tool.instance_variable_get(:@plane_mode)==:xz)
  tool.onKeyUp(16,1,0,view);tool.onKeyDown(16,1,0,view)
- assert(tool.instance_variable_get(:@options)['mode']=='single')
+ assert(tool.instance_variable_get(:@plane_mode)==:yz)
+ assert(tool.instance_variable_get(:@options)['mode']==original_mode)
 end
 check('two clicks create exactly once and reset for continuous creation') do
  set_model;Sketchup.model.selection=Sketchup::Selection.new
