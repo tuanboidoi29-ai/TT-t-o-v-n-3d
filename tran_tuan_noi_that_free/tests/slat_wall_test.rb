@@ -376,8 +376,13 @@ end
 check('two clicks create exactly once and reset for continuous creation') do
  set_model;Sketchup.model.selection=Sketchup::Selection.new
  tool=SW::Tool.new(SW::DEFAULTS.dup);view=TestView.new
- tool.define_singleton_method(:pick){|v,x,y|Geom::Point3d.new(x.mm,y.mm,0)}
- tool.define_singleton_method(:basis_at){|p,v|Geom::Transformation.translation(Geom::Vector3d.new(p.x,p.y,p.z))}
+ tool.define_singleton_method(:pick) do |v,x,y|
+  if instance_variable_get(:@p1_locked)
+   instance_variable_set(:@free_axis,:x)
+   instance_variable_set(:@basis,Geom::Transformation.new)
+  end
+  Geom::Point3d.new(x.mm,y.mm,0)
+ end
  tool.onLButtonDown(0,0,0,view);tool.onLButtonUp(0,0,0,view)
  assert(Sketchup.model.commits==0)
  tool.onLButtonDown(0,1000,2000,view);tool.onLButtonUp(0,1000,2000,view)
@@ -387,8 +392,13 @@ end
 check('drag release creates exactly once; Escape discards pending region') do
  set_model;Sketchup.model.selection=Sketchup::Selection.new
  tool=SW::Tool.new(SW::DEFAULTS.dup);view=TestView.new
- tool.define_singleton_method(:pick){|v,x,y|Geom::Point3d.new(x.mm,y.mm,0)}
- tool.define_singleton_method(:basis_at){|p,v|Geom::Transformation.translation(Geom::Vector3d.new(p.x,p.y,p.z))}
+ tool.define_singleton_method(:pick) do |v,x,y|
+  if instance_variable_get(:@p1_locked)
+   instance_variable_set(:@free_axis,:x)
+   instance_variable_set(:@basis,Geom::Transformation.new)
+  end
+  Geom::Point3d.new(x.mm,y.mm,0)
+ end
  tool.onLButtonDown(0,0,0,view);tool.onLButtonUp(0,1000,2000,view)
  assert(Sketchup.model.commits==1)
  tool.onLButtonDown(0,0,0,view);tool.onCancel(0,view)
@@ -404,6 +414,8 @@ check('drag release commits last valid preview without repicking P2') do
  end
  tool.define_singleton_method(:basis_at){|p,v|Geom::Transformation.new}
  tool.onLButtonDown(0,0,0,view)
+ tool.instance_variable_set(:@free_axis,:x)
+ tool.instance_variable_set(:@basis,Geom::Transformation.new)
  tool.instance_variable_set(:@p2,Geom::Point3d.new(1000.mm,2000.mm,0))
  tool.send(:rebuild)
  before=calls
