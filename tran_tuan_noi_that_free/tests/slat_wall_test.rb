@@ -47,6 +47,8 @@ check('count mode uses exact requested quantity and equal computed gaps') do
  ss.each_cons(2){|a,b|near(b[0]-a[0]-a[3],p[:gap])}
 end
 check('invalid orientation and impossible count are rejected') do
+ assert(SW.validate(SW::DEFAULTS.merge('orientation'=>'diag_right'))['orientation']=='diag_right')
+ assert(SW.validate(SW::DEFAULTS.merge('orientation'=>'diag_left'))['orientation']=='diag_left')
  begin;SW.validate(SW::DEFAULTS.merge('orientation'=>'diagonal'));raise 'accepted';rescue RuntimeError=>e;assert(e.message.include?('Hướng lam'));end
  begin;SW.layout(200,500,SW::DEFAULTS.merge('spacing_mode'=>'count','count'=>10,'width'=>40));raise 'accepted';rescue RuntimeError=>e;assert(e.message.include?('Số lượng'));end
 end
@@ -172,6 +174,22 @@ check('real builder: every slat becomes ABF Intersect for Aspire') do
   near(backing.definition.bounds.max.z,0)
  end
  assert(Sketchup.model.commits==1)
+end
+set_model
+check('diagonal slats stay inside backing and create one ABF Intersect each') do
+ p=SW.layout(900,700,SW::DEFAULTS.merge('mode'=>'backed','orientation'=>'diag_right','cnc'=>true,'tag'=>'ABF_TEST','recess'=>3))
+ parent=SW.create(Sketchup.model,p,Geom::Transformation.new)
+ vl=parent.entities.first
+ backing=vl.entities.first
+ count=p[:panels].first[:slats].length
+ slats=vl.entities.grep(Sketchup::Group).select{|g|g.get_attribute(SW::KEY,'role')=='slat'}
+ assert(slats.length==count)
+ summary=SW.backing_profile_summary(backing)
+ assert(summary[:intersect_group_count]==count)
+ assert(summary[:profile_count]==count)
+ assert(summary[:complete])
+ intersects=backing.entities.grep(Sketchup::Group).select{|g|SW.abf_intersect_group?(g)}
+ assert(intersects.all?{|g|g.entities.grep(Sketchup::Face).size==1 && g.entities.grep(Sketchup::Edge).size==4})
 end
 set_model
 check('backed mode keeps ABF Intersect profiles even when depth is zero') do
@@ -362,34 +380,36 @@ check('detected free basis is aligned exactly to a Model axis and Z is vertical'
  near(u.y,0);near(u.z,0);near(u.x,1)
  near(v.x,0);near(v.y,0);near(v.z,1)
 end
-check('SHIFT plane modes expose XZ YZ diagonal right diagonal left and XY') do
- tool=SW::Tool.new(SW::DEFAULTS)
- expected=[:auto,:xz,:yz,:diag_right,:diag_left,:xy]
- assert(SW::PLANE_MODES==expected)
-
- xz=tool.send(:fixed_plane_axes,:xz)
- near(xz[0].x,1);near(xz[0].y,0);near(xz[1].z,1)
- yz=tool.send(:fixed_plane_axes,:yz)
- near(yz[0].x,0);near(yz[0].y,1);near(yz[1].z,1)
- dr=tool.send(:fixed_plane_axes,:diag_right)
- assert(dr[0].x>0 && dr[0].y>0);near(dr[0].x.abs,dr[0].y.abs)
- dl=tool.send(:fixed_plane_axes,:diag_left)
- assert(dl[0].x>0 && dl[0].y<0);near(dl[0].x.abs,dl[0].y.abs)
- xy=tool.send(:fixed_plane_axes,:xy)
- near(xy[0].x,1);near(xy[0].y,0);near(xy[1].x,0);near(xy[1].y,1)
+check('SHIFT slat orientations are vertical horizontal diagonal-right diagonal-left') do
+ assert(SW::SLAT_ORIENTATIONS==%w[vertical horizontal diag_right diag_left])
+ p=SW.layout(900,700,SW::DEFAULTS.merge('orientation'=>'diag_right','width'=>40,'gap'=>40))
+ assert(p[:orientation]=='diag_right')
+ panel=p[:panels].first
+ assert(panel[:slat_polygons] && panel[:slat_polygons].length==panel[:slats].length)
+ panel[:slat_polygons].each do |poly|
+  assert(poly.length==4)
+  poly.each do |x,y|
+   assert(x>=-1.0e-6 && x<=900+1.0e-6)
+   assert(y>=-1.0e-6 && y<=700+1.0e-6)
+  end
+ end
+ p2=SW.layout(900,700,SW::DEFAULTS.merge('orientation'=>'diag_left','width'=>40,'gap'=>40))
+ assert(p2[:panels].first[:slat_polygons].all?{|poly|poly.length==4})
 end
-check('cycling SHIFT plane mode never moves locked P1') do
+check('cycling SHIFT rotates slats only and never moves locked P1 or wall plane') do
  tool=SW::Tool.new(SW::DEFAULTS)
  p1=Geom::Point3d.new(250.mm,350.mm,450.mm)
  tool.send(:lock_first_point,p1)
+ tool.instance_variable_set(:@basis,Geom::Transformation.new)
  original=tool.instance_variable_get(:@p1)
  view=TestView.new
- 6.times do
-  tool.send(:cycle_plane_mode,view)
+ %w[horizontal diag_right diag_left vertical].each do |expected|
+  tool.send(:cycle_slat_orientation,view)
+  assert(tool.instance_variable_get(:@options)['orientation']==expected)
   locked=tool.instance_variable_get(:@p1)
   near(locked.x,original.x);near(locked.y,original.y);near(locked.z,original.z)
+  assert(tool.instance_variable_get(:@plane_mode)==:auto)
  end
- assert(tool.instance_variable_get(:@plane_mode)==:auto)
 end
 check('four diagonal drag directions produce the same dimensions') do
  tool=SW::Tool.new(SW::DEFAULTS)
@@ -424,17 +444,17 @@ puts 'SLAT WALL REGRESSIONS COMPLETE'
 module Sketchup
  def self.write_default(*args);true;end
 end
-check('SHIFT cycles placement plane once per physical key press') do
+check('SHIFT rotates slats once per physical key press') do
  tool=SW::Tool.new(SW::DEFAULTS.dup);view=TestView.new
- assert(tool.instance_variable_get(:@plane_mode)==:auto)
  original_mode=tool.instance_variable_get(:@options)['mode']
+ assert(tool.instance_variable_get(:@options)['orientation']=='vertical')
  tool.onKeyDown(16,1,0,view)
- assert(tool.instance_variable_get(:@plane_mode)==:xz)
+ assert(tool.instance_variable_get(:@options)['orientation']=='horizontal')
  assert(tool.instance_variable_get(:@options)['mode']==original_mode)
  tool.onKeyDown(16,1,0,view)
- assert(tool.instance_variable_get(:@plane_mode)==:xz)
+ assert(tool.instance_variable_get(:@options)['orientation']=='horizontal')
  tool.onKeyUp(16,1,0,view);tool.onKeyDown(16,1,0,view)
- assert(tool.instance_variable_get(:@plane_mode)==:yz)
+ assert(tool.instance_variable_get(:@options)['orientation']=='diag_right')
  assert(tool.instance_variable_get(:@options)['mode']==original_mode)
 end
 check('two clicks create exactly once and reset for continuous creation') do
