@@ -9,9 +9,12 @@ require 'base64'
 module TranTuanNoiThat
   ROOT = __dir__.freeze unless const_defined?(:ROOT, false)
   NAME = 'TRẦN TUẤN NỘI THẤT'.freeze unless const_defined?(:NAME, false)
+  LOCKED_FEATURE_BASELINES = {
+    'slat_wall_tool.rb' => '1.9.168'
+  }.freeze unless const_defined?(:LOCKED_FEATURE_BASELINES, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.168'.freeze
+  VERSION = '1.9.169'.freeze
 
   class << self
     def setting(key, default = nil)
@@ -96,6 +99,7 @@ module TranTuanNoiThat
         bao_gia_tool
         scale_corner_lock
         slat_wall_tool
+        vector_cnc_tool
         box_tool
         drawer_tool
         round_tool
@@ -207,6 +211,7 @@ module TranTuanNoiThat
       install_bao_gia_ui
       install_scale_corner_lock_ui
       install_slat_wall_ui
+      install_vector_cnc_ui
       install_round_ui
       install_stretch_mode_ui
       install_grain_ui
@@ -329,6 +334,20 @@ module TranTuanNoiThat
         'Hai góc chéo · SHIFT lam đơn/có lót · TAB thông số · chia khổ ván · biên dạng CNC') { SlatWall.activate }
       add_feature_command_once(@slat_wall_cmd, :slat_wall_menu_installed)
       true
+    end
+
+    def install_vector_cnc_ui
+      return false unless defined?(TranTuanNoiThat::VectorCNC)
+      @vector_cnc_cmd ||= command(
+        'TT - VECTOR CNC',
+        'vector_cnc.svg',
+        'Thư viện vector CNC · rà Face Group/Component · preview co giãn · tạo ABF vector thật'
+      ) { VectorCNC.show }
+      add_feature_command_once(@vector_cnc_cmd, :vector_cnc_menu_installed)
+      true
+    rescue StandardError => error
+      puts "[TT UI VectorCNC] #{error.class}: #{error.message}"
+      false
     end
 
     def install_round_ui
