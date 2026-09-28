@@ -5,7 +5,7 @@ require 'json'
 module TranTuanNoiThat
   module SlatWall
     extend self
-    VERSION = '1.9.161'.freeze
+    VERSION = '1.9.162'.freeze
     KEY = 'TT_VACH_LAM'.freeze
     MAX_SLATS = 2000
     SNAP_RADIUS = 24.0
@@ -356,7 +356,7 @@ module TranTuanNoiThat
     end
 
     def operation_setting_name(tag_name)
-      text = tag_name.to_s.sub(/AABF_/, '').tr('_', ' ').strip
+      text = tag_name.to_s.sub(/\AABF_/, '').tr('_', ' ').strip
       text.empty? ? 'hạ nền vách lam' : text.downcase
     end
 
@@ -379,11 +379,29 @@ module TranTuanNoiThat
       group.set_attribute(KEY, 'depth_mm', depth)
       group.set_attribute(KEY, 'operation_tag', tag_name)
 
-      edges = group.entities.add_edges(*(points + [points.first]))
-      raise 'Không tạo đủ 4 cạnh biên dạng lam.' unless edges.length == 4
+      # SketchUp thật: tạo Face trước để topology tự sinh đúng vòng 4 cạnh.
+      # Chỉ fallback add_edges cho test-double / trường hợp API không trả face.edges.
       face = group.entities.add_face(points)
       raise 'Không tạo được Face biên dạng lam cho Aspire.' unless face
       face.reverse! if face.respond_to?(:normal) && face.normal.z.to_f < 0
+
+      edges = begin
+        face.edges.to_a
+      rescue StandardError
+        []
+      end
+      if edges.length != 4
+        edges = group.entities.add_edges(*(points + [points.first]))
+      end
+      edges = edges.uniq
+      raise "Biên dạng lam #{number} phải có đúng 4 Edge, hiện có #{edges.length}." unless edges.length == 4
+
+      # Kiểm tra topology thật ngay tại lúc tạo, trước khi gán metadata ABF.
+      actual_faces = group.entities.grep(Sketchup::Face)
+      actual_edges = group.entities.grep(Sketchup::Edge)
+      if actual_faces.length != 1 || actual_edges.length != 4
+        raise "Biên dạng lam #{number} không hợp lệ: #{actual_faces.length} Face + #{actual_edges.length} Edge."
+      end
 
       edges.each do |edge|
         edge.layer = tag
