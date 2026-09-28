@@ -5,12 +5,13 @@ require 'json'
 module TranTuanNoiThat
   module SlatWall
     extend self
-    VERSION = '1.9.160'.freeze
+    VERSION = '1.9.161'.freeze
     KEY = 'TT_VACH_LAM'.freeze
     MAX_SLATS = 2000
     SNAP_RADIUS = 24.0
     AXIS_SWITCH_RATIO = 1.35
     ABF_CUTTING_TAG = 'ABF_cuttingLines'.freeze
+    ABF_INTERSECT_NAME = '_ABF_Intersect'.freeze
     DEFAULTS = {
       'mode' => 'single', 'stock_length' => 2440.0, 'stock_width' => 1220.0,
       'stock_thickness' => 17.5, 'width' => 40.0, 'depth' => 17.5,
@@ -203,7 +204,7 @@ module TranTuanNoiThat
         <section class="backed"><label>Độ dày tấm lót<span><input id="backing" type="number" min="0.1" step="0.1"> mm</span></label>
         <label>Hạ âm<span><input id="recess" type="number" min="0" step="0.1"> mm</span></label>
         <label>Bật CNC<input id="cnc" type="checkbox"></label><label>Tên công đoạn CNC<input id="tag" type="text" style="width:240px"></label>
-        <small><b>BIÊN DẠNG LAM NẰM GỌN TRÊN MẶT FACE TAM_LOT.</b> Tấm lót dày 17,5 đi từ z=-17,5 đến mặt phải z=0; toàn bộ vòng biên dạng trong <b>TAM_LOT → _ABF_cuttingLines</b> được ép đồng phẳng ngay trên mặt phải z=0. Khi trải tấm, đường biên dạng phải nằm trực tiếp trên Face tấm lót.</small></section>
+        <small><b>ASPIRE:</b> Mỗi lam tạo một vùng gia công <b>TAM_LOT → _ABF_Intersect</b> gồm 1 Face + 4 Edge, gắn Tag công đoạn (mặc định ABF_HANENLAMAM). Face tấm lót được đánh dấu ABF/is-cnced-face. Không dùng _ABF_cuttingLines để mô tả rãnh lam nữa.</small></section>
         <button onclick="apply()">CẬP NHẬT PREVIEW</button>
         <p id="editBox" class="edit" style="display:none"><button onclick="sketchup.apply_edit()">ÁP DỤNG VÀO VÁCH ĐÃ CHỌN</button></p>
         <p><button onclick="sketchup.repair_abf()">SỬA TẤM LÓT ABF ĐÃ CHỌN</button></p><p id="error"></p>
@@ -312,12 +313,17 @@ module TranTuanNoiThat
          entity.name.to_s == '_ABF_cuttingLines')
     end
 
+    def abf_intersect_group?(entity)
+      entity.is_a?(Sketchup::Group) &&
+        (entity.get_attribute('ABF', 'is-intersect') == true ||
+         entity.name.to_s == ABF_INTERSECT_NAME)
+    end
+
     def abf_auxiliary_group?(entity)
-      return true if abf_cutting_group?(entity)
+      return true if abf_cutting_group?(entity) || abf_intersect_group?(entity)
       return false unless entity.is_a?(Sketchup::Group)
       entity.get_attribute('ABF', 'is-label') == true ||
-        entity.get_attribute('ABF', 'is-edge-banding-notation') == true ||
-        entity.get_attribute('ABF', 'is-intersect') == true
+        entity.get_attribute('ABF', 'is-edge-banding-notation') == true
     end
 
     def backing_front_z(backing)
@@ -330,6 +336,70 @@ module TranTuanNoiThat
       end
       raise 'Không tìm thấy mặt phải/phía trước của TAM_LOT.' if front.empty?
       z
+    end
+
+    def backing_front_face(backing)
+      z = backing_front_z(backing)
+      face = backing.entities.grep(Sketchup::Face).find do |candidate|
+        candidate.vertices.all? { |v| (v.position.z.to_f - z.to_f).abs <= 0.01.mm.to_f }
+      end
+      raise 'Không tìm thấy Face CNC của TAM_LOT.' unless face
+      face
+    end
+
+    def entity_reference_id(entity, fallback = 0)
+      return entity.persistent_id if entity.respond_to?(:persistent_id)
+      return entity.entityID if entity.respond_to?(:entityID)
+      fallback.to_i
+    rescue StandardError
+      fallback.to_i
+    end
+
+    def operation_setting_name(tag_name)
+      text = tag_name.to_s.sub(/AABF_/, '').tr('_', ' ').strip
+      text.empty? ? 'hạ nền vách lam' : text.downcase
+    end
+
+    def add_abf_intersect_profile(backing, points, number, operation_tag_name, depth, source_entity = nil)
+      model = Sketchup.active_model
+      tag_name = operation_tag_name.to_s
+      tag_name = 'ABF_HANENLAMAM' if tag_name.empty?
+      tag_name = 'ABF_' + tag_name unless tag_name.start_with?('ABF_')
+      tag = ensure_tag(model, tag_name)
+
+      group = backing.entities.add_group
+      group.name = ABF_INTERSECT_NAME
+      group.layer = tag
+      group.set_attribute('ABF', 'is-intersect', true)
+      group.set_attribute('ABF', 'intersect-offset', 0.0)
+      group.set_attribute('ABF', 'setting-name', operation_setting_name(tag_name))
+      group.set_attribute('ABF', 'intersect-group-b-id', entity_reference_id(source_entity, number))
+      group.set_attribute(KEY, 'role', 'cnc_profile')
+      group.set_attribute(KEY, 'profile', number)
+      group.set_attribute(KEY, 'depth_mm', depth)
+      group.set_attribute(KEY, 'operation_tag', tag_name)
+
+      edges = group.entities.add_edges(*(points + [points.first]))
+      raise 'Không tạo đủ 4 cạnh biên dạng lam.' unless edges.length == 4
+      face = group.entities.add_face(points)
+      raise 'Không tạo được Face biên dạng lam cho Aspire.' unless face
+      face.reverse! if face.respond_to?(:normal) && face.normal.z.to_f < 0
+
+      edges.each do |edge|
+        edge.layer = tag
+        edge.set_attribute(KEY, 'role', 'cnc_edge')
+        edge.set_attribute(KEY, 'profile', number)
+        edge.set_attribute(KEY, 'profiles', [number])
+        edge.set_attribute(KEY, 'depth_mm', depth)
+      end
+      face.layer = tag
+      face.set_attribute(KEY, 'role', 'cnc_face')
+      face.set_attribute(KEY, 'profile', number)
+      face.set_attribute(KEY, 'depth_mm', depth)
+
+      cnc_face = backing_front_face(backing)
+      cnc_face.set_attribute('ABF', 'is-cnced-face', true)
+      group
     end
 
     def ensure_abf_cutting_group(backing)
@@ -351,24 +421,31 @@ module TranTuanNoiThat
         entity.is_a?(Sketchup::Group) || entity.is_a?(Sketchup::ComponentInstance)
       end
       cutting_groups = nested.select { |entity| abf_cutting_group?(entity) }
+      intersect_groups = nested.select { |entity| abf_intersect_group?(entity) }
       unknown_nested = nested.reject { |entity| abf_auxiliary_group?(entity) }
       direct_cnc = backing.entities.grep(Sketchup::Edge).select do |edge|
         edge.get_attribute(KEY, 'role') == 'cnc_edge'
       end
-      cnc_edges = cutting_groups.flat_map do |group|
-        group.entities.grep(Sketchup::Edge).select do |edge|
-          edge.get_attribute(KEY, 'role') == 'cnc_edge'
-        end
+
+      profiles = intersect_groups.map do |group|
+        edges = group.entities.grep(Sketchup::Edge)
+        faces = group.entities.grep(Sketchup::Face)
+        {
+          number: group.get_attribute(KEY, 'profile', 0).to_i,
+          edge_count: edges.length,
+          face_count: faces.length,
+          group: group
+        }
       end
-      profiles = cnc_edges.group_by { |edge| edge.get_attribute(KEY, 'profile', 0).to_i }
       {
         nested_count: nested.length,
         cutting_group_count: cutting_groups.length,
+        intersect_group_count: intersect_groups.length,
         unknown_nested_count: unknown_nested.length,
         direct_edge_count: direct_cnc.length,
-        edge_count: cnc_edges.length,
-        profile_count: profiles.keys.count { |number| number > 0 },
-        complete: profiles.all? { |number, edges| number > 0 && edges.length == 4 },
+        edge_count: profiles.sum { |profile| profile[:edge_count] },
+        profile_count: profiles.count { |profile| profile[:number] > 0 },
+        complete: profiles.all? { |profile| profile[:number] > 0 && profile[:edge_count] == 4 && profile[:face_count] == 1 },
         face_count: backing.entities.grep(Sketchup::Face).length
       }
     end
@@ -376,27 +453,30 @@ module TranTuanNoiThat
     def enforce_backing_integrity(backing, expected_profiles = nil)
       summary = backing_profile_summary(backing)
       raise 'TAM_LOT có group con không thuộc chuẩn ABF.' unless summary[:unknown_nested_count] == 0
-      raise 'TAM_LOT có nhiều _ABF_cuttingLines.' if summary[:cutting_group_count] > 1
-      raise 'Edge CNC đang nằm trực tiếp trên mặt tấm, ABF sẽ khó gắn nhãn.' unless summary[:direct_edge_count] == 0
+      raise 'Không được tự tạo _ABF_cuttingLines cho biên dạng lam.' unless summary[:cutting_group_count] == 0
+      raise 'Edge CNC đang nằm trực tiếp trên mặt tấm.' unless summary[:direct_edge_count] == 0
       raise 'Hình học TAM_LOT phải giữ đúng 6 Face.' unless summary[:face_count] == 6
-      raise 'Biên dạng CNC trong TAM_LOT chưa kín đủ 4 cạnh.' unless summary[:complete]
+      raise 'Biên dạng lam phải là _ABF_Intersect có 1 Face + 4 Edge.' unless summary[:complete]
 
       face_z = backing_front_z(backing)
-      cutting_groups = backing.entities.grep(Sketchup::Group).select { |group| abf_cutting_group?(group) }
-      off_face = cutting_groups.flat_map { |group| group.entities.grep(Sketchup::Edge) }.any? do |edge|
-        (edge.start.position.z.to_f - face_z.to_f).abs > 0.01.mm.to_f ||
-          (edge.end.position.z.to_f - face_z.to_f).abs > 0.01.mm.to_f
+      intersects = backing.entities.grep(Sketchup::Group).select { |group| abf_intersect_group?(group) }
+      off_face = intersects.any? do |group|
+        points = group.entities.grep(Sketchup::Edge).flat_map { |edge| [edge.start.position, edge.end.position] }
+        points.any? { |point| (point.z.to_f - face_z.to_f).abs > 0.01.mm.to_f }
       end
-      raise 'Biên dạng lam chưa nằm đồng phẳng trên mặt Face TAM_LOT.' if off_face
+      raise 'Biên dạng lam chưa nằm đồng phẳng trên Face TAM_LOT.' if off_face
 
       unless expected_profiles.nil?
         expected = expected_profiles.to_i
-        raise "Thiếu biên dạng CNC trong TAM_LOT (#{summary[:profile_count]}/#{expected})." unless summary[:profile_count] == expected
+        raise "Thiếu biên dạng lam cho Aspire (#{summary[:profile_count]}/#{expected})." unless summary[:profile_count] == expected
       end
 
+      cnc_face = backing_front_face(backing)
+      cnc_face.set_attribute('ABF', 'is-cnced-face', true) unless intersects.empty?
       backing.set_attribute(KEY, 'profiles_embedded', true)
       backing.set_attribute(KEY, 'profiles_on_face', true)
       backing.set_attribute(KEY, 'profile_face', 'front_right')
+      backing.set_attribute(KEY, 'profile_type', 'ABF_Intersect')
       backing.set_attribute(KEY, 'profile_count', summary[:profile_count])
       orient_backing_front(backing)
       summary
@@ -466,7 +546,7 @@ module TranTuanNoiThat
       wood = material(model, 'TT Vách lam - Gỗ', [190,140,88])
       backmat = material(model, 'TT Vách lam - Tấm lót', [160,166,174])
       profile_enabled = o['mode'] == 'backed'
-      cnc_tag = profile_enabled ? ensure_tag(model, ABF_CUTTING_TAG) : nil
+      operation_tag = profile_enabled ? ensure_tag(model, o['tag']) : nil
 
       plan[:panels].each_with_index do |panel, index|
         vl = parent.entities.add_group
@@ -485,7 +565,7 @@ module TranTuanNoiThat
           face_z = backing_front_z(backing)
           pts = [[x,y],[x+w,y],[x+w,y+h],[x,y+h]].map { |a,b| Geom::Point3d.new(a.mm,b.mm,face_z) }
           depth = o['cnc'] ? o['recess'] : 0.0
-          add_cnc_profile(backing, pts, slat_index + 1, cnc_tag, depth)
+          add_abf_intersect_profile(backing, pts, slat_index + 1, o['tag'], depth, slat)
         end
 
         if backing
@@ -498,8 +578,8 @@ module TranTuanNoiThat
           backing.set_attribute(KEY, 'size_mm', [panel[:width], panel[:height], o['backing']])
           backing.set_attribute(KEY, 'profile_count', profile_enabled ? panel[:slats].length : 0)
           backing.set_attribute(KEY, 'depth_mm', o['cnc'] ? o['recess'] : 0.0)
-          backing.set_attribute(KEY, 'cnc_tag', ABF_CUTTING_TAG) if profile_enabled
-          backing.set_attribute(KEY, 'operation_tag', o['tag']) if o['cnc']
+          backing.set_attribute(KEY, 'cnc_tag', o['tag']) if profile_enabled
+          backing.set_attribute(KEY, 'operation_tag', o['tag']) if profile_enabled
           backing.set_attribute(KEY, 'profiles_source', 'slats')
           expected_profiles = profile_enabled ? panel[:slats].length : 0
           enforce_backing_integrity(backing, expected_profiles)
@@ -543,29 +623,14 @@ module TranTuanNoiThat
       raise
     end
 
-    def add_cnc_profile(backing, points, number, tag, depth)
-      cutting = ensure_abf_cutting_group(backing)
-      actual_tag = ensure_tag(Sketchup.active_model, ABF_CUTTING_TAG)
-      cutting.layer = actual_tag
-      cutting.set_attribute(KEY, 'operation_tag', tag.respond_to?(:name) ? tag.name.to_s : tag.to_s)
-      edges = cutting.entities.add_edges(*(points + [points.first]))
-      raise 'Không tạo đủ biên dạng CNC.' unless edges.length == 4
-      edges.each do |edge|
-        edge.layer = actual_tag
-        edge.set_attribute(KEY, 'role', 'cnc_edge')
-        edge.set_attribute(KEY, 'profile', number)
-        edge.set_attribute(KEY, 'profiles', [number])
-        edge.set_attribute(KEY, 'depth_mm', depth)
-      end
-      edges
+    def add_cnc_profile(backing, points, number, tag, depth, source_entity = nil)
+      tag_name = tag.respond_to?(:name) ? tag.name.to_s : tag.to_s
+      add_abf_intersect_profile(backing, points, number, tag_name, depth, source_entity)
     end
 
-    def migrate_sibling_profiles_into_backing(backing, panel, model)
+    def migrate_sibling_profiles_into_backing(backing, panel, _model)
       return [] unless panel && panel.respond_to?(:entities)
-      cutting = ensure_abf_cutting_group(backing)
-      tag = ensure_tag(model, ABF_CUTTING_TAG)
       records = []
-
       panel.entities.grep(Sketchup::Group).each do |group|
         next if group.equal?(backing)
         role = group.get_attribute(KEY, 'role')
@@ -578,15 +643,6 @@ module TranTuanNoiThat
           records << [edge.start.position, edge.end.position, number, depth]
         end
         panel.entities.erase_entities(group) if group.valid?
-      end
-
-      records.each do |a,b,number,depth|
-        edge = cutting.entities.add_line(a,b)
-        edge.layer = tag
-        edge.set_attribute(KEY, 'role', 'cnc_edge')
-        edge.set_attribute(KEY, 'profile', number)
-        edge.set_attribute(KEY, 'profiles', [number])
-        edge.set_attribute(KEY, 'depth_mm', depth)
       end
       records
     end
@@ -607,11 +663,15 @@ module TranTuanNoiThat
       end
       return 0 if slats.empty?
 
-      cutting = ensure_abf_cutting_group(backing)
-      old_edges = cutting.entities.grep(Sketchup::Edge)
-      cutting.entities.erase_entities(old_edges) unless old_edges.empty?
-      tag = ensure_tag(model, ABF_CUTTING_TAG)
+      legacy = backing.entities.grep(Sketchup::Group).select do |group|
+        abf_cutting_group?(group) || abf_intersect_group?(group) ||
+          group.get_attribute(KEY, 'role') == 'cnc_profile'
+      end
+      backing.entities.erase_entities(legacy) unless legacy.empty?
+
       face_z = backing_front_z(backing)
+      tag_name = backing.get_attribute(KEY, 'operation_tag', 'ABF_HANENLAMAM')
+      depth = backing.get_attribute(KEY, 'depth_mm', 0.0)
 
       slats.each_with_index do |slat,index|
         b = slat.definition.bounds
@@ -621,14 +681,7 @@ module TranTuanNoiThat
           Geom::Point3d.new(b.max.x,b.max.y,face_z),
           Geom::Point3d.new(b.min.x,b.max.y,face_z)
         ]
-        edges = cutting.entities.add_edges(*(pts + [pts.first]))
-        edges.each do |edge|
-          edge.layer = tag
-          edge.set_attribute(KEY, 'role', 'cnc_edge')
-          edge.set_attribute(KEY, 'profile', index + 1)
-          edge.set_attribute(KEY, 'profiles', [index + 1])
-          edge.set_attribute(KEY, 'depth_mm', backing.get_attribute(KEY, 'depth_mm', 0.0))
-        end
+        add_abf_intersect_profile(backing, pts, index + 1, tag_name, depth, slat)
       end
       backing.set_attribute(KEY, 'profiles_source', 'slats')
       slats.length
@@ -705,7 +758,8 @@ module TranTuanNoiThat
       records = []
 
       source_groups = backing.entities.grep(Sketchup::Group).select do |group|
-        group.get_attribute(KEY, 'role') == 'cnc_profile' || abf_cutting_group?(group)
+        group.get_attribute(KEY, 'role') == 'cnc_profile' ||
+          abf_cutting_group?(group) || abf_intersect_group?(group)
       end
       source_groups.each do |group|
         group_profile = group.get_attribute(KEY, 'profile', 0).to_i
@@ -741,18 +795,23 @@ module TranTuanNoiThat
         [Geom::Point3d.new(a.x,a.y,face_z), Geom::Point3d.new(b.x,b.y,face_z), number, depth]
       end
 
-      unless records.empty?
-        cutting = ensure_abf_cutting_group(backing)
-        tag = ensure_tag(model, ABF_CUTTING_TAG)
-        cutting.layer = tag
-        cutting.set_attribute('ABF', 'is-cutting-lines', true)
-        records.each do |a, b, number, depth|
-          edge = cutting.entities.add_line(a, b)
-          edge.layer = tag
-          edge.set_attribute(KEY, 'role', 'cnc_edge')
-          edge.set_attribute(KEY, 'profile', number)
-          edge.set_attribute(KEY, 'profiles', [number])
-          edge.set_attribute(KEY, 'depth_mm', depth)
+      unless records.empty? || panel
+        tag_name = backing.get_attribute(KEY, 'operation_tag', 'ABF_HANENLAMAM')
+        face_z = backing_front_z(backing)
+        records.group_by { |record| record[2].to_i }.each do |number, profile_records|
+          next if number <= 0
+          points = profile_records.flat_map { |a,b,_n,_d| [a,b] }
+          unique = []
+          points.each do |point|
+            p = Geom::Point3d.new(point.x, point.y, face_z)
+            unique << p unless unique.any? { |q| q.distance(p) < 0.01.mm }
+          end
+          next unless unique.length == 4
+          cx = unique.sum { |p| p.x.to_f } / 4.0
+          cy = unique.sum { |p| p.y.to_f } / 4.0
+          ordered = unique.sort_by { |p| Math.atan2(p.y.to_f - cy, p.x.to_f - cx) }
+          depth = profile_records.first[3]
+          add_abf_intersect_profile(backing, ordered, number, tag_name, depth, nil)
         end
       end
 
