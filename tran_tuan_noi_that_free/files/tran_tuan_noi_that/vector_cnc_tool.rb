@@ -374,6 +374,27 @@ module TranTuanNoiThat
       true
     end
 
+    def cnc_settings(width,height,depth,offset_x,offset_y,border_width,smoothness,anchor,cut_mode)
+      {
+        'width'=>width.to_f,
+        'height'=>height.to_f,
+        'depth'=>depth.to_f,
+        'offset_x'=>offset_x.to_f,
+        'offset_y'=>offset_y.to_f,
+        'border_width'=>border_width.to_f,
+        'smoothness'=>smoothness.to_i,
+        'anchor'=>anchor.to_s,
+        'cut_mode'=>cut_mode.to_s
+      }
+    end
+
+    def apply_template_to_selected(template, settings)
+      tpl = sanitize_template(template)
+      tool = PlacementTool.new(tpl,settings)
+      tool.apply_selected
+      true
+    end
+
     def instance_entity?(entity)
       (defined?(Sketchup::Group) && entity.is_a?(Sketchup::Group)) ||
         (defined?(Sketchup::ComponentInstance) && entity.is_a?(Sketchup::ComponentInstance)) ||
@@ -441,24 +462,27 @@ module TranTuanNoiThat
         item = library.find { |row| row['id'].to_s == id.to_s }
         @dialog.execute_script("setSelectedTemplate(#{JSON.generate(item)})") if item
       end
-      dlg.add_action_callback('start') do |_ctx,id,w,h,depth,offset_x,offset_y,anchor,cut_mode|
+      dlg.add_action_callback('refresh_target') do |_ctx|
+        send_target_info(selected_target_info)
+      end
+      dlg.add_action_callback('apply_selected') do |_ctx,id,w,h,depth,offset_x,offset_y,border_width,smoothness,anchor,cut_mode|
         item = library.find { |row| row['id'].to_s == id.to_s }
         raise 'Chưa chọn mẫu vector.' unless item
-        activate_template(item,{
-          'width'=>w.to_f,'height'=>h.to_f,'depth'=>depth.to_f,
-          'offset_x'=>offset_x.to_f,'offset_y'=>offset_y.to_f,
-          'anchor'=>anchor.to_s,'cut_mode'=>cut_mode.to_s
-        })
+        apply_template_to_selected(item,cnc_settings(w,h,depth,offset_x,offset_y,border_width,smoothness,anchor,cut_mode))
+        send_target_info(selected_target_info)
       rescue StandardError => e
         UI.messagebox(e.message)
       end
-      dlg.add_action_callback('update_settings') do |_ctx,w,h,depth,offset_x,offset_y,anchor,cut_mode|
+      dlg.add_action_callback('start') do |_ctx,id,w,h,depth,offset_x,offset_y,border_width,smoothness,anchor,cut_mode|
+        item = library.find { |row| row['id'].to_s == id.to_s }
+        raise 'Chưa chọn mẫu vector.' unless item
+        activate_template(item,cnc_settings(w,h,depth,offset_x,offset_y,border_width,smoothness,anchor,cut_mode))
+      rescue StandardError => e
+        UI.messagebox(e.message)
+      end
+      dlg.add_action_callback('update_settings') do |_ctx,w,h,depth,offset_x,offset_y,border_width,smoothness,anchor,cut_mode|
         next unless @active_tool
-        @active_tool.update_settings(
-          'width'=>w.to_f,'height'=>h.to_f,'depth'=>depth.to_f,
-          'offset_x'=>offset_x.to_f,'offset_y'=>offset_y.to_f,
-          'anchor'=>anchor.to_s,'cut_mode'=>cut_mode.to_s
-        )
+        @active_tool.update_settings(cnc_settings(w,h,depth,offset_x,offset_y,border_width,smoothness,anchor,cut_mode))
       rescue StandardError => e
         puts "[VECTOR CNC settings] #{e.class}: #{e.message}"
       end
