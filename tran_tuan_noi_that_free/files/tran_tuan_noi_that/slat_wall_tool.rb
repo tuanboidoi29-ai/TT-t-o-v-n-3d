@@ -5,13 +5,14 @@ require 'json'
 module TranTuanNoiThat
   module SlatWall
     extend self
-    VERSION = '1.9.164'.freeze
+    VERSION = '1.9.165'.freeze
     KEY = 'TT_VACH_LAM'.freeze
     MAX_SLATS = 2000
     SNAP_RADIUS = 24.0
     AXIS_SWITCH_RATIO = 1.25
     ABF_CUTTING_TAG = 'ABF_cuttingLines'.freeze
     ABF_INTERSECT_NAME = '_ABF_Intersect'.freeze
+    PLANE_MODES = [:auto, :xz, :yz, :diag_right, :diag_left, :xy].freeze
     DEFAULTS = {
       'mode' => 'single', 'stock_length' => 2440.0, 'stock_width' => 1220.0,
       'stock_thickness' => 17.5, 'width' => 40.0, 'depth' => 17.5,
@@ -194,7 +195,7 @@ module TranTuanNoiThat
       <<~HTML
         <!doctype html><html lang="vi"><meta charset="utf-8"><style>
         *{box-sizing:border-box}body{font:14px Arial;margin:0;background:#f4f5f7;color:#202a34}header{padding:17px;background:#223d50;color:white}h2{font-size:18px;margin:0 0 6px}main{padding:14px}section{background:white;padding:14px;border-radius:8px;margin-bottom:12px}label{display:flex;justify-content:space-between;align-items:center;margin:8px 0;gap:10px}input[type=number]{width:105px}input,select{padding:7px;border:1px solid #bbc6cc;border-radius:4px}select{max-width:245px}button{width:100%;padding:12px;background:#c4752a;color:white;border:0;border-radius:5px;font-weight:bold;cursor:pointer}small{display:block;color:#647380;line-height:1.5}canvas{width:100%;height:170px;background:#eef1f4;border-radius:5px}#error{color:#b12828;white-space:pre-line}#info{font-size:12px;line-height:1.5;margin:8px 0}.backed,.counted{display:none}.edit button{background:#27784a}
-        </style><header><h2>TRẦN TUẤN · TẠO VÁCH LAM</h2>Hai góc chéo · SHIFT lam đơn/có lót · TAB dọc/ngang · S mở bảng</header><main>
+        </style><header><h2>TRẦN TUẤN · TẠO VÁCH LAM</h2>Hai góc chéo · SHIFT quay mặt vách: Auto/XZ/YZ/chéo phải/chéo trái/XY · TAB đổi nan dọc/ngang · S mở bảng</header><main>
         <section><label>Chế độ<select id="mode" onchange="visibility()"><option value="single">Vách lam đơn</option><option value="backed">Vách lam có tấm lót</option></select></label>
         <label>Hướng nan<select id="orientation"><option value="vertical">Nan dọc</option><option value="horizontal">Nan ngang</option></select></label>
         #{inputs}
@@ -892,13 +893,15 @@ module TranTuanNoiThat
         @p1_locked = false
         @raw_p2 = nil
         @p1_plane_normal = nil
+        @plane_mode ||= :auto
       end
       def status
         mode = @options['mode'] == 'backed' ? 'CÓ TẤM LÓT' : 'LAM ĐƠN'
         direction = @options['orientation'] == 'vertical' ? 'NAN DỌC' : 'NAN NGANG'
         action = @edit_target ? 'đang sửa vách đã chọn; chỉnh thông số rồi bấm ÁP DỤNG' : (@p1 ? 'P1 ĐÃ CỐ ĐỊNH · bắt góc chéo P2 bất kỳ' : 'chọn P1')
-        axis_text = @free_axis ? " · TỰ NHẬN TRỤC #{@free_axis.to_s.upcase}" : ''
-        Sketchup.status_text = "TT VÁCH LAM · #{mode} · #{direction}#{axis_text} · #{action} · SNAP CHỈ ENDPOINT/ĐẦU EDGE 24px · KHÔNG SNAP FACE · SHIFT đổi chế độ · TAB đổi hướng · S mở bảng · ESC hủy"
+        plane_text = plane_mode_label
+        axis_text = @plane_mode == :auto && @free_axis ? " · TỰ NHẬN TRỤC #{@free_axis.to_s.upcase}" : ''
+        Sketchup.status_text = "TT VÁCH LAM · #{mode} · #{direction} · MẶT #{plane_text}#{axis_text} · #{action} · SHIFT QUAY MẶT · TAB ĐỔI NAN · SNAP ENDPOINT 24px · ESC hủy"
       end
       def dialog_state
         if @edit_target
@@ -943,17 +946,7 @@ module TranTuanNoiThat
         if key == 16
           return true if @shift_down || repeat.to_i > 1
           @shift_down = true
-          begin
-            @options = SlatWall.validate(@options.merge('mode' => @options['mode'] == 'single' ? 'backed' : 'single'))
-          rescue StandardError => e
-            UI.messagebox(e.message)
-            return true
-          end
-          SlatWall.save_settings(@options)
-          rebuild if @p1 && @p2
-          SlatWall.send_state
-          status
-          view.invalidate
+          cycle_plane_mode(view)
           true
         elsif key == 9
           return true if @tab_down || repeat.to_i > 1
@@ -1111,6 +1104,57 @@ module TranTuanNoiThat
         !endpoint_snap_point(ip, view, x, y).nil?
       end
 
+      def plane_mode_label(mode = @plane_mode)
+        {
+          auto: 'TỰ ĐỘNG',
+          xz: 'NGANG XZ',
+          yz: 'DỌC YZ',
+          diag_right: 'CHÉO PHẢI 45°',
+          diag_left: 'CHÉO TRÁI 45°',
+          xy: 'TRÊN/DƯỚI XY'
+        }[mode] || mode.to_s.upcase
+      end
+
+      def cycle_plane_mode(view)
+        index = PLANE_MODES.index(@plane_mode) || 0
+        @plane_mode = PLANE_MODES[(index + 1) % PLANE_MODES.length]
+        @free_axis = nil if @plane_mode == :auto
+
+        if @p1 && @raw_p2
+          @basis = construction_basis_from(@p1, @raw_p2, view)
+          if @basis
+            projected = orthogonal_project_to_construction_plane(@raw_p2)
+            local = projected.transform(@basis.inverse)
+            @p2 = Geom::Point3d.new(local.x, local.y, 0).transform(@basis)
+            rebuild
+          end
+        end
+        status
+        SlatWall.send_state
+        view.invalidate
+      rescue StandardError => e
+        @error = e.message
+        view.invalidate
+      end
+
+      def fixed_plane_axes(mode)
+        z = Geom::Vector3d.new(0,0,1)
+        case mode
+        when :xz
+          [Geom::Vector3d.new(1,0,0), z]
+        when :yz
+          [Geom::Vector3d.new(0,1,0), z]
+        when :diag_right
+          [Geom::Vector3d.new(1,1,0).normalize, z]
+        when :diag_left
+          [Geom::Vector3d.new(1,-1,0).normalize, z]
+        when :xy
+          [Geom::Vector3d.new(1,0,0), Geom::Vector3d.new(0,1,0)]
+        else
+          nil
+        end
+      end
+
       def model_axis_for(candidate)
         return @free_axis unless @p1
         delta = @p1.vector_to(candidate)
@@ -1146,10 +1190,19 @@ module TranTuanNoiThat
         @p1
       end
 
-      def model_axis_basis_from(point, candidate, _view)
+      def construction_basis_from(point, candidate, _view)
+        if @plane_mode && @plane_mode != :auto
+          axes = fixed_plane_axes(@plane_mode)
+          return nil unless axes
+          u, v = axes
+          normal = u.cross(v)
+          return nil if normal.length < 1.0e-8
+          normal.normalize!
+          return Geom::Transformation.axes(point,u,v,normal)
+        end
+
         axis_key = model_axis_for(candidate)
         return nil unless axis_key
-        # Hệ trục cố định theo Model Axis, tuyệt đối không đảo theo camera.
         u = axis_key == :x ? Geom::Vector3d.new(1,0,0) : Geom::Vector3d.new(0,1,0)
         v = Geom::Vector3d.new(0,0,1)
         normal = u.cross(v)
@@ -1159,10 +1212,34 @@ module TranTuanNoiThat
         nil
       end
 
+      def model_axis_basis_from(point, candidate, view)
+        construction_basis_from(point, candidate, view)
+      end
+
       def axis_construction_plane
-        return nil unless @p1 && @free_axis
+        return nil unless @p1
+        if @plane_mode && @plane_mode != :auto
+          axes = fixed_plane_axes(@plane_mode)
+          return nil unless axes
+          normal = axes[0].cross(axes[1])
+          return nil if normal.length < 1.0e-8
+          normal.normalize!
+          return [@p1, normal]
+        end
+        return nil unless @free_axis
         normal = @free_axis == :x ? Geom::Vector3d.new(0,1,0) : Geom::Vector3d.new(1,0,0)
         [@p1, normal]
+      end
+
+      def orthogonal_project_to_construction_plane(point)
+        plane = axis_construction_plane
+        return point unless plane
+        origin, normal = plane
+        vector = origin.vector_to(point)
+        distance = vector.dot(normal)
+        point.offset(normal, -distance)
+      rescue StandardError
+        point
       end
 
       def project_p2_to_detected_plane(view, x, y, raw)
@@ -1170,12 +1247,7 @@ module TranTuanNoiThat
         return raw unless plane
         projected = Geom.intersect_line_plane(view.pickray(x,y), plane)
         return projected if projected
-        # Nếu tia nhìn song song mặt phẳng, giữ cao độ P2 thật và chiếu tọa độ ngang về trục đã nhận.
-        if @free_axis == :x
-          Geom::Point3d.new(raw.x, @p1.y, raw.z)
-        else
-          Geom::Point3d.new(@p1.x, raw.y, raw.z)
-        end
+        orthogonal_project_to_construction_plane(raw)
       rescue StandardError
         raw
       end
@@ -1188,7 +1260,7 @@ module TranTuanNoiThat
           return nil unless raw
           @raw_p2 = Geom::Point3d.new(raw.x, raw.y, raw.z)
 
-          dynamic_basis = model_axis_basis_from(@p1,@raw_p2,view)
+          dynamic_basis = construction_basis_from(@p1,@raw_p2,view)
           @basis = dynamic_basis if dynamic_basis
           return nil unless @basis
 
@@ -1312,8 +1384,9 @@ module TranTuanNoiThat
           view.draw(GL_LINES,mesh[:edges])
         end
         if @p1
-          axis = @free_axis ? " · TRỤC #{@free_axis.to_s.upcase}" : ''
-          text = @error || (@plan && "P1 CỐ ĐỊNH#{axis} · #{@plan[:width].round(1)} × #{@plan[:height].round(1)} mm · #{@plan[:panels].length} cụm VL · #{@plan[:slat_count]} lam")
+          axis = @plane_mode == :auto && @free_axis ? " · TRỤC #{@free_axis.to_s.upcase}" : ''
+          plane = " · #{plane_mode_label}"
+          text = @error || (@plan && "P1 CỐ ĐỊNH#{plane}#{axis} · #{@plan[:width].round(1)} × #{@plan[:height].round(1)} mm · #{@plan[:panels].length} cụm VL · #{@plan[:slat_count]} lam")
           view.draw_text([20,35],text.to_s,color: Sketchup::Color.new(155,80,20))
         end
       end
