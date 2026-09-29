@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.175",
+  "version": "1.9.176",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "VECTOR CNC: chế độ TẠO VÁCH CNC giờ đục thủng thật xuyên toàn bộ chiều dày tấm theo đúng từng biên dạng vector. Mẫu Tròn/Vuông/Oval/mẫu ABF/import đều tạo lỗ xuyên thật; preview hiển thị các vùng lỗ. Đồng thời vẫn giữ _ABF_Intersect trong chính Group vách để ABF/Aspire nhận đường gia công. Cơ chế đục dùng Face của biên dạng trên mặt trước và PushPull xuyên đúng chiều dày, có dọn cap mặt sau nếu SketchUp giữ lại. Vách vẫn lưu ABF/is-board, mặt trước ABF/is-cnced-face và metadata through_cut=true. VÁCH LAM vẫn khóa baseline 1.9.168.",
+  "notes": "Đổi tên chính thức công cụ thành TT - VECTOR CNC / ẢNH CNC trên toolbar, menu Extensions và HtmlDialog. Tên mới dùng thống nhất cho bộ công cụ VECTOR CNC và phần ẢNH CNC sắp tích hợp. Chức năng hiện tại vẫn giữ nguyên tạo tấm/vách CNC, thumbnail, pattern và đục thủng thật; VÁCH LAM tiếp tục khóa baseline 1.9.168.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "16def067d19bf9faf982c288580cfce95b495535b98080aab753ff2d94d8054b"
+      "sha256": "c338204b01778f53b2b7da8a534a45e2769556f45f7f34030fb29f5388d2ce7b"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -319,12 +319,12 @@
     {
       "path": "tran_tuan_noi_that/vector_cnc_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/vector_cnc_tool.rb",
-      "sha256": "6dd482bc448e1f9de4349535420cbab98e7691cc129dffb03b313b7f29ea5c86"
+      "sha256": "4a6c679ad65fc72b747a040f00526d34b8cc65a27bd778a9a06e73427cf3d354"
     },
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "0b5bd9a7b08f47be81592bddadf1a21b364d54178dfcd3bd3ed661f3917279b3"
+      "sha256": "332b481680007a29e019f260e2006a90a9dc315fa55b1721b09913c02496672b"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
