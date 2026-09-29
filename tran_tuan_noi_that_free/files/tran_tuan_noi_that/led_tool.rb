@@ -698,6 +698,7 @@ module TranTuanNoiThat
         @face = nil
         @analysis = nil
         @plan = nil
+        @plans = []
         @side = :min
         @last_detect_key = nil
       end
@@ -747,28 +748,30 @@ module TranTuanNoiThat
       end
 
       def draw(view)
-        return unless @analysis && @plan && @target
-        base = preview_world_rect(0.45,1.0)
-        brightness_alpha = [[(230*@options['brightness']/100.0).round,30].max,255].min
-        view.line_width = 2
-        view.drawing_color = LedTool.color_from_hex(@options['led_color'],brightness_alpha)
-        view.draw(GL_QUADS,base) if defined?(GL_QUADS)
-        view.draw(GL_LINE_LOOP,base)
-        if @options['simulate'] && defined?(GL_QUADS)
-          light = LedTool.light_geometry(base,@options)
-          light[:beam_quads].each do |beam|
-            view.drawing_color = LedTool.color_from_hex(@options['led_color'],beam[:alpha])
-            view.draw(GL_QUADS,beam[:points])
+        return unless @analysis && @plan && @target && @plans && !@plans.empty?
+        brightness_alpha = [[(230*@options['brightness']/100.0).round,20].max,255].min
+        @plans.each_with_index do |plan,index|
+          base = preview_world_rect(plan,0.55,1.0)
+          view.line_width = 2
+          view.drawing_color = LedTool.color_from_hex(@options['led_color'],brightness_alpha)
+          view.draw(GL_QUADS,base) if defined?(GL_QUADS)
+          view.draw(GL_LINE_LOOP,base)
+
+          if @options['simulate'] && defined?(GL_QUADS)
+            direction = LedTool.light_direction_world(@analysis,plan,@target_tr)
+            light = LedTool.light_geometry(base,@options,direction)
+            light[:bands].each do |band|
+              next if band[:alpha] <= 0
+              view.drawing_color = LedTool.color_from_hex(@options['led_color'],band[:alpha])
+              view.draw(GL_QUADS,band[:points])
+            end
           end
-          light[:levels].each do |level|
-            view.drawing_color = LedTool.color_from_hex(@options['led_color'],level[:alpha])
-            view.draw(GL_QUADS,level[:rect])
+
+          if view.respond_to?(:draw_text) && index == 0
+            center = base[0].vector_to(base[2])
+            label_point = Geom::Point3d.new(base[0].x+center.x*0.5,base[0].y+center.y*0.5,base[0].z+center.z*0.5)
+            view.draw_text(label_point,"LED #{@plans.length} × #{@plan[:length].round(1)} × #{@plan[:width].round(1)} mm")
           end
-        end
-        if view.respond_to?(:draw_text)
-          center = base[0].vector_to(base[2])
-          label_point = Geom::Point3d.new(base[0].x+center.x*0.5,base[0].y+center.y*0.5,base[0].z+center.z*0.5)
-          view.draw_text(label_point,"LED #{@plan[:length].round(1)} × #{@plan[:width].round(1)} mm")
         end
       rescue StandardError => error
         puts "[TT LED draw] #{error.class}: #{error.message}"
@@ -778,6 +781,7 @@ module TranTuanNoiThat
 
       def clear_pick
         @target = @face = @analysis = @plan = nil
+        @plans = []
         @target_tr = Geom::Transformation.new
         notify_detected
       end
@@ -839,8 +843,13 @@ module TranTuanNoiThat
       end
 
       def rebuild_plan
-        return @plan = nil unless @analysis
-        @plan = LedTool.groove_plan(@analysis[:length_mm],@analysis[:width_mm],@options,@side)
+        unless @analysis
+          @plan = nil
+          @plans = []
+          return
+        end
+        @plans = LedTool.groove_plans(@analysis[:length_mm],@analysis[:width_mm],@options,@side)
+        @plan = @plans.first
       end
 
       def notify_detected
@@ -849,7 +858,14 @@ module TranTuanNoiThat
             target:(@target.name.to_s.empty? ? @target.class.name.split('::').last : @target.name.to_s),
             length:@analysis[:length_mm],width:@analysis[:width_mm],
             groove_length:@plan[:length],groove_width:@plan[:width],
-            side:@plan[:side].to_s
+            quantity:@plans.length,spacing:@options['spacing'],
+            side:@plan[:side].to_s,
+            orientation:begin
+              world_u = @analysis[:u].transform(@target_tr)
+              world_u.z.abs >= [world_u.x.abs,world_u.y.abs].max ? 'vertical' : 'horizontal'
+            rescue StandardError
+              'vertical'
+            end
           }
         else
           {}
@@ -860,8 +876,8 @@ module TranTuanNoiThat
         LedTool.send_detected(info)
       end
 
-      def preview_world_rect(offset_mm,width_scale)
-        LedTool.local_rect(@analysis,@plan,offset_mm,width_scale).map { |point| point.transform(@target_tr) }
+      def preview_world_rect(plan,offset_mm,width_scale)
+        LedTool.local_rect(@analysis,plan,offset_mm,width_scale).map { |point| point.transform(@target_tr) }
       end
 
       def create_led
@@ -874,27 +890,56 @@ module TranTuanNoiThat
           target.make_unique if instances && instances.length > 1
         end
 
-        local_points = LedTool.local_rect(@analysis,@plan,0.0,1.0)
-        host_face = LedTool.find_host_face(target,local_points)
-        host_face ||= @face if @face && @face.valid?
-        raise 'Không tìm lại được Face gia công sau khi Make Unique.' unless host_face
+        plans = LedTool.groove_plans(@analysis[:length_mm],@analysis[:width_mm],@options,@side)
+        raise 'Không có rãnh LED hợp lệ để tạo.' if plans.empty?
 
-        LedTool.add_abf_profile(target,host_face,local_points,@options) if @options['cnc']
-        LedTool.add_led_simulation(preview_world_rect(0.0,1.0),{target:target,transform:@target_tr},@analysis,@plan,@options) if @options['simulate']
+        plans.each_with_index do |plan,index|
+          local_points = LedTool.local_rect(@analysis,plan,0.0,1.0)
+          host_face = LedTool.find_host_face(target,local_points)
+          host_face ||= @face if @face && @face.valid?
+          raise "Không tìm lại được Face gia công cho rãnh #{index+1}." unless host_face
+
+          if @options['cnc']
+            LedTool.add_abf_profile(target,host_face,local_points,@options,index,plans.length)
+          end
+
+          if @options['simulate']
+            world_rect = LedTool.local_rect(@analysis,plan,0.65,1.0).map { |point| point.transform(@target_tr) }
+            LedTool.add_led_simulation(
+              world_rect,
+              {target:target,transform:@target_tr},
+              @analysis,
+              plan,
+              @options,
+              index,
+              plans.length
+            )
+          end
+        end
 
         target.set_attribute(KEY,'name',@options['name'])
         target.set_attribute(KEY,'end_clearance_mm',@options['end_clearance'])
         target.set_attribute(KEY,'edge_offset_mm',@options['edge_offset'])
         target.set_attribute(KEY,'groove_width_mm',@options['groove_width'])
-        target.set_attribute(KEY,'groove_length_mm',@plan[:length])
+        target.set_attribute(KEY,'groove_length_mm',plans.first[:length])
+        target.set_attribute(KEY,'quantity',plans.length)
+        target.set_attribute(KEY,'spacing_mm',@options['spacing'])
         target.set_attribute(KEY,'led_color',@options['led_color'])
         target.set_attribute(KEY,'brightness_percent',@options['brightness'])
         target.set_attribute(KEY,'light_distance_mm',@options['light_distance'])
         target.set_attribute(KEY,'light_spread_mm',@options['light_spread'])
         target.set_attribute(KEY,'cnc_enabled',@options['cnc'])
+
         model.commit_operation
         started = false
-        Sketchup.set_status_text("Đã tạo LED #{@plan[:length].round(1)} × #{@plan[:width].round(1)} mm · tiếp tục rà mặt khác",SB_PROMPT)
+
+        # Giữ tool ở trạng thái AUTO để click tạo liên tục.
+        @plans = plans
+        @plan = plans.first
+        Sketchup.set_status_text(
+          "Đã tạo #{plans.length} rãnh LED · #{@plan[:length].round(1)} × #{@plan[:width].round(1)} mm · tiếp tục rà/click",
+          SB_PROMPT
+        )
       rescue StandardError
         model.abort_operation if started
         raise
