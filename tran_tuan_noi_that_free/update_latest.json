@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.172",
+  "version": "1.9.173",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Fix cửa sổ TT - VECTOR CNC trắng trên SketchUp 2022: không tái sử dụng HtmlDialog cache cũ sau update; mỗi version dựng dialog mới. UI được ghi ra file HTML runtime và mở bằng set_file, fallback set_html nếu cần. Thêm boot status tĩnh để giao diện không trắng nếu JavaScript lỗi. Sửa payload thư viện giữ nguyên mảng điểm vector thay vì ghi đè thành số lượng điểm, nên chọn Tròn/Vuông/Oval preview hoạt động. Giữ luồng chọn Group/Component -> chọn vector -> xem trước -> chỉnh kích thước, viền rộng, làm mịn, 9 vị trí căn chỉnh -> ÁP DỤNG. VÁCH LAM vẫn khóa baseline 1.9.168.",
+  "notes": "Thêm chức năng TẠO TẤM CNC MỚI trực tiếp trong TT - VECTOR CNC: không cần Group/Component có sẵn. Nhập Dài/Rộng/Dày/Tên/Hướng tấm, chọn vector mẫu và toàn bộ thông số CNC hiện có rồi bấm TẠO TẤM CNC MỚI. Kết quả là 1 Group tấm thật 6 mặt sạch, ABF/is-board=true, mặt trước ABF/is-cnced-face=true và _ABF_Intersect vector nằm bên trong đúng tấm. Hỗ trợ Đứng XZ/Đứng YZ/Nằm XY, tự chọn + zoom sau khi tạo, một Undo. Preview khi chưa chọn đối tượng dùng kích thước tấm mới. VÁCH LAM vẫn khóa baseline 1.9.168.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "ebae5d60bfde2b22da193b7903c09b356e4f0cd811b16edd211b77c7d3d8864c"
+      "sha256": "cb243f5902a66699d097cb88451966e89f6fe304e469043f358be65564d056a0"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -319,12 +319,12 @@
     {
       "path": "tran_tuan_noi_that/vector_cnc_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/vector_cnc_tool.rb",
-      "sha256": "a4580cc29f7d5ab55e6971ba65b73a0ab1edf02c297feadb24ed36f57aece135"
+      "sha256": "170f695022cc44e166b82b523b4a7c3e59159a7e42a87ec4df8c94e249ebd859"
     },
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "420ac4fe39074083c96b30c22b030bb889efd1e532c1d4138cfe47f144567277"
+      "sha256": "30dbb53547e3fcafb2406fda7779d6951482e807293047213628c33b47397e70"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
