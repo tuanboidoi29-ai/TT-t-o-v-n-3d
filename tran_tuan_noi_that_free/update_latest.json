@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.176",
+  "version": "1.9.177",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Đổi tên chính thức công cụ thành TT - VECTOR CNC / ẢNH CNC trên toolbar, menu Extensions và HtmlDialog. Tên mới dùng thống nhất cho bộ công cụ VECTOR CNC và phần ẢNH CNC sắp tích hợp. Chức năng hiện tại vẫn giữ nguyên tạo tấm/vách CNC, thumbnail, pattern và đục thủng thật; VÁCH LAM tiếp tục khóa baseline 1.9.168.",
+  "notes": "Bổ sung mục ẢNH CNC thật trong TT - VECTOR CNC / ẢNH CNC. Có nút chọn PNG/JPG/BMP, preview ảnh gốc và biên dạng CNC, chỉnh Threshold, Đảo đen/trắng, Đơn giản hóa và Bỏ nhiễu. Ảnh được vector hóa trực tiếp trong HtmlDialog thành nhiều vùng kín, lưu thành một mẫu CNC nhiều contour trong thư viện và có thể dùng ngay cho TẠO VÁCH CNC đục thủng toàn bộ chiều dày. Screen planner đã hỗ trợ nhiều contour của một mẫu ảnh, nên mỗi vùng kín trong ảnh trở thành lỗ CNC riêng. VÁCH LAM vẫn khóa baseline 1.9.168.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "c338204b01778f53b2b7da8a534a45e2769556f45f7f34030fb29f5388d2ce7b"
+      "sha256": "d79fc7a97ff4eae8da06f874157afef44dd4b49620533822fad85a93869967fb"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -319,12 +319,12 @@
     {
       "path": "tran_tuan_noi_that/vector_cnc_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/vector_cnc_tool.rb",
-      "sha256": "4a6c679ad65fc72b747a040f00526d34b8cc65a27bd778a9a06e73427cf3d354"
+      "sha256": "cc60d167a1939590bd3738903a5a341163909b95065e0fc751d91bbba8adef3d"
     },
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "332b481680007a29e019f260e2006a90a9dc315fa55b1721b09913c02496672b"
+      "sha256": "37a1f8a5a1e8ba39e8eebe8120765c543a0f32114045cf5c04903fd07a812fc0"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
