@@ -1194,6 +1194,27 @@ module TranTuanNoiThat
       </style></head><body><header>TT – VECTOR CNC / ẢNH CNC</header><main>
       <div id="bootStatus" style="padding:7px 10px;background:#e8f5e9;border:1px solid #a5d6a7;border-radius:6px;margin-bottom:10px;font-size:12px">VECTOR CNC / ẢNH CNC UI đã nạp · #{VERSION}</div>
 
+      <div class="panel" style="border:2px solid #186a3b">
+        <div class="title">ẢNH CNC · NHẬP ẢNH → VECTOR KÍN → ĐỤC THỦNG</div>
+        <div class="row">
+          <input id="imageFile" type="file" accept=".png,.jpg,.jpeg,.bmp,image/png,image/jpeg,image/bmp" style="width:260px">
+          <label>Ngưỡng <input id="imageThreshold" type="range" min="0" max="255" value="128" style="width:150px"> <span id="thresholdValue">128</span></label>
+          <label><input id="imageInvert" type="checkbox" style="width:auto"> Đảo đen/trắng</label>
+        </div>
+        <div class="row" style="margin-top:8px">
+          <label>Đơn giản hóa <input id="imageSimplify" type="number" value="1.5" min="0.2" max="12" step="0.2"> px</label>
+          <label>Bỏ nhiễu <input id="imageMinArea" type="number" value="20" min="1"> px²</label>
+          <label>Tên mẫu <input id="imageName" type="text" value="ANH_CNC" style="width:160px"></label>
+        </div>
+        <div class="row" style="margin-top:8px;align-items:flex-start">
+          <div style="flex:1;min-width:220px"><small>Ảnh gốc</small><canvas id="imagePreview" width="250" height="180" style="width:100%;height:180px;border:1px solid #bbb;background:#fff"></canvas></div>
+          <div style="flex:1;min-width:220px"><small>Biên dạng CNC</small><canvas id="imageVectorPreview" width="250" height="180" style="width:100%;height:180px;border:1px solid #bbb;background:#fff"></canvas></div>
+        </div>
+        <div id="imageStatus" style="font-size:12px;margin-top:6px">Chọn PNG / JPG / BMP để bắt đầu.</div>
+        <button class="action apply" style="background:#186a3b" onclick="saveImageCncTemplate()">CHUYỂN ẢNH THÀNH MẪU CNC</button>
+        <small>Vùng tối mặc định là phần sẽ đục. Sau khi chuyển, mẫu ảnh xuất hiện trong thư viện bên dưới và có thể dùng ngay cho <b>TẠO VÁCH CNC</b> đục thủng toàn bộ chiều dày.</small>
+      </div>
+
       <div class="panel">
         <div class="title">1. KHỐI ĐANG CHỌN</div>
         <div id="target">Chưa chọn Group/Component.</div>
@@ -1323,15 +1344,21 @@ module TranTuanNoiThat
       function intval(id){return parseInt(document.getElementById(id).value||'0',10)||0}
       function esc(s){return String(s||'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}
 
+      function templateLoops(tpl){
+        if(!tpl)return [];
+        return (Array.isArray(tpl.loops)&&tpl.loops.length)?tpl.loops:[tpl.points||[]];
+      }
       function drawTemplateThumb(canvas,tpl){
-        let ctx=canvas.getContext('2d'),W=canvas.width,H=canvas.height,pts=tpl.points||[];
+        let ctx=canvas.getContext('2d'),W=canvas.width,H=canvas.height,loops=templateLoops(tpl).filter(l=>l&&l.length);
         ctx.clearRect(0,0,W,H);ctx.fillStyle='#fafafa';ctx.fillRect(0,0,W,H);
-        if(!pts.length)return;
-        let xs=pts.map(p=>p[0]),ys=pts.map(p=>p[1]),minX=Math.min(...xs),maxX=Math.max(...xs),minY=Math.min(...ys),maxY=Math.max(...ys);
+        if(!loops.length)return;
+        let all=loops.flat(),xs=all.map(p=>p[0]),ys=all.map(p=>p[1]),minX=Math.min(...xs),maxX=Math.max(...xs),minY=Math.min(...ys),maxY=Math.max(...ys);
         let sx=(W-12)/Math.max(.001,maxX-minX),sy=(H-12)/Math.max(.001,maxY-minY),sc=Math.min(sx,sy),cx=W/2,cy=H/2;
-        ctx.beginPath();
-        pts.forEach((p,i)=>{let x=cx+(p[0]-(minX+maxX)/2)*sc,y=cy-(p[1]-(minY+maxY)/2)*sc;i?ctx.lineTo(x,y):ctx.moveTo(x,y)});
-        ctx.closePath();ctx.strokeStyle='#c2185b';ctx.lineWidth=1.5;ctx.stroke();
+        loops.forEach(pts=>{
+          ctx.beginPath();
+          pts.forEach((p,i)=>{let x=cx+(p[0]-(minX+maxX)/2)*sc,y=cy-(p[1]-(minY+maxY)/2)*sc;i?ctx.lineTo(x,y):ctx.moveTo(x,y)});
+          ctx.closePath();ctx.strokeStyle=tpl.source_type==='image'?'#186a3b':'#c2185b';ctx.lineWidth=1.4;ctx.stroke();
+        });
       }
       function renderLibrary(data){
         rows=data;let g=document.getElementById('grid');g.innerHTML='';
@@ -1387,7 +1414,7 @@ module TranTuanNoiThat
         drawPreview();
       }
 
-      function previewPoints(){
+      function previewLoops(){
         if(!selectedTemplate)return [];
         let smooth=Math.max(12,Math.min(240,intval('smoothness')||72));
         if(selectedTemplate.id==='circle'||selectedTemplate.id==='oval'){
@@ -1396,10 +1423,11 @@ module TranTuanNoiThat
             let a=2*Math.PI*i/smooth;
             pts.push([Math.cos(a),Math.sin(a)*(selectedTemplate.id==='oval'?0.6:1)]);
           }
-          return pts;
+          return [pts];
         }
-        return selectedTemplate.points||[];
+        return templateLoops(selectedTemplate);
       }
+      function previewPoints(){let loops=previewLoops();return loops.length?loops[0]:[]}
 
       function anchorCenter(objW,objH,w,h,dx,dy,anchor){
         let cx=objW/2+dx,cy=objH/2+dy;
@@ -1427,15 +1455,15 @@ module TranTuanNoiThat
         let L=Math.max(1,val('panelLength')),W=Math.max(1,val('panelWidth')),frame=Math.max(0,val('screenFrame'));
         let innerL=L-frame*2,innerW=W-frame*2;if(innerL<=0||innerW<=0)return [];
         let mode=document.getElementById('screenMode').value,preserve=document.getElementById('preserveRatio').checked;
-        let pts=previewPoints(),out=[];
+        let loops=previewLoops(),out=[];
         if(mode==='fit'){
           let [vw,vh]=fitTemplateDims(selectedTemplate,innerL,innerW,preserve);
-          out.push({cx:L/2,cy:W/2,vw:vw,vh:vh,pts:pts});return out;
+          out.push({cx:L/2,cy:W/2,vw:vw,vh:vh,loops:loops});return out;
         }
         let rows=Math.max(1,intval('screenRows')),cols=Math.max(1,intval('screenCols')),gx=Math.max(0,val('screenGapX')),gy=Math.max(0,val('screenGapY'));
         let cellW=(innerL-gx*(cols-1))/cols,cellH=(innerW-gy*(rows-1))/rows;if(cellW<=0||cellH<=0)return [];
         let [vw,vh]=fitTemplateDims(selectedTemplate,cellW,cellH,preserve);
-        for(let r=0;r<rows;r++)for(let c=0;c<cols;c++)out.push({cx:frame+cellW/2+c*(cellW+gx),cy:frame+cellH/2+r*(cellH+gy),vw:vw,vh:vh,pts:pts});
+        for(let r=0;r<rows;r++)for(let c=0;c<cols;c++)out.push({cx:frame+cellW/2+c*(cellW+gx),cy:frame+cellH/2+r*(cellH+gy),vw:vw,vh:vh,loops:loops});
         return out;
       }
       function drawScreenPreview(){
@@ -1445,9 +1473,11 @@ module TranTuanNoiThat
         let frame=Math.max(0,val('screenFrame'));ctx.strokeStyle='#b34d00';ctx.lineWidth=1;ctx.strokeRect(ox+frame*scale,oy+frame*scale,Math.max(0,(L-2*frame)*scale),Math.max(0,(PW-2*frame)*scale));
         let profiles=screenProfiles();
         profiles.forEach(item=>{
-          ctx.beginPath();
-          item.pts.forEach((p,i)=>{let x=ox+(item.cx+p[0]*item.vw/2)*scale,y=oy+(PW-(item.cy+p[1]*item.vh/2))*scale;i?ctx.lineTo(x,y):ctx.moveTo(x,y)});
-          ctx.closePath();ctx.fillStyle='rgba(194,24,91,.18)';ctx.fill();ctx.strokeStyle='#c2185b';ctx.lineWidth=1.2;ctx.stroke();
+          (item.loops||[]).forEach(pts=>{
+            ctx.beginPath();
+            pts.forEach((p,i)=>{let x=ox+(item.cx+p[0]*item.vw/2)*scale,y=oy+(PW-(item.cy+p[1]*item.vh/2))*scale;i?ctx.lineTo(x,y):ctx.moveTo(x,y)});
+            ctx.closePath();ctx.fillStyle='rgba(24,106,59,.16)';ctx.fill();ctx.strokeStyle='#186a3b';ctx.lineWidth=1.1;ctx.stroke();
+          });
         });
         let info=document.getElementById('screenInfo');if(info)info.textContent=selectedTemplate?(selectedTemplate.name+' · '+profiles.length+' LỖ ĐỤC THỦNG · khung '+frame+' mm'):'Chọn mẫu vector để xem trước vách CNC.';
       }
@@ -1462,29 +1492,156 @@ module TranTuanNoiThat
         ctx.strokeStyle='#555';ctx.lineWidth=2;ctx.strokeRect(ox,oy,rw,rh);
 
         if(selectedTemplate){
-          let pts=previewPoints(),w=val('w'),h=val('h'),dx=val('offsetX'),dy=val('offsetY');
+          let loops=previewLoops(),w=val('w'),h=val('h'),dx=val('offsetX'),dy=val('offsetY');
           let anchor=document.getElementById('anchor').value,[cx,cy]=anchorCenter(objW,objH,w,h,dx,dy,anchor);
           let pcx=ox+cx*scale,pcy=oy+(objH-cy)*scale,pxScale=w*scale/2,pyScale=h*scale/2;
-
-          function trace(){
-            ctx.beginPath();
-            pts.forEach((p,i)=>{let x=pcx+p[0]*pxScale,y=pcy-p[1]*pyScale;i?ctx.lineTo(x,y):ctx.moveTo(x,y)});
-            ctx.closePath();
-          }
-
-          let border=val('borderWidth');
-          if(border>0){
-            trace();ctx.strokeStyle='rgba(197,107,32,.25)';ctx.lineWidth=Math.max(2,border*scale*2);ctx.stroke();
-          }
-          trace();
           let mode=document.getElementById('cutMode').value;
-          ctx.setLineDash(mode==='on'?[]:(mode==='inside'?[6,3]:[2,3]));
-          ctx.strokeStyle='#c56b20';ctx.lineWidth=2;ctx.stroke();ctx.setLineDash([]);
+          loops.forEach(pts=>{
+            function trace(){
+              ctx.beginPath();
+              pts.forEach((p,i)=>{let x=pcx+p[0]*pxScale,y=pcy-p[1]*pyScale;i?ctx.lineTo(x,y):ctx.moveTo(x,y)});
+              ctx.closePath();
+            }
+            let border=val('borderWidth');
+            if(border>0){
+              trace();ctx.strokeStyle='rgba(197,107,32,.25)';ctx.lineWidth=Math.max(2,border*scale*2);ctx.stroke();
+            }
+            trace();ctx.setLineDash(mode==='on'?[]:(mode==='inside'?[6,3]:[2,3]));
+            ctx.strokeStyle=selectedTemplate.source_type==='image'?'#186a3b':'#c56b20';ctx.lineWidth=2;ctx.stroke();ctx.setLineDash([]);
+          });
         }
 
         let extra=' · Viền '+val('borderWidth')+' mm · Mịn '+intval('smoothness');
         document.getElementById('previewInfo').textContent=selectedTemplate?((selectedTemplate.name||'')+' · '+val('w')+' × '+val('h')+' mm'+extra):'Chọn một vector để xem trước.';
         drawScreenPreview();
+      }
+
+      let imageState={img:null,name:'',loops:[],w:0,h:0};
+
+      function signedArea(loop){
+        let a=0;for(let i=0;i<loop.length;i++){let p=loop[i],q=loop[(i+1)%loop.length];a+=p[0]*q[1]-q[0]*p[1]}return a/2;
+      }
+      function pointLineDistance(p,a,b){
+        let dx=b[0]-a[0],dy=b[1]-a[1],den=dx*dx+dy*dy;
+        if(den<1e-12)return Math.hypot(p[0]-a[0],p[1]-a[1]);
+        let t=((p[0]-a[0])*dx+(p[1]-a[1])*dy)/den;t=Math.max(0,Math.min(1,t));
+        return Math.hypot(p[0]-(a[0]+t*dx),p[1]-(a[1]+t*dy));
+      }
+      function rdp(points,eps){
+        if(points.length<=2)return points.slice();
+        let max=0,idx=-1,a=points[0],b=points[points.length-1];
+        for(let i=1;i<points.length-1;i++){let d=pointLineDistance(points[i],a,b);if(d>max){max=d;idx=i}}
+        if(max<=eps)return [a,b];
+        let l=rdp(points.slice(0,idx+1),eps),r=rdp(points.slice(idx),eps);
+        return l.slice(0,-1).concat(r);
+      }
+      function simplifyClosed(loop,eps){
+        if(loop.length<4)return loop.slice();
+        let clean=[];
+        loop.forEach(p=>{let q=clean[clean.length-1];if(!q||q[0]!==p[0]||q[1]!==p[1])clean.push(p)});
+        if(clean.length>2&&clean[0][0]===clean[clean.length-1][0]&&clean[0][1]===clean[clean.length-1][1])clean.pop();
+        let changed=true;
+        while(changed&&clean.length>3){
+          changed=false;
+          for(let i=0;i<clean.length;i++){
+            let a=clean[(i-1+clean.length)%clean.length],b=clean[i],c=clean[(i+1)%clean.length];
+            if(Math.abs((b[0]-a[0])*(c[1]-b[1])-(b[1]-a[1])*(c[0]-b[0]))<1e-9){clean.splice(i,1);changed=true;break}
+          }
+        }
+        if(clean.length<=3)return clean;
+        function farthest(from){let best=0,bd=-1;for(let i=0;i<clean.length;i++){let d=(clean[i][0]-clean[from][0])**2+(clean[i][1]-clean[from][1])**2;if(d>bd){bd=d;best=i}}return best}
+        let a=farthest(0),b=farthest(a);
+        function arc(i,j){let out=[clean[i]];while(i!==j){i=(i+1)%clean.length;out.push(clean[i]);if(out.length>clean.length+1)break}return out}
+        let one=rdp(arc(a,b),eps),two=rdp(arc(b,a),eps);
+        let result=one.slice(0,-1).concat(two.slice(0,-1));
+        while(result.length>720){eps*=1.35;one=rdp(arc(a,b),eps);two=rdp(arc(b,a),eps);result=one.slice(0,-1).concat(two.slice(0,-1))}
+        return result;
+      }
+      function traceMaskLoops(mask,w,h,minArea,simplify){
+        let adj=new Map(),edgeCount=0;
+        const key=(x,y)=>x+','+y, filled=(x,y)=>x>=0&&x<w&&y>=0&&y<h&&mask[y*w+x];
+        function edge(ax,ay,bx,by){let k=key(ax,ay),arr=adj.get(k)||[];arr.push([bx,by]);adj.set(k,arr);edgeCount++}
+        for(let y=0;y<h;y++)for(let x=0;x<w;x++)if(filled(x,y)){
+          if(!filled(x,y-1))edge(x,y,x+1,y);
+          if(!filled(x+1,y))edge(x+1,y,x+1,y+1);
+          if(!filled(x,y+1))edge(x+1,y+1,x,y+1);
+          if(!filled(x-1,y))edge(x,y+1,x,y);
+        }
+        let loops=[],guard=0;
+        while(edgeCount>0&&guard<2000000){
+          guard++;
+          let startKey=null;for(let [k,v] of adj){if(v&&v.length){startKey=k;break}}
+          if(!startKey)break;
+          let start=startKey.split(',').map(Number),cur=start,loop=[start],steps=0;
+          while(steps++<(w*h*8+100)){
+            let k=key(cur[0],cur[1]),arr=adj.get(k);
+            if(!arr||!arr.length)break;
+            let next=arr.pop();edgeCount--;if(!arr.length)adj.delete(k);
+            cur=next;
+            if(cur[0]===start[0]&&cur[1]===start[1])break;
+            loop.push(cur);
+          }
+          let area=signedArea(loop);
+          if(area>=minArea&&loop.length>=4){
+            let simp=simplifyClosed(loop,simplify);
+            if(simp.length>=3)loops.push(simp);
+          }
+          if(loops.length>=200)break;
+        }
+        return loops;
+      }
+      function drawImageVectorPreview(loops,w,h){
+        let c=document.getElementById('imageVectorPreview'),ctx=c.getContext('2d'),W=c.width,H=c.height;
+        ctx.clearRect(0,0,W,H);ctx.fillStyle='#fff';ctx.fillRect(0,0,W,H);
+        if(!loops.length)return;
+        let scale=Math.min((W-10)/w,(H-10)/h),ox=(W-w*scale)/2,oy=(H-h*scale)/2;
+        loops.forEach(loop=>{
+          ctx.beginPath();loop.forEach((p,i)=>{let x=ox+p[0]*scale,y=oy+(h-p[1])*scale;i?ctx.lineTo(x,y):ctx.moveTo(x,y)});
+          ctx.closePath();ctx.fillStyle='rgba(24,106,59,.18)';ctx.fill();ctx.strokeStyle='#186a3b';ctx.lineWidth=1.2;ctx.stroke();
+        });
+      }
+      function processImageCnc(){
+        if(!imageState.img)return;
+        let img=imageState.img,maxDim=420,scale=Math.min(1,maxDim/Math.max(img.naturalWidth,img.naturalHeight));
+        let w=Math.max(1,Math.round(img.naturalWidth*scale)),h=Math.max(1,Math.round(img.naturalHeight*scale));
+        let off=document.createElement('canvas');off.width=w;off.height=h;let ctx=off.getContext('2d');ctx.drawImage(img,0,0,w,h);
+        let data=ctx.getImageData(0,0,w,h).data,threshold=intval('imageThreshold'),invert=document.getElementById('imageInvert').checked,mask=new Uint8Array(w*h);
+        for(let yu=0;yu<h;yu++){
+          let yt=h-1-yu;
+          for(let x=0;x<w;x++){
+            let i=(yt*w+x)*4,lum=.299*data[i]+.587*data[i+1]+.114*data[i+2],solid=invert?lum>=threshold:lum<threshold;
+            mask[yu*w+x]=solid?1:0;
+          }
+        }
+        let loops=traceMaskLoops(mask,w,h,Math.max(1,val('imageMinArea')),Math.max(.2,val('imageSimplify')));
+        imageState.loops=loops;imageState.w=w;imageState.h=h;
+        drawImageVectorPreview(loops,w,h);
+        let pts=loops.reduce((a,l)=>a+l.length,0),st=document.getElementById('imageStatus');
+        st.textContent=imageState.name+' · '+img.naturalWidth+'×'+img.naturalHeight+' px · '+loops.length+' vùng kín · '+pts+' điểm vector';
+      }
+      function loadImageFile(ev){
+        let file=ev.target.files&&ev.target.files[0];if(!file)return;
+        imageState.name=file.name;
+        let base=file.name.replace(/\.[^.]+$/,'');document.getElementById('imageName').value=base||'ANH_CNC';
+        let reader=new FileReader();
+        reader.onload=e=>{
+          let img=new Image();img.onload=()=>{
+            imageState.img=img;
+            let c=document.getElementById('imagePreview'),ctx=c.getContext('2d'),sc=Math.min(c.width/img.naturalWidth,c.height/img.naturalHeight),w=img.naturalWidth*sc,h=img.naturalHeight*sc;
+            ctx.clearRect(0,0,c.width,c.height);ctx.fillStyle='#fff';ctx.fillRect(0,0,c.width,c.height);ctx.drawImage(img,(c.width-w)/2,(c.height-h)/2,w,h);
+            processImageCnc();
+          };img.src=e.target.result;
+        };reader.readAsDataURL(file);
+      }
+      function saveImageCncTemplate(){
+        if(!imageState.img){alert('Hãy chọn ảnh PNG/JPG/BMP trước.');return}
+        processImageCnc();
+        if(!imageState.loops.length){alert('Ảnh chưa tạo được vùng kín. Hãy chỉnh Ngưỡng hoặc Đảo đen/trắng.');return}
+        window.sketchup.save_image_template(document.getElementById('imageName').value||'ANH_CNC',imageState.name,JSON.stringify(imageState.loops));
+      }
+      function selectSavedImageTemplate(id){
+        selected=id;renderLibrary(rows);window.sketchup.select(id);
+        let st=document.getElementById('imageStatus');if(st)st.textContent+=' · ĐÃ LƯU VÀO THƯ VIỆN';
       }
 
       function refreshTarget(){window.sketchup.refresh_target()}
@@ -1529,9 +1686,13 @@ module TranTuanNoiThat
         ['w','h','depth','offsetX','offsetY','borderWidth','smoothness','cutMode','panelLength','panelWidth','panelThickness','panelOrientation','screenMode','screenFrame','screenRows','screenCols','screenGapX','screenGapY','preserveRatio'].forEach(id=>{
           let el=document.getElementById(id);el.addEventListener('input',pushSettings);el.addEventListener('change',pushSettings)
         });
+        document.getElementById('imageFile').addEventListener('change',loadImageFile);
+        ['imageThreshold','imageInvert','imageSimplify','imageMinArea'].forEach(id=>{
+          let el=document.getElementById(id);el.addEventListener('input',()=>{document.getElementById('thresholdValue').textContent=intval('imageThreshold');processImageCnc()});el.addEventListener('change',processImageCnc)
+        });
         setAnchor('center');
         let boot=document.getElementById('bootStatus');
-        if(boot)boot.textContent='VECTOR CNC / ẢNH CNC UI sẵn sàng · '+"1.3.3";
+        if(boot)boot.textContent='VECTOR CNC / ẢNH CNC UI sẵn sàng · '+"1.4.0";
         window.sketchup.ready();
       })
       </script></body></html>
