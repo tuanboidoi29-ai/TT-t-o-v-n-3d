@@ -8,7 +8,7 @@ module TranTuanNoiThat
   module VectorCNC
     extend self
 
-    VERSION = '1.2.0'.freeze
+    VERSION = '1.3.0'.freeze
     KEY = 'TT_VECTOR_CNC'.freeze
     DATA_DIR = File.join(TranTuanNoiThat::ROOT, 'data', 'vector_cnc').freeze
     LIBRARY_FILE = File.join(DATA_DIR, 'library.json').freeze
@@ -32,6 +32,15 @@ module TranTuanNoiThat
       'thickness'=>17.5,
       'name'=>'TAM_CNC',
       'orientation'=>'xz'
+    }.freeze
+    SCREEN_DEFAULTS = {
+      'mode'=>'repeat',
+      'frame_width'=>50.0,
+      'rows'=>3,
+      'cols'=>5,
+      'gap_x'=>20.0,
+      'gap_y'=>20.0,
+      'preserve_ratio'=>true
     }.freeze
     BOX_FACE_INDICES = [
       [0,3,2,1],
@@ -453,6 +462,88 @@ module TranTuanNoiThat
         center: [cx,cy],
         profile: profile,
         border_profile: border_profile
+      }
+    end
+
+    def fit_template_size(template,max_width,max_height,preserve_ratio = true)
+      raise 'Vùng tạo hoa văn quá nhỏ.' unless max_width.to_f > 0 && max_height.to_f > 0
+      if preserve_ratio
+        unit = points_for_template(template,72)
+        min_x,max_x = unit.map(&:first).minmax
+        min_y,max_y = unit.map(&:last).minmax
+        ratio = (max_x-min_x).abs / [(max_y-min_y).abs,1.0e-9].max
+        if max_width.to_f / max_height.to_f > ratio
+          height = max_height.to_f
+          width = height * ratio
+        else
+          width = max_width.to_f
+          height = width / ratio
+        end
+        [width,height]
+      else
+        [max_width.to_f,max_height.to_f]
+      end
+    end
+
+    def screen_panel_plan(template,panel_settings,cnc_settings,screen_settings = {})
+      tpl = sanitize_template(template)
+      panel = PANEL_DEFAULTS.merge(panel_settings.transform_keys(&:to_s))
+      cfg = DEFAULT_CNC.merge(cnc_settings.transform_keys(&:to_s))
+      screen = SCREEN_DEFAULTS.merge(screen_settings.transform_keys(&:to_s))
+
+      length = panel['length'].to_f
+      width = panel['width'].to_f
+      thickness = panel['thickness'].to_f
+      frame = [screen['frame_width'].to_f,0.0].max
+      rows = [screen['rows'].to_i,1].max
+      cols = [screen['cols'].to_i,1].max
+      gap_x = [screen['gap_x'].to_f,0.0].max
+      gap_y = [screen['gap_y'].to_f,0.0].max
+      mode = screen['mode'].to_s == 'fit' ? 'fit' : 'repeat'
+      preserve = screen['preserve_ratio'] != false && screen['preserve_ratio'].to_s != 'false'
+
+      raise 'Dài/Rộng/Dày vách CNC phải lớn hơn 0.' unless length > 0 && width > 0 && thickness > 0
+      inner_length = length - frame*2.0
+      inner_width = width - frame*2.0
+      raise 'Viền khung quá lớn so với kích thước vách.' unless inner_length > 0 && inner_width > 0
+
+      cfg['depth'] = [cfg['depth'].to_f,0.0].max
+      cfg['smoothness'] = clamp_smoothness(cfg['smoothness'])
+      cfg['cut_mode'] = cfg['cut_mode'].to_s
+      cfg['border_width'] = [cfg['border_width'].to_f,0.0].max
+
+      profiles = []
+      if mode == 'fit'
+        vw,vh = fit_template_size(tpl,inner_length,inner_width,preserve)
+        cx = length/2.0
+        cy = width/2.0
+        points = scaled_points(tpl,vw,vh,cfg['smoothness']).map { |x,y| [cx+x,cy+y] }
+        profiles << {row: 0,col: 0,center:[cx,cy],width:vw,height:vh,points:points}
+      else
+        raise 'Khoảng cách ngang quá lớn.' if gap_x*(cols-1) >= inner_length
+        raise 'Khoảng cách dọc quá lớn.' if gap_y*(rows-1) >= inner_width
+        cell_w = (inner_length - gap_x*(cols-1))/cols.to_f
+        cell_h = (inner_width - gap_y*(rows-1))/rows.to_f
+        raise 'Ô hoa văn quá nhỏ.' unless cell_w > 0 && cell_h > 0
+        vw,vh = fit_template_size(tpl,cell_w,cell_h,preserve)
+        rows.times do |r|
+          cols.times do |c|
+            cx = frame + cell_w/2.0 + c*(cell_w+gap_x)
+            cy = frame + cell_h/2.0 + r*(cell_h+gap_y)
+            points = scaled_points(tpl,vw,vh,cfg['smoothness']).map { |x,y| [cx+x,cy+y] }
+            profiles << {row:r,col:c,center:[cx,cy],width:vw,height:vh,points:points}
+          end
+        end
+      end
+
+      raise "Quá nhiều biên dạng CNC (#{profiles.length})." if profiles.length > 400
+      {
+        template: tpl,
+        panel: panel.merge('length'=>length,'width'=>width,'thickness'=>thickness),
+        cnc: cfg,
+        screen: screen.merge('mode'=>mode,'frame_width'=>frame,'rows'=>rows,'cols'=>cols,'gap_x'=>gap_x,'gap_y'=>gap_y,'preserve_ratio'=>preserve),
+        profiles: profiles,
+        inner: [frame,frame,inner_length,inner_width]
       }
     end
 
