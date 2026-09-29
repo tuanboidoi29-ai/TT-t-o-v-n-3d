@@ -528,6 +528,7 @@ module TranTuanNoiThat
       input,select{width:100%;padding:7px;border:1px solid #9bc8aa;border-radius:6px;background:white}input[type=checkbox]{width:auto}input[type=color]{height:35px;padding:2px}
       button{border:0;border-radius:7px;padding:9px 11px;background:#2f8f5b;color:white;font-weight:bold;cursor:pointer}.gray{background:#607d8b}.red{background:#b84b4b}.row{display:flex;gap:7px;margin-top:9px}.row button{flex:1}
       .detect{background:#f8fff9;border:1px dashed #7fbd94;padding:9px;border-radius:7px;margin-bottom:10px;line-height:1.55}.hint{font-size:12px;color:#52705e;line-height:1.5}
+      .lightbox{margin-top:10px;background:#173326;border:1px solid #7fbd94;border-radius:8px;padding:8px}.lightbox canvas{display:block;width:100%;height:150px;border-radius:6px;background:#10271d}.lightlabel{color:#d8f5e2;font-size:12px;margin-bottom:6px}
       #notice{min-height:20px;margin-top:8px;font-size:12px}.ok{color:#166534}.err{color:#a61b1b}
       </style></head><body>
       <div class="head"><h2>TẠO LED</h2><small>AUTO rà mặt Group/Component · preview 3D · click tạo ngay</small></div>
@@ -546,6 +547,8 @@ module TranTuanNoiThat
             <label>Cách mép ngoài</label><input id="edge_offset" type="number" min="0" step="0.5"><span>mm</span>
             <label>Độ rộng rãnh LED</label><input id="groove_width" type="number" min="0.5" step="0.5"><span>mm</span>
             <label>Chiều dài rãnh</label><input id="groove_length" type="number" min="0" step="1"><span>mm</span>
+            <label>Số lượng rãnh</label><input id="quantity" type="number" min="1" max="20" step="1"><span>cái</span>
+            <label>Khoảng cách giữa</label><input id="spacing" type="number" min="0" step="1"><span>mm</span>
             <label>Màu LED mô phỏng</label><input id="led_color" type="color"><span></span>
             <label>Độ sáng LED</label><input id="brightness" type="range" min="0" max="200" step="5"><span id="brightness_value">100%</span>
             <label>Khoảng chiếu xuống</label><input id="light_distance" type="range" min="0" max="500" step="5"><span id="light_distance_value">80mm</span>
@@ -554,27 +557,66 @@ module TranTuanNoiThat
             <label>Chế độ CNC</label><input id="cnc" type="checkbox"><span></span>
             <label>Tên CNC / Tag ABF</label><input id="cnc_tag"><span></span>
           </div>
-          <div class="hint" style="margin-top:7px"><b>Chiều dài = 0</b> → AUTO lấy chiều dài mặt trừ Cách 2 đầu. Rê chuột gần mép nào thì rãnh tự bám mép đó.</div>
+          <div class="hint" style="margin-top:7px"><b>Chiều dài = 0</b> → AUTO lấy chiều dài mặt trừ Cách 2 đầu. <b>Khoảng cách giữa</b> là khoảng hở giữa 2 rãnh. Rê chuột gần mép nào thì rãnh tự bám mép đó.</div>
+          <div class="lightbox">
+            <div class="lightlabel"><b>PREVIEW VẦNG SÁNG</b> · <span id="light_direction_label">AUTO vào trong</span></div>
+            <canvas id="light_preview" width="500" height="150"></canvas>
+          </div>
           <div class="row"><button onclick="apply()">CẬP NHẬT PREVIEW</button></div>
           <div id="notice"></div>
           <div class="hint" style="margin-top:9px"><b>CNC:</b> 4 Edge kín thật được tạo <b>trực tiếp vào Face/hình học của Group/Component</b>, không tạo Group CNC con. Edge mang Tag mặc định <b>ABF_RANHLED</b> (đổi tên được), có <code>ABF/is-cutting-lines=true</code>. Mô phỏng ánh sáng là lớp riêng và không làm bẩn dữ liệu CNC.</div>
         </div>
       </div>
       <script>
-      const ids=['name','end_clearance','edge_offset','groove_width','groove_length','led_color','brightness','light_distance','light_spread','simulate','cnc','cnc_tag'];let selected='';
+      const ids=['name','end_clearance','edge_offset','groove_width','groove_length','quantity','spacing','led_color','brightness','light_distance','light_spread','simulate','cnc','cnc_tag'];let selected='';let detectedInfo={side:'max',orientation:'vertical'};
       const TTLED={
         state:{},
         load(data){this.state=data||{};selected=data.selected||'';this.renderPresets(data.presets||{});this.fill(data.settings||{});},
-        fill(s){ids.forEach(id=>{let e=document.getElementById(id);if(!e)return;if(e.type==='checkbox')e.checked=!!s[id];else if(s[id]!==undefined)e.value=s[id]});syncRanges();},
+        fill(s){ids.forEach(id=>{let e=document.getElementById(id);if(!e)return;if(e.type==='checkbox')e.checked=!!s[id];else if(s[id]!==undefined)e.value=s[id]});syncRanges();drawLightPreview();},
         values(){let o={};ids.forEach(id=>{let e=document.getElementById(id);o[id]=e.type==='checkbox'?e.checked:((e.type==='number'||e.type==='range')?Number(e.value):e.value)});return o;},
         renderPresets(rows){let box=document.getElementById('presets');box.innerHTML='';Object.keys(rows).sort().forEach(name=>{let b=document.createElement('button');b.className='preset'+(name===selected?' active':'');b.textContent=name;b.onclick=()=>{selected=name;sketchup.load_preset(name)};box.appendChild(b)})},
-        detected(info){target.textContent=info.target||'Chưa nhận';dims.textContent=info.length?Math.round(info.length*10)/10+' × '+Math.round(info.width*10)/10+' mm':'-';groove.textContent=info.groove_length?Math.round(info.groove_length*10)/10+' × '+Math.round(info.groove_width*10)/10+' mm':'-';},
+        detected(info){detectedInfo=info||detectedInfo;target.textContent=info.target||'Chưa nhận';dims.textContent=info.length?Math.round(info.length*10)/10+' × '+Math.round(info.width*10)/10+' mm':'-';groove.textContent=info.groove_length?((info.quantity||1)+' rãnh · '+Math.round(info.groove_length*10)/10+' × '+Math.round(info.groove_width*10)/10+' mm'):'-';drawLightPreview();},
         notice(msg,bad){let n=document.getElementById('notice');n.textContent=msg||'';n.className=bad?'err':'ok'}
       };
       function syncRanges(){
         brightness_value.textContent=Math.round(Number(brightness.value)||0)+'%';
         light_distance_value.textContent=Math.round(Number(light_distance.value)||0)+'mm';
         light_spread_value.textContent=Math.round(Number(light_spread.value)||0)+'mm';
+        drawLightPreview();
+      }
+      function rgb(hex){
+        let h=(hex||'#ffd86a').replace('#','');return [parseInt(h.slice(0,2),16)||255,parseInt(h.slice(2,4),16)||216,parseInt(h.slice(4,6),16)||106]
+      }
+      function rgba(c,a){return 'rgba('+c[0]+','+c[1]+','+c[2]+','+a+')'}
+      function drawLightPreview(){
+        let canvas=document.getElementById('light_preview');if(!canvas)return;
+        let ctx=canvas.getContext('2d'),W=canvas.width,H=canvas.height,c=rgb(led_color.value),bright=Math.max(0,Number(brightness.value)||0)/100;
+        ctx.clearRect(0,0,W,H);ctx.fillStyle='#10271d';ctx.fillRect(0,0,W,H);
+        if(!simulate.checked){ctx.fillStyle='#9dc5aa';ctx.font='13px Arial';ctx.fillText('Mô phỏng ánh sáng đang tắt',16,24);return}
+        let vertical=(detectedInfo.orientation||'vertical')==='vertical',side=detectedInfo.side||'max';
+        let dist=Math.max(28,Math.min(190,(Number(light_distance.value)||0)*0.34+28));
+        let spread=Math.max(4,Math.min(42,(Number(light_spread.value)||0)*0.15+4));
+        let count=Math.max(1,Math.min(8,Number(quantity.value)||1));
+        let gap=Math.max(10,Math.min(28,(Number(spacing.value)||0)*0.08+10));
+        let dir=(side==='max'?-1:1);
+        light_direction_label.textContent=vertical?(dir<0?'LED dọc · hắt sang trái':'LED dọc · hắt sang phải'):(dir<0?'LED ngang · hắt lên':'LED ngang · hắt xuống');
+        for(let n=0;n<count;n++){
+          if(vertical){
+            let x=(side==='max'?W*0.74:W*0.26)+(side==='max'?-n:n)*gap;
+            let y0=22-spread,y1=H-22+spread,x2=x+dir*dist;
+            let g=ctx.createLinearGradient(x,0,x2,0);
+            g.addColorStop(0,rgba(c,Math.min(.82,.42*bright)));g.addColorStop(.25,rgba(c,Math.min(.42,.22*bright)));g.addColorStop(1,rgba(c,0));
+            ctx.fillStyle=g;ctx.fillRect(Math.min(x,x2),y0,Math.abs(x2-x),y1-y0);
+            ctx.save();ctx.strokeStyle=rgba(c,Math.min(1,.9*bright));ctx.lineWidth=4;ctx.shadowBlur=16+spread;ctx.shadowColor=rgba(c,.85);ctx.beginPath();ctx.moveTo(x,28);ctx.lineTo(x,H-28);ctx.stroke();ctx.restore();
+          }else{
+            let y=(side==='max'?H*0.72:H*0.28)+(side==='max'?-n:n)*Math.min(gap,18);
+            let x0=42-spread,x1=W-42+spread,y2=y+dir*Math.min(dist,80);
+            let g=ctx.createLinearGradient(0,y,0,y2);
+            g.addColorStop(0,rgba(c,Math.min(.82,.42*bright)));g.addColorStop(.25,rgba(c,Math.min(.42,.22*bright)));g.addColorStop(1,rgba(c,0));
+            ctx.fillStyle=g;ctx.fillRect(x0,Math.min(y,y2),x1-x0,Math.abs(y2-y));
+            ctx.save();ctx.strokeStyle=rgba(c,Math.min(1,.9*bright));ctx.lineWidth=4;ctx.shadowBlur=16+spread;ctx.shadowColor=rgba(c,.85);ctx.beginPath();ctx.moveTo(48,y);ctx.lineTo(W-48,y);ctx.stroke();ctx.restore();
+          }
+        }
       }
       function apply(){syncRanges();sketchup.update(JSON.stringify(TTLED.values()))}
       function savePreset(){let v=TTLED.values();sketchup.save_preset(v.name||'LED',JSON.stringify(v))}
