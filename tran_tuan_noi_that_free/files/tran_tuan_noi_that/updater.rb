@@ -117,7 +117,8 @@ module TranTuanNoiThat
     def safe_remove_dir(path)
       clean = path.to_s
       allowed = [
-        'tran_tuan_noi_that/library_cache'
+        'tran_tuan_noi_that/library_cache',
+        'tran_tuan_noi_that/data/vector_cnc'
       ]
       raise 'Thư mục cần xóa không nằm trong danh sách an toàn.' unless allowed.include?(clean)
       clean
