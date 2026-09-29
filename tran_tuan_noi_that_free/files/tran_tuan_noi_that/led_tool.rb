@@ -7,7 +7,7 @@ module TranTuanNoiThat
   module LedTool
     extend self
 
-    VERSION = '1.3.0'.freeze
+    VERSION = '1.4.0'.freeze
     KEY = 'TT_LED'.freeze
     DATA_DIR = File.join(TranTuanNoiThat::ROOT, 'data', 'led_tool').freeze
     PRESET_FILE = File.join(DATA_DIR, 'presets.json').freeze
@@ -356,56 +356,78 @@ module TranTuanNoiThat
       )
     end
 
-    # Ánh sáng mô phỏng luôn đổ theo Model -Z ("chiếu xuống").
-    # Trả về các lớp sáng để preview và hình học mô phỏng dùng chung.
-    def light_geometry(world_rect,raw)
+    def reverse_vector(vector)
+      Geom::Vector3d.new(-vector.x.to_f,-vector.y.to_f,-vector.z.to_f)
+    end
+
+    # Hướng hắt luôn vuông góc với thanh LED và đi VÀO TRONG từ mép đang bám.
+    # side=:min  -> +V ; side=:max -> -V.
+    # Vì V nằm trên chính mặt gia công nên LED dọc/ngang tự xoay hướng sáng theo mặt.
+    def light_direction(analysis,plan)
+      direction = plan[:side].to_sym == :max ? reverse_vector(analysis[:v]) : analysis[:v]
+      unit_vector(direction)
+    end
+
+    def light_direction_world(analysis,plan,transform)
+      direction = light_direction(analysis,plan)
+      world = direction.transform(transform || Geom::Transformation.new)
+      unit_vector(world,direction)
+    rescue StandardError
+      direction
+    end
+
+    # Vầng sáng mịn: chia thành nhiều dải alpha giảm dần.
+    # cast_direction là hướng hắt thật trên mặt (không cố định Model -Z).
+    def light_geometry(world_rect,raw,cast_direction = nil)
       opts = normalize(raw)
-      return {levels:[],beam_quads:[]} unless opts['simulate']
+      return {levels:[],bands:[],beam_quads:[],direction:nil} unless opts['simulate']
       raise 'Cần 4 điểm rãnh LED để mô phỏng ánh sáng.' unless world_rect && world_rect.length == 4
 
-      top_a = midpoint(world_rect[0],world_rect[3])
-      top_b = midpoint(world_rect[1],world_rect[2])
-      along = unit_vector(top_a.vector_to(top_b))
-      down = Geom::Vector3d.new(0,0,-1)
-      side = down.cross(along)
-      side = world_rect[0].vector_to(world_rect[3]) if side.length <= 1.0e-9
-      side = unit_vector(side)
+      source_a = midpoint(world_rect[0],world_rect[3])
+      source_b = midpoint(world_rect[1],world_rect[2])
+      along = unit_vector(source_a.vector_to(source_b))
+      cast = unit_vector(cast_direction || Geom::Vector3d.new(0,0,-1))
 
       distance = opts['light_distance'].mm
       spread = opts['light_spread'].mm
-      top_half = opts['groove_width'].mm/2.0
       brightness = opts['brightness']/100.0
-      fractions = [0.22,0.52,1.0]
-      base_alpha = [115,70,32]
+      band_count = 16
+      previous_a = source_a
+      previous_b = source_b
+      levels = []
+      bands = []
 
-      levels = fractions.each_with_index.map do |fraction,index|
-        center_a = shift_point(top_a,down,distance*fraction)
-        center_b = shift_point(top_b,down,distance*fraction)
-        half = top_half + spread*fraction
-        left_a = shift_point(center_a,side,-half)
-        left_b = shift_point(center_b,side,-half)
-        right_b = shift_point(center_b,side,half)
-        right_a = shift_point(center_a,side,half)
-        {
+      1.upto(band_count) do |index|
+        fraction = index.to_f / band_count
+        end_expand = spread * fraction
+        center_a = shift_point(source_a,cast,distance*fraction)
+        center_b = shift_point(source_b,cast,distance*fraction)
+        current_a = shift_point(center_a,along,-end_expand)
+        current_b = shift_point(center_b,along,end_expand)
+
+        # Giảm alpha theo đường cong để mép ngoài tan mềm như vầng sáng.
+        falloff = (1.0-fraction)**1.65
+        alpha = [[(175.0*brightness*falloff).round,0].max,230].min
+        bands << {
           fraction:fraction,
-          alpha:[[base_alpha[index]*brightness,8].max,255].min.round,
-          rect:[left_a,left_b,right_b,right_a]
+          alpha:alpha,
+          points:[previous_a,previous_b,current_b,current_a]
         }
+        levels << {
+          fraction:fraction,
+          alpha:alpha,
+          line:[current_a,current_b]
+        }
+        previous_a = current_a
+        previous_b = current_b
       end
 
-      bottom = levels.last ? levels.last[:rect] : world_rect
-      top_left_a = shift_point(top_a,side,-top_half)
-      top_left_b = shift_point(top_b,side,-top_half)
-      top_right_b = shift_point(top_b,side,top_half)
-      top_right_a = shift_point(top_a,side,top_half)
-
-      beam_alpha = [[55*brightness,6].max,180].min.round
-      beam_quads = [
-        {alpha:beam_alpha,points:[top_left_a,top_left_b,bottom[1],bottom[0]]},
-        {alpha:beam_alpha,points:[top_right_a,top_right_b,bottom[2],bottom[3]]}
-      ]
-
-      {levels:levels,beam_quads:beam_quads}
+      {
+        levels:levels,
+        bands:bands,
+        beam_quads:bands,
+        direction:cast
+      }
     end
 
     def ensure_material(model,name,color,alpha)
@@ -416,18 +438,21 @@ module TranTuanNoiThat
       material
     end
 
-    def add_led_simulation(world_rect,target_tr,_analysis,_plan,opts)
+    def add_led_simulation(world_rect,target_tr,analysis,plan,opts,profile_index = 0,profile_count = 1)
       return nil unless opts['simulate']
       model = Sketchup.active_model
       group = model.active_entities.add_group
-      group.name = "TT_LED_MO_PHONG_#{opts['name']}"
+      group.name = "TT_LED_MO_PHONG_#{opts['name']}_#{profile_index+1}"
       group.layer = ensure_tag(model,'TT_LED_MO_PHONG')
       group.set_attribute(KEY,'role','led_simulation')
       group.set_attribute(KEY,'host_id',entity_reference_id(target_tr[:target]))
+      group.set_attribute(KEY,'profile_index',profile_index)
+      group.set_attribute(KEY,'profile_count',profile_count)
       group.set_attribute(KEY,'led_color',opts['led_color'])
       group.set_attribute(KEY,'brightness_percent',opts['brightness'])
       group.set_attribute(KEY,'light_distance_mm',opts['light_distance'])
       group.set_attribute(KEY,'light_spread_mm',opts['light_spread'])
+      group.set_attribute(KEY,'light_side',plan[:side].to_s)
 
       active_inv = begin
         model.edit_transform.inverse
@@ -435,31 +460,35 @@ module TranTuanNoiThat
         Geom::Transformation.new
       end
 
-      geometry = light_geometry(world_rect,opts)
-      geometry[:beam_quads].each_with_index do |beam,index|
-        pts = beam[:points].map { |point| point.transform(active_inv) }
-        face = group.entities.add_face(pts)
-        next unless face
-        mat = ensure_material(
+      direction = light_direction_world(analysis,plan,target_tr[:transform])
+      geometry = light_geometry(world_rect,opts,direction)
+
+      # Tim LED sáng rõ.
+      core_pts = world_rect.map { |point| point.transform(active_inv) }
+      core_face = group.entities.add_face(core_pts)
+      if core_face
+        core_mat = ensure_material(
           model,
-          "TT_LED_BEAM_#{opts['led_color'].delete_prefix('#')}_#{index}_#{beam[:alpha]}",
+          "TT_LED_CORE_#{opts['led_color'].delete_prefix('#')}",
           color_from_hex(opts['led_color']),
-          beam[:alpha]/255.0
+          [[opts['brightness']/120.0,0.15].max,1.0].min
         )
-        face.material = mat
-        face.back_material = mat if face.respond_to?(:back_material=)
-        face.edges.each { |edge| edge.hidden = true if edge.respond_to?(:hidden=) }
+        core_face.material = core_mat
+        core_face.back_material = core_mat if core_face.respond_to?(:back_material=)
+        core_face.edges.each { |edge| edge.hidden = true if edge.respond_to?(:hidden=) }
       end
 
-      geometry[:levels].each_with_index do |level,index|
-        pts = level[:rect].map { |point| point.transform(active_inv) }
+      # 16 dải trong suốt nối tiếp nhau tạo vầng sáng mịn dần.
+      geometry[:bands].each_with_index do |band,index|
+        next if band[:alpha] <= 0
+        pts = band[:points].map { |point| point.transform(active_inv) }
         face = group.entities.add_face(pts)
         next unless face
         mat = ensure_material(
           model,
-          "TT_LED_GLOW_#{opts['led_color'].delete_prefix('#')}_#{index}_#{level[:alpha]}",
+          "TT_LED_GLOW_#{opts['led_color'].delete_prefix('#')}_#{profile_index}_#{index}_#{band[:alpha]}",
           color_from_hex(opts['led_color']),
-          level[:alpha]/255.0
+          band[:alpha]/255.0
         )
         face.material = mat
         face.back_material = mat if face.respond_to?(:back_material=)
