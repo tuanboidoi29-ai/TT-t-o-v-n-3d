@@ -140,8 +140,8 @@ check('Tạo LED light direction follows groove side and halo fades smoothly') d
     Geom::Point3d.new(10.mm,0,0)
   ]
   light=LED.light_geometry(rect,LED::DEFAULTS,Geom::Vector3d.new(-1,0,0))
-  assert(light[:bands].length==16)
-  assert(light[:levels].length==16)
+  assert(light[:bands].length==24)
+  assert(light[:levels].length==24)
   assert(light[:bands].first[:alpha] > light[:bands].last[:alpha])
   assert(light[:direction].x < 0)
   far=light[:bands].last[:points]
@@ -149,6 +149,14 @@ check('Tạo LED light direction follows groove side and halo fades smoothly') d
 
   off=LED.light_geometry(rect,LED::DEFAULTS.merge('brightness'=>0),Geom::Vector3d.new(-1,0,0))
   assert(off[:bands].all?{|row|row[:alpha]==0})
+end
+
+check('Tạo LED viewport direction arrow uses same cast vector as glow') do
+  source=File.read(ROOT+'/led_tool.rb',encoding:'UTF-8')
+  assert(source.include?("direction = LedTool.light_direction_world(@analysis,plan,@target_tr)"))
+  assert(source.include?("tip = LedTool.shift_point(source,direction,arrow_len)"))
+  assert(source.include?("view.draw(GL_LINES,[source,tip,tip,left,tip,right])"))
+  assert(source.include?("AUTO theo rãnh + mép đang bám"))
 end
 
 check('Tạo LED create flow loops all groove plans and stays continuous') do
