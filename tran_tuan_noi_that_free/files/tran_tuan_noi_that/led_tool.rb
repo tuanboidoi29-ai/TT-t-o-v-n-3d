@@ -7,7 +7,7 @@ module TranTuanNoiThat
   module LedTool
     extend self
 
-    VERSION = '1.1.0'.freeze
+    VERSION = '1.2.0'.freeze
     KEY = 'TT_LED'.freeze
     DATA_DIR = File.join(TranTuanNoiThat::ROOT, 'data', 'led_tool').freeze
     PRESET_FILE = File.join(DATA_DIR, 'presets.json').freeze
@@ -19,6 +19,9 @@ module TranTuanNoiThat
       'groove_width'=>10.0,
       'groove_length'=>0.0,
       'led_color'=>'#ffd36a',
+      'brightness'=>100.0,
+      'light_distance'=>80.0,
+      'light_spread'=>40.0,
       'simulate'=>true,
       'cnc'=>true,
       'cnc_tag'=>'ABF_RANHLED'
@@ -52,6 +55,9 @@ module TranTuanNoiThat
       out['groove_width'] = [[source['groove_width'].to_f,0.5].max,200.0].min
       out['groove_length'] = [[source['groove_length'].to_f,0.0].max,100_000.0].min
       out['led_color'] = normalize_color(source['led_color'])
+      out['brightness'] = [[source['brightness'].to_f,0.0].max,200.0].min
+      out['light_distance'] = [[source['light_distance'].to_f,0.0].max,1000.0].min
+      out['light_spread'] = [[source['light_spread'].to_f,0.0].max,500.0].min
       out['simulate'] = source['simulate'] == true || source['simulate'].to_s == 'true' || source['simulate'].to_s == '1'
       out['cnc'] = source['cnc'] == true || source['cnc'].to_s == 'true' || source['cnc'].to_s == '1'
       out['cnc_tag'] = normalize_tag(source['cnc_tag'])
@@ -250,41 +256,119 @@ module TranTuanNoiThat
       tag_name = normalize_tag(opts['cnc_tag'])
       tag = ensure_tag(model,tag_name)
       entities = target_entities(target)
-      group = entities.add_group
-      # Tên Group + Tag là chính tên công đoạn LED để Aspire/ABF nhìn thấy rõ.
-      group.name = tag_name
-      group.layer = tag
-      # Giữ cả hai cờ để tương thích luồng ABF cũ và chuẩn cutting-lines.
-      group.set_attribute('ABF','is-intersect',true)
-      group.set_attribute('ABF','is-cutting-lines',true)
-      group.set_attribute('ABF','intersect-offset',0.0)
-      group.set_attribute('ABF','setting-name',operation_setting_name(tag_name))
-      group.set_attribute('ABF','intersect-group-b-id',entity_reference_id(target))
-      group.set_attribute('ABF','operation-name',tag_name)
-      group.set_attribute(KEY,'role','led_cnc_profile')
-      group.set_attribute(KEY,'name',opts['name'])
-      group.set_attribute(KEY,'cnc_tag',tag_name)
-      group.set_attribute(KEY,'groove_width_mm',opts['groove_width'])
-      group.set_attribute(KEY,'closed_loop',true)
 
-      face = group.entities.add_face(points)
-      raise 'Không tạo được biên dạng kín rãnh LED cho ABF/Aspire.' unless face && face.valid?
-      edges = face.edges.to_a
-      raise 'Biên dạng rãnh LED không đủ 4 cạnh.' unless edges.length == 4
-      edges.each do |edge|
+      # QUY TẮC CỐ ĐỊNH:
+      # Biên dạng rãnh LED phải nằm trực tiếp trong hình học của Group/Component.
+      # Không tạo Group con cho CNC.
+      host_face.set_attribute('ABF','is-cnced-face',true) if host_face && host_face.valid?
+
+      edges = points.each_with_index.map do |point,index|
+        nxt = points[(index+1) % points.length]
+        edge = entities.add_line(point,nxt)
+        raise "Không tạo được cạnh CNC rãnh LED số #{index+1}." unless edge && edge.valid?
         edge.layer = tag
+        edge.set_attribute('ABF','is-cutting-lines',true)
+        edge.set_attribute('ABF','is-intersect',true)
+        edge.set_attribute('ABF','setting-name',operation_setting_name(tag_name))
+        edge.set_attribute('ABF','operation-name',tag_name)
+        edge.set_attribute('ABF','intersect-group-b-id',entity_reference_id(target))
         edge.set_attribute(KEY,'role','led_cnc_edge')
+        edge.set_attribute(KEY,'name',opts['name'])
         edge.set_attribute(KEY,'cnc_name',tag_name)
-      end
-      # Chỉ giữ Edge thật, không giữ Face phụ để tránh che/tách mặt ván chính.
-      group.entities.erase_entities(face)
+        edge.set_attribute(KEY,'groove_width_mm',opts['groove_width'])
+        edge.set_attribute(KEY,'closed_loop',true)
+        edge
+      end.compact.uniq
 
-      host_face.set_attribute('ABF','is-cnced-face',true) if host_face
+      raise "Biên dạng #{tag_name} phải có đúng 4 Edge kín." unless edges.length == 4
+
+      # add_line đồng phẳng sẽ chia trực tiếp Face của tấm. Đánh dấu lại Face lớn
+      # cùng mặt phẳng sau khi sinh Edge để ABF vẫn biết đây là mặt gia công.
+      refreshed_face = find_host_face(target,points)
+      refreshed_face.set_attribute('ABF','is-cnced-face',true) if refreshed_face && refreshed_face.valid?
+
       target.set_attribute('ABF','is-board',true)
       target.set_attribute('ABF','ranh_led',true)
       target.set_attribute(KEY,'cnc_tag',tag_name)
       target.set_attribute(KEY,'led_profile_embedded',true)
-      group
+      target.set_attribute(KEY,'led_profile_grouped',false)
+      target.set_attribute(KEY,'led_cnc_edge_count',edges.length)
+      edges
+    end
+
+    def midpoint(a,b)
+      Geom::Point3d.new(
+        (a.x+b.x)/2.0,
+        (a.y+b.y)/2.0,
+        (a.z+b.z)/2.0
+      )
+    end
+
+    def unit_vector(vector,fallback = nil)
+      return vector.normalize if vector.respond_to?(:normalize) && vector.length > 1.0e-9
+      return fallback.normalize if fallback && fallback.respond_to?(:normalize) && fallback.length > 1.0e-9
+      Geom::Vector3d.new(1,0,0)
+    end
+
+    def shift_point(point,vector,distance)
+      direction = unit_vector(vector)
+      Geom::Point3d.new(
+        point.x + direction.x*distance,
+        point.y + direction.y*distance,
+        point.z + direction.z*distance
+      )
+    end
+
+    # Ánh sáng mô phỏng luôn đổ theo Model -Z ("chiếu xuống").
+    # Trả về các lớp sáng để preview và hình học mô phỏng dùng chung.
+    def light_geometry(world_rect,raw)
+      opts = normalize(raw)
+      return {levels:[],beam_quads:[]} unless opts['simulate']
+      raise 'Cần 4 điểm rãnh LED để mô phỏng ánh sáng.' unless world_rect && world_rect.length == 4
+
+      top_a = midpoint(world_rect[0],world_rect[3])
+      top_b = midpoint(world_rect[1],world_rect[2])
+      along = unit_vector(top_a.vector_to(top_b))
+      down = Geom::Vector3d.new(0,0,-1)
+      side = down.cross(along)
+      side = world_rect[0].vector_to(world_rect[3]) if side.length <= 1.0e-9
+      side = unit_vector(side)
+
+      distance = opts['light_distance'].mm
+      spread = opts['light_spread'].mm
+      top_half = opts['groove_width'].mm/2.0
+      brightness = opts['brightness']/100.0
+      fractions = [0.22,0.52,1.0]
+      base_alpha = [115,70,32]
+
+      levels = fractions.each_with_index.map do |fraction,index|
+        center_a = shift_point(top_a,down,distance*fraction)
+        center_b = shift_point(top_b,down,distance*fraction)
+        half = top_half + spread*fraction
+        left_a = shift_point(center_a,side,-half)
+        left_b = shift_point(center_b,side,-half)
+        right_b = shift_point(center_b,side,half)
+        right_a = shift_point(center_a,side,half)
+        {
+          fraction:fraction,
+          alpha:[[base_alpha[index]*brightness,8].max,255].min.round,
+          rect:[left_a,left_b,right_b,right_a]
+        }
+      end
+
+      bottom = levels.last ? levels.last[:rect] : world_rect
+      top_left_a = shift_point(top_a,side,-top_half)
+      top_left_b = shift_point(top_b,side,-top_half)
+      top_right_b = shift_point(top_b,side,top_half)
+      top_right_a = shift_point(top_a,side,top_half)
+
+      beam_alpha = [[55*brightness,6].max,180].min.round
+      beam_quads = [
+        {alpha:beam_alpha,points:[top_left_a,top_left_b,bottom[1],bottom[0]]},
+        {alpha:beam_alpha,points:[top_right_a,top_right_b,bottom[2],bottom[3]]}
+      ]
+
+      {levels:levels,beam_quads:beam_quads}
     end
 
     def ensure_material(model,name,color,alpha)
@@ -295,14 +379,18 @@ module TranTuanNoiThat
       material
     end
 
-    def add_led_simulation(world_rect,target_tr,analysis,plan,opts)
+    def add_led_simulation(world_rect,target_tr,_analysis,_plan,opts)
       return nil unless opts['simulate']
       model = Sketchup.active_model
       group = model.active_entities.add_group
       group.name = "TT_LED_MO_PHONG_#{opts['name']}"
+      group.layer = ensure_tag(model,'TT_LED_MO_PHONG')
       group.set_attribute(KEY,'role','led_simulation')
       group.set_attribute(KEY,'host_id',entity_reference_id(target_tr[:target]))
       group.set_attribute(KEY,'led_color',opts['led_color'])
+      group.set_attribute(KEY,'brightness_percent',opts['brightness'])
+      group.set_attribute(KEY,'light_distance_mm',opts['light_distance'])
+      group.set_attribute(KEY,'light_spread_mm',opts['light_spread'])
 
       active_inv = begin
         model.edit_transform.inverse
@@ -310,18 +398,32 @@ module TranTuanNoiThat
         Geom::Transformation.new
       end
 
-      bands = [
-        [1.0,0.8,0.95],
-        [2.6,1.0,0.34],
-        [5.0,1.2,0.14]
-      ]
-      bands.each_with_index do |(scale,offset_mm,alpha),index|
-        local = local_rect(analysis,plan,offset_mm,scale)
-        world = local.map { |point| point.transform(target_tr[:transform]) }
-        active_points = world.map { |point| point.transform(active_inv) }
-        face = group.entities.add_face(active_points)
+      geometry = light_geometry(world_rect,opts)
+      geometry[:beam_quads].each_with_index do |beam,index|
+        pts = beam[:points].map { |point| point.transform(active_inv) }
+        face = group.entities.add_face(pts)
         next unless face
-        mat = ensure_material(model,"TT_LED_#{opts['led_color'].delete_prefix('#')}_#{index}",color_from_hex(opts['led_color']),alpha)
+        mat = ensure_material(
+          model,
+          "TT_LED_BEAM_#{opts['led_color'].delete_prefix('#')}_#{index}_#{beam[:alpha]}",
+          color_from_hex(opts['led_color']),
+          beam[:alpha]/255.0
+        )
+        face.material = mat
+        face.back_material = mat if face.respond_to?(:back_material=)
+        face.edges.each { |edge| edge.hidden = true if edge.respond_to?(:hidden=) }
+      end
+
+      geometry[:levels].each_with_index do |level,index|
+        pts = level[:rect].map { |point| point.transform(active_inv) }
+        face = group.entities.add_face(pts)
+        next unless face
+        mat = ensure_material(
+          model,
+          "TT_LED_GLOW_#{opts['led_color'].delete_prefix('#')}_#{index}_#{level[:alpha]}",
+          color_from_hex(opts['led_color']),
+          level[:alpha]/255.0
+        )
         face.material = mat
         face.back_material = mat if face.respond_to?(:back_material=)
         face.edges.each { |edge| edge.hidden = true if edge.respond_to?(:hidden=) }
@@ -379,6 +481,9 @@ module TranTuanNoiThat
             <label>Độ rộng rãnh LED</label><input id="groove_width" type="number" min="0.5" step="0.5"><span>mm</span>
             <label>Chiều dài rãnh</label><input id="groove_length" type="number" min="0" step="1"><span>mm</span>
             <label>Màu LED mô phỏng</label><input id="led_color" type="color"><span></span>
+            <label>Độ sáng LED</label><input id="brightness" type="range" min="0" max="200" step="5"><span id="brightness_value">100%</span>
+            <label>Khoảng chiếu xuống</label><input id="light_distance" type="range" min="0" max="500" step="5"><span id="light_distance_value">80mm</span>
+            <label>Độ loang ánh sáng</label><input id="light_spread" type="range" min="0" max="200" step="5"><span id="light_spread_value">40mm</span>
             <label>Mô phỏng ánh sáng</label><input id="simulate" type="checkbox"><span></span>
             <label>Chế độ CNC</label><input id="cnc" type="checkbox"><span></span>
             <label>Tên CNC / Tag ABF</label><input id="cnc_tag"><span></span>
@@ -386,21 +491,26 @@ module TranTuanNoiThat
           <div class="hint" style="margin-top:7px"><b>Chiều dài = 0</b> → AUTO lấy chiều dài mặt trừ Cách 2 đầu. Rê chuột gần mép nào thì rãnh tự bám mép đó.</div>
           <div class="row"><button onclick="apply()">CẬP NHẬT PREVIEW</button></div>
           <div id="notice"></div>
-          <div class="hint" style="margin-top:9px"><b>CNC:</b> tạo loop 4 Edge kín thật nằm trong chính Group/Component. <b>Group + Tag mặc định ABF_RANHLED</b> (đổi tên được), có <code>ABF/is-cutting-lines=true</code> và mặt được đánh dấu <code>ABF/is-cnced-face</code> để ABF/Aspire nhận đường gia công.</div>
+          <div class="hint" style="margin-top:9px"><b>CNC:</b> 4 Edge kín thật được tạo <b>trực tiếp vào Face/hình học của Group/Component</b>, không tạo Group CNC con. Edge mang Tag mặc định <b>ABF_RANHLED</b> (đổi tên được), có <code>ABF/is-cutting-lines=true</code>. Mô phỏng ánh sáng là lớp riêng và không làm bẩn dữ liệu CNC.</div>
         </div>
       </div>
       <script>
-      const ids=['name','end_clearance','edge_offset','groove_width','groove_length','led_color','simulate','cnc','cnc_tag'];let selected='';
+      const ids=['name','end_clearance','edge_offset','groove_width','groove_length','led_color','brightness','light_distance','light_spread','simulate','cnc','cnc_tag'];let selected='';
       const TTLED={
         state:{},
         load(data){this.state=data||{};selected=data.selected||'';this.renderPresets(data.presets||{});this.fill(data.settings||{});},
-        fill(s){ids.forEach(id=>{let e=document.getElementById(id);if(!e)return;if(e.type==='checkbox')e.checked=!!s[id];else if(s[id]!==undefined)e.value=s[id]});},
-        values(){let o={};ids.forEach(id=>{let e=document.getElementById(id);o[id]=e.type==='checkbox'?e.checked:(e.type==='number'?Number(e.value):e.value)});return o;},
+        fill(s){ids.forEach(id=>{let e=document.getElementById(id);if(!e)return;if(e.type==='checkbox')e.checked=!!s[id];else if(s[id]!==undefined)e.value=s[id]});syncRanges();},
+        values(){let o={};ids.forEach(id=>{let e=document.getElementById(id);o[id]=e.type==='checkbox'?e.checked:((e.type==='number'||e.type==='range')?Number(e.value):e.value)});return o;},
         renderPresets(rows){let box=document.getElementById('presets');box.innerHTML='';Object.keys(rows).sort().forEach(name=>{let b=document.createElement('button');b.className='preset'+(name===selected?' active':'');b.textContent=name;b.onclick=()=>{selected=name;sketchup.load_preset(name)};box.appendChild(b)})},
         detected(info){target.textContent=info.target||'Chưa nhận';dims.textContent=info.length?Math.round(info.length*10)/10+' × '+Math.round(info.width*10)/10+' mm':'-';groove.textContent=info.groove_length?Math.round(info.groove_length*10)/10+' × '+Math.round(info.groove_width*10)/10+' mm':'-';},
         notice(msg,bad){let n=document.getElementById('notice');n.textContent=msg||'';n.className=bad?'err':'ok'}
       };
-      function apply(){sketchup.update(JSON.stringify(TTLED.values()))}
+      function syncRanges(){
+        brightness_value.textContent=Math.round(Number(brightness.value)||0)+'%';
+        light_distance_value.textContent=Math.round(Number(light_distance.value)||0)+'mm';
+        light_spread_value.textContent=Math.round(Number(light_spread.value)||0)+'mm';
+      }
+      function apply(){syncRanges();sketchup.update(JSON.stringify(TTLED.values()))}
       function savePreset(){let v=TTLED.values();sketchup.save_preset(v.name||'LED',JSON.stringify(v))}
       function deletePreset(){if(!selected){TTLED.notice('Chưa chọn mẫu để xóa.',true);return}sketchup.delete_preset(selected)}
       let timer=null;ids.forEach(id=>document.addEventListener('DOMContentLoaded',()=>{let e=document.getElementById(id);if(!e)return;e.addEventListener('input',()=>{clearTimeout(timer);timer=setTimeout(apply,180)});e.addEventListener('change',apply)}));
@@ -531,17 +641,21 @@ module TranTuanNoiThat
       def draw(view)
         return unless @analysis && @plan && @target
         base = preview_world_rect(0.45,1.0)
-        glow1 = preview_world_rect(0.7,2.6)
-        glow2 = preview_world_rect(0.9,5.0)
+        brightness_alpha = [[(230*@options['brightness']/100.0).round,30].max,255].min
         view.line_width = 2
-        view.drawing_color = LedTool.color_from_hex(@options['led_color'],230)
+        view.drawing_color = LedTool.color_from_hex(@options['led_color'],brightness_alpha)
         view.draw(GL_QUADS,base) if defined?(GL_QUADS)
         view.draw(GL_LINE_LOOP,base)
         if @options['simulate'] && defined?(GL_QUADS)
-          view.drawing_color = LedTool.color_from_hex(@options['led_color'],75)
-          view.draw(GL_QUADS,glow1)
-          view.drawing_color = LedTool.color_from_hex(@options['led_color'],35)
-          view.draw(GL_QUADS,glow2)
+          light = LedTool.light_geometry(base,@options)
+          light[:beam_quads].each do |beam|
+            view.drawing_color = LedTool.color_from_hex(@options['led_color'],beam[:alpha])
+            view.draw(GL_QUADS,beam[:points])
+          end
+          light[:levels].each do |level|
+            view.drawing_color = LedTool.color_from_hex(@options['led_color'],level[:alpha])
+            view.draw(GL_QUADS,level[:rect])
+          end
         end
         if view.respond_to?(:draw_text)
           center = base[0].vector_to(base[2])
@@ -666,6 +780,9 @@ module TranTuanNoiThat
         target.set_attribute(KEY,'groove_width_mm',@options['groove_width'])
         target.set_attribute(KEY,'groove_length_mm',@plan[:length])
         target.set_attribute(KEY,'led_color',@options['led_color'])
+        target.set_attribute(KEY,'brightness_percent',@options['brightness'])
+        target.set_attribute(KEY,'light_distance_mm',@options['light_distance'])
+        target.set_attribute(KEY,'light_spread_mm',@options['light_spread'])
         target.set_attribute(KEY,'cnc_enabled',@options['cnc'])
         model.commit_operation
         started = false
