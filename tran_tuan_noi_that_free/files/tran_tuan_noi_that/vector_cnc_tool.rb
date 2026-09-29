@@ -931,6 +931,31 @@ module TranTuanNoiThat
       rescue StandardError => e
         UI.messagebox("TẠO TẤM CNC: #{e.message}")
       end
+      dlg.add_action_callback('create_screen') do |_ctx,id,panel_length,panel_width,panel_thickness,panel_name,panel_orientation,screen_mode,frame_width,rows,cols,gap_x,gap_y,preserve_ratio,depth,smoothness,cut_mode|
+        item = library.find { |row| row['id'].to_s == id.to_s }
+        raise 'Chưa chọn mẫu vector.' unless item
+        panel = {
+          'length'=>panel_length.to_f,
+          'width'=>panel_width.to_f,
+          'thickness'=>panel_thickness.to_f,
+          'name'=>panel_name.to_s.empty? ? 'VACH_CNC' : panel_name.to_s,
+          'orientation'=>panel_orientation.to_s
+        }
+        cnc = cnc_settings(item['width'],item['height'],depth.to_f,0,0,0,smoothness.to_i,'center',cut_mode.to_s)
+        screen = {
+          'mode'=>screen_mode.to_s,
+          'frame_width'=>frame_width.to_f,
+          'rows'=>rows.to_i,
+          'cols'=>cols.to_i,
+          'gap_x'=>gap_x.to_f,
+          'gap_y'=>gap_y.to_f,
+          'preserve_ratio'=>preserve_ratio == true || preserve_ratio.to_s == 'true'
+        }
+        create_screen_panel(item,panel,cnc,screen)
+        send_target_info(selected_target_info)
+      rescue StandardError => e
+        UI.messagebox("TẠO VÁCH CNC: #{e.message}")
+      end
       dlg.add_action_callback('start') do |_ctx,id,w,h,depth,offset_x,offset_y,border_width,smoothness,anchor,cut_mode|
         item = library.find { |row| row['id'].to_s == id.to_s }
         raise 'Chưa chọn mẫu vector.' unless item
@@ -998,7 +1023,8 @@ module TranTuanNoiThat
       .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
       label{font-size:13px}input,select{padding:7px;border:1px solid #bbb;border-radius:5px;width:92px;background:#fff}
       select{width:145px}#name{width:180px}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
-      button.card{min-height:54px;background:#fff;border:2px solid #ddd;border-radius:7px;cursor:pointer}
+      button.card{min-height:88px;background:#fff;border:2px solid #ddd;border-radius:7px;cursor:pointer;padding:5px}
+      button.card canvas{display:block;width:100%;height:54px;background:#fafafa;border-radius:4px;margin-bottom:3px}
       button.card.active{border-color:#c56b20;background:#fff3e8}
       button.action{padding:9px 12px;border:0;border-radius:6px;background:#c56b20;color:#fff;font-weight:700;cursor:pointer}
       button.apply{width:100%;font-size:15px;padding:12px;background:#186a3b;margin-top:9px}
@@ -1039,6 +1065,30 @@ module TranTuanNoiThat
         </div>
         <button class="action apply" style="background:#b34d00" onclick="createPanel()">TẠO TẤM CNC MỚI</button>
         <small>Không cần đối tượng có sẵn. Tạo một Group tấm thật + biên dạng CNC nằm bên trong, chuẩn ABF, tại gốc model; sau khi tạo tự chọn và zoom tới tấm.</small>
+      </div>
+
+      <div class="panel" style="border:2px solid #b34d00">
+        <div class="title">TẠO VÁCH CNC TỪ MẪU CÓ SẴN</div>
+        <div class="row">
+          <label>Kiểu bố trí
+            <select id="screenMode">
+              <option value="repeat">Lặp mẫu hàng × cột</option>
+              <option value="fit">1 mẫu phủ vùng vách</option>
+            </select>
+          </label>
+          <label>Viền khung <input id="screenFrame" type="number" value="50" min="0"> mm</label>
+          <label><input id="preserveRatio" type="checkbox" checked style="width:auto"> Giữ tỷ lệ mẫu</label>
+        </div>
+        <div class="row" style="margin-top:8px">
+          <label>Hàng <input id="screenRows" type="number" value="3" min="1" max="20"></label>
+          <label>Cột <input id="screenCols" type="number" value="5" min="1" max="20"></label>
+          <label>Khoảng ngang <input id="screenGapX" type="number" value="20" min="0"> mm</label>
+          <label>Khoảng dọc <input id="screenGapY" type="number" value="20" min="0"> mm</label>
+        </div>
+        <canvas id="screenPreview" width="530" height="230" style="width:100%;height:230px;border:1px solid #bbb;border-radius:6px;background:#fafafa;margin-top:9px"></canvas>
+        <div id="screenInfo" style="font-size:12px;margin-top:5px"></div>
+        <button class="action apply" style="background:#8e3d00" onclick="createScreen()">TẠO VÁCH CNC TỪ MẪU ĐANG CHỌN</button>
+        <small>Vách giữ khung viền ngoài. Mỗi hoa văn là một biên dạng <b>_ABF_Intersect</b> nằm trong chính Group vách; vỏ tấm vẫn sạch để ABF nhận tấm.</small>
       </div>
 
       <div class="panel">
@@ -1117,12 +1167,24 @@ module TranTuanNoiThat
       function intval(id){return parseInt(document.getElementById(id).value||'0',10)||0}
       function esc(s){return String(s||'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}
 
+      function drawTemplateThumb(canvas,tpl){
+        let ctx=canvas.getContext('2d'),W=canvas.width,H=canvas.height,pts=tpl.points||[];
+        ctx.clearRect(0,0,W,H);ctx.fillStyle='#fafafa';ctx.fillRect(0,0,W,H);
+        if(!pts.length)return;
+        let xs=pts.map(p=>p[0]),ys=pts.map(p=>p[1]),minX=Math.min(...xs),maxX=Math.max(...xs),minY=Math.min(...ys),maxY=Math.max(...ys);
+        let sx=(W-12)/Math.max(.001,maxX-minX),sy=(H-12)/Math.max(.001,maxY-minY),sc=Math.min(sx,sy),cx=W/2,cy=H/2;
+        ctx.beginPath();
+        pts.forEach((p,i)=>{let x=cx+(p[0]-(minX+maxX)/2)*sc,y=cy-(p[1]-(minY+maxY)/2)*sc;i?ctx.lineTo(x,y):ctx.moveTo(x,y)});
+        ctx.closePath();ctx.strokeStyle='#c2185b';ctx.lineWidth=1.5;ctx.stroke();
+      }
       function renderLibrary(data){
         rows=data;let g=document.getElementById('grid');g.innerHTML='';
         data.forEach(r=>{
           let b=document.createElement('button');
           b.className='card'+(selected===r.id?' active':'');
-          b.textContent=r.label+(r.custom?' ★':'');
+          let cv=document.createElement('canvas');cv.width=120;cv.height=54;
+          let label=document.createElement('div');label.textContent=r.label+(r.custom?' ★':'');
+          b.appendChild(cv);b.appendChild(label);drawTemplateThumb(cv,r);
           b.onclick=()=>{selected=r.id;renderLibrary(rows);window.sketchup.select(r.id)};
           g.appendChild(b)
         });
@@ -1198,6 +1260,42 @@ module TranTuanNoiThat
         return [cx,cy];
       }
 
+      function fitTemplateDims(tpl,maxW,maxH,preserve){
+        if(!preserve)return [maxW,maxH];
+        let pts=tpl&&tpl.points?tpl.points:[[-1,-1],[1,1]];
+        let xs=pts.map(p=>p[0]),ys=pts.map(p=>p[1]),pw=Math.max(.0001,Math.max(...xs)-Math.min(...xs)),ph=Math.max(.0001,Math.max(...ys)-Math.min(...ys)),ratio=pw/ph;
+        return maxW/maxH>ratio?[maxH*ratio,maxH]:[maxW,maxW/ratio];
+      }
+      function screenProfiles(){
+        if(!selectedTemplate)return [];
+        let L=Math.max(1,val('panelLength')),W=Math.max(1,val('panelWidth')),frame=Math.max(0,val('screenFrame'));
+        let innerL=L-frame*2,innerW=W-frame*2;if(innerL<=0||innerW<=0)return [];
+        let mode=document.getElementById('screenMode').value,preserve=document.getElementById('preserveRatio').checked;
+        let pts=previewPoints(),out=[];
+        if(mode==='fit'){
+          let [vw,vh]=fitTemplateDims(selectedTemplate,innerL,innerW,preserve);
+          out.push({cx:L/2,cy:W/2,vw:vw,vh:vh,pts:pts});return out;
+        }
+        let rows=Math.max(1,intval('screenRows')),cols=Math.max(1,intval('screenCols')),gx=Math.max(0,val('screenGapX')),gy=Math.max(0,val('screenGapY'));
+        let cellW=(innerL-gx*(cols-1))/cols,cellH=(innerW-gy*(rows-1))/rows;if(cellW<=0||cellH<=0)return [];
+        let [vw,vh]=fitTemplateDims(selectedTemplate,cellW,cellH,preserve);
+        for(let r=0;r<rows;r++)for(let c=0;c<cols;c++)out.push({cx:frame+cellW/2+c*(cellW+gx),cy:frame+cellH/2+r*(cellH+gy),vw:vw,vh:vh,pts:pts});
+        return out;
+      }
+      function drawScreenPreview(){
+        let c=document.getElementById('screenPreview');if(!c)return;
+        let ctx=c.getContext('2d'),Wc=c.width,Hc=c.height,L=Math.max(1,val('panelLength')),PW=Math.max(1,val('panelWidth')),margin=18,scale=Math.min((Wc-2*margin)/L,(Hc-2*margin)/PW),rw=L*scale,rh=PW*scale,ox=(Wc-rw)/2,oy=(Hc-rh)/2;
+        ctx.clearRect(0,0,Wc,Hc);ctx.fillStyle='#fafafa';ctx.fillRect(0,0,Wc,Hc);ctx.strokeStyle='#333';ctx.lineWidth=2;ctx.strokeRect(ox,oy,rw,rh);
+        let frame=Math.max(0,val('screenFrame'));ctx.strokeStyle='#b34d00';ctx.lineWidth=1;ctx.strokeRect(ox+frame*scale,oy+frame*scale,Math.max(0,(L-2*frame)*scale),Math.max(0,(PW-2*frame)*scale));
+        let profiles=screenProfiles();
+        profiles.forEach(item=>{
+          ctx.beginPath();
+          item.pts.forEach((p,i)=>{let x=ox+(item.cx+p[0]*item.vw/2)*scale,y=oy+(PW-(item.cy+p[1]*item.vh/2))*scale;i?ctx.lineTo(x,y):ctx.moveTo(x,y)});
+          ctx.closePath();ctx.strokeStyle='#c2185b';ctx.lineWidth=1.2;ctx.stroke();
+        });
+        let info=document.getElementById('screenInfo');if(info)info.textContent=selectedTemplate?(selectedTemplate.name+' · '+profiles.length+' biên dạng CNC · khung '+frame+' mm'):'Chọn mẫu vector để xem trước vách CNC.';
+      }
+
       function drawPreview(){
         let c=document.getElementById('preview'),ctx=c.getContext('2d'),W=c.width,H=c.height;
         ctx.clearRect(0,0,W,H);ctx.fillStyle='#fafafa';ctx.fillRect(0,0,W,H);
@@ -1230,12 +1328,28 @@ module TranTuanNoiThat
 
         let extra=' · Viền '+val('borderWidth')+' mm · Mịn '+intval('smoothness');
         document.getElementById('previewInfo').textContent=selectedTemplate?((selectedTemplate.name||'')+' · '+val('w')+' × '+val('h')+' mm'+extra):'Chọn một vector để xem trước.';
+        drawScreenPreview();
       }
 
       function refreshTarget(){window.sketchup.refresh_target()}
       function applySelected(){
         if(!selected){alert('Chưa chọn vector.');return}
         window.sketchup.apply_selected(selected,...currentSettings())
+      }
+      function createScreen(){
+        if(!selected){alert('Chưa chọn mẫu vector để tạo vách CNC.');return}
+        let L=val('panelLength'),W=val('panelWidth'),T=val('panelThickness');
+        if(L<=0||W<=0||T<=0){alert('Dài / Rộng / Dày vách phải lớn hơn 0.');return}
+        window.sketchup.create_screen(
+          selected,L,W,T,
+          document.getElementById('panelName').value||'VACH_CNC',
+          document.getElementById('panelOrientation').value,
+          document.getElementById('screenMode').value,
+          val('screenFrame'),intval('screenRows'),intval('screenCols'),
+          val('screenGapX'),val('screenGapY'),
+          document.getElementById('preserveRatio').checked,
+          val('depth'),intval('smoothness'),document.getElementById('cutMode').value
+        )
       }
       function createPanel(){
         if(!selected){alert('Chưa chọn vector mẫu để tạo tấm CNC.');return}
@@ -1256,12 +1370,12 @@ module TranTuanNoiThat
       function importVector(){window.sketchup.import()}
 
       document.addEventListener('DOMContentLoaded',()=>{
-        ['w','h','depth','offsetX','offsetY','borderWidth','smoothness','cutMode','panelLength','panelWidth','panelThickness','panelOrientation'].forEach(id=>{
+        ['w','h','depth','offsetX','offsetY','borderWidth','smoothness','cutMode','panelLength','panelWidth','panelThickness','panelOrientation','screenMode','screenFrame','screenRows','screenCols','screenGapX','screenGapY','preserveRatio'].forEach(id=>{
           let el=document.getElementById(id);el.addEventListener('input',pushSettings);el.addEventListener('change',pushSettings)
         });
         setAnchor('center');
         let boot=document.getElementById('bootStatus');
-        if(boot)boot.textContent='VECTOR CNC UI sẵn sàng · '+"1.2.0";
+        if(boot)boot.textContent='VECTOR CNC UI sẵn sàng · '+"1.3.0";
         window.sketchup.ready();
       })
       </script></body></html>
