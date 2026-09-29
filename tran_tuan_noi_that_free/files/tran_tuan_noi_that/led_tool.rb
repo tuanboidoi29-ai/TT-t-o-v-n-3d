@@ -471,7 +471,7 @@ module TranTuanNoiThat
           model,
           "TT_LED_CORE_#{opts['led_color'].delete_prefix('#')}",
           color_from_hex(opts['led_color']),
-          [[opts['brightness']/120.0,0.15].max,1.0].min
+          [[opts['brightness']/100.0,0.0].max,1.0].min
         )
         core_face.material = core_mat
         core_face.back_material = core_mat if core_face.respond_to?(:back_material=)
@@ -551,7 +551,7 @@ module TranTuanNoiThat
             <label>Khoảng cách giữa</label><input id="spacing" type="number" min="0" step="1"><span>mm</span>
             <label>Màu LED mô phỏng</label><input id="led_color" type="color"><span></span>
             <label>Độ sáng LED</label><input id="brightness" type="range" min="0" max="200" step="5"><span id="brightness_value">100%</span>
-            <label>Khoảng chiếu xuống</label><input id="light_distance" type="range" min="0" max="500" step="5"><span id="light_distance_value">80mm</span>
+            <label>Khoảng hắt sáng</label><input id="light_distance" type="range" min="0" max="500" step="5"><span id="light_distance_value">80mm</span>
             <label>Độ loang ánh sáng</label><input id="light_spread" type="range" min="0" max="200" step="5"><span id="light_spread_value">40mm</span>
             <label>Mô phỏng ánh sáng</label><input id="simulate" type="checkbox"><span></span>
             <label>Chế độ CNC</label><input id="cnc" type="checkbox"><span></span>
@@ -727,6 +727,7 @@ module TranTuanNoiThat
         @model.active_view.invalidate
       rescue StandardError => error
         @plan = nil
+        @plans = []
         LedTool.send_detected(error:error.message)
       end
 
@@ -749,7 +750,7 @@ module TranTuanNoiThat
 
       def draw(view)
         return unless @analysis && @plan && @target && @plans && !@plans.empty?
-        brightness_alpha = [[(230*@options['brightness']/100.0).round,20].max,255].min
+        brightness_alpha = [[(230*@options['brightness']/100.0).round,0].max,255].min
         @plans.each_with_index do |plan,index|
           base = preview_world_rect(plan,0.55,1.0)
           view.line_width = 2
