@@ -1056,6 +1056,14 @@ module TranTuanNoiThat
       dlg.add_action_callback('refresh_target') do |_ctx|
         send_target_info(selected_target_info)
       end
+      dlg.add_action_callback('save_image_template') do |_ctx,name,source_name,loops_json|
+        loops = JSON.parse(loops_json.to_s)
+        saved = save_image_template(name,loops,source_name)
+        send_library
+        @dialog.execute_script("selectSavedImageTemplate(#{JSON.generate(saved['id'])})") if @dialog
+      rescue StandardError => e
+        UI.messagebox("ẢNH CNC: #{e.message}")
+      end
       dlg.add_action_callback('apply_selected') do |_ctx,id,w,h,depth,offset_x,offset_y,border_width,smoothness,anchor,cut_mode|
         item = library.find { |row| row['id'].to_s == id.to_s }
         raise 'Chưa chọn mẫu vector.' unless item
