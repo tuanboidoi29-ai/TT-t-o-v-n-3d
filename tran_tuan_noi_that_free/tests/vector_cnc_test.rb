@@ -403,6 +403,13 @@ check('VECTOR CNC HtmlDialog has non-blank static UI and apply controls') do
   assert(html.include?('AUTO theo nền ảnh'))
   assert(html.include?('Đục khoảng trắng bên trong'))
   assert(html.include?('Đục vùng màu / tối'))
+  assert(html.include?('Tự động xóa nền'))
+  assert(html.include?('imageRemoveBg'))
+  assert(html.include?('imageBgTolerance'))
+  assert(html.include?('imageBgPreview'))
+  assert(html.include?('dominantBorderColor'))
+  assert(html.include?('buildForegroundMask'))
+  assert(html.include?('ĐÃ XÓA NỀN'))
   assert(html.include?('ĐỤC THỦNG THẬT'))
   assert(html.include?('VÙNG ĐỤC THỦNG'))
   V.ensure_data
