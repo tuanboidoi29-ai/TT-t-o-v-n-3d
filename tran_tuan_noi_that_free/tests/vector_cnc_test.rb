@@ -304,7 +304,8 @@ end
 check('VECTOR CNC HtmlDialog has non-blank static UI and apply controls') do
   html=V.dialog_html
   assert(html.length>5000)
-  assert(html.include?('VECTOR CNC UI đã nạp'))
+  assert(html.include?('VECTOR CNC / ẢNH CNC UI đã nạp'))
+  assert(html.include?('TT – VECTOR CNC / ẢNH CNC'))
   assert(html.include?('ÁP DỤNG VECTOR VÀO KHỐI ĐANG CHỌN'))
   assert(html.include?('borderWidth'))
   assert(html.include?('smoothness'))
