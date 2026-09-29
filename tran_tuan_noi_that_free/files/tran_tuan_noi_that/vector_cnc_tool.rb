@@ -8,7 +8,7 @@ module TranTuanNoiThat
   module VectorCNC
     extend self
 
-    VERSION = '1.3.3'.freeze
+    VERSION = '1.4.0'.freeze
     KEY = 'TT_VECTOR_CNC'.freeze
     DATA_DIR = File.join(TranTuanNoiThat::ROOT, 'data', 'vector_cnc').freeze
     LIBRARY_FILE = File.join(DATA_DIR, 'library.json').freeze
@@ -157,6 +157,29 @@ module TranTuanNoiThat
       pts.map { |x,y| [(x-cx)/(w/2.0), (y-cy)/(h/2.0)] }
     end
 
+    def normalize_loops_unit(loops)
+      clean = Array(loops).map do |loop|
+        Array(loop).map { |point| [Float(point[0]),Float(point[1])] }
+      end.select { |loop| loop.length >= 3 }
+      raise 'Ảnh chưa tạo được vùng kín hợp lệ.' if clean.empty?
+      total_points = clean.sum(&:length)
+      raise "Ảnh có quá nhiều điểm vector (#{total_points}). Hãy tăng Làm mịn/Đơn giản hóa." if total_points > 12_000
+
+      all = clean.flatten(1)
+      min_x,max_x = all.map(&:first).minmax
+      min_y,max_y = all.map(&:last).minmax
+      width = max_x-min_x
+      height = max_y-min_y
+      raise 'Biên dạng ảnh có kích thước bằng 0.' if width.abs < 1.0e-9 || height.abs < 1.0e-9
+      cx = (min_x+max_x)/2.0
+      cy = (min_y+max_y)/2.0
+      clean.map do |loop|
+        normalized = loop.map { |x,y| [(x-cx)/(width/2.0),(y-cy)/(height/2.0)] }
+        normalized.reverse! if polygon_area(normalized) < 0
+        normalized
+      end
+    end
+
     def polygon_area(points)
       points.each_with_index.sum do |p,i|
         q = points[(i+1)%points.length]
@@ -165,17 +188,28 @@ module TranTuanNoiThat
     end
 
     def sanitize_template(template)
-      points = normalize_unit(template['points'] || template[:points])
-      points.reverse! if polygon_area(points) < 0
-      {
+      raw_loops = template['loops'] || template[:loops]
+      loops = if raw_loops && !Array(raw_loops).empty?
+        normalize_loops_unit(raw_loops)
+      else
+        points = normalize_unit(template['points'] || template[:points])
+        points.reverse! if polygon_area(points) < 0
+        [points]
+      end
+      primary = loops.max_by { |loop| polygon_area(loop).abs }
+      item = {
         'id'=>(template['id'] || template[:id] || "custom_#{Time.now.to_i}").to_s,
         'name'=>abf_name(template['name'] || template[:name] || 'VECTOR'),
         'label'=>(template['label'] || template[:label] || template['name'] || 'Vector').to_s,
-        'points'=>points,
+        'points'=>primary,
+        'loops'=>loops,
         'width'=>[(template['width'] || template[:width] || DEFAULT_SIZE).to_f,0.1].max,
         'height'=>[(template['height'] || template[:height] || DEFAULT_SIZE).to_f,0.1].max,
         'builtin'=>false
       }
+      item['source_type'] = (template['source_type'] || template[:source_type]).to_s unless (template['source_type'] || template[:source_type]).to_s.empty?
+      item['source_name'] = (template['source_name'] || template[:source_name]).to_s unless (template['source_name'] || template[:source_name]).to_s.empty?
+      item
     end
 
     def save_custom(template, requested_name)
@@ -185,6 +219,27 @@ module TranTuanNoiThat
       rows = custom_templates.reject { |row| row['id'].to_s == item['id'] || row['name'].to_s == item['name'] }
       rows << item
       File.write(LIBRARY_FILE, JSON.pretty_generate(rows), encoding: 'UTF-8')
+      item
+    end
+
+    def save_image_template(name,loops,source_name = nil)
+      requested = name.to_s.strip
+      requested = File.basename(source_name.to_s,'.*') if requested.empty? && !source_name.to_s.empty?
+      requested = 'ANH_CNC' if requested.empty?
+      item = sanitize_template(
+        'id'=>"image_#{slug(requested)}",
+        'name'=>abf_name(requested),
+        'label'=>requested,
+        'loops'=>loops,
+        'width'=>DEFAULT_SIZE,
+        'height'=>DEFAULT_SIZE,
+        'source_type'=>'image',
+        'source_name'=>source_name.to_s
+      )
+      rows = custom_templates.reject { |row| row['id'].to_s == item['id'] || row['name'].to_s == item['name'] }
+      rows << item
+      ensure_data
+      File.write(LIBRARY_FILE,JSON.pretty_generate(rows),encoding:'UTF-8')
       item
     end
 
@@ -216,6 +271,25 @@ module TranTuanNoiThat
       sx = width.to_f / 2.0
       sy = height.to_f / 2.0
       unit.map { |x,y| [x.to_f*sx, y.to_f*sy] }
+    end
+
+    def template_loops(template, smoothness = nil)
+      id = template['id'].to_s
+      if id == 'circle' || id == 'oval'
+        [points_for_template(template,smoothness)]
+      elsif template['loops'].is_a?(Array) && !template['loops'].empty?
+        template['loops']
+      else
+        [template['points']]
+      end
+    end
+
+    def scaled_loops(template,width,height,smoothness = nil)
+      sx = width.to_f/2.0
+      sy = height.to_f/2.0
+      template_loops(template,smoothness).map do |loop|
+        loop.map { |x,y| [x.to_f*sx,y.to_f*sy] }
+      end
     end
 
     def parse_svg_length(value)
@@ -469,7 +543,7 @@ module TranTuanNoiThat
     def fit_template_size(template,max_width,max_height,preserve_ratio = true)
       raise 'Vùng tạo hoa văn quá nhỏ.' unless max_width.to_f > 0 && max_height.to_f > 0
       if preserve_ratio
-        unit = points_for_template(template,72)
+        unit = template_loops(template,72).flatten(1)
         min_x,max_x = unit.map(&:first).minmax
         min_y,max_y = unit.map(&:last).minmax
         ratio = (max_x-min_x).abs / [(max_y-min_y).abs,1.0e-9].max
@@ -518,8 +592,10 @@ module TranTuanNoiThat
         vw,vh = fit_template_size(tpl,inner_length,inner_width,preserve)
         cx = length/2.0
         cy = width/2.0
-        points = scaled_points(tpl,vw,vh,cfg['smoothness']).map { |x,y| [cx+x,cy+y] }
-        profiles << {row: 0,col: 0,center:[cx,cy],width:vw,height:vh,points:points}
+        scaled_loops(tpl,vw,vh,cfg['smoothness']).each_with_index do |loop,loop_index|
+          points = loop.map { |x,y| [cx+x,cy+y] }
+          profiles << {row:0,col:0,loop_index:loop_index,center:[cx,cy],width:vw,height:vh,points:points}
+        end
       else
         raise 'Khoảng cách ngang quá lớn.' if gap_x*(cols-1) >= inner_length
         raise 'Khoảng cách dọc quá lớn.' if gap_y*(rows-1) >= inner_width
@@ -531,8 +607,10 @@ module TranTuanNoiThat
           cols.times do |c|
             cx = frame + cell_w/2.0 + c*(cell_w+gap_x)
             cy = frame + cell_h/2.0 + r*(cell_h+gap_y)
-            points = scaled_points(tpl,vw,vh,cfg['smoothness']).map { |x,y| [cx+x,cy+y] }
-            profiles << {row:r,col:c,center:[cx,cy],width:vw,height:vh,points:points}
+            scaled_loops(tpl,vw,vh,cfg['smoothness']).each_with_index do |loop,loop_index|
+              points = loop.map { |x,y| [cx+x,cy+y] }
+              profiles << {row:r,col:c,loop_index:loop_index,center:[cx,cy],width:vw,height:vh,points:points}
+            end
           end
         end
       end
@@ -802,6 +880,7 @@ module TranTuanNoiThat
         profile.set_attribute(KEY,'screen_index',index)
         profile.set_attribute(KEY,'row',item[:row])
         profile.set_attribute(KEY,'col',item[:col])
+        profile.set_attribute(KEY,'loop_index',item[:loop_index].to_i)
         profile.set_attribute(KEY,'width_mm',item[:width])
         profile.set_attribute(KEY,'height_mm',item[:height])
         profile.set_attribute(KEY,'depth_mm',cfg['depth'])
