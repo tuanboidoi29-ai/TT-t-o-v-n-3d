@@ -94,7 +94,7 @@ check('Tạo LED UI contains preset and live preview controls') do
   assert(html.include?('Chiều dài rãnh'))
   assert(html.include?('Màu LED mô phỏng'))
   assert(html.include?('Độ sáng LED'))
-  assert(html.include?('Khoảng chiếu xuống'))
+  assert(html.include?('Khoảng hắt sáng'))
   assert(html.include?('Độ loang ánh sáng'))
   assert(html.include?('Số lượng rãnh'))
   assert(html.include?('Khoảng cách giữa'))
