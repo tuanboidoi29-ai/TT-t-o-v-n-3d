@@ -17,7 +17,7 @@ module TranTuanNoiThat
   }.freeze unless const_defined?(:LOCKED_FEATURE_BASELINES, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.179'.freeze
+  VERSION = '1.9.180'.freeze
 
   class << self
     def setting(key, default = nil)
@@ -114,7 +114,6 @@ module TranTuanNoiThat
         bao_gia_tool
         scale_corner_lock
         slat_wall_tool
-        vector_cnc_tool
         box_tool
         drawer_tool
         round_tool
@@ -203,9 +202,34 @@ module TranTuanNoiThat
       true
     end
 
+    def cleanup_retired_vector_image_cnc
+      begin
+        FileUtils.rm_f(File.join(ROOT, 'vector_cnc_tool.rb'))
+        FileUtils.rm_f(File.join(ROOT, 'icons', 'vector_cnc.svg'))
+        FileUtils.rm_rf(File.join(ROOT, 'data', 'vector_cnc'))
+
+        if const_defined?(:VectorCNC, false)
+          runtime = const_get(:VectorCNC)
+          dialog = runtime.instance_variable_get(:@dialog) if runtime.respond_to?(:instance_variable_get)
+          dialog.close if dialog
+          remove_const(:VectorCNC)
+        end
+
+        if instance_variable_defined?(:@vector_cnc_cmd) && @vector_cnc_cmd
+          @vector_cnc_cmd.tooltip = 'Chức năng CNC ảnh đã gỡ'
+          @vector_cnc_cmd.status_bar_text = 'VECTOR CNC / ẢNH CNC đã được xóa. Mở lại SketchUp để toolbar làm sạch hoàn toàn.'
+          @vector_cnc_cmd.set_validation_proc { MF_GRAYED }
+        end
+      rescue StandardError => error
+        puts "[TT cleanup retired vector/image CNC] #{error.class}: #{error.message}"
+      end
+      true
+    end
+
     def install_ui
       cleanup_retired_library
       cleanup_retired_cabinet_door
+      cleanup_retired_vector_image_cnc
       unless @ui_installed
         @ui_installed = true
         @main_menu = UI.menu('Extensions').add_submenu(NAME)
@@ -228,7 +252,6 @@ module TranTuanNoiThat
       install_bao_gia_ui
       install_scale_corner_lock_ui
       install_slat_wall_ui
-      install_vector_cnc_ui
       install_round_ui
       install_stretch_mode_ui
       install_grain_ui
@@ -351,20 +374,6 @@ module TranTuanNoiThat
         'Hai góc chéo · SHIFT lam đơn/có lót · TAB thông số · chia khổ ván · biên dạng CNC') { SlatWall.activate }
       add_feature_command_once(@slat_wall_cmd, :slat_wall_menu_installed)
       true
-    end
-
-    def install_vector_cnc_ui
-      return false unless defined?(TranTuanNoiThat::VectorCNC)
-      @vector_cnc_cmd ||= command(
-        'TT - VECTOR CNC / ẢNH CNC',
-        'vector_cnc.svg',
-        'VECTOR CNC / ẢNH CNC · thư viện mẫu · tạo tấm/vách CNC đục thủng · ABF/Aspire'
-      ) { VectorCNC.show }
-      add_feature_command_once(@vector_cnc_cmd, :vector_cnc_menu_installed)
-      true
-    rescue StandardError => error
-      puts "[TT UI VectorCNC] #{error.class}: #{error.message}"
-      false
     end
 
     def install_round_ui
