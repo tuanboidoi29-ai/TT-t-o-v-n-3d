@@ -659,9 +659,13 @@ module TranTuanNoiThat
         vw,vh = fit_template_size(tpl,inner_length,inner_width,preserve)
         cx = length/2.0
         cy = width/2.0
-        scaled_loops(tpl,vw,vh,cfg['smoothness']).each_with_index do |loop,loop_index|
-          points = loop.map { |x,y| [cx+x,cy+y] }
-          profiles << {row:0,col:0,loop_index:loop_index,center:[cx,cy],width:vw,height:vh,points:points}
+        scaled_regions(tpl,vw,vh,cfg['smoothness']).each_with_index do |region,region_index|
+          outer = region['outer'].map { |x,y| [cx+x,cy+y] }
+          holes = region['holes'].map { |hole| hole.map { |x,y| [cx+x,cy+y] } }
+          profiles << {
+            row:0,col:0,region_index:region_index,center:[cx,cy],
+            width:vw,height:vh,outer:outer,holes:holes,points:outer
+          }
         end
       else
         raise 'Khoảng cách ngang quá lớn.' if gap_x*(cols-1) >= inner_length
@@ -674,9 +678,13 @@ module TranTuanNoiThat
           cols.times do |c|
             cx = frame + cell_w/2.0 + c*(cell_w+gap_x)
             cy = frame + cell_h/2.0 + r*(cell_h+gap_y)
-            scaled_loops(tpl,vw,vh,cfg['smoothness']).each_with_index do |loop,loop_index|
-              points = loop.map { |x,y| [cx+x,cy+y] }
-              profiles << {row:r,col:c,loop_index:loop_index,center:[cx,cy],width:vw,height:vh,points:points}
+            scaled_regions(tpl,vw,vh,cfg['smoothness']).each_with_index do |region,region_index|
+              outer = region['outer'].map { |x,y| [cx+x,cy+y] }
+              holes = region['holes'].map { |hole| hole.map { |x,y| [cx+x,cy+y] } }
+              profiles << {
+                row:r,col:c,region_index:region_index,center:[cx,cy],
+                width:vw,height:vh,outer:outer,holes:holes,points:outer
+              }
             end
           end
         end
@@ -705,11 +713,12 @@ module TranTuanNoiThat
       end.abs / 2.0
     end
 
-    def cleanup_through_cap(entities,points_2d,z_value = 0.0)
+    def cleanup_through_cap(entities,points_2d,holes_2d = [],z_value = 0.0)
       return false if points_2d.length < 3
       min_x,max_x = points_2d.map { |p| p[0].to_f }.minmax
       min_y,max_y = points_2d.map { |p| p[1].to_f }.minmax
-      target_area = polygon_area_mm2(points_2d) / (25.4 * 25.4)
+      area_mm2 = polygon_area_mm2(points_2d) - Array(holes_2d).sum { |hole| polygon_area_mm2(hole) }
+      target_area = area_mm2 / (25.4 * 25.4)
       eps = 0.05.mm
 
       candidates = entities.grep(Sketchup::Face).select do |face|
@@ -731,26 +740,47 @@ module TranTuanNoiThat
       false
     end
 
-    def punch_through_profile(entities,points_2d,thickness,layer0 = nil)
-      raise 'Biên dạng đục thủng cần ít nhất 3 điểm.' if points_2d.length < 3
+    def face_with_holes(entities,outer_points,hole_sets,layer = nil)
+      face = entities.add_face(outer_points)
+      raise 'Không tạo được Face biên ngoài CNC.' unless face && face.valid?
+      face.reverse! if face.respond_to?(:normal) && face.normal.z.to_f < 0
+      face.layer = layer if layer && face.respond_to?(:layer=)
+      face.edges.each { |edge| edge.layer = layer if layer && edge.respond_to?(:layer=) }
+
+      Array(hole_sets).each do |hole_points|
+        next if hole_points.length < 3
+        inner = entities.add_face(hole_points)
+        next unless inner && inner.valid?
+        inner.layer = layer if layer && inner.respond_to?(:layer=)
+        inner.edges.each { |edge| edge.layer = layer if layer && edge.respond_to?(:layer=) }
+        entities.erase_entities(inner)
+      end
+      face
+    end
+
+    def punch_through_region(entities,outer_2d,holes_2d,thickness,layer0 = nil)
+      raise 'Biên dạng đục thủng cần ít nhất 3 điểm.' if outer_2d.length < 3
       t = thickness.to_f.mm
       raise 'Dày tấm phải lớn hơn 0 để đục thủng.' unless t > 0
 
-      front_points = points_2d.map { |x,y| Geom::Point3d.new(x.to_f.mm,y.to_f.mm,t) }
-      cut_face = entities.add_face(front_points)
-      raise 'Không tạo được Face đục thủng theo biên dạng vector.' unless cut_face && cut_face.valid?
-      cut_face.reverse! if cut_face.normal.z.to_f < 0
-      cut_face.layer = layer0 if layer0 && cut_face.respond_to?(:layer=)
-      cut_face.edges.each { |edge| edge.layer = layer0 if layer0 && edge.respond_to?(:layer=) }
+      front_outer = outer_2d.map { |x,y| Geom::Point3d.new(x.to_f.mm,y.to_f.mm,t) }
+      front_holes = Array(holes_2d).map do |hole|
+        hole.map { |x,y| Geom::Point3d.new(x.to_f.mm,y.to_f.mm,t) }
+      end
+      cut_face = face_with_holes(entities,front_outer,front_holes,layer0)
       cut_face.set_attribute(KEY,'through_cut',true)
+      cut_face.set_attribute(KEY,'hole_count',front_holes.length)
       cut_face.pushpull(-t,false)
-      cleanup_through_cap(entities,points_2d,0.0)
+      cleanup_through_cap(entities,outer_2d,holes_2d,0.0)
       true
     rescue ArgumentError
-      # SketchUp cũ vẫn hỗ trợ pushpull(distance) nhưng có thể không nhận tham số copy.
       cut_face.pushpull(-t)
-      cleanup_through_cap(entities,points_2d,0.0)
+      cleanup_through_cap(entities,outer_2d,holes_2d,0.0)
       true
+    end
+
+    def punch_through_profile(entities,points_2d,thickness,layer0 = nil)
+      punch_through_region(entities,points_2d,[],thickness,layer0)
     end
 
     def panel_orientation_transform(orientation)
@@ -929,7 +959,7 @@ module TranTuanNoiThat
 
       # Đục xuyên thật toàn bộ vách theo từng biên dạng vector.
       plan[:profiles].each do |item|
-        punch_through_profile(board.entities,item[:points],thickness,layer0)
+        punch_through_region(board.entities,item[:outer] || item[:points],item[:holes] || [],thickness,layer0)
       end
 
       tag_name = plan[:template]['name'].to_s.start_with?('ABF_') ? plan[:template]['name'] : abf_name(plan[:template]['name'])
@@ -947,7 +977,8 @@ module TranTuanNoiThat
         profile.set_attribute(KEY,'screen_index',index)
         profile.set_attribute(KEY,'row',item[:row])
         profile.set_attribute(KEY,'col',item[:col])
-        profile.set_attribute(KEY,'loop_index',item[:loop_index].to_i)
+        profile.set_attribute(KEY,'region_index',item[:region_index].to_i)
+        profile.set_attribute(KEY,'hole_count',Array(item[:holes]).length)
         profile.set_attribute(KEY,'width_mm',item[:width])
         profile.set_attribute(KEY,'height_mm',item[:height])
         profile.set_attribute(KEY,'depth_mm',cfg['depth'])
@@ -956,11 +987,12 @@ module TranTuanNoiThat
         profile.set_attribute(KEY,'screen_panel',true)
         profile.set_attribute(KEY,'through_cut',true)
 
-        profile_points = item[:points].map { |x,y| Geom::Point3d.new(x.mm,y.mm,t) }
-        vector_face = profile.entities.add_face(profile_points)
+        profile_outer = (item[:outer] || item[:points]).map { |x,y| Geom::Point3d.new(x.mm,y.mm,t) }
+        profile_holes = Array(item[:holes]).map do |hole|
+          hole.map { |x,y| Geom::Point3d.new(x.mm,y.mm,t) }
+        end
+        vector_face = face_with_holes(profile.entities,profile_outer,profile_holes,tag)
         raise "Không tạo được biên dạng CNC số #{index+1}." unless vector_face
-        vector_face.layer = tag if vector_face.respond_to?(:layer=)
-        vector_face.edges.each { |edge| edge.layer = tag if edge.respond_to?(:layer=) }
       end
 
       board.transformation = panel_orientation_transform(panel['orientation']) if board.respond_to?(:transformation=)
