@@ -236,6 +236,69 @@ check('direct CNC panel plan supports nine-point alignment and rejects oversized
   end
 end
 
+check('CNC screen repeat mode fills rows and columns inside outer frame') do
+  tpl=V.builtin_template('circle')
+  plan=V.screen_panel_plan(
+    tpl,
+    {'length'=>1200,'width'=>600,'thickness'=>17.5,'name'=>'VACH_CNC','orientation'=>'xz'},
+    V.cnc_settings(200,200,3,0,0,0,72,'center','inside'),
+    {'mode'=>'repeat','frame_width'=>50,'rows'=>3,'cols'=>5,'gap_x'=>20,'gap_y'=>20,'preserve_ratio'=>true}
+  )
+  assert(plan[:profiles].length==15)
+  near(plan[:inner][0],50)
+  near(plan[:inner][1],50)
+  near(plan[:inner][2],1100)
+  near(plan[:inner][3],500)
+  plan[:profiles].each do |item|
+    item[:points].each do |x,y|
+      assert(x>=50-0.001 && x<=1150+0.001)
+      assert(y>=50-0.001 && y<=550+0.001)
+    end
+  end
+end
+
+check('CNC screen fit mode creates one centered pattern preserving ratio') do
+  tpl=V.builtin_template('rectangle')
+  plan=V.screen_panel_plan(
+    tpl,
+    {'length'=>1000,'width'=>500,'thickness'=>18,'orientation'=>'xz'},
+    V.cnc_settings(200,120,4,0,0,0,96,'center','outside'),
+    {'mode'=>'fit','frame_width'=>40,'preserve_ratio'=>true}
+  )
+  assert(plan[:profiles].length==1)
+  item=plan[:profiles].first
+  near(item[:center][0],500)
+  near(item[:center][1],250)
+  assert(item[:width]<=920.001)
+  assert(item[:height]<=420.001)
+end
+
+check('CNC screen rejects impossible frame and repeat spacing') do
+  tpl=V.builtin_template('square')
+  begin
+    V.screen_panel_plan(
+      tpl,
+      {'length'=>300,'width'=>200,'thickness'=>18},
+      V.cnc_settings(100,100,3,0,0,0,72,'center','inside'),
+      {'mode'=>'repeat','frame_width'=>120,'rows'=>2,'cols'=>2,'gap_x'=>10,'gap_y'=>10}
+    )
+    raise 'accepted oversized frame'
+  rescue RuntimeError=>e
+    assert(e.message.include?('Viền khung'))
+  end
+  begin
+    V.screen_panel_plan(
+      tpl,
+      {'length'=>500,'width'=>300,'thickness'=>18},
+      V.cnc_settings(100,100,3,0,0,0,72,'center','inside'),
+      {'mode'=>'repeat','frame_width'=>30,'rows'=>2,'cols'=>4,'gap_x'=>200,'gap_y'=>10}
+    )
+    raise 'accepted impossible gap'
+  rescue RuntimeError=>e
+    assert(e.message.include?('Khoảng cách ngang'))
+  end
+end
+
 check('VECTOR CNC HtmlDialog has non-blank static UI and apply controls') do
   html=V.dialog_html
   assert(html.length>5000)
@@ -247,6 +310,10 @@ check('VECTOR CNC HtmlDialog has non-blank static UI and apply controls') do
   assert(html.include?('TẠO TẤM CNC MỚI'))
   assert(html.include?('panelLength'))
   assert(html.include?('create_panel'))
+  assert(html.include?('TẠO VÁCH CNC TỪ MẪU'))
+  assert(html.include?('create_screen'))
+  assert(html.include?('screenPreview'))
+  assert(html.include?('drawTemplateThumb'))
   V.ensure_data
   File.write(V::UI_FILE,html,encoding:'UTF-8')
   assert(File.size(V::UI_FILE)>5000)
