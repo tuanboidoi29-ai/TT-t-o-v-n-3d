@@ -236,6 +236,49 @@ check('direct CNC panel plan supports nine-point alignment and rejects oversized
   end
 end
 
+check('image CNC template keeps multiple closed contours in one library item') do
+  loops=[
+    [[0,0],[100,0],[100,100],[0,100]],
+    [[150,0],[200,0],[200,50],[150,50]]
+  ]
+  item=V.sanitize_template(
+    'id'=>'image_test',
+    'name'=>'ANH_TEST',
+    'label'=>'Ảnh test',
+    'loops'=>loops,
+    'source_type'=>'image',
+    'source_name'=>'test.png'
+  )
+  assert(item['source_type']=='image')
+  assert(item['loops'].length==2)
+  assert(item['points'].length>=4)
+  all=item['loops'].flatten(1)
+  assert(all.map{|p|p[0]}.min>=-1.0001)
+  assert(all.map{|p|p[0]}.max<=1.0001)
+end
+
+check('image CNC screen expands every image contour into through-cut profiles') do
+  tpl=V.sanitize_template(
+    'id'=>'image_two',
+    'name'=>'ANH_HAI_LO',
+    'label'=>'Ảnh hai lỗ',
+    'loops'=>[
+      [[0,0],[100,0],[100,100],[0,100]],
+      [[150,0],[200,0],[200,50],[150,50]]
+    ],
+    'source_type'=>'image'
+  )
+  plan=V.screen_panel_plan(
+    tpl,
+    {'length'=>1000,'width'=>500,'thickness'=>17.5,'orientation'=>'xz'},
+    V.cnc_settings(200,100,3,0,0,0,72,'center','inside'),
+    {'mode'=>'repeat','frame_width'=>40,'rows'=>2,'cols'=>3,'gap_x'=>20,'gap_y'=>20,'preserve_ratio'=>true}
+  )
+  assert(plan[:profiles].length==12)
+  assert(plan[:screen]['through_cut']==true)
+  assert(plan[:profiles].map{|p|p[:loop_index]}.uniq.sort==[0,1])
+end
+
 check('CNC screen repeat mode fills rows and columns inside outer frame') do
   tpl=V.builtin_template('circle')
   plan=V.screen_panel_plan(
@@ -317,6 +360,12 @@ check('VECTOR CNC HtmlDialog has non-blank static UI and apply controls') do
   assert(html.include?('create_screen'))
   assert(html.include?('screenPreview'))
   assert(html.include?('drawTemplateThumb'))
+  assert(html.include?('ẢNH CNC · NHẬP ẢNH'))
+  assert(html.include?('imageFile'))
+  assert(html.include?('imageThreshold'))
+  assert(html.include?('imageVectorPreview'))
+  assert(html.include?('save_image_template'))
+  assert(html.include?('traceMaskLoops'))
   assert(html.include?('ĐỤC THỦNG THẬT'))
   assert(html.include?('LỖ ĐỤC THỦNG'))
   V.ensure_data
