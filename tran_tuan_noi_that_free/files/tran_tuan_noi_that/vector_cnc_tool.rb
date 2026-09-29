@@ -722,6 +722,21 @@ module TranTuanNoiThat
       rescue StandardError => e
         UI.messagebox(e.message)
       end
+      dlg.add_action_callback('create_panel') do |_ctx,id,panel_length,panel_width,panel_thickness,panel_name,panel_orientation,w,h,depth,offset_x,offset_y,border_width,smoothness,anchor,cut_mode|
+        item = library.find { |row| row['id'].to_s == id.to_s }
+        raise 'Chưa chọn mẫu vector.' unless item
+        panel = {
+          'length'=>panel_length.to_f,
+          'width'=>panel_width.to_f,
+          'thickness'=>panel_thickness.to_f,
+          'name'=>panel_name.to_s,
+          'orientation'=>panel_orientation.to_s
+        }
+        create_direct_panel(item,panel,cnc_settings(w,h,depth,offset_x,offset_y,border_width,smoothness,anchor,cut_mode))
+        send_target_info(selected_target_info)
+      rescue StandardError => e
+        UI.messagebox("TẠO TẤM CNC: #{e.message}")
+      end
       dlg.add_action_callback('start') do |_ctx,id,w,h,depth,offset_x,offset_y,border_width,smoothness,anchor,cut_mode|
         item = library.find { |row| row['id'].to_s == id.to_s }
         raise 'Chưa chọn mẫu vector.' unless item
@@ -809,6 +824,27 @@ module TranTuanNoiThat
         <div class="row" style="margin-top:8px">
           <button class="action secondary" onclick="refreshTarget()">LẤY KHỐI ĐANG CHỌN</button>
         </div>
+      </div>
+
+      <div class="panel">
+        <div class="title">TẠO TẤM CNC MỚI TRỰC TIẾP</div>
+        <div class="row">
+          <label>Dài tấm <input id="panelLength" type="number" value="1200" min="0.1"> mm</label>
+          <label>Rộng tấm <input id="panelWidth" type="number" value="600" min="0.1"> mm</label>
+          <label>Dày tấm <input id="panelThickness" type="number" value="17.5" min="0.1"> mm</label>
+        </div>
+        <div class="row" style="margin-top:8px">
+          <label>Tên tấm <input id="panelName" type="text" value="TAM_CNC" style="width:160px"></label>
+          <label>Hướng tấm
+            <select id="panelOrientation">
+              <option value="xz">Đứng XZ</option>
+              <option value="yz">Đứng YZ</option>
+              <option value="xy">Nằm XY</option>
+            </select>
+          </label>
+        </div>
+        <button class="action apply" style="background:#b34d00" onclick="createPanel()">TẠO TẤM CNC MỚI</button>
+        <small>Không cần đối tượng có sẵn. Tạo một Group tấm thật + biên dạng CNC nằm bên trong, chuẩn ABF, tại gốc model; sau khi tạo tự chọn và zoom tới tấm.</small>
       </div>
 
       <div class="panel">
@@ -971,8 +1007,8 @@ module TranTuanNoiThat
       function drawPreview(){
         let c=document.getElementById('preview'),ctx=c.getContext('2d'),W=c.width,H=c.height;
         ctx.clearRect(0,0,W,H);ctx.fillStyle='#fafafa';ctx.fillRect(0,0,W,H);
-        let objW=targetInfo?Math.max(1,Number(targetInfo.face_length||targetInfo.length)):600;
-        let objH=targetInfo?Math.max(1,Number(targetInfo.face_width||targetInfo.width)):400;
+        let objW=targetInfo?Math.max(1,Number(targetInfo.face_length||targetInfo.length)):Math.max(1,val('panelLength'));
+        let objH=targetInfo?Math.max(1,Number(targetInfo.face_width||targetInfo.width)):Math.max(1,val('panelWidth'));
         let margin=24,scale=Math.min((W-2*margin)/objW,(H-2*margin)/objH);
         let rw=objW*scale,rh=objH*scale,ox=(W-rw)/2,oy=(H-rh)/2;
         ctx.strokeStyle='#555';ctx.lineWidth=2;ctx.strokeRect(ox,oy,rw,rh);
@@ -1007,6 +1043,17 @@ module TranTuanNoiThat
         if(!selected){alert('Chưa chọn vector.');return}
         window.sketchup.apply_selected(selected,...currentSettings())
       }
+      function createPanel(){
+        if(!selected){alert('Chưa chọn vector mẫu để tạo tấm CNC.');return}
+        let length=val('panelLength'),width=val('panelWidth'),thickness=val('panelThickness');
+        if(length<=0||width<=0||thickness<=0){alert('Dài / Rộng / Dày tấm phải lớn hơn 0.');return}
+        window.sketchup.create_panel(
+          selected,length,width,thickness,
+          document.getElementById('panelName').value||'TAM_CNC',
+          document.getElementById('panelOrientation').value,
+          ...currentSettings()
+        )
+      }
       function startPlacement(){
         if(!selected){alert('Chưa chọn vector.');return}
         window.sketchup.start(selected,...currentSettings())
@@ -1015,12 +1062,12 @@ module TranTuanNoiThat
       function importVector(){window.sketchup.import()}
 
       document.addEventListener('DOMContentLoaded',()=>{
-        ['w','h','depth','offsetX','offsetY','borderWidth','smoothness','cutMode'].forEach(id=>{
+        ['w','h','depth','offsetX','offsetY','borderWidth','smoothness','cutMode','panelLength','panelWidth','panelThickness','panelOrientation'].forEach(id=>{
           let el=document.getElementById(id);el.addEventListener('input',pushSettings);el.addEventListener('change',pushSettings)
         });
         setAnchor('center');
         let boot=document.getElementById('bootStatus');
-        if(boot)boot.textContent='VECTOR CNC UI sẵn sàng · '+"1.1.2";
+        if(boot)boot.textContent='VECTOR CNC UI sẵn sàng · '+"1.2.0";
         window.sketchup.ready();
       })
       </script></body></html>
