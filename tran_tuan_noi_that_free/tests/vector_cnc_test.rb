@@ -245,6 +245,8 @@ check('CNC screen repeat mode fills rows and columns inside outer frame') do
     {'mode'=>'repeat','frame_width'=>50,'rows'=>3,'cols'=>5,'gap_x'=>20,'gap_y'=>20,'preserve_ratio'=>true}
   )
   assert(plan[:profiles].length==15)
+  assert(plan[:screen]['through_cut']==true)
+  assert(V.respond_to?(:punch_through_profile))
   near(plan[:inner][0],50)
   near(plan[:inner][1],50)
   near(plan[:inner][2],1100)
@@ -314,6 +316,8 @@ check('VECTOR CNC HtmlDialog has non-blank static UI and apply controls') do
   assert(html.include?('create_screen'))
   assert(html.include?('screenPreview'))
   assert(html.include?('drawTemplateThumb'))
+  assert(html.include?('ĐỤC THỦNG THẬT'))
+  assert(html.include?('LỖ ĐỤC THỦNG'))
   V.ensure_data
   File.write(V::UI_FILE,html,encoding:'UTF-8')
   assert(File.size(V::UI_FILE)>5000)
