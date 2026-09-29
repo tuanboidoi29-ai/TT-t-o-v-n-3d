@@ -8,7 +8,7 @@ module TranTuanNoiThat
   module VectorCNC
     extend self
 
-    VERSION = '1.4.0'.freeze
+    VERSION = '1.4.1'.freeze
     KEY = 'TT_VECTOR_CNC'.freeze
     DATA_DIR = File.join(TranTuanNoiThat::ROOT, 'data', 'vector_cnc').freeze
     LIBRARY_FILE = File.join(DATA_DIR, 'library.json').freeze
@@ -180,6 +180,42 @@ module TranTuanNoiThat
       end
     end
 
+    def normalize_regions_unit(regions)
+      raw = Array(regions).map do |region|
+        outer = region.is_a?(Hash) ? (region['outer'] || region[:outer]) : nil
+        holes = region.is_a?(Hash) ? (region['holes'] || region[:holes] || []) : []
+        next unless outer
+        {
+          'outer'=>Array(outer).map { |point| [Float(point[0]),Float(point[1])] },
+          'holes'=>Array(holes).map { |hole| Array(hole).map { |point| [Float(point[0]),Float(point[1])] } }
+        }
+      end.compact.select { |region| region['outer'].length >= 3 }
+      raise 'Ảnh chưa tạo được vùng cắt kín hợp lệ.' if raw.empty?
+
+      all_loops = raw.flat_map { |region| [region['outer']] + region['holes'] }.select { |loop| loop.length >= 3 }
+      total_points = all_loops.sum(&:length)
+      raise "Ảnh có quá nhiều điểm vector (#{total_points}). Hãy tăng Đơn giản hóa." if total_points > 18_000
+
+      all = all_loops.flatten(1)
+      min_x,max_x = all.map(&:first).minmax
+      min_y,max_y = all.map(&:last).minmax
+      width = max_x-min_x
+      height = max_y-min_y
+      raise 'Biên dạng ảnh có kích thước bằng 0.' if width.abs < 1.0e-9 || height.abs < 1.0e-9
+      cx = (min_x+max_x)/2.0
+      cy = (min_y+max_y)/2.0
+
+      raw.map do |region|
+        outer = region['outer'].map { |x,y| [(x-cx)/(width/2.0),(y-cy)/(height/2.0)] }
+        holes = region['holes'].select { |loop| loop.length >= 3 }.map do |loop|
+          loop.map { |x,y| [(x-cx)/(width/2.0),(y-cy)/(height/2.0)] }
+        end
+        outer.reverse! if polygon_area(outer) < 0
+        holes.each { |hole| hole.reverse! if polygon_area(hole) > 0 }
+        {'outer'=>outer,'holes'=>holes}
+      end
+    end
+
     def polygon_area(points)
       points.each_with_index.sum do |p,i|
         q = points[(i+1)%points.length]
@@ -188,27 +224,33 @@ module TranTuanNoiThat
     end
 
     def sanitize_template(template)
+      raw_regions = template['regions'] || template[:regions]
       raw_loops = template['loops'] || template[:loops]
-      loops = if raw_loops && !Array(raw_loops).empty?
-        normalize_loops_unit(raw_loops)
+      regions = if raw_regions && !Array(raw_regions).empty?
+        normalize_regions_unit(raw_regions)
+      elsif raw_loops && !Array(raw_loops).empty?
+        normalize_loops_unit(raw_loops).map { |loop| {'outer'=>loop,'holes'=>[]} }
       else
         points = normalize_unit(template['points'] || template[:points])
         points.reverse! if polygon_area(points) < 0
-        [points]
+        [{'outer'=>points,'holes'=>[]}]
       end
-      primary = loops.max_by { |loop| polygon_area(loop).abs }
+      loops = regions.flat_map { |region| [region['outer']] + region['holes'] }
+      primary = regions.max_by { |region| polygon_area(region['outer']).abs }['outer']
       item = {
         'id'=>(template['id'] || template[:id] || "custom_#{Time.now.to_i}").to_s,
         'name'=>abf_name(template['name'] || template[:name] || 'VECTOR'),
         'label'=>(template['label'] || template[:label] || template['name'] || 'Vector').to_s,
         'points'=>primary,
         'loops'=>loops,
+        'regions'=>regions,
         'width'=>[(template['width'] || template[:width] || DEFAULT_SIZE).to_f,0.1].max,
         'height'=>[(template['height'] || template[:height] || DEFAULT_SIZE).to_f,0.1].max,
         'builtin'=>false
       }
       item['source_type'] = (template['source_type'] || template[:source_type]).to_s unless (template['source_type'] || template[:source_type]).to_s.empty?
       item['source_name'] = (template['source_name'] || template[:source_name]).to_s unless (template['source_name'] || template[:source_name]).to_s.empty?
+      item['image_mode'] = (template['image_mode'] || template[:image_mode]).to_s unless (template['image_mode'] || template[:image_mode]).to_s.empty?
       item
     end
 
@@ -222,7 +264,7 @@ module TranTuanNoiThat
       item
     end
 
-    def save_image_template(name,loops,source_name = nil)
+    def save_image_template(name,regions,source_name = nil,image_mode = nil)
       requested = name.to_s.strip
       requested = File.basename(source_name.to_s,'.*') if requested.empty? && !source_name.to_s.empty?
       requested = 'ANH_CNC' if requested.empty?
@@ -230,11 +272,12 @@ module TranTuanNoiThat
         'id'=>"image_#{slug(requested)}",
         'name'=>abf_name(requested),
         'label'=>requested,
-        'loops'=>loops,
+        'regions'=>regions,
         'width'=>DEFAULT_SIZE,
         'height'=>DEFAULT_SIZE,
         'source_type'=>'image',
-        'source_name'=>source_name.to_s
+        'source_name'=>source_name.to_s,
+        'image_mode'=>image_mode.to_s
       )
       rows = custom_templates.reject { |row| row['id'].to_s == item['id'] || row['name'].to_s == item['name'] }
       rows << item
@@ -289,6 +332,30 @@ module TranTuanNoiThat
       sy = height.to_f/2.0
       template_loops(template,smoothness).map do |loop|
         loop.map { |x,y| [x.to_f*sx,y.to_f*sy] }
+      end
+    end
+
+    def template_regions(template, smoothness = nil)
+      id = template['id'].to_s
+      if id == 'circle' || id == 'oval'
+        [{'outer'=>points_for_template(template,smoothness),'holes'=>[]}]
+      elsif template['regions'].is_a?(Array) && !template['regions'].empty?
+        template['regions']
+      elsif template['loops'].is_a?(Array) && !template['loops'].empty?
+        template['loops'].map { |loop| {'outer'=>loop,'holes'=>[]} }
+      else
+        [{'outer'=>template['points'],'holes'=>[]}]
+      end
+    end
+
+    def scaled_regions(template,width,height,smoothness = nil)
+      sx = width.to_f/2.0
+      sy = height.to_f/2.0
+      template_regions(template,smoothness).map do |region|
+        {
+          'outer'=>region['outer'].map { |x,y| [x.to_f*sx,y.to_f*sy] },
+          'holes'=>Array(region['holes']).map { |hole| hole.map { |x,y| [x.to_f*sx,y.to_f*sy] } }
+        }
       end
     end
 
@@ -543,7 +610,7 @@ module TranTuanNoiThat
     def fit_template_size(template,max_width,max_height,preserve_ratio = true)
       raise 'Vùng tạo hoa văn quá nhỏ.' unless max_width.to_f > 0 && max_height.to_f > 0
       if preserve_ratio
-        unit = template_loops(template,72).flatten(1)
+        unit = template_regions(template,72).flat_map { |region| [region['outer']] + Array(region['holes']) }.flatten(1)
         min_x,max_x = unit.map(&:first).minmax
         min_y,max_y = unit.map(&:last).minmax
         ratio = (max_x-min_x).abs / [(max_y-min_y).abs,1.0e-9].max
