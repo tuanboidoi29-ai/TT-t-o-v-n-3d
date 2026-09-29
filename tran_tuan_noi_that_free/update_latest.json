@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.184",
+  "version": "1.9.185",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "TẠO LED nâng cấp: biên dạng CNC ABF_RANHLED không còn tạo Group con. 4 Edge kín được tạo trực tiếp vào Face/hình học bên trong Group/Component đang gia công, Edge mang Tag ABF_RANHLED hoặc tên tùy chỉnh, ABF/is-cutting-lines=true, ABF/is-intersect=true; mặt được đánh dấu ABF/is-cnced-face. Thêm mô phỏng ánh sáng chiếu xuống theo Model -Z với 3 thanh trượt cập nhật preview tức thì: Độ sáng LED mặc định 100%, Khoảng chiếu xuống 80 mm, Độ loang 40 mm. Thông số ánh sáng được lưu theo mẫu; lớp mô phỏng ánh sáng tách riêng khỏi CNC để không làm bẩn dữ liệu gia công. Giữ bản sửa updater tương thích ngược và tiếp tục dọn VECTOR/ẢNH CNC cũ.",
+  "notes": "TẠO LED nâng cấp mô phỏng ánh sáng và nhiều rãnh. Vầng sáng được làm mịn bằng 16 lớp alpha giảm dần, hướng hắt không còn cố định Model -Z mà tự xoay vuông góc với thanh LED và đi vào trong từ mép đang bám: LED dọc ở mép phải hắt trái, mép trái hắt phải; LED ngang tự hắt lên/xuống tương ứng. Bảng cài đặt có khung PREVIEW VẦNG SÁNG, slider Độ sáng, Khoảng hắt sáng, Độ loang cập nhật tức thì. Thêm Số lượng rãnh và Khoảng cách giữa; preview 3D và click tạo dùng cùng danh sách rãnh, một click tạo toàn bộ loop CNC + mô phỏng và tool tiếp tục chạy để tạo liên tục. Biên dạng CNC vẫn là 4 Edge kín nằm trực tiếp trong chính Group/Component, không Group con, gắn Tag ABF_RANHLED hoặc tên tùy chỉnh và ABF/is-cutting-lines=true để Aspire nhận.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "405f74b5b1f32a254786d56eee0d553c8cb3699b617125fc6b6acedcfe673303"
+      "sha256": "3f506e8ec87e5995fd78ec02c7f0cf8d839b5d8adaf521ac2fd196c24df62beb"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -244,7 +244,7 @@
     {
       "path": "tran_tuan_noi_that/led_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/led_tool.rb",
-      "sha256": "2c391b47fce3e779f8d0a038ac79e090371f6c6c4593651c8df384dff518e31b"
+      "sha256": "cf8f2e275ee039c37bb4934f12c8f2bc3e46e6acf69d361d8d9d92325c38803e"
     },
     {
       "path": "tran_tuan_noi_that/rename_tool.rb",
@@ -324,7 +324,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "0d881d20387db2d625f40383f2b57691476a3027fc973a1b287ffe5e55c92715"
+      "sha256": "00380c03b2b0160087db3e70cfde337bb3cd684cfde70de1386c0984bd4a808b"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
