@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.179",
+  "version": "1.9.180",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "ẢNH CNC thêm TỰ ĐỘNG XÓA NỀN khi tải ảnh lên. Mặc định bật sẵn: plugin lấy màu nền chiếm ưu thế từ mép/góc ảnh, loại các pixel gần màu nền theo thanh Độ nhạy nền và tôn trọng alpha của PNG trong suốt. Thêm preview riêng 'Sau tự động xóa nền' để kiểm tra trước khi vector hóa. Sau khi xóa nền mới chạy AUTO theo nền / Đục khoảng trắng bên trong / Đục vùng màu-tối, giúp tránh khung nền bị nhận thành biên dạng CNC. Có hiển thị màu nền RGB đã nhận và trạng thái ĐÃ XÓA NỀN. VÁCH LAM vẫn khóa baseline 1.9.168.",
+  "notes": "XÓA HOÀN TOÀN chức năng VECTOR CNC / ẢNH CNC. Không còn module, menu, toolbar, icon, test hay file cập nhật liên quan. Khi cập nhật từ bản cũ, updater tự xóa vector_cnc_tool.rb, icons/vector_cnc.svg và toàn bộ data/vector_cnc; command cũ trong phiên hiện tại bị vô hiệu hóa và sẽ biến mất hoàn toàn sau khi mở lại SketchUp. VÁCH LAM vẫn khóa baseline 1.9.168.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "6446b3108ac8d1449319cd8425c206c63c78529c4d14529c66e84ba74ada3c37"
+      "sha256": "381a62e3b5007b09f71d30d0e0f7d14af9b880e3cf808541b68f27f18fb28a30"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -177,11 +177,6 @@
       "sha256": "9bf444623417da290dfa75895229bb8eb84d2e68c1597cd315963d9be8e80447"
     },
     {
-      "path": "tran_tuan_noi_that/icons/vector_cnc.svg",
-      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/icons/vector_cnc.svg",
-      "sha256": "fe309d3c2167124ec9e27d76d637e8725f4e830221af5a855b5b3f7574da3139"
-    },
-    {
       "path": "tran_tuan_noi_that/layout_stats_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/layout_stats_tool.rb",
       "sha256": "0e867c2dd32e923256f3bdd75fcd461c1d7e1774df6ec5df0f4fe4f34ce024e0"
@@ -314,17 +309,12 @@
     {
       "path": "tran_tuan_noi_that/updater.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/updater.rb",
-      "sha256": "5a9f28ec74267dae197146b9e8b783645801dcad91fa56b5666db39d44223b94"
-    },
-    {
-      "path": "tran_tuan_noi_that/vector_cnc_tool.rb",
-      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/vector_cnc_tool.rb",
-      "sha256": "ed27ae1eacafe4d346c43443423b9c4bb4784cec32025ef0af6eba89ef28c0bd"
+      "sha256": "b03ed86c7419a063bdfe7949db44ad5c875cdbd96e93ac43192c59d5bd44753f"
     },
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "ff06c5d0ff9b48177c83a6184cff5ebf865fce02ceb6ec5b2bcea5b1c62b17d4"
+      "sha256": "5745ecac121820003c616ba515455bb090f20e7c0351103ba322a5cbfd398dfb"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -333,5 +323,11 @@
     }
   ],
   "stretch_mode_version": "1.0.1",
-  "remove_files": []
+  "remove_files": [
+    "tran_tuan_noi_that/vector_cnc_tool.rb",
+    "tran_tuan_noi_that/icons/vector_cnc.svg"
+  ],
+  "remove_dirs": [
+    "tran_tuan_noi_that/data/vector_cnc"
+  ]
 }
