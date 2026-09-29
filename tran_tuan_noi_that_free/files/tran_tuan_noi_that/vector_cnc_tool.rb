@@ -8,7 +8,7 @@ module TranTuanNoiThat
   module VectorCNC
     extend self
 
-    VERSION = '1.3.0'.freeze
+    VERSION = '1.3.1'.freeze
     KEY = 'TT_VECTOR_CNC'.freeze
     DATA_DIR = File.join(TranTuanNoiThat::ROOT, 'data', 'vector_cnc').freeze
     LIBRARY_FILE = File.join(DATA_DIR, 'library.json').freeze
@@ -40,7 +40,8 @@ module TranTuanNoiThat
       'cols'=>5,
       'gap_x'=>20.0,
       'gap_y'=>20.0,
-      'preserve_ratio'=>true
+      'preserve_ratio'=>true,
+      'through_cut'=>true
     }.freeze
     BOX_FACE_INDICES = [
       [0,3,2,1],
@@ -541,10 +542,70 @@ module TranTuanNoiThat
         template: tpl,
         panel: panel.merge('length'=>length,'width'=>width,'thickness'=>thickness),
         cnc: cfg,
-        screen: screen.merge('mode'=>mode,'frame_width'=>frame,'rows'=>rows,'cols'=>cols,'gap_x'=>gap_x,'gap_y'=>gap_y,'preserve_ratio'=>preserve),
+        screen: screen.merge(
+          'mode'=>mode,'frame_width'=>frame,'rows'=>rows,'cols'=>cols,
+          'gap_x'=>gap_x,'gap_y'=>gap_y,'preserve_ratio'=>preserve,
+          'through_cut'=>true
+        ),
         profiles: profiles,
         inner: [frame,frame,inner_length,inner_width]
       }
+    end
+
+    def polygon_area_mm2(points)
+      return 0.0 if points.length < 3
+      points.each_with_index.sum do |point,index|
+        nxt = points[(index + 1) % points.length]
+        point[0].to_f * nxt[1].to_f - nxt[0].to_f * point[1].to_f
+      end.abs / 2.0
+    end
+
+    def cleanup_through_cap(entities,points_2d,z_value = 0.0)
+      return false if points_2d.length < 3
+      min_x,max_x = points_2d.map { |p| p[0].to_f }.minmax
+      min_y,max_y = points_2d.map { |p| p[1].to_f }.minmax
+      target_area = polygon_area_mm2(points_2d) / (25.4 * 25.4)
+      eps = 0.05.mm
+
+      candidates = entities.grep(Sketchup::Face).select do |face|
+        vertices = face.vertices.map(&:position)
+        next false if vertices.length < 3
+        next false unless vertices.all? { |point| (point.z - z_value.mm).abs <= eps }
+        xs = vertices.map { |point| point.x.to_f * 25.4 }
+        ys = vertices.map { |point| point.y.to_f * 25.4 }
+        next false if xs.min < min_x - 0.1 || xs.max > max_x + 0.1
+        next false if ys.min < min_y - 0.1 || ys.max > max_y + 0.1
+        area = face.area.to_f
+        target_area > 1.0e-9 && (area-target_area).abs / target_area < 0.03
+      end
+      cap = candidates.min_by { |face| (face.area.to_f-target_area).abs }
+      return false unless cap
+      entities.erase_entities(cap)
+      true
+    rescue StandardError
+      false
+    end
+
+    def punch_through_profile(entities,points_2d,thickness,layer0 = nil)
+      raise 'Biên dạng đục thủng cần ít nhất 3 điểm.' if points_2d.length < 3
+      t = thickness.to_f.mm
+      raise 'Dày tấm phải lớn hơn 0 để đục thủng.' unless t > 0
+
+      front_points = points_2d.map { |x,y| Geom::Point3d.new(x.to_f.mm,y.to_f.mm,t) }
+      cut_face = entities.add_face(front_points)
+      raise 'Không tạo được Face đục thủng theo biên dạng vector.' unless cut_face && cut_face.valid?
+      cut_face.reverse! if cut_face.normal.z.to_f < 0
+      cut_face.layer = layer0 if layer0 && cut_face.respond_to?(:layer=)
+      cut_face.edges.each { |edge| edge.layer = layer0 if layer0 && edge.respond_to?(:layer=) }
+      cut_face.set_attribute(KEY,'through_cut',true)
+      cut_face.pushpull(-t,false)
+      cleanup_through_cap(entities,points_2d,0.0)
+      true
+    rescue ArgumentError
+      # SketchUp cũ vẫn hỗ trợ pushpull(distance) nhưng có thể không nhận tham số copy.
+      cut_face.pushpull(-t)
+      cleanup_through_cap(entities,points_2d,0.0)
+      true
     end
 
     def panel_orientation_transform(orientation)
