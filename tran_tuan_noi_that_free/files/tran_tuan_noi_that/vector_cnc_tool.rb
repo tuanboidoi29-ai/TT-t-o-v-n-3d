@@ -752,6 +752,7 @@ module TranTuanNoiThat
       board.set_attribute(KEY,'gap_x_mm',screen['gap_x'])
       board.set_attribute(KEY,'gap_y_mm',screen['gap_y'])
       board.set_attribute(KEY,'profile_count',plan[:profiles].length)
+      board.set_attribute(KEY,'through_cut',true)
       board.set_attribute('TRẦN TUẤN NỘI THẤT','do_day_mm',thickness)
       board.set_attribute('TRẦN TUẤN NỘI THẤT','loai','VAN')
       board.set_attribute('TRẦN TUẤN NỘI THẤT','chi_tiet','VACH_CNC')
@@ -779,6 +780,12 @@ module TranTuanNoiThat
       raise 'Không xác định được mặt trước vách CNC.' unless front
       front.reverse! if front.respond_to?(:normal) && front.normal.z.to_f < 0
       front.set_attribute('ABF','is-cnced-face',true)
+      front_id = front.respond_to?(:persistent_id) ? front.persistent_id : front.object_id
+
+      # Đục xuyên thật toàn bộ vách theo từng biên dạng vector.
+      plan[:profiles].each do |item|
+        punch_through_profile(board.entities,item[:points],thickness,layer0)
+      end
 
       tag_name = plan[:template]['name'].to_s.start_with?('ABF_') ? plan[:template]['name'] : abf_name(plan[:template]['name'])
       tag = ensure_tag(model,tag_name)
@@ -790,7 +797,7 @@ module TranTuanNoiThat
         profile.set_attribute('ABF','is-intersect',true)
         profile.set_attribute('ABF','intersect-offset',0.0)
         profile.set_attribute('ABF','setting-name',tag_name.sub(/\AABF_/,'').downcase.tr('_',' '))
-        profile.set_attribute('ABF','intersect-group-b-id',front.respond_to?(:persistent_id) ? front.persistent_id : front.object_id)
+        profile.set_attribute('ABF','intersect-group-b-id',front_id)
         profile.set_attribute(KEY,'template',tag_name)
         profile.set_attribute(KEY,'screen_index',index)
         profile.set_attribute(KEY,'row',item[:row])
@@ -801,6 +808,7 @@ module TranTuanNoiThat
         profile.set_attribute(KEY,'smoothness',cfg['smoothness'])
         profile.set_attribute(KEY,'cut_mode',cfg['cut_mode'])
         profile.set_attribute(KEY,'screen_panel',true)
+        profile.set_attribute(KEY,'through_cut',true)
 
         profile_points = item[:points].map { |x,y| Geom::Point3d.new(x.mm,y.mm,t) }
         vector_face = profile.entities.add_face(profile_points)
@@ -1149,7 +1157,7 @@ module TranTuanNoiThat
         <canvas id="screenPreview" width="530" height="230" style="width:100%;height:230px;border:1px solid #bbb;border-radius:6px;background:#fafafa;margin-top:9px"></canvas>
         <div id="screenInfo" style="font-size:12px;margin-top:5px"></div>
         <button class="action apply" style="background:#8e3d00" onclick="createScreen()">TẠO VÁCH CNC TỪ MẪU ĐANG CHỌN</button>
-        <small>Vách giữ khung viền ngoài. Mỗi hoa văn là một biên dạng <b>_ABF_Intersect</b> nằm trong chính Group vách; vỏ tấm vẫn sạch để ABF nhận tấm.</small>
+        <small><b>ĐỤC THỦNG THẬT:</b> mỗi hoa văn cắt xuyên toàn bộ chiều dày tấm theo đúng biên dạng vector. Đồng thời vẫn giữ <b>_ABF_Intersect</b> trong Group vách để ABF/Aspire nhận đường gia công.</small>
       </div>
 
       <div class="panel">
@@ -1352,9 +1360,9 @@ module TranTuanNoiThat
         profiles.forEach(item=>{
           ctx.beginPath();
           item.pts.forEach((p,i)=>{let x=ox+(item.cx+p[0]*item.vw/2)*scale,y=oy+(PW-(item.cy+p[1]*item.vh/2))*scale;i?ctx.lineTo(x,y):ctx.moveTo(x,y)});
-          ctx.closePath();ctx.strokeStyle='#c2185b';ctx.lineWidth=1.2;ctx.stroke();
+          ctx.closePath();ctx.fillStyle='rgba(194,24,91,.18)';ctx.fill();ctx.strokeStyle='#c2185b';ctx.lineWidth=1.2;ctx.stroke();
         });
-        let info=document.getElementById('screenInfo');if(info)info.textContent=selectedTemplate?(selectedTemplate.name+' · '+profiles.length+' biên dạng CNC · khung '+frame+' mm'):'Chọn mẫu vector để xem trước vách CNC.';
+        let info=document.getElementById('screenInfo');if(info)info.textContent=selectedTemplate?(selectedTemplate.name+' · '+profiles.length+' LỖ ĐỤC THỦNG · khung '+frame+' mm'):'Chọn mẫu vector để xem trước vách CNC.';
       }
 
       function drawPreview(){
