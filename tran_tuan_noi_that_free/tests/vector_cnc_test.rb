@@ -199,6 +199,43 @@ check('selected apply rejects when no Group or Component is selected') do
   end
 end
 
+check('direct CNC panel plan creates complete panel dimensions and centered vector') do
+  tpl=V.builtin_template('circle')
+  plan=V.direct_panel_plan(
+    tpl,
+    {'length'=>1200,'width'=>600,'thickness'=>17.5,'name'=>'TAM_CNC','orientation'=>'xz'},
+    V.cnc_settings(400,300,4,0,0,20,96,'center','inside')
+  )
+  near(plan[:panel]['length'],1200)
+  near(plan[:panel]['width'],600)
+  near(plan[:panel]['thickness'],17.5)
+  near(plan[:center][0],600)
+  near(plan[:center][1],300)
+  assert(plan[:profile].length==96)
+  assert(plan[:border_profile].length==96)
+end
+
+check('direct CNC panel plan supports nine-point alignment and rejects oversized vector border') do
+  tpl=V.builtin_template('square')
+  plan=V.direct_panel_plan(
+    tpl,
+    {'length'=>1000,'width'=>500,'thickness'=>18,'orientation'=>'xy'},
+    V.cnc_settings(200,100,3,20,30,5,72,'right_top','outside')
+  )
+  near(plan[:center][0],880)
+  near(plan[:center][1],420)
+  begin
+    V.direct_panel_plan(
+      tpl,
+      {'length'=>300,'width'=>200,'thickness'=>18},
+      V.cnc_settings(280,180,3,0,0,20,72,'center','inside')
+    )
+    raise 'accepted oversized vector plus border'
+  rescue RuntimeError=>e
+    assert(e.message.include?('viền rộng'))
+  end
+end
+
 check('VECTOR CNC HtmlDialog has non-blank static UI and apply controls') do
   html=V.dialog_html
   assert(html.length>5000)
@@ -207,6 +244,9 @@ check('VECTOR CNC HtmlDialog has non-blank static UI and apply controls') do
   assert(html.include?('borderWidth'))
   assert(html.include?('smoothness'))
   assert(html.include?('align-grid'))
+  assert(html.include?('TẠO TẤM CNC MỚI'))
+  assert(html.include?('panelLength'))
+  assert(html.include?('create_panel'))
   V.ensure_data
   File.write(V::UI_FILE,html,encoding:'UTF-8')
   assert(File.size(V::UI_FILE)>5000)
