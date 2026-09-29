@@ -1459,9 +1459,14 @@ module TranTuanNoiThat
       function intval(id){return parseInt(document.getElementById(id).value||'0',10)||0}
       function esc(s){return String(s||'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}
 
-      function templateLoops(tpl){
+      function templateRegions(tpl){
         if(!tpl)return [];
-        return (Array.isArray(tpl.loops)&&tpl.loops.length)?tpl.loops:[tpl.points||[]];
+        if(Array.isArray(tpl.regions)&&tpl.regions.length)return tpl.regions;
+        if(Array.isArray(tpl.loops)&&tpl.loops.length)return tpl.loops.map(loop=>({outer:loop,holes:[]}));
+        return [{outer:tpl.points||[],holes:[]}];
+      }
+      function templateLoops(tpl){
+        return templateRegions(tpl).flatMap(region=>[region.outer].concat(region.holes||[]));
       }
       function drawTemplateThumb(canvas,tpl){
         let ctx=canvas.getContext('2d'),W=canvas.width,H=canvas.height,loops=templateLoops(tpl).filter(l=>l&&l.length);
@@ -1529,7 +1534,7 @@ module TranTuanNoiThat
         drawPreview();
       }
 
-      function previewLoops(){
+      function previewRegions(){
         if(!selectedTemplate)return [];
         let smooth=Math.max(12,Math.min(240,intval('smoothness')||72));
         if(selectedTemplate.id==='circle'||selectedTemplate.id==='oval'){
@@ -1538,10 +1543,11 @@ module TranTuanNoiThat
             let a=2*Math.PI*i/smooth;
             pts.push([Math.cos(a),Math.sin(a)*(selectedTemplate.id==='oval'?0.6:1)]);
           }
-          return [pts];
+          return [{outer:pts,holes:[]}];
         }
-        return templateLoops(selectedTemplate);
+        return templateRegions(selectedTemplate);
       }
+      function previewLoops(){return previewRegions().flatMap(region=>[region.outer].concat(region.holes||[]))}
       function previewPoints(){let loops=previewLoops();return loops.length?loops[0]:[]}
 
       function anchorCenter(objW,objH,w,h,dx,dy,anchor){
@@ -1561,7 +1567,8 @@ module TranTuanNoiThat
 
       function fitTemplateDims(tpl,maxW,maxH,preserve){
         if(!preserve)return [maxW,maxH];
-        let pts=tpl&&tpl.points?tpl.points:[[-1,-1],[1,1]];
+        let pts=tpl?templateLoops(tpl).flat():[[-1,-1],[1,1]];
+        if(!pts.length)pts=[[-1,-1],[1,1]];
         let xs=pts.map(p=>p[0]),ys=pts.map(p=>p[1]),pw=Math.max(.0001,Math.max(...xs)-Math.min(...xs)),ph=Math.max(.0001,Math.max(...ys)-Math.min(...ys)),ratio=pw/ph;
         return maxW/maxH>ratio?[maxH*ratio,maxH]:[maxW,maxW/ratio];
       }
@@ -1570,15 +1577,15 @@ module TranTuanNoiThat
         let L=Math.max(1,val('panelLength')),W=Math.max(1,val('panelWidth')),frame=Math.max(0,val('screenFrame'));
         let innerL=L-frame*2,innerW=W-frame*2;if(innerL<=0||innerW<=0)return [];
         let mode=document.getElementById('screenMode').value,preserve=document.getElementById('preserveRatio').checked;
-        let loops=previewLoops(),out=[];
+        let regions=previewRegions(),out=[];
         if(mode==='fit'){
           let [vw,vh]=fitTemplateDims(selectedTemplate,innerL,innerW,preserve);
-          out.push({cx:L/2,cy:W/2,vw:vw,vh:vh,loops:loops});return out;
+          out.push({cx:L/2,cy:W/2,vw:vw,vh:vh,regions:regions});return out;
         }
         let rows=Math.max(1,intval('screenRows')),cols=Math.max(1,intval('screenCols')),gx=Math.max(0,val('screenGapX')),gy=Math.max(0,val('screenGapY'));
         let cellW=(innerL-gx*(cols-1))/cols,cellH=(innerW-gy*(rows-1))/rows;if(cellW<=0||cellH<=0)return [];
         let [vw,vh]=fitTemplateDims(selectedTemplate,cellW,cellH,preserve);
-        for(let r=0;r<rows;r++)for(let c=0;c<cols;c++)out.push({cx:frame+cellW/2+c*(cellW+gx),cy:frame+cellH/2+r*(cellH+gy),vw:vw,vh:vh,loops:loops});
+        for(let r=0;r<rows;r++)for(let c=0;c<cols;c++)out.push({cx:frame+cellW/2+c*(cellW+gx),cy:frame+cellH/2+r*(cellH+gy),vw:vw,vh:vh,regions:regions});
         return out;
       }
       function drawScreenPreview(){
@@ -1588,13 +1595,22 @@ module TranTuanNoiThat
         let frame=Math.max(0,val('screenFrame'));ctx.strokeStyle='#b34d00';ctx.lineWidth=1;ctx.strokeRect(ox+frame*scale,oy+frame*scale,Math.max(0,(L-2*frame)*scale),Math.max(0,(PW-2*frame)*scale));
         let profiles=screenProfiles();
         profiles.forEach(item=>{
-          (item.loops||[]).forEach(pts=>{
+          (item.regions||[]).forEach(region=>{
+            let all=[region.outer].concat(region.holes||[]);
             ctx.beginPath();
-            pts.forEach((p,i)=>{let x=ox+(item.cx+p[0]*item.vw/2)*scale,y=oy+(PW-(item.cy+p[1]*item.vh/2))*scale;i?ctx.lineTo(x,y):ctx.moveTo(x,y)});
-            ctx.closePath();ctx.fillStyle='rgba(24,106,59,.16)';ctx.fill();ctx.strokeStyle='#186a3b';ctx.lineWidth=1.1;ctx.stroke();
+            all.forEach(pts=>{
+              pts.forEach((p,i)=>{let x=ox+(item.cx+p[0]*item.vw/2)*scale,y=oy+(PW-(item.cy+p[1]*item.vh/2))*scale;i?ctx.lineTo(x,y):ctx.moveTo(x,y)});
+              ctx.closePath();
+            });
+            ctx.fillStyle='rgba(24,106,59,.16)';try{ctx.fill('evenodd')}catch(e){ctx.fill()}
+            all.forEach(pts=>{
+              ctx.beginPath();pts.forEach((p,i)=>{let x=ox+(item.cx+p[0]*item.vw/2)*scale,y=oy+(PW-(item.cy+p[1]*item.vh/2))*scale;i?ctx.lineTo(x,y):ctx.moveTo(x,y)});
+              ctx.closePath();ctx.strokeStyle='#186a3b';ctx.lineWidth=1.1;ctx.stroke();
+            });
           });
         });
-        let info=document.getElementById('screenInfo');if(info)info.textContent=selectedTemplate?(selectedTemplate.name+' · '+profiles.length+' LỖ ĐỤC THỦNG · khung '+frame+' mm'):'Chọn mẫu vector để xem trước vách CNC.';
+        let cutCount=profiles.reduce((sum,item)=>sum+(item.regions?item.regions.length:0),0);
+        let info=document.getElementById('screenInfo');if(info)info.textContent=selectedTemplate?(selectedTemplate.name+' · '+cutCount+' VÙNG ĐỤC THỦNG · khung '+frame+' mm'):'Chọn mẫu vector để xem trước vách CNC.';
       }
 
       function drawPreview(){
@@ -1607,21 +1623,21 @@ module TranTuanNoiThat
         ctx.strokeStyle='#555';ctx.lineWidth=2;ctx.strokeRect(ox,oy,rw,rh);
 
         if(selectedTemplate){
-          let loops=previewLoops(),w=val('w'),h=val('h'),dx=val('offsetX'),dy=val('offsetY');
+          let regions=previewRegions(),w=val('w'),h=val('h'),dx=val('offsetX'),dy=val('offsetY');
           let anchor=document.getElementById('anchor').value,[cx,cy]=anchorCenter(objW,objH,w,h,dx,dy,anchor);
           let pcx=ox+cx*scale,pcy=oy+(objH-cy)*scale,pxScale=w*scale/2,pyScale=h*scale/2;
           let mode=document.getElementById('cutMode').value;
-          loops.forEach(pts=>{
-            function trace(){
+          regions.forEach(region=>{
+            let all=[region.outer].concat(region.holes||[]);
+            function traceAll(){
               ctx.beginPath();
-              pts.forEach((p,i)=>{let x=pcx+p[0]*pxScale,y=pcy-p[1]*pyScale;i?ctx.lineTo(x,y):ctx.moveTo(x,y)});
-              ctx.closePath();
+              all.forEach(pts=>{pts.forEach((p,i)=>{let x=pcx+p[0]*pxScale,y=pcy-p[1]*pyScale;i?ctx.lineTo(x,y):ctx.moveTo(x,y)});ctx.closePath()});
             }
             let border=val('borderWidth');
             if(border>0){
-              trace();ctx.strokeStyle='rgba(197,107,32,.25)';ctx.lineWidth=Math.max(2,border*scale*2);ctx.stroke();
+              traceAll();ctx.strokeStyle='rgba(197,107,32,.25)';ctx.lineWidth=Math.max(2,border*scale*2);ctx.stroke();
             }
-            trace();ctx.setLineDash(mode==='on'?[]:(mode==='inside'?[6,3]:[2,3]));
+            traceAll();ctx.setLineDash(mode==='on'?[]:(mode==='inside'?[6,3]:[2,3]));
             ctx.strokeStyle=selectedTemplate.source_type==='image'?'#186a3b':'#c56b20';ctx.lineWidth=2;ctx.stroke();ctx.setLineDash([]);
           });
         }
