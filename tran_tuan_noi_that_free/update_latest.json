@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.182",
+  "version": "1.9.183",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "TẠO LED hoàn thiện theo yêu cầu mới. Tool chạy AUTO: rà Face thuộc Group/Component để tự nhận Dài×Rộng, chiều dài rãnh 0=AUTO theo mặt trừ Cách 2 đầu, rê gần mép nào rãnh bám mép đó, preview 3D và quầng sáng LED cập nhật tức thì khi đổi thông số. Giao diện hai cột xanh nhạt: danh sách mẫu bên trái, thông số bên phải; hỗ trợ đặt tên, lưu/chọn/xóa mẫu. CNC tạo loop 4 Edge kín thật nằm bên trong chính đối tượng; Group + Tag mặc định ABF_RANHLED hoặc tên tùy chỉnh; gắn ABF/is-cutting-lines=true, ABF/is-intersect=true và đánh dấu mặt ABF/is-cnced-face để ABF/Aspire nhận đường gia công. Không giữ Face phụ trong group CNC. Component dùng Make Unique khi cần. Giữ dọn sạch VECTOR/ẢNH CNC cũ.",
+  "notes": "Sửa lỗi cập nhật từ updater cũ: bỏ remove_dirs khỏi manifest để tránh lỗi 'Thư mục cần xóa không nằm trong danh sách an toàn'. VECTOR/ẢNH CNC cũ vẫn được xóa bằng remove_files; thư mục data/vector_cnc sẽ được bootstrap mới tự dọn sau khi nạp thành công. Giữ nguyên TẠO LED 1.9.182 với AUTO Face, preview ánh sáng và loop CNC ABF_RANHLED.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "c2321bcd49f3913258ff2cdeb194889ff1df33ad321d920b4cd23fcf7485074d"
+      "sha256": "da28d7d2de9792a277501f81d5c0c0cabc4e13beb99ff48d05cfc420d7185a5a"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -324,7 +324,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "56eef41f3cf0f084dd5347d13f40799eaa0f1b85f97cc8b6366bb12e64a1e5f1"
+      "sha256": "c1a2cb503bb11c4fa404524815d33f591d8b9ca44401d34a51ca056d0e26fb71"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -336,8 +336,5 @@
   "remove_files": [
     "tran_tuan_noi_that/vector_cnc_tool.rb",
     "tran_tuan_noi_that/icons/vector_cnc.svg"
-  ],
-  "remove_dirs": [
-    "tran_tuan_noi_that/data/vector_cnc"
   ]
 }
