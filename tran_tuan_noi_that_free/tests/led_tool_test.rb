@@ -11,6 +11,8 @@ check('LED defaults and ABF_RANHLED tag normalize') do
   assert(o['brightness']==100.0)
   assert(o['light_distance']==80.0)
   assert(o['light_spread']==40.0)
+  assert(o['quantity']==1)
+  assert(o['spacing']==50.0)
   assert(LED.normalize({'cnc_tag'=>'ranh led phong khach'})['cnc_tag']=='ABF_RANH_LED_PHONG_KHACH')
   assert(LED.normalize({'cnc_tag'=>'ABF_RANHLED_12'})['cnc_tag']=='ABF_RANHLED_12')
 end
@@ -38,6 +40,19 @@ check('hover side switches groove to opposite outside edge') do
   b=LED.groove_plan(1000,400,LED::DEFAULTS.merge('edge_offset'=>30,'groove_width'=>10),:max)
   near(a[:v0],30);near(a[:v1],40)
   near(b[:v0],360);near(b[:v1],370)
+end
+
+check('LED quantity and clear spacing generate parallel groove plans') do
+  plans=LED.groove_plans(
+    1000,400,
+    LED::DEFAULTS.merge('quantity'=>3,'spacing'=>20,'edge_offset'=>30,'groove_width'=>10),
+    :min
+  )
+  assert(plans.length==3)
+  near(plans[0][:v0],30)
+  near(plans[1][:v0],60)
+  near(plans[2][:v0],90)
+  assert(plans.all?{|p|p[:count]==3})
 end
 
 check('LED invalid offsets are rejected before geometry creation') do
@@ -81,6 +96,10 @@ check('Tạo LED UI contains preset and live preview controls') do
   assert(html.include?('Độ sáng LED'))
   assert(html.include?('Khoảng chiếu xuống'))
   assert(html.include?('Độ loang ánh sáng'))
+  assert(html.include?('Số lượng rãnh'))
+  assert(html.include?('Khoảng cách giữa'))
+  assert(html.include?('PREVIEW VẦNG SÁNG'))
+  assert(html.include?('light_preview'))
   assert(html.include?('ABF_RANHLED'))
   assert(html.include?('CẬP NHẬT PREVIEW'))
   assert(html.include?('ABF/is-cutting-lines=true'))
@@ -99,22 +118,45 @@ check('Tạo LED CNC edges are embedded directly in host entities without child 
   assert(!body.include?("entities.add_group"))
 end
 
-check('Tạo LED light geometry shines down with adjustable distance and spread') do
+check('Tạo LED light direction follows groove side and halo fades smoothly') do
+  analysis={
+    origin:Geom::Point3d.new(0,0,0),
+    u:Geom::Vector3d.new(0,0,1),
+    v:Geom::Vector3d.new(1,0,0),
+    normal:Geom::Vector3d.new(0,1,0),
+    min_u:0,min_v:0
+  }
+  min_plan=LED.groove_plan(1000,400,LED::DEFAULTS,:min)
+  max_plan=LED.groove_plan(1000,400,LED::DEFAULTS,:max)
+  min_dir=LED.light_direction(analysis,min_plan)
+  max_dir=LED.light_direction(analysis,max_plan)
+  near(min_dir.x,1.0)
+  near(max_dir.x,-1.0)
+
   rect=[
     Geom::Point3d.new(0,0,0),
-    Geom::Point3d.new(100.mm,0,0),
-    Geom::Point3d.new(100.mm,10.mm,0),
-    Geom::Point3d.new(0,10.mm,0)
+    Geom::Point3d.new(0,0,100.mm),
+    Geom::Point3d.new(10.mm,0,100.mm),
+    Geom::Point3d.new(10.mm,0,0)
   ]
-  light=LED.light_geometry(rect,LED::DEFAULTS)
-  assert(light[:levels].length==3)
-  assert(light[:beam_quads].length==2)
-  bottom=light[:levels].last[:rect]
-  bottom.each{|p|near(p.z*25.4,-80.0)}
-  near(bottom[0].distance(bottom[3])*25.4,90.0)
+  light=LED.light_geometry(rect,LED::DEFAULTS,Geom::Vector3d.new(-1,0,0))
+  assert(light[:bands].length==16)
+  assert(light[:levels].length==16)
+  assert(light[:bands].first[:alpha] > light[:bands].last[:alpha])
+  assert(light[:direction].x < 0)
+  far=light[:bands].last[:points]
+  assert(far[2].x < rect[1].x)
 
-  off=LED.light_geometry(rect,LED::DEFAULTS.merge('brightness'=>0))
-  assert(off[:levels].all?{|row|row[:alpha]>=0})
+  off=LED.light_geometry(rect,LED::DEFAULTS.merge('brightness'=>0),Geom::Vector3d.new(-1,0,0))
+  assert(off[:bands].all?{|row|row[:alpha]==0})
+end
+
+check('Tạo LED create flow loops all groove plans and stays continuous') do
+  source=File.read(ROOT+'/led_tool.rb',encoding:'UTF-8')
+  assert(source.include?("plans = LedTool.groove_plans"))
+  assert(source.include?("plans.each_with_index do |plan,index|"))
+  assert(source.include?("LedTool.add_abf_profile(target,host_face,local_points,@options,index,plans.length)"))
+  assert(source.include?("tiếp tục rà/click"))
 end
 
 check('Tạo LED accepts Group and Component targets') do
