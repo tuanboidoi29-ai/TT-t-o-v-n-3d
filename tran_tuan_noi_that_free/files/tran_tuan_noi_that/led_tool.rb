@@ -7,7 +7,7 @@ module TranTuanNoiThat
   module LedTool
     extend self
 
-    VERSION = '1.2.0'.freeze
+    VERSION = '1.3.0'.freeze
     KEY = 'TT_LED'.freeze
     DATA_DIR = File.join(TranTuanNoiThat::ROOT, 'data', 'led_tool').freeze
     PRESET_FILE = File.join(DATA_DIR, 'presets.json').freeze
@@ -18,7 +18,9 @@ module TranTuanNoiThat
       'edge_offset'=>30.0,
       'groove_width'=>10.0,
       'groove_length'=>0.0,
-      'led_color'=>'#ffd36a',
+      'quantity'=>1,
+      'spacing'=>50.0,
+      'led_color'=>'#ffd86a',
       'brightness'=>100.0,
       'light_distance'=>80.0,
       'light_spread'=>40.0,
@@ -41,7 +43,7 @@ module TranTuanNoiThat
 
     def normalize_color(value)
       text = value.to_s.strip
-      text = '#ffd36a' unless text.match?(/\A#[0-9a-fA-F]{6}\z/)
+      text = '#ffd86a' unless text.match?(/\A#[0-9a-fA-F]{6}\z/)
       text.downcase
     end
 
@@ -54,6 +56,8 @@ module TranTuanNoiThat
       out['edge_offset'] = [[source['edge_offset'].to_f,0.0].max,5000.0].min
       out['groove_width'] = [[source['groove_width'].to_f,0.5].max,200.0].min
       out['groove_length'] = [[source['groove_length'].to_f,0.0].max,100_000.0].min
+      out['quantity'] = [[source['quantity'].to_i,1].max,20].min
+      out['spacing'] = [[source['spacing'].to_f,0.0].max,5000.0].min
       out['led_color'] = normalize_color(source['led_color'])
       out['brightness'] = [[source['brightness'].to_f,0.0].max,200.0].min
       out['light_distance'] = [[source['light_distance'].to_f,0.0].max,1000.0].min
@@ -147,6 +151,35 @@ module TranTuanNoiThat
         length:groove_l,width:groove_w,
         side:side.to_sym,auto_length:requested <= 0
       }
+    end
+
+    def groove_plans(length_mm,width_mm,raw,side = :min)
+      opts = normalize(raw)
+      base = groove_plan(length_mm,width_mm,opts,side)
+      count = opts['quantity']
+      gap = opts['spacing']
+      groove_w = base[:width]
+      total_width = count*groove_w + (count-1)*gap
+      required = opts['edge_offset'] + total_width
+      if required > width_mm.to_f + 1.0e-6
+        raise "Số lượng #{count} rãnh + khoảng cách giữa vượt bề rộng mặt."
+      end
+
+      Array.new(count) do |index|
+        shift = index*(groove_w+gap)
+        plan = base.dup
+        if side.to_sym == :max
+          plan[:v0] = base[:v0]-shift
+          plan[:v1] = base[:v1]-shift
+        else
+          plan[:v0] = base[:v0]+shift
+          plan[:v1] = base[:v1]+shift
+        end
+        plan[:index] = index
+        plan[:count] = count
+        plan[:spacing] = gap
+        plan
+      end
     end
 
     def color_from_hex(hex, alpha = 255)
@@ -251,7 +284,7 @@ module TranTuanNoiThat
       end.max_by { |face| face.area.to_f }
     end
 
-    def add_abf_profile(target,host_face,points,opts)
+    def add_abf_profile(target,host_face,points,opts,profile_index = 0,profile_count = 1)
       model = Sketchup.active_model
       tag_name = normalize_tag(opts['cnc_tag'])
       tag = ensure_tag(model,tag_name)
@@ -277,6 +310,9 @@ module TranTuanNoiThat
         edge.set_attribute(KEY,'cnc_name',tag_name)
         edge.set_attribute(KEY,'groove_width_mm',opts['groove_width'])
         edge.set_attribute(KEY,'closed_loop',true)
+        edge.set_attribute(KEY,'profile_index',profile_index)
+        edge.set_attribute(KEY,'profile_count',profile_count)
+        edge.set_attribute(KEY,'spacing_mm',opts['spacing'])
         edge
       end.compact.uniq
 
@@ -292,7 +328,8 @@ module TranTuanNoiThat
       target.set_attribute(KEY,'cnc_tag',tag_name)
       target.set_attribute(KEY,'led_profile_embedded',true)
       target.set_attribute(KEY,'led_profile_grouped',false)
-      target.set_attribute(KEY,'led_cnc_edge_count',edges.length)
+      target.set_attribute(KEY,'led_last_profile_count',profile_count)
+      target.set_attribute(KEY,'led_last_cnc_edge_count',profile_count*4)
       edges
     end
 
