@@ -581,6 +581,14 @@ module TranTuanNoiThat
         return clear_pick unless found
         @target,@target_tr,@face = found
         @analysis = LedTool.analyze_face(@face)
+        begin
+          world_normal = @analysis[:normal].transform(@target_tr)
+          if world_normal.dot(view.camera.direction) > 0
+            @analysis[:normal] = @analysis[:normal].reverse
+          end
+        rescue StandardError
+          nil
+        end
         choose_side(view,x,y)
         rebuild_plan
         notify_detected
