@@ -8,7 +8,7 @@ module TranTuanNoiThat
   module VectorCNC
     extend self
 
-    VERSION = '1.1.2'.freeze
+    VERSION = '1.2.0'.freeze
     KEY = 'TT_VECTOR_CNC'.freeze
     DATA_DIR = File.join(TranTuanNoiThat::ROOT, 'data', 'vector_cnc').freeze
     LIBRARY_FILE = File.join(DATA_DIR, 'library.json').freeze
@@ -25,6 +25,22 @@ module TranTuanNoiThat
       'cut_mode' => 'inside'
     }.freeze
     MAX_POINTS = 720
+    PANEL_TAG = 'TT_TAM_CNC'.freeze
+    PANEL_DEFAULTS = {
+      'length'=>1200.0,
+      'width'=>600.0,
+      'thickness'=>17.5,
+      'name'=>'TAM_CNC',
+      'orientation'=>'xz'
+    }.freeze
+    BOX_FACE_INDICES = [
+      [0,3,2,1],
+      [4,5,6,7],
+      [0,1,5,4],
+      [1,2,6,5],
+      [2,3,7,6],
+      [3,0,4,7]
+    ].freeze
 
     BUILTINS = [
       ['circle', 'Tròn'],
@@ -354,6 +370,205 @@ module TranTuanNoiThat
 
     def ensure_tag(model, name)
       model.layers[name] || model.layers.add(name)
+    end
+
+    def anchor_center_mm(panel_length,panel_width,vector_width,vector_height,offset_x,offset_y,anchor)
+      length = panel_length.to_f
+      width = panel_width.to_f
+      vw = vector_width.to_f
+      vh = vector_height.to_f
+      raise 'Dài/Rộng tấm CNC phải lớn hơn 0.' unless length > 0 && width > 0
+      raise 'Rộng/Cao vector phải lớn hơn 0.' unless vw > 0 && vh > 0
+      raise "Vector rộng #{vw.round(1)} mm lớn hơn tấm #{length.round(1)} mm." if vw > length + 1.0e-9
+      raise "Vector cao #{vh.round(1)} mm lớn hơn tấm #{width.round(1)} mm." if vh > width + 1.0e-9
+
+      ox = offset_x.to_f
+      oy = offset_y.to_f
+      half_w = vw/2.0
+      half_h = vh/2.0
+      cx,cy = case anchor.to_s
+      when 'left'
+        [half_w+ox,width/2.0+oy]
+      when 'right'
+        [length-half_w-ox,width/2.0+oy]
+      when 'top'
+        [length/2.0+ox,width-half_h-oy]
+      when 'bottom'
+        [length/2.0+ox,half_h+oy]
+      when 'left_bottom'
+        [half_w+ox,half_h+oy]
+      when 'right_bottom'
+        [length-half_w-ox,half_h+oy]
+      when 'left_top'
+        [half_w+ox,width-half_h-oy]
+      when 'right_top'
+        [length-half_w-ox,width-half_h-oy]
+      else
+        [length/2.0+ox,width/2.0+oy]
+      end
+      cx = [[cx,half_w].max,length-half_w].min
+      cy = [[cy,half_h].max,width-half_h].min
+      [cx,cy]
+    end
+
+    def direct_panel_plan(template,panel_settings,cnc_settings)
+      tpl = sanitize_template(template)
+      panel = PANEL_DEFAULTS.merge(panel_settings.transform_keys(&:to_s))
+      length = panel['length'].to_f
+      width = panel['width'].to_f
+      thickness = panel['thickness'].to_f
+      raise 'Dài tấm CNC phải lớn hơn 0.' unless length > 0
+      raise 'Rộng tấm CNC phải lớn hơn 0.' unless width > 0
+      raise 'Dày tấm CNC phải lớn hơn 0.' unless thickness > 0
+
+      cfg = DEFAULT_CNC.merge(cnc_settings.transform_keys(&:to_s))
+      cfg['width'] = (cfg['width'] || tpl['width']).to_f
+      cfg['height'] = (cfg['height'] || tpl['height']).to_f
+      cfg['depth'] = [cfg['depth'].to_f,0.0].max
+      cfg['offset_x'] = cfg['offset_x'].to_f
+      cfg['offset_y'] = cfg['offset_y'].to_f
+      cfg['border_width'] = [cfg['border_width'].to_f,0.0].max
+      cfg['smoothness'] = clamp_smoothness(cfg['smoothness'])
+      cfg['anchor'] = cfg['anchor'].to_s
+      cfg['cut_mode'] = cfg['cut_mode'].to_s
+
+      border = cfg['border_width']
+      required_w = cfg['width'] + border*2.0
+      required_h = cfg['height'] + border*2.0
+      raise 'Vector + viền rộng vượt quá chiều dài tấm CNC.' if required_w > length + 1.0e-9
+      raise 'Vector + viền rộng vượt quá chiều rộng tấm CNC.' if required_h > width + 1.0e-9
+
+      cx,cy = anchor_center_mm(length,width,cfg['width'],cfg['height'],cfg['offset_x'],cfg['offset_y'],cfg['anchor'])
+      profile = scaled_points(tpl,cfg['width'],cfg['height'],cfg['smoothness']).map { |x,y| [cx+x,cy+y] }
+      border_profile = if border > 0
+        scaled_points(tpl,cfg['width']+border*2.0,cfg['height']+border*2.0,cfg['smoothness']).map { |x,y| [cx+x,cy+y] }
+      else
+        []
+      end
+
+      {
+        template: tpl,
+        panel: panel.merge('length'=>length,'width'=>width,'thickness'=>thickness),
+        cnc: cfg,
+        center: [cx,cy],
+        profile: profile,
+        border_profile: border_profile
+      }
+    end
+
+    def panel_orientation_transform(orientation)
+      origin = Geom::Point3d.new(0,0,0)
+      case orientation.to_s
+      when 'xy'
+        Geom::Transformation.new
+      when 'yz'
+        Geom::Transformation.axes(
+          origin,
+          Geom::Vector3d.new(0,1,0),
+          Geom::Vector3d.new(0,0,1),
+          Geom::Vector3d.new(1,0,0)
+        )
+      else
+        Geom::Transformation.axes(
+          origin,
+          Geom::Vector3d.new(1,0,0),
+          Geom::Vector3d.new(0,0,1),
+          Geom::Vector3d.new(0,-1,0)
+        )
+      end
+    end
+
+    def create_direct_panel(template,panel_settings,cnc_settings)
+      plan = direct_panel_plan(template,panel_settings,cnc_settings)
+      model = Sketchup.active_model
+      model.start_operation('TT - TẠO TẤM CNC',true)
+      started = true
+
+      panel = plan[:panel]
+      cfg = plan[:cnc]
+      length = panel['length']
+      width = panel['width']
+      thickness = panel['thickness']
+
+      board = model.active_entities.add_group
+      board.name = "#{abf_name(panel['name'])}_#{length.round(1)}x#{width.round(1)}x#{thickness.round(1)}"
+      board.layer = ensure_tag(model,PANEL_TAG)
+      board.set_attribute('ABF','is-board',true)
+      board.set_attribute(KEY,'role','cnc_panel')
+      board.set_attribute(KEY,'length_mm',length)
+      board.set_attribute(KEY,'width_mm',width)
+      board.set_attribute(KEY,'thickness_mm',thickness)
+      board.set_attribute(KEY,'orientation',panel['orientation'])
+      board.set_attribute('TRẦN TUẤN NỘI THẤT','do_day_mm',thickness)
+      board.set_attribute('TRẦN TUẤN NỘI THẤT','loai','VAN')
+      board.set_attribute('TRẦN TUẤN NỘI THẤT','chi_tiet','TAM_CNC')
+
+      l = length.mm
+      w = width.mm
+      t = thickness.mm
+      points = [
+        Geom::Point3d.new(0,0,0), Geom::Point3d.new(l,0,0),
+        Geom::Point3d.new(l,w,0), Geom::Point3d.new(0,w,0),
+        Geom::Point3d.new(0,0,t), Geom::Point3d.new(l,0,t),
+        Geom::Point3d.new(l,w,t), Geom::Point3d.new(0,w,t)
+      ]
+      layer0 = model.layers[0]
+      shell_faces = BOX_FACE_INDICES.map do |indices|
+        face = board.entities.add_face(indices.map { |i| points[i] })
+        raise 'Không tạo được vỏ kín 6 mặt cho tấm CNC.' unless face
+        face.layer = layer0 if face.respond_to?(:layer=)
+        face.edges.each { |edge| edge.layer = layer0 if edge.respond_to?(:layer=) }
+        face
+      end
+      front = shell_faces.find do |face|
+        face.vertices.all? { |vertex| (vertex.position.z - t).abs < 0.001.mm }
+      end
+      raise 'Không xác định được mặt trước tấm CNC.' unless front
+      front.reverse! if front.respond_to?(:normal) && front.normal.z.to_f < 0
+      front.set_attribute('ABF','is-cnced-face',true)
+
+      profile = board.entities.add_group
+      profile.name = '_ABF_Intersect'
+      tag_name = plan[:template]['name'].to_s.start_with?('ABF_') ? plan[:template]['name'] : abf_name(plan[:template]['name'])
+      tag = ensure_tag(model,tag_name)
+      profile.layer = tag
+      profile.set_attribute('ABF','is-intersect',true)
+      profile.set_attribute('ABF','intersect-offset',0.0)
+      profile.set_attribute('ABF','setting-name',tag_name.sub(/\AABF_/,'').downcase.tr('_',' '))
+      profile.set_attribute('ABF','intersect-group-b-id',front.respond_to?(:persistent_id) ? front.persistent_id : front.object_id)
+      profile.set_attribute(KEY,'template',tag_name)
+      profile.set_attribute(KEY,'width_mm',cfg['width'])
+      profile.set_attribute(KEY,'height_mm',cfg['height'])
+      profile.set_attribute(KEY,'depth_mm',cfg['depth'])
+      profile.set_attribute(KEY,'border_width_mm',cfg['border_width'])
+      profile.set_attribute(KEY,'smoothness',cfg['smoothness'])
+      profile.set_attribute(KEY,'offset_x_mm',cfg['offset_x'])
+      profile.set_attribute(KEY,'offset_y_mm',cfg['offset_y'])
+      profile.set_attribute(KEY,'anchor',cfg['anchor'])
+      profile.set_attribute(KEY,'cut_mode',cfg['cut_mode'])
+      profile.set_attribute(KEY,'direct_panel',true)
+
+      profile_points = plan[:profile].map { |x,y| Geom::Point3d.new(x.mm,y.mm,t) }
+      vector_face = profile.entities.add_face(profile_points)
+      raise 'Không tạo được biên dạng vector CNC trên tấm mới.' unless vector_face
+      vector_face.layer = tag if vector_face.respond_to?(:layer=)
+      vector_face.edges.each { |edge| edge.layer = tag if edge.respond_to?(:layer=) }
+
+      board.transformation = panel_orientation_transform(panel['orientation']) if board.respond_to?(:transformation=)
+      model.commit_operation
+      started = false
+
+      model.selection.clear
+      model.selection.add(board)
+      begin
+        model.active_view.zoom(board)
+      rescue StandardError
+        nil
+      end
+      board
+    rescue StandardError
+      model.abort_operation if started
+      raise
     end
 
     def activate_template(template, settings = {})
