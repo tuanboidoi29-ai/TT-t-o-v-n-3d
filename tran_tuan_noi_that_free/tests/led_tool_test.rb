@@ -1,0 +1,90 @@
+# encoding: UTF-8
+load File.join(__dir__, 'upgrade_146_test.rb')
+load ROOT+'/led_tool.rb'
+LED=TranTuanNoiThat::LedTool
+
+check('LED defaults and ABF_RANHLED tag normalize') do
+  o=LED.normalize({})
+  assert(o['cnc_tag']=='ABF_RANHLED')
+  assert(o['groove_width']==10.0)
+  assert(o['simulate']==true && o['cnc']==true)
+  assert(LED.normalize({'cnc_tag'=>'ranh led phong khach'})['cnc_tag']=='ABF_RANH_LED_PHONG_KHACH')
+  assert(LED.normalize({'cnc_tag'=>'ABF_RANHLED_12'})['cnc_tag']=='ABF_RANHLED_12')
+end
+
+check('AUTO LED length uses both end clearances') do
+  p=LED.groove_plan(1000,400,LED::DEFAULTS.merge('end_clearance'=>25,'edge_offset'=>30,'groove_width'=>12,'groove_length'=>0),:min)
+  near(p[:length],950)
+  near(p[:u0],25)
+  near(p[:u1],975)
+  near(p[:v0],30)
+  near(p[:v1],42)
+  assert(p[:auto_length])
+end
+
+check('manual LED length stays centered inside end clearances') do
+  p=LED.groove_plan(1000,400,LED::DEFAULTS.merge('end_clearance'=>50,'groove_length'=>600,'edge_offset'=>20,'groove_width'=>10),:min)
+  near(p[:length],600)
+  near(p[:u0],200)
+  near(p[:u1],800)
+  assert(!p[:auto_length])
+end
+
+check('hover side switches groove to opposite outside edge') do
+  a=LED.groove_plan(1000,400,LED::DEFAULTS.merge('edge_offset'=>30,'groove_width'=>10),:min)
+  b=LED.groove_plan(1000,400,LED::DEFAULTS.merge('edge_offset'=>30,'groove_width'=>10),:max)
+  near(a[:v0],30);near(a[:v1],40)
+  near(b[:v0],360);near(b[:v1],370)
+end
+
+check('LED invalid offsets are rejected before geometry creation') do
+  begin
+    LED.groove_plan(200,50,LED::DEFAULTS.merge('end_clearance'=>110),:min)
+    raise 'accepted invalid end clearance'
+  rescue RuntimeError=>e
+    assert(e.message.include?('2 đầu'))
+  end
+  begin
+    LED.groove_plan(500,30,LED::DEFAULTS.merge('edge_offset'=>25,'groove_width'=>10),:min)
+    raise 'accepted invalid edge offset'
+  rescue RuntimeError=>e
+    assert(e.message.include?('mép ngoài'))
+  end
+end
+
+check('LED local rectangle uses true groove dimensions on face plane') do
+  analysis={
+    origin:Geom::Point3d.new(0,0,0),
+    u:Geom::Vector3d.new(1,0,0),
+    v:Geom::Vector3d.new(0,1,0),
+    normal:Geom::Vector3d.new(0,0,1),
+    min_u:0,min_v:0
+  }
+  plan=LED.groove_plan(1000,400,LED::DEFAULTS.merge('end_clearance'=>20,'edge_offset'=>30,'groove_width'=>10),:min)
+  pts=LED.local_rect(analysis,plan)
+  near((pts[0].distance(pts[1]))*25.4,960)
+  near((pts[1].distance(pts[2]))*25.4,10)
+end
+
+check('Tạo LED UI contains preset and live preview controls') do
+  html=LED.dialog_html
+  assert(html.include?('TẠO LED'))
+  assert(html.include?('MẪU ĐÃ LƯU'))
+  assert(html.include?('Cách 2 đầu'))
+  assert(html.include?('Cách mép ngoài'))
+  assert(html.include?('Độ rộng rãnh LED'))
+  assert(html.include?('Chiều dài rãnh'))
+  assert(html.include?('Màu LED mô phỏng'))
+  assert(html.include?('ABF_RANHLED'))
+  assert(html.include?('CẬP NHẬT PREVIEW'))
+  assert(html.include?('_ABF_Intersect'))
+end
+
+check('Tạo LED accepts Group and Component targets') do
+  g=board(600,400,17.5)
+  assert(LED.container?(g))
+  ci=Sketchup::ComponentInstance.new(g.definition)
+  assert(LED.container?(ci))
+end
+
+puts "LED TOOL REGRESSIONS COMPLETE"
