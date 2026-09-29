@@ -276,7 +276,40 @@ check('image CNC screen expands every image contour into through-cut profiles') 
   )
   assert(plan[:profiles].length==12)
   assert(plan[:screen]['through_cut']==true)
-  assert(plan[:profiles].map{|p|p[:loop_index]}.uniq.sort==[0,1])
+  assert(plan[:profiles].map{|p|p[:region_index]}.uniq.sort==[0,1])
+end
+
+check('image CNC region preserves inner holes as one through-cut region') do
+  tpl=V.sanitize_template(
+    'id'=>'image_hole',
+    'name'=>'ANH_CO_LO',
+    'label'=>'Ảnh có lỗ',
+    'regions'=>[
+      {
+        'outer'=>[[0,0],[200,0],[200,200],[0,200]],
+        'holes'=>[
+          [[50,50],[50,150],[150,150],[150,50]]
+        ]
+      }
+    ],
+    'source_type'=>'image',
+    'image_mode'=>'white_inside'
+  )
+  assert(tpl['regions'].length==1)
+  assert(tpl['regions'][0]['holes'].length==1)
+  assert(V.polygon_area(tpl['regions'][0]['outer'])>0)
+  assert(V.polygon_area(tpl['regions'][0]['holes'][0])<0)
+
+  plan=V.screen_panel_plan(
+    tpl,
+    {'length'=>800,'width'=>500,'thickness'=>17.5,'orientation'=>'xz'},
+    V.cnc_settings(200,200,3,0,0,0,72,'center','inside'),
+    {'mode'=>'fit','frame_width'=>40,'preserve_ratio'=>true}
+  )
+  assert(plan[:profiles].length==1)
+  assert(plan[:profiles][0][:holes].length==1)
+  assert(plan[:profiles][0][:outer].length==4)
+  assert(V.respond_to?(:punch_through_region))
 end
 
 check('CNC screen repeat mode fills rows and columns inside outer frame') do
@@ -365,9 +398,13 @@ check('VECTOR CNC HtmlDialog has non-blank static UI and apply controls') do
   assert(html.include?('imageThreshold'))
   assert(html.include?('imageVectorPreview'))
   assert(html.include?('save_image_template'))
-  assert(html.include?('traceMaskLoops'))
+  assert(html.include?('regionsFromMask'))
+  assert(html.include?('innerWhiteMask'))
+  assert(html.include?('AUTO theo nền ảnh'))
+  assert(html.include?('Đục khoảng trắng bên trong'))
+  assert(html.include?('Đục vùng màu / tối'))
   assert(html.include?('ĐỤC THỦNG THẬT'))
-  assert(html.include?('LỖ ĐỤC THỦNG'))
+  assert(html.include?('VÙNG ĐỤC THỦNG'))
   V.ensure_data
   File.write(V::UI_FILE,html,encoding:'UTF-8')
   assert(File.size(V::UI_FILE)>5000)
