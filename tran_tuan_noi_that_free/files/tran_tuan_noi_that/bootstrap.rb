@@ -356,9 +356,9 @@ module TranTuanNoiThat
     def install_vector_cnc_ui
       return false unless defined?(TranTuanNoiThat::VectorCNC)
       @vector_cnc_cmd ||= command(
-        'TT - VECTOR CNC',
+        'TT - VECTOR CNC / ẢNH CNC',
         'vector_cnc.svg',
-        'Thư viện vector CNC · rà Face Group/Component · preview co giãn · tạo ABF vector thật'
+        'VECTOR CNC / ẢNH CNC · thư viện mẫu · tạo tấm/vách CNC đục thủng · ABF/Aspire'
       ) { VectorCNC.show }
       add_feature_command_once(@vector_cnc_cmd, :vector_cnc_menu_installed)
       true
