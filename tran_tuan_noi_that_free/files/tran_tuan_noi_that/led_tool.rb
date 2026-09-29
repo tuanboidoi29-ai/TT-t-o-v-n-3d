@@ -7,7 +7,7 @@ module TranTuanNoiThat
   module LedTool
     extend self
 
-    VERSION = '1.0.0'.freeze
+    VERSION = '1.1.0'.freeze
     KEY = 'TT_LED'.freeze
     DATA_DIR = File.join(TranTuanNoiThat::ROOT, 'data', 'led_tool').freeze
     PRESET_FILE = File.join(DATA_DIR, 'presets.json').freeze
@@ -251,25 +251,34 @@ module TranTuanNoiThat
       tag = ensure_tag(model,tag_name)
       entities = target_entities(target)
       group = entities.add_group
-      group.name = '_ABF_Intersect'
+      # Tên Group + Tag là chính tên công đoạn LED để Aspire/ABF nhìn thấy rõ.
+      group.name = tag_name
       group.layer = tag
+      # Giữ cả hai cờ để tương thích luồng ABF cũ và chuẩn cutting-lines.
       group.set_attribute('ABF','is-intersect',true)
+      group.set_attribute('ABF','is-cutting-lines',true)
       group.set_attribute('ABF','intersect-offset',0.0)
       group.set_attribute('ABF','setting-name',operation_setting_name(tag_name))
       group.set_attribute('ABF','intersect-group-b-id',entity_reference_id(target))
+      group.set_attribute('ABF','operation-name',tag_name)
       group.set_attribute(KEY,'role','led_cnc_profile')
       group.set_attribute(KEY,'name',opts['name'])
       group.set_attribute(KEY,'cnc_tag',tag_name)
       group.set_attribute(KEY,'groove_width_mm',opts['groove_width'])
+      group.set_attribute(KEY,'closed_loop',true)
 
       face = group.entities.add_face(points)
-      raise 'Không tạo được Face rãnh LED cho ABF/Aspire.' unless face && face.valid?
-      face.layer = tag
-      face.edges.each do |edge|
+      raise 'Không tạo được biên dạng kín rãnh LED cho ABF/Aspire.' unless face && face.valid?
+      edges = face.edges.to_a
+      raise 'Biên dạng rãnh LED không đủ 4 cạnh.' unless edges.length == 4
+      edges.each do |edge|
         edge.layer = tag
         edge.set_attribute(KEY,'role','led_cnc_edge')
+        edge.set_attribute(KEY,'cnc_name',tag_name)
       end
-      face.set_attribute(KEY,'role','led_cnc_face')
+      # Chỉ giữ Edge thật, không giữ Face phụ để tránh che/tách mặt ván chính.
+      group.entities.erase_entities(face)
+
       host_face.set_attribute('ABF','is-cnced-face',true) if host_face
       target.set_attribute('ABF','is-board',true)
       target.set_attribute('ABF','ranh_led',true)
@@ -343,14 +352,14 @@ module TranTuanNoiThat
       <<~'HTML'
       <!doctype html><html lang="vi"><head><meta charset="utf-8">
       <style>
-      *{box-sizing:border-box}body{margin:0;font:13px Arial,sans-serif;background:#eef7fb;color:#18384a}
-      .head{background:#176b87;color:#fff;padding:13px 16px;position:sticky;top:0;z-index:5}.head h2{margin:0;font-size:18px}.head small{opacity:.9}
-      .layout{display:grid;grid-template-columns:220px 1fr;gap:10px;padding:10px}.panel{background:#dff4fb;border:1px solid #acd9e8;border-radius:10px;padding:11px}
-      .left{min-height:500px}.title{font-weight:bold;color:#14556e;margin-bottom:8px}.preset{width:100%;text-align:left;margin:4px 0;padding:9px;border:1px solid #9cc9d9;background:#f6fcff;border-radius:7px;cursor:pointer}
-      .preset.active{background:#bcecff;border-color:#39a7cf;font-weight:bold}.grid{display:grid;grid-template-columns:170px 1fr 44px;gap:7px;align-items:center}
-      input,select{width:100%;padding:7px;border:1px solid #91bfd0;border-radius:6px;background:white}input[type=checkbox]{width:auto}input[type=color]{height:35px;padding:2px}
-      button{border:0;border-radius:7px;padding:9px 11px;background:#177fa4;color:white;font-weight:bold;cursor:pointer}.gray{background:#607d8b}.red{background:#b84b4b}.row{display:flex;gap:7px;margin-top:9px}.row button{flex:1}
-      .detect{background:#f7fdff;border:1px dashed #7bbbd2;padding:9px;border-radius:7px;margin-bottom:10px;line-height:1.55}.hint{font-size:12px;color:#4b6c79;line-height:1.5}
+      *{box-sizing:border-box}body{margin:0;font:13px Arial,sans-serif;background:#eef9f1;color:#234633}
+      .head{background:#2f8f5b;color:#fff;padding:13px 16px;position:sticky;top:0;z-index:5}.head h2{margin:0;font-size:18px}.head small{opacity:.9}
+      .layout{display:grid;grid-template-columns:220px 1fr;gap:10px;padding:10px}.panel{background:#dff4e7;border:1px solid #abd7ba;border-radius:10px;padding:11px}
+      .left{min-height:500px}.title{font-weight:bold;color:#246b43;margin-bottom:8px}.preset{width:100%;text-align:left;margin:4px 0;padding:9px;border:1px solid #9cc9d9;background:#f6fff8;border-radius:7px;cursor:pointer}
+      .preset.active{background:#bfeccc;border-color:#57ad75;font-weight:bold}.grid{display:grid;grid-template-columns:170px 1fr 44px;gap:7px;align-items:center}
+      input,select{width:100%;padding:7px;border:1px solid #9bc8aa;border-radius:6px;background:white}input[type=checkbox]{width:auto}input[type=color]{height:35px;padding:2px}
+      button{border:0;border-radius:7px;padding:9px 11px;background:#2f8f5b;color:white;font-weight:bold;cursor:pointer}.gray{background:#607d8b}.red{background:#b84b4b}.row{display:flex;gap:7px;margin-top:9px}.row button{flex:1}
+      .detect{background:#f8fff9;border:1px dashed #7fbd94;padding:9px;border-radius:7px;margin-bottom:10px;line-height:1.55}.hint{font-size:12px;color:#52705e;line-height:1.5}
       #notice{min-height:20px;margin-top:8px;font-size:12px}.ok{color:#166534}.err{color:#a61b1b}
       </style></head><body>
       <div class="head"><h2>TẠO LED</h2><small>AUTO rà mặt Group/Component · preview 3D · click tạo ngay</small></div>
