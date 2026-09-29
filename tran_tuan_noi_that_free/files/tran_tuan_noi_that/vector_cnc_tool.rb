@@ -662,6 +662,109 @@ module TranTuanNoiThat
       raise
     end
 
+    def create_screen_panel(template,panel_settings,cnc_settings,screen_settings = {})
+      plan = screen_panel_plan(template,panel_settings,cnc_settings,screen_settings)
+      model = Sketchup.active_model
+      model.start_operation('TT - TẠO VÁCH CNC',true)
+      started = true
+
+      panel = plan[:panel]
+      cfg = plan[:cnc]
+      screen = plan[:screen]
+      length = panel['length']
+      width = panel['width']
+      thickness = panel['thickness']
+
+      board = model.active_entities.add_group
+      board.name = "#{abf_name(panel['name'])}_VACH_#{length.round(1)}x#{width.round(1)}x#{thickness.round(1)}"
+      board.layer = ensure_tag(model,PANEL_TAG)
+      board.set_attribute('ABF','is-board',true)
+      board.set_attribute(KEY,'role','cnc_screen_panel')
+      board.set_attribute(KEY,'length_mm',length)
+      board.set_attribute(KEY,'width_mm',width)
+      board.set_attribute(KEY,'thickness_mm',thickness)
+      board.set_attribute(KEY,'orientation',panel['orientation'])
+      board.set_attribute(KEY,'pattern_mode',screen['mode'])
+      board.set_attribute(KEY,'frame_width_mm',screen['frame_width'])
+      board.set_attribute(KEY,'rows',screen['rows'])
+      board.set_attribute(KEY,'cols',screen['cols'])
+      board.set_attribute(KEY,'gap_x_mm',screen['gap_x'])
+      board.set_attribute(KEY,'gap_y_mm',screen['gap_y'])
+      board.set_attribute(KEY,'profile_count',plan[:profiles].length)
+      board.set_attribute('TRẦN TUẤN NỘI THẤT','do_day_mm',thickness)
+      board.set_attribute('TRẦN TUẤN NỘI THẤT','loai','VAN')
+      board.set_attribute('TRẦN TUẤN NỘI THẤT','chi_tiet','VACH_CNC')
+
+      l = length.mm
+      w = width.mm
+      t = thickness.mm
+      points = [
+        Geom::Point3d.new(0,0,0), Geom::Point3d.new(l,0,0),
+        Geom::Point3d.new(l,w,0), Geom::Point3d.new(0,w,0),
+        Geom::Point3d.new(0,0,t), Geom::Point3d.new(l,0,t),
+        Geom::Point3d.new(l,w,t), Geom::Point3d.new(0,w,t)
+      ]
+      layer0 = model.layers[0]
+      shell_faces = BOX_FACE_INDICES.map do |indices|
+        face = board.entities.add_face(indices.map { |i| points[i] })
+        raise 'Không tạo được vỏ kín 6 mặt cho vách CNC.' unless face
+        face.layer = layer0 if face.respond_to?(:layer=)
+        face.edges.each { |edge| edge.layer = layer0 if edge.respond_to?(:layer=) }
+        face
+      end
+      front = shell_faces.find do |face|
+        face.vertices.all? { |vertex| (vertex.position.z - t).abs < 0.001.mm }
+      end
+      raise 'Không xác định được mặt trước vách CNC.' unless front
+      front.reverse! if front.respond_to?(:normal) && front.normal.z.to_f < 0
+      front.set_attribute('ABF','is-cnced-face',true)
+
+      tag_name = plan[:template]['name'].to_s.start_with?('ABF_') ? plan[:template]['name'] : abf_name(plan[:template]['name'])
+      tag = ensure_tag(model,tag_name)
+
+      plan[:profiles].each_with_index do |item,index|
+        profile = board.entities.add_group
+        profile.name = '_ABF_Intersect'
+        profile.layer = tag
+        profile.set_attribute('ABF','is-intersect',true)
+        profile.set_attribute('ABF','intersect-offset',0.0)
+        profile.set_attribute('ABF','setting-name',tag_name.sub(/\AABF_/,'').downcase.tr('_',' '))
+        profile.set_attribute('ABF','intersect-group-b-id',front.respond_to?(:persistent_id) ? front.persistent_id : front.object_id)
+        profile.set_attribute(KEY,'template',tag_name)
+        profile.set_attribute(KEY,'screen_index',index)
+        profile.set_attribute(KEY,'row',item[:row])
+        profile.set_attribute(KEY,'col',item[:col])
+        profile.set_attribute(KEY,'width_mm',item[:width])
+        profile.set_attribute(KEY,'height_mm',item[:height])
+        profile.set_attribute(KEY,'depth_mm',cfg['depth'])
+        profile.set_attribute(KEY,'smoothness',cfg['smoothness'])
+        profile.set_attribute(KEY,'cut_mode',cfg['cut_mode'])
+        profile.set_attribute(KEY,'screen_panel',true)
+
+        profile_points = item[:points].map { |x,y| Geom::Point3d.new(x.mm,y.mm,t) }
+        vector_face = profile.entities.add_face(profile_points)
+        raise "Không tạo được biên dạng CNC số #{index+1}." unless vector_face
+        vector_face.layer = tag if vector_face.respond_to?(:layer=)
+        vector_face.edges.each { |edge| edge.layer = tag if edge.respond_to?(:layer=) }
+      end
+
+      board.transformation = panel_orientation_transform(panel['orientation']) if board.respond_to?(:transformation=)
+      model.commit_operation
+      started = false
+
+      model.selection.clear
+      model.selection.add(board)
+      begin
+        model.active_view.zoom(board)
+      rescue StandardError
+        nil
+      end
+      board
+    rescue StandardError
+      model.abort_operation if started
+      raise
+    end
+
     def activate_template(template, settings = {})
       tpl = sanitize_template(template)
       cfg = DEFAULT_CNC.merge(settings.transform_keys(&:to_s))
