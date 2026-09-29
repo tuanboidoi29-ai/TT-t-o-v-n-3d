@@ -8,7 +8,7 @@ module TranTuanNoiThat
   module VectorCNC
     extend self
 
-    VERSION = '1.4.1'.freeze
+    VERSION = '1.4.2'.freeze
     KEY = 'TT_VECTOR_CNC'.freeze
     DATA_DIR = File.join(TranTuanNoiThat::ROOT, 'data', 'vector_cnc').freeze
     LIBRARY_FILE = File.join(DATA_DIR, 'library.json').freeze
@@ -1300,6 +1300,11 @@ module TranTuanNoiThat
           <label>Ngưỡng <input id="imageThreshold" type="range" min="0" max="255" value="128" style="width:150px"> <span id="thresholdValue">128</span></label>
           <label><input id="imageInvert" type="checkbox" style="width:auto"> Đảo đen/trắng</label>
         </div>
+        <div class="row" style="margin-top:8px;background:#eef8f1;padding:7px;border-radius:6px">
+          <label><input id="imageRemoveBg" type="checkbox" checked style="width:auto"> <b>Tự động xóa nền</b></label>
+          <label>Độ nhạy nền <input id="imageBgTolerance" type="range" min="5" max="140" value="42" style="width:150px"> <span id="bgToleranceValue">42</span></label>
+          <span id="bgColorInfo" style="font-size:12px;color:#555"></span>
+        </div>
         <div class="row" style="margin-top:8px">
           <label>Nhận vùng
             <select id="imageMode" style="width:190px">
@@ -1323,11 +1328,12 @@ module TranTuanNoiThat
         </div>
         <div class="row" style="margin-top:8px;align-items:flex-start">
           <div style="flex:1;min-width:220px"><small>Ảnh gốc</small><canvas id="imagePreview" width="250" height="180" style="width:100%;height:180px;border:1px solid #bbb;background:#fff"></canvas></div>
+          <div style="flex:1;min-width:220px"><small>Sau tự động xóa nền</small><canvas id="imageBgPreview" width="250" height="180" style="width:100%;height:180px;border:1px solid #bbb;background:#fff"></canvas></div>
           <div style="flex:1;min-width:220px"><small>Biên dạng CNC</small><canvas id="imageVectorPreview" width="250" height="180" style="width:100%;height:180px;border:1px solid #bbb;background:#fff"></canvas></div>
         </div>
         <div id="imageStatus" style="font-size:12px;margin-top:6px">Chọn PNG / JPG / BMP để bắt đầu.</div>
         <button class="action apply" style="background:#186a3b" onclick="saveImageCncTemplate()">CHUYỂN ẢNH THÀNH MẪU CNC</button>
-        <small><b>AUTO theo nền:</b> với ảnh vách nền trắng, hệ thống ưu tiên các khoảng trắng bị hoa văn bao kín để giữ đúng mạng hoa văn/chữ thay vì chỉ lấy khung chữ nhật ngoài. Có thể đổi sang Đục vùng màu/tối khi ảnh là silhouette đơn.</small>
+        <small><b>Tự động xóa nền:</b> lấy mẫu màu ở mép/góc ảnh để loại nền trắng, ngà, xám hoặc nền màu gần đồng nhất. PNG trong suốt được giữ trong suốt tự động. Sau xóa nền mới nhận contour để tránh khung nền bị biến thành biên dạng CNC.</small>
       </div>
 
       <div class="panel">
@@ -1647,7 +1653,60 @@ module TranTuanNoiThat
         drawScreenPreview();
       }
 
-      let imageState={img:null,name:'',regions:[],w:0,h:0,resolvedMode:''};
+      let imageState={img:null,name:'',regions:[],w:0,h:0,resolvedMode:'',background:null,foregroundPixels:0};
+
+      function dominantBorderColor(data,w,h){
+        let buckets=new Map(),samples=[];
+        let step=Math.max(1,Math.floor(Math.max(w,h)/240));
+        function add(x,y){
+          let i=(y*w+x)*4,a=data[i+3];
+          if(a<20)return;
+          let r=data[i],g=data[i+1],b=data[i+2];
+          let key=(r>>4)+','+(g>>4)+','+(b>>4);
+          let row=buckets.get(key)||{count:0,r:0,g:0,b:0};
+          row.count++;row.r+=r;row.g+=g;row.b+=b;buckets.set(key,row);
+        }
+        for(let x=0;x<w;x+=step){add(x,0);if(h>1)add(x,h-1)}
+        for(let y=0;y<h;y+=step){add(0,y);if(w>1)add(w-1,y)}
+        let best=null;for(let row of buckets.values())if(!best||row.count>best.count)best=row;
+        if(!best||!best.count)return {r:255,g:255,b:255,count:0};
+        return {r:best.r/best.count,g:best.g/best.count,b:best.b/best.count,count:best.count};
+      }
+      function colorDistance(r,g,b,bg){
+        let dr=r-bg.r,dg=g-bg.g,db=b-bg.b;
+        return Math.sqrt(dr*dr+dg*dg+db*db);
+      }
+      function buildForegroundMask(data,w,h,threshold,invert,removeBg,tolerance){
+        let foreground=new Uint8Array(w*h),bg=dominantBorderColor(data,w,h),count=0;
+        for(let yu=0;yu<h;yu++){
+          let yt=h-1-yu;
+          for(let x=0;x<w;x++){
+            let i=(yt*w+x)*4,a=data[i+3],keep=false;
+            if(a>=20){
+              if(removeBg){
+                keep=colorDistance(data[i],data[i+1],data[i+2],bg)>tolerance;
+              }else{
+                let alpha=a/255,lum=(.299*data[i]+.587*data[i+1]+.114*data[i+2])*alpha+255*(1-alpha);
+                keep=invert?lum>=threshold:lum<threshold;
+              }
+            }
+            foreground[yu*w+x]=keep?1:0;if(keep)count++;
+          }
+        }
+        return {mask:foreground,bg:bg,count:count};
+      }
+      function drawBackgroundRemovedPreview(data,w,h,mask){
+        let c=document.getElementById('imageBgPreview'),ctx=c.getContext('2d'),W=c.width,H=c.height;
+        let off=document.createElement('canvas');off.width=w;off.height=h;let oc=off.getContext('2d'),out=oc.createImageData(w,h);
+        for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+          let src=(y*w+x)*4,modelY=h-1-y,keep=mask[modelY*w+x],dst=src;
+          out.data[dst]=data[src];out.data[dst+1]=data[src+1];out.data[dst+2]=data[src+2];out.data[dst+3]=keep?255:0;
+        }
+        oc.putImageData(out,0,0);
+        ctx.clearRect(0,0,W,H);
+        let tile=10;for(let y=0;y<H;y+=tile)for(let x=0;x<W;x+=tile){ctx.fillStyle=((x/tile+y/tile)&1)?'#eee':'#fff';ctx.fillRect(x,y,tile,tile)}
+        let sc=Math.min(W/w,H/h),dw=w*sc,dh=h*sc;ctx.drawImage(off,(W-dw)/2,(H-dh)/2,dw,dh);
+      }
 
       function signedArea(loop){
         let a=0;for(let i=0;i<loop.length;i++){let p=loop[i],q=loop[(i+1)%loop.length];a+=p[0]*q[1]-q[0]*p[1]}return a/2;
@@ -1789,14 +1848,13 @@ module TranTuanNoiThat
         let img=imageState.img,maxDim=Math.max(320,intval('imageDetail')||640),scale=Math.min(1,maxDim/Math.max(img.naturalWidth,img.naturalHeight));
         let w=Math.max(1,Math.round(img.naturalWidth*scale)),h=Math.max(1,Math.round(img.naturalHeight*scale));
         let off=document.createElement('canvas');off.width=w;off.height=h;let ctx=off.getContext('2d');ctx.drawImage(img,0,0,w,h);
-        let data=ctx.getImageData(0,0,w,h).data,threshold=intval('imageThreshold'),invert=document.getElementById('imageInvert').checked,dark=new Uint8Array(w*h);
-        for(let yu=0;yu<h;yu++){
-          let yt=h-1-yu;
-          for(let x=0;x<w;x++){
-            let i=(yt*w+x)*4,alpha=data[i+3]/255,lum=(.299*data[i]+.587*data[i+1]+.114*data[i+2])*alpha+255*(1-alpha);
-            let solid=invert?lum>=threshold:lum<threshold;dark[yu*w+x]=solid?1:0;
-          }
-        }
+        let data=ctx.getImageData(0,0,w,h).data,threshold=intval('imageThreshold'),invert=document.getElementById('imageInvert').checked;
+        let removeBg=document.getElementById('imageRemoveBg').checked,tolerance=Math.max(5,intval('imageBgTolerance')||42);
+        let fg=buildForegroundMask(data,w,h,threshold,invert,removeBg,tolerance),dark=fg.mask;
+        imageState.background=fg.bg;imageState.foregroundPixels=fg.count;
+        drawBackgroundRemovedPreview(data,w,h,dark);
+        let bgInfo=document.getElementById('bgColorInfo');
+        if(bgInfo)bgInfo.textContent=removeBg?('Nền RGB '+Math.round(fg.bg.r)+', '+Math.round(fg.bg.g)+', '+Math.round(fg.bg.b)):'Xóa nền: TẮT';
         let mode=document.getElementById('imageMode').value;
         let result=chooseImageRegions(dark,w,h,Math.max(1,val('imageMinArea')),Math.max(.2,val('imageSimplify')),mode);
         imageState.regions=result.regions;imageState.w=w;imageState.h=h;imageState.resolvedMode=result.resolved;
@@ -1804,7 +1862,7 @@ module TranTuanNoiThat
         let loops=result.regions.reduce((a,r)=>a+1+(r.holes?r.holes.length:0),0);
         let pts=result.regions.reduce((a,r)=>a+r.outer.length+(r.holes||[]).reduce((x,h)=>x+h.length,0),0);
         let holes=result.regions.reduce((a,r)=>a+(r.holes?r.holes.length:0),0),st=document.getElementById('imageStatus');
-        st.textContent=imageState.name+' · '+img.naturalWidth+'×'+img.naturalHeight+' px · '+result.resolved+' · '+result.regions.length+' vùng cắt · '+holes+' lỗ trong · '+pts+' điểm vector';
+        st.textContent=imageState.name+' · '+img.naturalWidth+'×'+img.naturalHeight+' px · '+(removeBg?'ĐÃ XÓA NỀN · ':'')+result.resolved+' · '+result.regions.length+' vùng cắt · '+holes+' lỗ trong · '+pts+' điểm vector';
       }
       function loadImageFile(ev){
         let file=ev.target.files&&ev.target.files[0];if(!file)return;
@@ -1879,12 +1937,12 @@ module TranTuanNoiThat
           let el=document.getElementById(id);el.addEventListener('input',pushSettings);el.addEventListener('change',pushSettings)
         });
         document.getElementById('imageFile').addEventListener('change',loadImageFile);
-        ['imageThreshold','imageInvert','imageMode','imageDetail','imageSimplify','imageMinArea'].forEach(id=>{
-          let el=document.getElementById(id);el.addEventListener('input',()=>{document.getElementById('thresholdValue').textContent=intval('imageThreshold');processImageCnc()});el.addEventListener('change',processImageCnc)
+        ['imageThreshold','imageInvert','imageRemoveBg','imageBgTolerance','imageMode','imageDetail','imageSimplify','imageMinArea'].forEach(id=>{
+          let el=document.getElementById(id);el.addEventListener('input',()=>{document.getElementById('thresholdValue').textContent=intval('imageThreshold');document.getElementById('bgToleranceValue').textContent=intval('imageBgTolerance');processImageCnc()});el.addEventListener('change',processImageCnc)
         });
         setAnchor('center');
         let boot=document.getElementById('bootStatus');
-        if(boot)boot.textContent='VECTOR CNC / ẢNH CNC UI sẵn sàng · '+"1.4.1";
+        if(boot)boot.textContent='VECTOR CNC / ẢNH CNC UI sẵn sàng · '+"1.4.2";
         window.sketchup.ready();
       })
       </script></body></html>
