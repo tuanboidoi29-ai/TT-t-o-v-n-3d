@@ -8,6 +8,9 @@ check('LED defaults and ABF_RANHLED tag normalize') do
   assert(o['cnc_tag']=='ABF_RANHLED')
   assert(o['groove_width']==10.0)
   assert(o['simulate']==true && o['cnc']==true)
+  assert(o['brightness']==100.0)
+  assert(o['light_distance']==80.0)
+  assert(o['light_spread']==40.0)
   assert(LED.normalize({'cnc_tag'=>'ranh led phong khach'})['cnc_tag']=='ABF_RANH_LED_PHONG_KHACH')
   assert(LED.normalize({'cnc_tag'=>'ABF_RANHLED_12'})['cnc_tag']=='ABF_RANHLED_12')
 end
@@ -75,18 +78,43 @@ check('Tạo LED UI contains preset and live preview controls') do
   assert(html.include?('Độ rộng rãnh LED'))
   assert(html.include?('Chiều dài rãnh'))
   assert(html.include?('Màu LED mô phỏng'))
+  assert(html.include?('Độ sáng LED'))
+  assert(html.include?('Khoảng chiếu xuống'))
+  assert(html.include?('Độ loang ánh sáng'))
   assert(html.include?('ABF_RANHLED'))
   assert(html.include?('CẬP NHẬT PREVIEW'))
   assert(html.include?('ABF/is-cutting-lines=true'))
-  assert(html.include?('Group + Tag mặc định ABF_RANHLED'))
+  assert(html.include?('trực tiếp vào Face/hình học của Group/Component'))
+  assert(html.include?('không tạo Group CNC con'))
 end
 
-check('Tạo LED source creates named ABF_RANHLED closed edge profile') do
+check('Tạo LED CNC edges are embedded directly in host entities without child group') do
   source=File.read(ROOT+'/led_tool.rb',encoding:'UTF-8')
-  assert(source.include?("group.name = tag_name"))
-  assert(source.include?("group.set_attribute('ABF','is-cutting-lines',true)"))
-  assert(source.include?("raise 'Biên dạng rãnh LED không đủ 4 cạnh.' unless edges.length == 4"))
-  assert(source.include?("group.entities.erase_entities(face)"))
+  body=source.split("def add_abf_profile",2)[1].split("def midpoint",2)[0]
+  assert(body.include?("edge = entities.add_line(point,nxt)"))
+  assert(body.include?("edge.layer = tag"))
+  assert(body.include?("edge.set_attribute('ABF','is-cutting-lines',true)"))
+  assert(body.include?("led_profile_grouped',false"))
+  assert(body.include?("phải có đúng 4 Edge kín"))
+  assert(!body.include?("entities.add_group"))
+end
+
+check('Tạo LED light geometry shines down with adjustable distance and spread') do
+  rect=[
+    Geom::Point3d.new(0,0,0),
+    Geom::Point3d.new(100.mm,0,0),
+    Geom::Point3d.new(100.mm,10.mm,0),
+    Geom::Point3d.new(0,10.mm,0)
+  ]
+  light=LED.light_geometry(rect,LED::DEFAULTS)
+  assert(light[:levels].length==3)
+  assert(light[:beam_quads].length==2)
+  bottom=light[:levels].last[:rect]
+  bottom.each{|p|near(p.z*25.4,-80.0,0.01)}
+  near(bottom[0].distance(bottom[3])*25.4,90.0,0.05)
+
+  off=LED.light_geometry(rect,LED::DEFAULTS.merge('brightness'=>0))
+  assert(off[:levels].all?{|row|row[:alpha]>=0})
 end
 
 check('Tạo LED accepts Group and Component targets') do
