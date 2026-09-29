@@ -77,7 +77,16 @@ check('Tạo LED UI contains preset and live preview controls') do
   assert(html.include?('Màu LED mô phỏng'))
   assert(html.include?('ABF_RANHLED'))
   assert(html.include?('CẬP NHẬT PREVIEW'))
-  assert(html.include?('_ABF_Intersect'))
+  assert(html.include?('ABF/is-cutting-lines=true'))
+  assert(html.include?('Group + Tag mặc định ABF_RANHLED'))
+end
+
+check('Tạo LED source creates named ABF_RANHLED closed edge profile') do
+  source=File.read(ROOT+'/led_tool.rb',encoding:'UTF-8')
+  assert(source.include?("group.name = tag_name"))
+  assert(source.include?("group.set_attribute('ABF','is-cutting-lines',true)"))
+  assert(source.include?("raise 'Biên dạng rãnh LED không đủ 4 cạnh.' unless edges.length == 4"))
+  assert(source.include?("group.entities.erase_entities(face)"))
 end
 
 check('Tạo LED accepts Group and Component targets') do
