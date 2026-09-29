@@ -386,7 +386,7 @@ module TranTuanNoiThat
           <div class="hint" style="margin-top:7px"><b>Chiều dài = 0</b> → AUTO lấy chiều dài mặt trừ Cách 2 đầu. Rê chuột gần mép nào thì rãnh tự bám mép đó.</div>
           <div class="row"><button onclick="apply()">CẬP NHẬT PREVIEW</button></div>
           <div id="notice"></div>
-          <div class="hint" style="margin-top:9px"><b>CNC:</b> tạo biên dạng kín thật <code>_ABF_Intersect</code> nằm trong chính Group/Component, Tag mặc định <b>ABF_RANHLED</b>, mặt được đánh dấu <code>ABF/is-cnced-face</code> để ABF/Aspire nhận đường gia công.</div>
+          <div class="hint" style="margin-top:9px"><b>CNC:</b> tạo loop 4 Edge kín thật nằm trong chính Group/Component. <b>Group + Tag mặc định ABF_RANHLED</b> (đổi tên được), có <code>ABF/is-cutting-lines=true</code> và mặt được đánh dấu <code>ABF/is-cnced-face</code> để ABF/Aspire nhận đường gia công.</div>
         </div>
       </div>
       <script>
