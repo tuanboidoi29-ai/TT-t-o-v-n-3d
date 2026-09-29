@@ -8,7 +8,7 @@ module TranTuanNoiThat
   module VectorCNC
     extend self
 
-    VERSION = '1.3.1'.freeze
+    VERSION = '1.3.2'.freeze
     KEY = 'TT_VECTOR_CNC'.freeze
     DATA_DIR = File.join(TranTuanNoiThat::ROOT, 'data', 'vector_cnc').freeze
     LIBRARY_FILE = File.join(DATA_DIR, 'library.json').freeze
@@ -1444,7 +1444,7 @@ module TranTuanNoiThat
         });
         setAnchor('center');
         let boot=document.getElementById('bootStatus');
-        if(boot)boot.textContent='VECTOR CNC UI sẵn sàng · '+"1.3.0";
+        if(boot)boot.textContent='VECTOR CNC UI sẵn sàng · '+"1.3.2";
         window.sketchup.ready();
       })
       </script></body></html>
