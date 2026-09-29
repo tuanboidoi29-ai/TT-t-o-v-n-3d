@@ -1155,9 +1155,9 @@ module TranTuanNoiThat
       dlg.add_action_callback('refresh_target') do |_ctx|
         send_target_info(selected_target_info)
       end
-      dlg.add_action_callback('save_image_template') do |_ctx,name,source_name,loops_json|
-        loops = JSON.parse(loops_json.to_s)
-        saved = save_image_template(name,loops,source_name)
+      dlg.add_action_callback('save_image_template') do |_ctx,name,source_name,regions_json,image_mode|
+        regions = JSON.parse(regions_json.to_s)
+        saved = save_image_template(name,regions,source_name,image_mode)
         send_library
         @dialog.execute_script("selectSavedImageTemplate(#{JSON.generate(saved['id'])})") if @dialog
       rescue StandardError => e
@@ -1301,8 +1301,24 @@ module TranTuanNoiThat
           <label><input id="imageInvert" type="checkbox" style="width:auto"> Đảo đen/trắng</label>
         </div>
         <div class="row" style="margin-top:8px">
-          <label>Đơn giản hóa <input id="imageSimplify" type="number" value="1.5" min="0.2" max="12" step="0.2"> px</label>
-          <label>Bỏ nhiễu <input id="imageMinArea" type="number" value="20" min="1"> px²</label>
+          <label>Nhận vùng
+            <select id="imageMode" style="width:190px">
+              <option value="auto">AUTO theo nền ảnh</option>
+              <option value="white_inside">Đục khoảng trắng bên trong</option>
+              <option value="dark">Đục vùng màu / tối</option>
+            </select>
+          </label>
+          <label>Độ chi tiết
+            <select id="imageDetail" style="width:120px">
+              <option value="420">Nhanh</option>
+              <option value="640" selected>Chi tiết</option>
+              <option value="900">Rất chi tiết</option>
+            </select>
+          </label>
+        </div>
+        <div class="row" style="margin-top:8px">
+          <label>Đơn giản hóa <input id="imageSimplify" type="number" value="0.8" min="0.2" max="12" step="0.2"> px</label>
+          <label>Bỏ nhiễu <input id="imageMinArea" type="number" value="8" min="1"> px²</label>
           <label>Tên mẫu <input id="imageName" type="text" value="ANH_CNC" style="width:160px"></label>
         </div>
         <div class="row" style="margin-top:8px;align-items:flex-start">
@@ -1311,7 +1327,7 @@ module TranTuanNoiThat
         </div>
         <div id="imageStatus" style="font-size:12px;margin-top:6px">Chọn PNG / JPG / BMP để bắt đầu.</div>
         <button class="action apply" style="background:#186a3b" onclick="saveImageCncTemplate()">CHUYỂN ẢNH THÀNH MẪU CNC</button>
-        <small>Vùng tối mặc định là phần sẽ đục. Sau khi chuyển, mẫu ảnh xuất hiện trong thư viện bên dưới và có thể dùng ngay cho <b>TẠO VÁCH CNC</b> đục thủng toàn bộ chiều dày.</small>
+        <small><b>AUTO theo nền:</b> với ảnh vách nền trắng, hệ thống ưu tiên các khoảng trắng bị hoa văn bao kín để giữ đúng mạng hoa văn/chữ thay vì chỉ lấy khung chữ nhật ngoài. Có thể đổi sang Đục vùng màu/tối khi ảnh là silhouette đơn.</small>
       </div>
 
       <div class="panel">
@@ -1615,7 +1631,7 @@ module TranTuanNoiThat
         drawScreenPreview();
       }
 
-      let imageState={img:null,name:'',loops:[],w:0,h:0};
+      let imageState={img:null,name:'',regions:[],w:0,h:0,resolvedMode:''};
 
       function signedArea(loop){
         let a=0;for(let i=0;i<loop.length;i++){let p=loop[i],q=loop[(i+1)%loop.length];a+=p[0]*q[1]-q[0]*p[1]}return a/2;
@@ -1656,67 +1672,123 @@ module TranTuanNoiThat
         while(result.length>720){eps*=1.35;one=rdp(arc(a,b),eps);two=rdp(arc(b,a),eps);result=one.slice(0,-1).concat(two.slice(0,-1))}
         return result;
       }
-      function traceMaskLoops(mask,w,h,minArea,simplify){
+      function labelMask(mask,w,h,minArea){
+        let labels=new Int32Array(w*h),components=[null],id=0;
+        const neigh=[[1,0],[-1,0],[0,1],[0,-1]];
+        for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+          let idx=y*w+x;if(!mask[idx]||labels[idx])continue;
+          id++;let q=[idx],head=0,count=0,minX=x,maxX=x,minY=y,maxY=y;labels[idx]=id;
+          while(head<q.length){
+            let p=q[head++],px=p%w,py=(p/w)|0;count++;
+            if(px<minX)minX=px;if(px>maxX)maxX=px;if(py<minY)minY=py;if(py>maxY)maxY=py;
+            for(let n of neigh){let nx=px+n[0],ny=py+n[1];if(nx<0||ny<0||nx>=w||ny>=h)continue;let ni=ny*w+nx;if(mask[ni]&&!labels[ni]){labels[ni]=id;q.push(ni)}}
+          }
+          components[id]={count:count,minX:minX,maxX:maxX,minY:minY,maxY:maxY,keep:count>=minArea};
+        }
+        return {labels:labels,components:components};
+      }
+      function innerWhiteMask(dark,w,h){
+        let outside=new Uint8Array(w*h),q=[],head=0;
+        function add(x,y){let i=y*w+x;if(!dark[i]&&!outside[i]){outside[i]=1;q.push(i)}}
+        for(let x=0;x<w;x++){add(x,0);add(x,h-1)}
+        for(let y=0;y<h;y++){add(0,y);add(w-1,y)}
+        while(head<q.length){
+          let p=q[head++],x=p%w,y=(p/w)|0;
+          if(x>0)add(x-1,y);if(x<w-1)add(x+1,y);if(y>0)add(x,y-1);if(y<h-1)add(x,y+1);
+        }
+        let inner=new Uint8Array(w*h);
+        for(let i=0;i<inner.length;i++)inner[i]=(!dark[i]&&!outside[i])?1:0;
+        return inner;
+      }
+      function traceLabeledComponent(labels,w,h,id,bounds,simplify){
         let adj=new Map(),edgeCount=0;
-        const key=(x,y)=>x+','+y, filled=(x,y)=>x>=0&&x<w&&y>=0&&y<h&&mask[y*w+x];
+        const key=(x,y)=>x+','+y,filled=(x,y)=>x>=0&&x<w&&y>=0&&y<h&&labels[y*w+x]===id;
         function edge(ax,ay,bx,by){let k=key(ax,ay),arr=adj.get(k)||[];arr.push([bx,by]);adj.set(k,arr);edgeCount++}
-        for(let y=0;y<h;y++)for(let x=0;x<w;x++)if(filled(x,y)){
+        for(let y=bounds.minY;y<=bounds.maxY;y++)for(let x=bounds.minX;x<=bounds.maxX;x++)if(filled(x,y)){
           if(!filled(x,y-1))edge(x,y,x+1,y);
           if(!filled(x+1,y))edge(x+1,y,x+1,y+1);
           if(!filled(x,y+1))edge(x+1,y+1,x,y+1);
           if(!filled(x-1,y))edge(x,y+1,x,y);
         }
         let loops=[],guard=0;
-        while(edgeCount>0&&guard<2000000){
+        while(edgeCount>0&&guard<500000){
           guard++;
           let startKey=null;for(let [k,v] of adj){if(v&&v.length){startKey=k;break}}
           if(!startKey)break;
           let start=startKey.split(',').map(Number),cur=start,loop=[start],steps=0;
           while(steps++<(w*h*8+100)){
-            let k=key(cur[0],cur[1]),arr=adj.get(k);
-            if(!arr||!arr.length)break;
-            let next=arr.pop();edgeCount--;if(!arr.length)adj.delete(k);
-            cur=next;
-            if(cur[0]===start[0]&&cur[1]===start[1])break;
-            loop.push(cur);
+            let k=key(cur[0],cur[1]),arr=adj.get(k);if(!arr||!arr.length)break;
+            let next=arr.pop();edgeCount--;if(!arr.length)adj.delete(k);cur=next;
+            if(cur[0]===start[0]&&cur[1]===start[1])break;loop.push(cur);
           }
-          let area=signedArea(loop);
-          if(area>=minArea&&loop.length>=4){
+          if(loop.length>=4){
             let simp=simplifyClosed(loop,simplify);
-            if(simp.length>=3)loops.push(simp);
+            if(simp.length>=3&&Math.abs(signedArea(simp))>=1)loops.push(simp);
           }
-          if(loops.length>=200)break;
         }
-        return loops;
+        if(!loops.length)return null;
+        loops.sort((a,b)=>Math.abs(signedArea(b))-Math.abs(signedArea(a)));
+        let outer=loops[0],holes=loops.slice(1);
+        if(signedArea(outer)<0)outer=outer.slice().reverse();
+        holes=holes.map(h=>signedArea(h)>0?h.slice().reverse():h);
+        return {outer:outer,holes:holes,pixels:bounds.count||0};
       }
-      function drawImageVectorPreview(loops,w,h){
+      function regionsFromMask(mask,w,h,minArea,simplify){
+        let labeled=labelMask(mask,w,h,minArea),regions=[];
+        for(let id=1;id<labeled.components.length;id++){
+          let comp=labeled.components[id];if(!comp||!comp.keep)continue;
+          let region=traceLabeledComponent(labeled.labels,w,h,id,comp,simplify);
+          if(region)regions.push(region);
+          if(regions.length>=400)break;
+        }
+        return regions;
+      }
+      function chooseImageRegions(dark,w,h,minArea,simplify,mode){
+        if(mode==='dark')return {regions:regionsFromMask(dark,w,h,minArea,simplify),resolved:'VÙNG MÀU/TỐI'};
+        let light=innerWhiteMask(dark,w,h),lightRegions=regionsFromMask(light,w,h,minArea,simplify);
+        if(mode==='white_inside')return {regions:lightRegions,resolved:'KHOẢNG TRẮNG BÊN TRONG'};
+        let lightPixels=light.reduce((a,v)=>a+v,0),ratio=lightPixels/Math.max(1,w*h);
+        if(lightRegions.length>=2&&ratio>=0.01)return {regions:lightRegions,resolved:'AUTO → KHOẢNG TRẮNG BÊN TRONG'};
+        let darkRegions=regionsFromMask(dark,w,h,minArea,simplify);
+        return {regions:darkRegions,resolved:'AUTO → VÙNG MÀU/TỐI'};
+      }
+      function drawImageVectorPreview(regions,w,h){
         let c=document.getElementById('imageVectorPreview'),ctx=c.getContext('2d'),W=c.width,H=c.height;
         ctx.clearRect(0,0,W,H);ctx.fillStyle='#fff';ctx.fillRect(0,0,W,H);
-        if(!loops.length)return;
+        if(!regions.length)return;
         let scale=Math.min((W-10)/w,(H-10)/h),ox=(W-w*scale)/2,oy=(H-h*scale)/2;
-        loops.forEach(loop=>{
-          ctx.beginPath();loop.forEach((p,i)=>{let x=ox+p[0]*scale,y=oy+(h-p[1])*scale;i?ctx.lineTo(x,y):ctx.moveTo(x,y)});
-          ctx.closePath();ctx.fillStyle='rgba(24,106,59,.18)';ctx.fill();ctx.strokeStyle='#186a3b';ctx.lineWidth=1.2;ctx.stroke();
+        regions.forEach(region=>{
+          ctx.beginPath();
+          [region.outer].concat(region.holes||[]).forEach(loop=>{
+            loop.forEach((p,i)=>{let x=ox+p[0]*scale,y=oy+(h-p[1])*scale;i?ctx.lineTo(x,y):ctx.moveTo(x,y)});ctx.closePath();
+          });
+          ctx.fillStyle='rgba(24,106,59,.18)';try{ctx.fill('evenodd')}catch(e){ctx.fill()}
+          [region.outer].concat(region.holes||[]).forEach(loop=>{
+            ctx.beginPath();loop.forEach((p,i)=>{let x=ox+p[0]*scale,y=oy+(h-p[1])*scale;i?ctx.lineTo(x,y):ctx.moveTo(x,y)});ctx.closePath();ctx.strokeStyle='#186a3b';ctx.lineWidth=1.1;ctx.stroke();
+          });
         });
       }
       function processImageCnc(){
         if(!imageState.img)return;
-        let img=imageState.img,maxDim=420,scale=Math.min(1,maxDim/Math.max(img.naturalWidth,img.naturalHeight));
+        let img=imageState.img,maxDim=Math.max(320,intval('imageDetail')||640),scale=Math.min(1,maxDim/Math.max(img.naturalWidth,img.naturalHeight));
         let w=Math.max(1,Math.round(img.naturalWidth*scale)),h=Math.max(1,Math.round(img.naturalHeight*scale));
         let off=document.createElement('canvas');off.width=w;off.height=h;let ctx=off.getContext('2d');ctx.drawImage(img,0,0,w,h);
-        let data=ctx.getImageData(0,0,w,h).data,threshold=intval('imageThreshold'),invert=document.getElementById('imageInvert').checked,mask=new Uint8Array(w*h);
+        let data=ctx.getImageData(0,0,w,h).data,threshold=intval('imageThreshold'),invert=document.getElementById('imageInvert').checked,dark=new Uint8Array(w*h);
         for(let yu=0;yu<h;yu++){
           let yt=h-1-yu;
           for(let x=0;x<w;x++){
-            let i=(yt*w+x)*4,lum=.299*data[i]+.587*data[i+1]+.114*data[i+2],solid=invert?lum>=threshold:lum<threshold;
-            mask[yu*w+x]=solid?1:0;
+            let i=(yt*w+x)*4,alpha=data[i+3]/255,lum=(.299*data[i]+.587*data[i+1]+.114*data[i+2])*alpha+255*(1-alpha);
+            let solid=invert?lum>=threshold:lum<threshold;dark[yu*w+x]=solid?1:0;
           }
         }
-        let loops=traceMaskLoops(mask,w,h,Math.max(1,val('imageMinArea')),Math.max(.2,val('imageSimplify')));
-        imageState.loops=loops;imageState.w=w;imageState.h=h;
-        drawImageVectorPreview(loops,w,h);
-        let pts=loops.reduce((a,l)=>a+l.length,0),st=document.getElementById('imageStatus');
-        st.textContent=imageState.name+' · '+img.naturalWidth+'×'+img.naturalHeight+' px · '+loops.length+' vùng kín · '+pts+' điểm vector';
+        let mode=document.getElementById('imageMode').value;
+        let result=chooseImageRegions(dark,w,h,Math.max(1,val('imageMinArea')),Math.max(.2,val('imageSimplify')),mode);
+        imageState.regions=result.regions;imageState.w=w;imageState.h=h;imageState.resolvedMode=result.resolved;
+        drawImageVectorPreview(result.regions,w,h);
+        let loops=result.regions.reduce((a,r)=>a+1+(r.holes?r.holes.length:0),0);
+        let pts=result.regions.reduce((a,r)=>a+r.outer.length+(r.holes||[]).reduce((x,h)=>x+h.length,0),0);
+        let holes=result.regions.reduce((a,r)=>a+(r.holes?r.holes.length:0),0),st=document.getElementById('imageStatus');
+        st.textContent=imageState.name+' · '+img.naturalWidth+'×'+img.naturalHeight+' px · '+result.resolved+' · '+result.regions.length+' vùng cắt · '+holes+' lỗ trong · '+pts+' điểm vector';
       }
       function loadImageFile(ev){
         let file=ev.target.files&&ev.target.files[0];if(!file)return;
@@ -1735,8 +1807,13 @@ module TranTuanNoiThat
       function saveImageCncTemplate(){
         if(!imageState.img){alert('Hãy chọn ảnh PNG/JPG/BMP trước.');return}
         processImageCnc();
-        if(!imageState.loops.length){alert('Ảnh chưa tạo được vùng kín. Hãy chỉnh Ngưỡng hoặc Đảo đen/trắng.');return}
-        window.sketchup.save_image_template(document.getElementById('imageName').value||'ANH_CNC',imageState.name,JSON.stringify(imageState.loops));
+        if(!imageState.regions.length){alert('Ảnh chưa tạo được vùng cắt kín. Hãy chỉnh Ngưỡng / Nhận vùng / Đảo đen-trắng.');return}
+        window.sketchup.save_image_template(
+          document.getElementById('imageName').value||'ANH_CNC',
+          imageState.name,
+          JSON.stringify(imageState.regions),
+          document.getElementById('imageMode').value
+        );
       }
       function selectSavedImageTemplate(id){
         selected=id;renderLibrary(rows);window.sketchup.select(id);
@@ -1786,12 +1863,12 @@ module TranTuanNoiThat
           let el=document.getElementById(id);el.addEventListener('input',pushSettings);el.addEventListener('change',pushSettings)
         });
         document.getElementById('imageFile').addEventListener('change',loadImageFile);
-        ['imageThreshold','imageInvert','imageSimplify','imageMinArea'].forEach(id=>{
+        ['imageThreshold','imageInvert','imageMode','imageDetail','imageSimplify','imageMinArea'].forEach(id=>{
           let el=document.getElementById(id);el.addEventListener('input',()=>{document.getElementById('thresholdValue').textContent=intval('imageThreshold');processImageCnc()});el.addEventListener('change',processImageCnc)
         });
         setAnchor('center');
         let boot=document.getElementById('bootStatus');
-        if(boot)boot.textContent='VECTOR CNC / ẢNH CNC UI sẵn sàng · '+"1.4.0";
+        if(boot)boot.textContent='VECTOR CNC / ẢNH CNC UI sẵn sàng · '+"1.4.1";
         window.sketchup.ready();
       })
       </script></body></html>
