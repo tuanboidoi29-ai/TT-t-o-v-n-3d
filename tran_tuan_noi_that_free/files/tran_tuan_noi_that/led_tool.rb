@@ -7,7 +7,7 @@ module TranTuanNoiThat
   module LedTool
     extend self
 
-    VERSION = '1.4.0'.freeze
+    VERSION = '1.4.1'.freeze
     KEY = 'TT_LED'.freeze
     DATA_DIR = File.join(TranTuanNoiThat::ROOT, 'data', 'led_tool').freeze
     PRESET_FILE = File.join(DATA_DIR, 'presets.json').freeze
@@ -391,7 +391,7 @@ module TranTuanNoiThat
       distance = opts['light_distance'].mm
       spread = opts['light_spread'].mm
       brightness = opts['brightness']/100.0
-      band_count = 16
+      band_count = 24
       previous_a = source_a
       previous_b = source_b
       levels = []
@@ -406,8 +406,9 @@ module TranTuanNoiThat
         current_b = shift_point(center_b,along,end_expand)
 
         # Giảm alpha theo đường cong để mép ngoài tan mềm như vầng sáng.
-        falloff = (1.0-fraction)**1.65
-        alpha = [[(175.0*brightness*falloff).round,0].max,230].min
+        # Ease-out mềm hơn để ánh vàng tan đều, giảm cảm giác sọc từng dải.
+        falloff = (1.0-fraction)**2.15
+        alpha = [[(190.0*brightness*falloff).round,0].max,235].min
         bands << {
           fraction:fraction,
           alpha:alpha,
@@ -559,7 +560,7 @@ module TranTuanNoiThat
           </div>
           <div class="hint" style="margin-top:7px"><b>Chiều dài = 0</b> → AUTO lấy chiều dài mặt trừ Cách 2 đầu. <b>Khoảng cách giữa</b> là khoảng hở giữa 2 rãnh. Rê chuột gần mép nào thì rãnh tự bám mép đó.</div>
           <div class="lightbox">
-            <div class="lightlabel"><b>PREVIEW VẦNG SÁNG</b> · <span id="light_direction_label">AUTO vào trong</span></div>
+            <div class="lightlabel"><b>PREVIEW VẦNG SÁNG</b> · <span id="light_direction_label">AUTO theo rãnh + mép đang bám</span></div>
             <canvas id="light_preview" width="500" height="150"></canvas>
           </div>
           <div class="row"><button onclick="apply()">CẬP NHẬT PREVIEW</button></div>
@@ -599,7 +600,7 @@ module TranTuanNoiThat
         let count=Math.max(1,Math.min(8,Number(quantity.value)||1));
         let gap=Math.max(10,Math.min(28,(Number(spacing.value)||0)*0.08+10));
         let dir=(side==='max'?-1:1);
-        light_direction_label.textContent=vertical?(dir<0?'LED dọc · hắt sang trái':'LED dọc · hắt sang phải'):(dir<0?'LED ngang · hắt lên':'LED ngang · hắt xuống');
+        light_direction_label.textContent=vertical?(dir<0?'LED dọc · hắt trái theo mép':'LED dọc · hắt phải theo mép'):(dir<0?'LED ngang · hắt lên theo mép':'LED ngang · hắt xuống theo mép');
         for(let n=0;n<count;n++){
           if(vertical){
             let x=(side==='max'?W*0.74:W*0.26)+(side==='max'?-n:n)*gap;
@@ -765,6 +766,23 @@ module TranTuanNoiThat
               next if band[:alpha] <= 0
               view.drawing_color = LedTool.color_from_hex(@options['led_color'],band[:alpha])
               view.draw(GL_QUADS,band[:points])
+            end
+
+            # Mũi tên hướng sáng dùng đúng vector của quầng sáng thật.
+            if index == 0 && defined?(GL_LINES)
+              source_a = LedTool.midpoint(base[0],base[3])
+              source_b = LedTool.midpoint(base[1],base[2])
+              source = LedTool.midpoint(source_a,source_b)
+              arrow_len = [[@options['light_distance'].to_f,40.0].max,180.0].min.mm
+              tip = LedTool.shift_point(source,direction,arrow_len)
+              along = LedTool.unit_vector(source_a.vector_to(source_b))
+              wing = [arrow_len*0.16,18.mm].min
+              back = LedTool.shift_point(tip,direction,-wing)
+              left = LedTool.shift_point(back,along,wing*0.55)
+              right = LedTool.shift_point(back,LedTool.reverse_vector(along),wing*0.55)
+              view.drawing_color = LedTool.color_from_hex(@options['led_color'],245)
+              view.line_width = 3
+              view.draw(GL_LINES,[source,tip,tip,left,tip,right])
             end
           end
 
