@@ -8,7 +8,7 @@ module TranTuanNoiThat
   module VectorCNC
     extend self
 
-    VERSION = '1.3.2'.freeze
+    VERSION = '1.3.3'.freeze
     KEY = 'TT_VECTOR_CNC'.freeze
     DATA_DIR = File.join(TranTuanNoiThat::ROOT, 'data', 'vector_cnc').freeze
     LIBRARY_FILE = File.join(DATA_DIR, 'library.json').freeze
@@ -949,7 +949,7 @@ module TranTuanNoiThat
 
     def build_dialog
       dlg = UI::HtmlDialog.new(
-        dialog_title: 'TT – VECTOR CNC',
+        dialog_title: 'TT – VECTOR CNC / ẢNH CNC',
         preferences_key: 'TT_VECTOR_CNC',
         scrollable: true, resizable: true, width: 580, height: 780,
         style: UI::HtmlDialog::STYLE_DIALOG
@@ -1104,8 +1104,8 @@ module TranTuanNoiThat
       .align-grid button{height:34px;border:1px solid #bbb;background:#fff;border-radius:4px;cursor:pointer;font-size:15px}
       .align-grid button.active{background:#c56b20;color:#fff;border-color:#c56b20}
       small{display:block;margin-top:8px;line-height:1.4;color:#555}
-      </style></head><body><header>TT – VECTOR CNC · ÁP DỤNG VÀO GROUP / COMPONENT ĐANG CHỌN</header><main>
-      <div id="bootStatus" style="padding:7px 10px;background:#e8f5e9;border:1px solid #a5d6a7;border-radius:6px;margin-bottom:10px;font-size:12px">VECTOR CNC UI đã nạp · #{VERSION}</div>
+      </style></head><body><header>TT – VECTOR CNC / ẢNH CNC</header><main>
+      <div id="bootStatus" style="padding:7px 10px;background:#e8f5e9;border:1px solid #a5d6a7;border-radius:6px;margin-bottom:10px;font-size:12px">VECTOR CNC / ẢNH CNC UI đã nạp · #{VERSION}</div>
 
       <div class="panel">
         <div class="title">1. KHỐI ĐANG CHỌN</div>
@@ -1444,7 +1444,7 @@ module TranTuanNoiThat
         });
         setAnchor('center');
         let boot=document.getElementById('bootStatus');
-        if(boot)boot.textContent='VECTOR CNC UI sẵn sàng · '+"1.3.2";
+        if(boot)boot.textContent='VECTOR CNC / ẢNH CNC UI sẵn sàng · '+"1.3.3";
         window.sketchup.ready();
       })
       </script></body></html>
