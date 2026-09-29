@@ -8,7 +8,7 @@ module TranTuanNoiThat
   module VectorCNC
     extend self
 
-    VERSION = '1.4.2'.freeze
+    VERSION = '1.5.0'.freeze
     KEY = 'TT_VECTOR_CNC'.freeze
     DATA_DIR = File.join(TranTuanNoiThat::ROOT, 'data', 'vector_cnc').freeze
     LIBRARY_FILE = File.join(DATA_DIR, 'library.json').freeze
@@ -125,7 +125,7 @@ module TranTuanNoiThat
     end
 
     def library
-      builtins + custom_templates
+      custom_templates.select { |row| row['source_type'].to_s == 'image' }
     end
 
     def slug(text)
@@ -1119,17 +1119,16 @@ module TranTuanNoiThat
       end
       @dialog.show
       send_library
-      send_target_info(selected_target_info)
     rescue StandardError => e
       close_dialog
-      UI.messagebox("VECTOR CNC: #{e.message}")
+      UI.messagebox("ẢNH CNC: #{e.message}")
     end
 
     def build_dialog
       dlg = UI::HtmlDialog.new(
-        dialog_title: 'TT – VECTOR CNC / ẢNH CNC',
-        preferences_key: 'TT_VECTOR_CNC',
-        scrollable: true, resizable: true, width: 580, height: 780,
+        dialog_title: 'TT – ẢNH CNC',
+        preferences_key: 'TT_IMAGE_CNC',
+        scrollable: true, resizable: true, width: 640, height: 820,
         style: UI::HtmlDialog::STYLE_DIALOG
       )
       ensure_data
@@ -1146,14 +1145,10 @@ module TranTuanNoiThat
       end
       dlg.add_action_callback('ready') do
         send_library
-        send_target_info(selected_target_info)
       end
       dlg.add_action_callback('select') do |_ctx,id|
         item = library.find { |row| row['id'].to_s == id.to_s }
         @dialog.execute_script("setSelectedTemplate(#{JSON.generate(item)})") if item
-      end
-      dlg.add_action_callback('refresh_target') do |_ctx|
-        send_target_info(selected_target_info)
       end
       dlg.add_action_callback('save_image_template') do |_ctx,name,source_name,regions_json,image_mode|
         regions = JSON.parse(regions_json.to_s)
@@ -1163,32 +1158,9 @@ module TranTuanNoiThat
       rescue StandardError => e
         UI.messagebox("ẢNH CNC: #{e.message}")
       end
-      dlg.add_action_callback('apply_selected') do |_ctx,id,w,h,depth,offset_x,offset_y,border_width,smoothness,anchor,cut_mode|
+      dlg.add_action_callback('create_screen') do |_ctx,id,panel_length,panel_width,panel_thickness,panel_name,panel_orientation,screen_mode,frame_width,rows,cols,gap_x,gap_y,preserve_ratio|
         item = library.find { |row| row['id'].to_s == id.to_s }
-        raise 'Chưa chọn mẫu vector.' unless item
-        apply_template_to_selected(item,cnc_settings(w,h,depth,offset_x,offset_y,border_width,smoothness,anchor,cut_mode))
-        send_target_info(selected_target_info)
-      rescue StandardError => e
-        UI.messagebox(e.message)
-      end
-      dlg.add_action_callback('create_panel') do |_ctx,id,panel_length,panel_width,panel_thickness,panel_name,panel_orientation,w,h,depth,offset_x,offset_y,border_width,smoothness,anchor,cut_mode|
-        item = library.find { |row| row['id'].to_s == id.to_s }
-        raise 'Chưa chọn mẫu vector.' unless item
-        panel = {
-          'length'=>panel_length.to_f,
-          'width'=>panel_width.to_f,
-          'thickness'=>panel_thickness.to_f,
-          'name'=>panel_name.to_s,
-          'orientation'=>panel_orientation.to_s
-        }
-        create_direct_panel(item,panel,cnc_settings(w,h,depth,offset_x,offset_y,border_width,smoothness,anchor,cut_mode))
-        send_target_info(selected_target_info)
-      rescue StandardError => e
-        UI.messagebox("TẠO TẤM CNC: #{e.message}")
-      end
-      dlg.add_action_callback('create_screen') do |_ctx,id,panel_length,panel_width,panel_thickness,panel_name,panel_orientation,screen_mode,frame_width,rows,cols,gap_x,gap_y,preserve_ratio,depth,smoothness,cut_mode|
-        item = library.find { |row| row['id'].to_s == id.to_s }
-        raise 'Chưa chọn mẫu vector.' unless item
+        raise 'Chưa có mẫu ẢNH CNC. Hãy tải ảnh và bấm CHUYỂN ẢNH THÀNH MẪU CNC.' unless item
         panel = {
           'length'=>panel_length.to_f,
           'width'=>panel_width.to_f,
@@ -1196,7 +1168,10 @@ module TranTuanNoiThat
           'name'=>panel_name.to_s.empty? ? 'VACH_CNC' : panel_name.to_s,
           'orientation'=>panel_orientation.to_s
         }
-        cnc = cnc_settings(item['width'],item['height'],depth.to_f,0,0,0,smoothness.to_i,'center',cut_mode.to_s)
+        cnc = cnc_settings(
+          item['width'], item['height'], panel_thickness.to_f,
+          0, 0, 0, 72, 'center', 'inside'
+        )
         screen = {
           'mode'=>screen_mode.to_s,
           'frame_width'=>frame_width.to_f,
@@ -1207,45 +1182,8 @@ module TranTuanNoiThat
           'preserve_ratio'=>preserve_ratio == true || preserve_ratio.to_s == 'true'
         }
         create_screen_panel(item,panel,cnc,screen)
-        send_target_info(selected_target_info)
       rescue StandardError => e
-        UI.messagebox("TẠO VÁCH CNC: #{e.message}")
-      end
-      dlg.add_action_callback('start') do |_ctx,id,w,h,depth,offset_x,offset_y,border_width,smoothness,anchor,cut_mode|
-        item = library.find { |row| row['id'].to_s == id.to_s }
-        raise 'Chưa chọn mẫu vector.' unless item
-        activate_template(item,cnc_settings(w,h,depth,offset_x,offset_y,border_width,smoothness,anchor,cut_mode))
-      rescue StandardError => e
-        UI.messagebox(e.message)
-      end
-      dlg.add_action_callback('update_settings') do |_ctx,w,h,depth,offset_x,offset_y,border_width,smoothness,anchor,cut_mode|
-        next unless @active_tool
-        @active_tool.update_settings(cnc_settings(w,h,depth,offset_x,offset_y,border_width,smoothness,anchor,cut_mode))
-      rescue StandardError => e
-        puts "[VECTOR CNC settings] #{e.class}: #{e.message}"
-      end
-      dlg.add_action_callback('save') do |_ctx,id,name,w,h|
-        item = library.find { |row| row['id'].to_s == id.to_s }
-        raise 'Chưa chọn vector để lưu.' unless item
-        saved = save_custom(item.merge('width'=>w.to_f,'height'=>h.to_f),name)
-        send_library
-        UI.messagebox("Đã lưu mẫu #{saved['name']}.")
-      rescue StandardError => e
-        UI.messagebox(e.message)
-      end
-      dlg.add_action_callback('delete') do |_ctx,id|
-        delete_custom(id)
-        send_library
-      end
-      dlg.add_action_callback('import') do |_ctx|
-        path = UI.openpanel('Nhập VECTOR CNC', nil, 'Vector|*.svg;*.dxf;*.json||')
-        next unless path
-        item = import_file(path)
-        saved = save_custom(item,item['name'])
-        send_library
-        UI.messagebox("Đã nhập #{saved['name']}.")
-      rescue StandardError => e
-        UI.messagebox("Không nhập được vector:\n#{e.message}")
+        UI.messagebox("TẠO VÁCH CNC TỪ ẢNH: #{e.message}")
       end
       dlg
     end
@@ -1260,7 +1198,7 @@ module TranTuanNoiThat
     def send_library
       return unless @dialog
       payload = library.map do |row|
-        row.merge('point_count'=>row['points'].length, 'custom'=>!row['builtin'])
+        row.merge('point_count'=>Array(row['points']).length, 'custom'=>true)
       end
       @dialog.execute_script("renderLibrary(#{JSON.generate(payload)})")
     rescue StandardError
