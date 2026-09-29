@@ -110,8 +110,8 @@ check('Tạo LED light geometry shines down with adjustable distance and spread'
   assert(light[:levels].length==3)
   assert(light[:beam_quads].length==2)
   bottom=light[:levels].last[:rect]
-  bottom.each{|p|near(p.z*25.4,-80.0,0.01)}
-  near(bottom[0].distance(bottom[3])*25.4,90.0,0.05)
+  bottom.each{|p|near(p.z*25.4,-80.0)}
+  near(bottom[0].distance(bottom[3])*25.4,90.0)
 
   off=LED.light_geometry(rect,LED::DEFAULTS.merge('brightness'=>0))
   assert(off[:levels].all?{|row|row[:alpha]>=0})
