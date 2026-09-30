@@ -7,7 +7,7 @@ module TranTuanNoiThat
   module ContactTool
     extend self
 
-    VERSION = '1.0.2'.freeze
+    VERSION = '1.0.3'.freeze
     KEY = 'TT_TIEP_DIEN'.freeze
     DATA_DIR = File.join(TranTuanNoiThat::ROOT, 'data', 'contact_tool').freeze
     PRESET_FILE = File.join(DATA_DIR, 'presets.json').freeze
@@ -701,13 +701,13 @@ module TranTuanNoiThat
       .hint{font-size:12px;color:#52705e;line-height:1.45}.hover{margin-top:8px;padding:8px;background:#f7fff9;border:1px dashed #7fbd94;border-radius:7px}
       @media(max-width:720px){.layout{grid-template-columns:1fr}.library{height:180px}}
       </style></head><body>
-      <header>TẠO TIẾP DIỆN · AUTO FACE · ABF_...</header>
+      <header>TẠO TIẾP DIỆN · CHỌN MẪU → RÀ FACE → CLICK TẠO</header>
       <div class="layout">
         <div class="panel">
           <div class="title">THƯ VIỆN BIÊN DẠNG</div>
           <div id="library" class="library"></div>
           <div class="buttons"><button class="primary" onclick="newPreset()">TẠO MỚI</button><button class="danger" onclick="deletePreset()">XÓA MẪU</button></div>
-          <div class="hint">TAB mở lại bảng. Chọn mẫu là preview trên model cập nhật ngay.</div>
+          <div class="hint">1) Chọn mẫu tiếp diện. 2) Rà chuột lên Face của Group/Component. 3) Click để tạo ngay. TAB mở lại bảng.</div>
         </div>
         <div class="panel">
           <div class="title">THÔNG SỐ TIẾP DIỆN</div>
@@ -739,11 +739,11 @@ module TranTuanNoiThat
           </div>
           <div class="hint"><b>Trải tấm/Nesting:</b> tiếp diện mới được ghi thành Edge thật trên Face và đồng thời vào <b>_ABF_cuttingLines</b>. Với tấm cũ: chọn tấm rồi bấm SỬA TIẾP DIỆN ABF ĐÃ CHỌN.</div>
           <div class="hover">
-            <b>AUTO:</b> <span id="target">Rà chuột vào Face của Group/Component.</span><br>
+            <b>AUTO FACE:</b> <span id="target">Rà chuột vào Face của Group/Component.</span><br>
             <span id="faceDims"></span><br>
             <span id="rotationText">Hướng 0°</span>
           </div>
-          <div class="hint" style="margin-top:8px"><b>Phím:</b> ← ↑ → ↓ chọn hướng · SHIFT xoay 90° · TAB mở thư viện/cài đặt · Click tạo tiếp diện và tiếp tục chạy.</div>
+          <div class="hint" style="margin-top:8px"><b>Phím:</b> ← ↑ → ↓ chọn hướng · SHIFT xoay 90° · TAB mở thư viện/cài đặt · Click tạo ngay vào Face và tiếp tục rà mặt khác.</div>
         </div>
       </div>
       <script>
@@ -754,7 +754,7 @@ module TranTuanNoiThat
       function fill(o){width.value=o.width;height.value=o.height;radius.value=o.radius;corner_mode.value=o.corner_mode;instance_name.value=o.instance_name;tag_name.value=o.tag_name;template=o.template||{kind:'rect',points:[]};drawShape()}
       function renderLibrary(){library.innerHTML='';Object.keys(state.presets).forEach(name=>{let b=document.createElement('button');b.className='preset'+(name===state.selected?' active':'');b.textContent=name;b.onclick=()=>sketchup.select_preset(name);library.appendChild(b)})}
       window.setContactState=d=>{state=d;renderLibrary();presetName.value=d.selected||'';if(d.options)fill(d.options)}
-      window.setContactHover=d=>{target.textContent=d.target?('Đối tượng: '+d.target+(d.valid?'':' · BIÊN DẠNG VƯỢT MẶT')):'Rà chuột vào Face của Group/Component.';faceDims.textContent=d.face_length_mm?('Face: '+d.face_length_mm.toFixed(1)+' × '+d.face_width_mm.toFixed(1)+' mm'):'';rotationText.textContent='Hướng '+(d.rotation_deg||0)+'°'}
+      window.setContactHover=d=>{target.textContent=d.target?('Mẫu: '+(d.preset||'')+' · Đối tượng: '+d.target+(d.valid?' · SẴN SÀNG CLICK':' · BIÊN DẠNG VƯỢT MẶT')):'Rà chuột vào Face của Group/Component.';faceDims.textContent=d.face_length_mm?('Face: '+d.face_length_mm.toFixed(1)+' × '+d.face_width_mm.toFixed(1)+' mm'):'';rotationText.textContent='Hướng '+(d.rotation_deg||0)+'°'}
       window.setImportedContactShape=info=>{template={kind:'custom',points:info.points};width.value=info.width.toFixed(1);height.value=info.height.toFixed(1);drawPoints=[];drawing=false;drawShape();applyNow()}
       function newPreset(){presetName.value='Tiếp diện mới';instance_name.value='ABF_TIEP_DIEN_MOI';tag_name.value='ABF_TIEP_DIEN_MOI';useRectangle();applyNow()}
       function useRectangle(){template={kind:'rect',points:[]};drawing=false;drawPoints=[];drawShape();applyNow()}
@@ -784,7 +784,7 @@ module TranTuanNoiThat
       end
 
       def activate
-        Sketchup.set_status_text('TẠO TIẾP DIỆN · AUTO FACE | Rê trực tiếp lên Face trong Group/Component · preview bám mặt · Click tạo',SB_PROMPT)
+        Sketchup.set_status_text('TẠO TIẾP DIỆN · Chọn mẫu → rà Face Group/Component → preview bám mặt → Click tạo ngay',SB_PROMPT)
       end
 
       def deactivate(view)
@@ -805,7 +805,7 @@ module TranTuanNoiThat
         @view = view
         @candidate = pick_candidate(view,x,y)
         rebuild
-        view.tooltip = @candidate ? (@plan && @plan[:valid] ? 'ĐÃ NHẬN FACE · Click tạo tiếp diện' : 'ĐÃ NHẬN FACE · Biên dạng vượt khỏi mặt') : 'Rê chuột trực tiếp lên Face của Group/Component'
+        view.tooltip = @candidate ? (@plan && @plan[:valid] ? "MẪU #{ContactTool.selected_preset} · ĐÃ NHẬN FACE · CLICK TẠO" : 'ĐÃ NHẬN FACE · Biên dạng vượt khỏi mặt') : 'Rê chuột trực tiếp lên Face của Group/Component'
         view.invalidate
       rescue StandardError => error
         @candidate = nil
@@ -821,10 +821,12 @@ module TranTuanNoiThat
           UI.beep
           return
         end
-        ContactTool.create_contact(@candidate[:target],@candidate[:transform],@plan)
-        Sketchup.set_status_text("Đã tạo #{@plan[:options]['instance_name']} · tiếp tục rà để tạo tiếp",SB_PROMPT)
+        created_plan = @plan
+        ContactTool.create_contact(@candidate[:target],@candidate[:transform],created_plan)
+        Sketchup.set_status_text("Đã tạo #{created_plan[:options]['instance_name']} vào đúng Face · tiếp tục rà mặt khác để tạo tiếp",SB_PROMPT)
         @candidate = nil
         @plan = nil
+        ContactTool.push_hover(nil)
         view.invalidate
       rescue StandardError => error
         UI.messagebox("TẠO TIẾP DIỆN: #{error.message}")
@@ -872,7 +874,7 @@ module TranTuanNoiThat
 
         n = ContactTool.normalized(@plan[:normal])
 
-        # Viền xanh/cam của chính Face đang AUTO nhận diện.
+        # Face host đang được AUTO nhận: viền xanh mảnh để biết chính xác mặt đích.
         face_outline = @candidate[:points].map do |point|
           Geom::Point3d.new(
             point.x + n.x * 0.15.mm,
@@ -886,9 +888,16 @@ module TranTuanNoiThat
           view.draw(GL_LINE_LOOP, face_outline)
         end
 
-        # Biên tiếp diện preview: xanh khi nằm trọn trên Face, đỏ khi vượt Face.
-        view.drawing_color = @plan[:valid] ? Sketchup::Color.new(58,190,112) : Sketchup::Color.new(220,70,70)
-        view.line_width = 4
+        # Preview tiếp diện nằm sát trên Face. Tô mờ giúp nhìn như một tiếp diện thật
+        # nhưng không tạo bất kỳ geometry rác nào trước khi click.
+        valid = @plan[:valid]
+        edge_color = valid ?
+          Sketchup::Color.new(42,175,96) :
+          Sketchup::Color.new(220,70,70)
+        fill_color = valid ?
+          Sketchup::Color.new(72,196,122,72) :
+          Sketchup::Color.new(220,70,70,58)
+
         points = @plan[:points].map do |point|
           Geom::Point3d.new(
             point.x + n.x * 0.30.mm,
@@ -896,9 +905,32 @@ module TranTuanNoiThat
             point.z + n.z * 0.30.mm
           )
         end
-        lines = []
-        points.each_with_index { |point,index| lines.concat([point,points[(index+1)%points.length]]) }
-        view.draw(GL_LINES,lines)
+
+        if points.length >= 3
+          begin
+            view.drawing_color = fill_color
+            view.draw(GL_POLYGON, points)
+          rescue StandardError
+            # Một số biên dạng lõm không tô polygon ổn định; viền preview vẫn đầy đủ.
+          end
+
+          view.drawing_color = edge_color
+          view.line_width = 4
+          view.draw(GL_LINE_LOOP, points)
+
+          # Tâm preview + vạch hướng theo cạnh đầu để thấy ngay hướng xoay.
+          cx = points.inject(0.0) { |sum,p| sum + p.x } / points.length
+          cy = points.inject(0.0) { |sum,p| sum + p.y } / points.length
+          cz = points.inject(0.0) { |sum,p| sum + p.z } / points.length
+          center = Geom::Point3d.new(cx,cy,cz)
+          view.draw_points(center,10,2,edge_color)
+
+          if points.length >= 2
+            midpoint = Geom::Point3d.linear_combination(0.5,points[0],0.5,points[1])
+            view.line_width = 2
+            view.draw(GL_LINES,[center,midpoint])
+          end
+        end
       end
 
       private
@@ -1030,6 +1062,7 @@ module TranTuanNoiThat
         name = target.respond_to?(:name) && !target.name.to_s.empty? ? target.name.to_s : target.class.name.split('::').last
         ContactTool.push_hover(
           target:name,
+          preset:ContactTool.selected_preset,
           face_length_mm:@plan[:face_length_mm],
           face_width_mm:@plan[:face_width_mm],
           rotation_deg:@plan[:rotation_deg],
