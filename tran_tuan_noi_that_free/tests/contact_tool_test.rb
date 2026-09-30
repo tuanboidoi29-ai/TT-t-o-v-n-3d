@@ -55,8 +55,8 @@ check('contact preview follows cursor and rejects profile outside host Face') do
     'template'=>{'kind'=>'rect','points'=>[]}
   },0)
   assert(plan[:valid])
-  near(plan[:face_length_mm],1000,0.01)
-  near(plan[:face_width_mm],500,0.01)
+  near(plan[:face_length_mm],1000)
+  near(plan[:face_width_mm],500)
   near(plan[:rotation_deg],0)
 
   edge=Geom::Point3d.new(990.mm,250.mm,0)
