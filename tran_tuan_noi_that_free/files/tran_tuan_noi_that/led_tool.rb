@@ -7,7 +7,7 @@ module TranTuanNoiThat
   module LedTool
     extend self
 
-    VERSION = '1.4.3'.freeze
+    VERSION = '1.4.4'.freeze
     KEY = 'TT_LED'.freeze
     DATA_DIR = File.join(TranTuanNoiThat::ROOT, 'data', 'led_tool').freeze
     PRESET_FILE = File.join(DATA_DIR, 'presets.json').freeze
@@ -284,16 +284,24 @@ module TranTuanNoiThat
       end.max_by { |face| face.area.to_f }
     end
 
+    def face_entities(host_face,target)
+      parent = host_face.respond_to?(:parent) ? host_face.parent : nil
+      return parent if parent && parent.respond_to?(:add_line) && parent.respond_to?(:grep)
+      target_entities(target)
+    end
+
     def add_abf_profile(target,host_face,points,opts,profile_index = 0,profile_count = 1)
       model = Sketchup.active_model
       tag_name = normalize_tag(opts['cnc_tag'])
       tag = ensure_tag(model,tag_name)
-      entities = target_entities(target)
+      entities = face_entities(host_face,target)
 
       # QUY TẮC CỐ ĐỊNH:
       # Biên dạng rãnh LED phải nằm trực tiếp trong hình học của Group/Component.
       # Không tạo Group con cho CNC.
-      host_face.set_attribute('ABF','is-cnced-face',true) if host_face && host_face.valid?
+      raise 'Face gia công không hợp lệ.' unless host_face && host_face.valid?
+      host_face.set_attribute('ABF','is-cnced-face',true)
+      target.set_attribute(KEY,'led_face_direct',true)
 
       edges = points.each_with_index.map do |point,index|
         nxt = points[(index+1) % points.length]
@@ -368,10 +376,27 @@ module TranTuanNoiThat
       unit_vector(direction)
     end
 
-    # Yêu cầu cố định: ánh sáng LED mô phỏng luôn CHIẾU XUỐNG theo Model -Z.
-    # Không phụ thuộc hướng cạnh/mép đang bám; cạnh/mép chỉ quyết định vị trí rãnh.
-    def light_direction_world(_analysis,_plan,_transform)
-      Geom::Vector3d.new(0,0,-1)
+    # Ưu tiên ánh sáng CHIẾU XUỐNG theo Model -Z.
+    # Nếu thanh LED chạy gần song song với Z (LED dọc), chiếu thuần -Z sẽ
+    # song song với chính thanh LED và quầng sáng bị suy biến. Khi đó thêm
+    # thành phần hắt ra khỏi mặt để vẫn thấy vầng sáng nhưng hướng tổng thể
+    # vẫn đi xuống.
+    def light_direction_world(analysis,_plan,transform)
+      down = Geom::Vector3d.new(0,0,-1)
+      along = analysis[:u].transform(transform)
+      along = unit_vector(along,Geom::Vector3d.new(1,0,0))
+      parallel = dot(along,down).abs
+
+      return down if parallel < 0.90
+
+      normal = analysis[:normal].transform(transform)
+      normal = unit_vector(normal,Geom::Vector3d.new(0,1,0))
+      mixed = Geom::Vector3d.new(
+        down.x*0.82 + normal.x*0.58,
+        down.y*0.82 + normal.y*0.58,
+        down.z*0.82 + normal.z*0.58
+      )
+      unit_vector(mixed,down)
     end
 
     # Vầng sáng mịn: chia thành nhiều dải alpha giảm dần.
@@ -389,7 +414,7 @@ module TranTuanNoiThat
       distance = opts['light_distance'].mm
       spread = opts['light_spread'].mm
       brightness = opts['brightness']/100.0
-      band_count = 56
+      band_count = 72
       previous_a = source_a
       previous_b = source_b
       levels = []
@@ -403,10 +428,10 @@ module TranTuanNoiThat
         current_a = shift_point(center_a,along,-end_expand)
         current_b = shift_point(center_b,along,end_expand)
 
-        # 56 lớp + đường cong mượt để ánh vàng sáng tan mềm dần xuống dưới.
-        falloff = (1.0-fraction)**2.05
-        soft_edge = 0.78 + 0.22*Math.cos(fraction*Math::PI/2.0)
-        alpha = [[(168.0*brightness*falloff*soft_edge).round,0].max,215].min
+        # 72 lớp + easing mượt để ánh vàng sáng tan mềm dần xuống dưới.
+        falloff = (1.0-fraction)**2.25
+        soft_edge = 0.86 + 0.14*Math.cos(fraction*Math::PI/2.0)
+        alpha = [[(184.0*brightness*falloff*soft_edge).round,0].max,225].min
         bands << {
           fraction:fraction,
           alpha:alpha,
@@ -489,7 +514,7 @@ module TranTuanNoiThat
       core_mat = ensure_material(
         model,
         "TT_LED_CORE_#{opts['led_color'].delete_prefix('#')}",
-        Sketchup::Color.new(255,246,204),
+        Sketchup::Color.new(255,250,222),
         [[opts['brightness']/100.0,0.0].max,1.0].min
       )
       core_faces.each do |face|
@@ -498,7 +523,7 @@ module TranTuanNoiThat
         face.edges.each { |edge| edge.hidden = true if edge.respond_to?(:hidden=) }
       end
 
-      # 56 dải trong suốt nối tiếp nhau tạo ánh vàng mịn, không dùng quad 4 điểm.
+      # 72 dải trong suốt nối tiếp nhau tạo ánh vàng sáng mịn, không dùng quad 4 điểm.
       geometry[:bands].each_with_index do |band,index|
         next if band[:alpha] <= 0
         pts = band[:points].map { |point| point.transform(active_inv) }
@@ -592,7 +617,7 @@ module TranTuanNoiThat
           </div>
           <div class="row">
             <button onclick="apply()">CẬP NHẬT PREVIEW</button>
-            <button class="createbtn" onclick="startContinuous()">TẠO LIÊN TỤC</button>
+            <button class="createbtn" onclick="startContinuous()">BẮT ĐẦU TẠO LIÊN TỤC</button>
           </div>
           <div id="notice"></div>
           <div class="hint" style="margin-top:9px"><b>CNC:</b> 4 Edge kín thật được tạo <b>trực tiếp vào Face/hình học của Group/Component</b>, không tạo Group CNC con. Edge mang Tag mặc định <b>ABF_RANHLED</b> (đổi tên được), có <code>ABF/is-cutting-lines=true</code>. Mô phỏng ánh sáng là lớp riêng và không làm bẩn dữ liệu CNC.</div>
@@ -625,7 +650,7 @@ module TranTuanNoiThat
         ctx.clearRect(0,0,W,H);
         let bg=ctx.createLinearGradient(0,0,0,H);bg.addColorStop(0,'#17231b');bg.addColorStop(1,'#0d120f');ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
         if(!simulate.checked){ctx.fillStyle='#9dc5aa';ctx.font='13px Arial';ctx.fillText('Mô phỏng ánh sáng đang tắt',16,24);return}
-        light_direction_label.textContent='CHIẾU XUỐNG · Model -Z';
+        light_direction_label.textContent=(detectedInfo.orientation==='vertical'?'LED DỌC · HẮT XUỐNG + RA MẶT':'CHIẾU XUỐNG · Model -Z');
         let distance=Math.max(35,Math.min(H-54,(Number(light_distance.value)||0)*0.22+35));
         let spread=Math.max(10,Math.min(110,(Number(light_spread.value)||0)*0.42+10));
         let count=Math.max(1,Math.min(6,Number(quantity.value)||1));
@@ -636,16 +661,17 @@ module TranTuanNoiThat
           let x=center+n*gap,y=36,y2=Math.min(H-12,y+distance);
           let halfTop=24,halfBottom=halfTop+spread;
           let grad=ctx.createLinearGradient(0,y,0,y2);
-          grad.addColorStop(0,rgba(c,Math.min(.58,.34*bright)));
-          grad.addColorStop(.16,rgba(c,Math.min(.43,.24*bright)));
-          grad.addColorStop(.42,rgba(c,Math.min(.24,.13*bright)));
-          grad.addColorStop(.72,rgba(c,Math.min(.09,.05*bright)));
+          grad.addColorStop(0,rgba([255,250,220],Math.min(.72,.46*bright)));
+          grad.addColorStop(.08,rgba(c,Math.min(.58,.36*bright)));
+          grad.addColorStop(.25,rgba(c,Math.min(.38,.22*bright)));
+          grad.addColorStop(.50,rgba(c,Math.min(.19,.105*bright)));
+          grad.addColorStop(.76,rgba(c,Math.min(.07,.038*bright)));
           grad.addColorStop(1,rgba(c,0));
           ctx.save();ctx.globalCompositeOperation='screen';ctx.fillStyle=grad;
           ctx.beginPath();ctx.moveTo(x-halfTop,y);ctx.lineTo(x+halfTop,y);ctx.lineTo(x+halfBottom,y2);ctx.lineTo(x-halfBottom,y2);ctx.closePath();ctx.fill();
           ctx.restore();
-          [18,10,5,2].forEach((lw,i)=>{
-            ctx.save();ctx.strokeStyle=rgba(c,Math.min(1,(.16+(3-i)*.12)*bright));ctx.lineWidth=lw;ctx.shadowBlur=28+spread*.28;ctx.shadowColor=rgba(c,.78);
+          [24,16,10,6,3,1].forEach((lw,i)=>{
+            ctx.save();ctx.strokeStyle=rgba(c,Math.min(1,(.10+(5-i)*.095)*bright));ctx.lineWidth=lw;ctx.shadowBlur=34+spread*.34;ctx.shadowColor=rgba([255,221,120],.82);
             ctx.beginPath();ctx.moveTo(x-halfTop,y);ctx.lineTo(x+halfTop,y);ctx.stroke();ctx.restore();
           });
           ctx.save();ctx.strokeStyle=rgba([255,249,214],Math.min(1,.92*bright));ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(x-halfTop,y);ctx.lineTo(x+halfTop,y);ctx.stroke();ctx.restore();
@@ -959,9 +985,9 @@ module TranTuanNoiThat
 
         plans.each_with_index do |plan,index|
           local_points = LedTool.local_rect(@analysis,plan,0.0,1.0)
+          # BẮT BUỘC tìm lại Face trong chính target hiện tại, đặc biệt sau Make Unique.
           host_face = LedTool.find_host_face(target,local_points)
-          host_face ||= @face if @face && @face.valid?
-          raise "Không tìm lại được Face gia công cho rãnh #{index+1}." unless host_face
+          raise "Không tìm lại được Face bên trong Group/Component cho rãnh #{index+1}." unless host_face && host_face.valid?
 
           if @options['cnc']
             LedTool.add_abf_profile(target,host_face,local_points,@options,index,plans.length)
