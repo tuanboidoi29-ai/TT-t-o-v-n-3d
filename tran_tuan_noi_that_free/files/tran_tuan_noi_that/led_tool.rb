@@ -7,7 +7,7 @@ module TranTuanNoiThat
   module LedTool
     extend self
 
-    VERSION = '1.4.5'.freeze
+    VERSION = '1.4.6'.freeze
     KEY = 'TT_LED'.freeze
     DATA_DIR = File.join(TranTuanNoiThat::ROOT, 'data', 'led_tool').freeze
     PRESET_FILE = File.join(DATA_DIR, 'presets.json').freeze
@@ -26,7 +26,8 @@ module TranTuanNoiThat
       'light_spread'=>40.0,
       'simulate'=>true,
       'cnc'=>true,
-      'cnc_tag'=>'ABF_RANHLED'
+      'cnc_instance'=>'ABF_RANHLED',
+      'cnc_tag'=>'ABF_ranhled'
     }.freeze
 
     def ensure_data
@@ -34,10 +35,17 @@ module TranTuanNoiThat
       true
     end
 
-    def normalize_tag(value)
+    def normalize_instance(value)
       text = value.to_s.strip.upcase.gsub(/[^A-Z0-9_]+/,'_').gsub(/_+/,'_').sub(/\A_+/,'').sub(/_+\z/,'')
       text = 'RANHLED' if text.empty?
       text = 'ABF_' + text unless text.start_with?('ABF_')
+      text
+    end
+
+    def normalize_tag(value)
+      text = value.to_s.strip.gsub(/[^A-Za-z0-9_]+/,'_').gsub(/_+/,'_').sub(/\A_+/,'').sub(/_+\z/,'')
+      text = 'ranhled' if text.empty?
+      text = 'ABF_' + text unless text.downcase.start_with?('abf_')
       text
     end
 
@@ -64,6 +72,7 @@ module TranTuanNoiThat
       out['light_spread'] = [[source['light_spread'].to_f,0.0].max,500.0].min
       out['simulate'] = source['simulate'] == true || source['simulate'].to_s == 'true' || source['simulate'].to_s == '1'
       out['cnc'] = source['cnc'] == true || source['cnc'].to_s == 'true' || source['cnc'].to_s == '1'
+      out['cnc_instance'] = normalize_instance(source['cnc_instance'])
       out['cnc_tag'] = normalize_tag(source['cnc_tag'])
       out
     end
@@ -290,7 +299,7 @@ module TranTuanNoiThat
       target_entities(target)
     end
 
-    def heal_profile_face(entities,edges,points,tag_name)
+    def heal_profile_face(entities,edges,points,instance_name,tag_name)
       # Ép loop CNC trở thành biên thật thuộc Face của tấm.
       # add_line đơn thuần đôi khi để lại loose edge đồng phẳng, Aspire/ABF không nhận.
       edges.each do |edge|
@@ -319,11 +328,17 @@ module TranTuanNoiThat
           face = entities.add_face(points)
           if face && (!face.respond_to?(:valid?) || face.valid?)
             face.set_attribute(KEY,'role','led_profile_face')
-            face.set_attribute(KEY,'cnc_name',tag_name)
+            face.set_attribute(KEY,'cnc_name',instance_name)
+            face.set_attribute(KEY,'cnc_tag',tag_name)
+            face.set_attribute('ABF','instance',instance_name)
+            face.set_attribute('ABF','instance-name',instance_name)
             face.set_attribute('ABF','is-cnced-face',true)
             face.edges.each do |edge|
               edge.set_attribute(KEY,'role','led_cnc_edge')
-              edge.set_attribute(KEY,'cnc_name',tag_name)
+              edge.set_attribute(KEY,'cnc_name',instance_name)
+              edge.set_attribute(KEY,'cnc_tag',tag_name)
+              edge.set_attribute('ABF','instance',instance_name)
+              edge.set_attribute('ABF','instance-name',instance_name)
             end
           end
         rescue StandardError
@@ -361,7 +376,10 @@ module TranTuanNoiThat
         begin
           face.set_attribute('ABF','is-cnced-face',true)
           face.set_attribute(KEY,'led_profile_boundary',true)
-          face.set_attribute(KEY,'cnc_name',tag_name)
+          face.set_attribute(KEY,'cnc_name',instance_name)
+          face.set_attribute(KEY,'cnc_tag',tag_name)
+          face.set_attribute('ABF','instance',instance_name)
+          face.set_attribute('ABF','instance-name',instance_name)
         rescue StandardError
           nil
         end
@@ -371,6 +389,7 @@ module TranTuanNoiThat
 
     def add_abf_profile(target,host_face,points,opts,profile_index = 0,profile_count = 1)
       model = Sketchup.active_model
+      instance_name = normalize_instance(opts['cnc_instance'])
       tag_name = normalize_tag(opts['cnc_tag'])
       tag = ensure_tag(model,tag_name)
       tag.visible = true if tag.respond_to?(:visible=)
@@ -390,12 +409,17 @@ module TranTuanNoiThat
         edge.layer = tag
         edge.set_attribute('ABF','is-cutting-lines',true)
         edge.set_attribute('ABF','is-intersect',true)
-        edge.set_attribute('ABF','setting-name',operation_setting_name(tag_name))
-        edge.set_attribute('ABF','operation-name',tag_name)
+        edge.set_attribute('ABF','setting-name',operation_setting_name(instance_name))
+        edge.set_attribute('ABF','operation-name',instance_name)
+        edge.set_attribute('ABF','instance',instance_name)
+        edge.set_attribute('ABF','instance-name',instance_name)
+        edge.set_attribute('ABF','tag-name',tag_name)
         edge.set_attribute('ABF','intersect-group-b-id',entity_reference_id(target))
         edge.set_attribute(KEY,'role','led_cnc_edge')
         edge.set_attribute(KEY,'name',opts['name'])
-        edge.set_attribute(KEY,'cnc_name',tag_name)
+        edge.set_attribute(KEY,'cnc_name',instance_name)
+        edge.set_attribute(KEY,'cnc_instance',instance_name)
+        edge.set_attribute(KEY,'cnc_tag',tag_name)
         edge.set_attribute(KEY,'groove_width_mm',opts['groove_width'])
         edge.set_attribute(KEY,'closed_loop',true)
         edge.set_attribute(KEY,'profile_index',profile_index)
@@ -407,7 +431,7 @@ module TranTuanNoiThat
       raise "Biên dạng #{tag_name} phải có đúng 4 Edge kín." unless edges.length == 4
 
       # BẮT BUỘC: 4 Edge phải trở thành topology thật của Face, không được là loose edge.
-      profile_faces = heal_profile_face(entities,edges,points,tag_name)
+      profile_faces = heal_profile_face(entities,edges,points,instance_name,tag_name)
 
       # Đánh dấu lại tất cả Face cùng mặt phẳng sau khi split/heal.
       refreshed_face = find_host_face(target,points)
@@ -419,6 +443,11 @@ module TranTuanNoiThat
       target.set_attribute(KEY,'led_profile_face_count',profile_faces.length)
       target.set_attribute('ABF','is-board',true)
       target.set_attribute('ABF','ranh_led',true)
+      target.set_attribute('ABF','instance',instance_name)
+      target.set_attribute('ABF','instance-name',instance_name)
+      target.set_attribute('ABF','tag-name',tag_name)
+      target.set_attribute(KEY,'cnc_name',instance_name)
+      target.set_attribute(KEY,'cnc_instance',instance_name)
       target.set_attribute(KEY,'cnc_tag',tag_name)
       target.set_attribute(KEY,'led_profile_embedded',true)
       target.set_attribute(KEY,'led_profile_grouped',false)
@@ -694,7 +723,8 @@ module TranTuanNoiThat
             <label>Độ loang ánh sáng</label><input id="light_spread" type="range" min="0" max="200" step="5"><span id="light_spread_value">40mm</span>
             <label>Mô phỏng ánh sáng</label><input id="simulate" type="checkbox"><span></span>
             <label>Chế độ CNC</label><input id="cnc" type="checkbox"><span></span>
-            <label>Tên CNC / Tag ABF</label><input id="cnc_tag"><span></span>
+            <label>INSTANCE CNC</label><input id="cnc_instance"><span>ABF_RANHLED</span>
+            <label>TAG CNC</label><input id="cnc_tag"><span>ABF_ranhled</span>
           </div>
           <div class="hint" style="margin-top:7px"><b>Chiều dài = 0</b> → AUTO lấy chiều dài mặt trừ Cách 2 đầu. <b>Khoảng cách giữa</b> là khoảng hở giữa 2 rãnh. Rê chuột gần mép nào thì rãnh tự bám mép đó.</div>
           <div class="lightbox">
@@ -706,11 +736,11 @@ module TranTuanNoiThat
             <button class="createbtn" onclick="startContinuous()">BẮT ĐẦU TẠO LIÊN TỤC</button>
           </div>
           <div id="notice"></div>
-          <div class="hint" style="margin-top:9px"><b>CNC:</b> 4 Edge kín thật được tạo <b>trực tiếp vào Face/hình học của Group/Component</b> và bắt buộc heal/split vào Face thật, không tạo Group CNC con. Edge mang Tag mặc định <b>ABF_RANHLED</b> (đổi tên được), có <code>ABF/is-cutting-lines=true</code>. Mô phỏng ánh sáng là lớp riêng và không làm bẩn dữ liệu CNC.</div>
+          <div class="hint" style="margin-top:9px"><b>CNC:</b> 4 Edge kín thật được tạo <b>trực tiếp vào Face/hình học của Group/Component</b> và bắt buộc heal/split vào Face thật, không tạo Group CNC con. Edge mang <b>INSTANCE mặc định ABF_RANHLED</b> và <b>Tag mặc định ABF_ranhled</b> (đổi tên được), có <code>ABF/is-cutting-lines=true</code>. Mô phỏng ánh sáng là lớp riêng và không làm bẩn dữ liệu CNC.</div>
         </div>
       </div>
       <script>
-      const ids=['name','end_clearance','edge_offset','groove_width','groove_length','quantity','spacing','led_color','brightness','light_distance','light_spread','simulate','cnc','cnc_tag'];let selected='';let detectedInfo={side:'max',orientation:'vertical'};
+      const ids=['name','end_clearance','edge_offset','groove_width','groove_length','quantity','spacing','led_color','brightness','light_distance','light_spread','simulate','cnc','cnc_instance','cnc_tag'];let selected='';let detectedInfo={side:'max',orientation:'vertical'};
       const TTLED={
         state:{},
         load(data){this.state=data||{};selected=data.selected||'';this.renderPresets(data.presets||{});this.fill(data.settings||{});},
