@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.189",
+  "version": "1.9.190",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "TẠO LED sửa lỗi biên dạng CNC không thành hình học thật. ABF_RANHLED vẫn tạo trực tiếp trong đúng Entities của Group/Component, không tạo Group CNC con, nhưng nay sau 4 add_line bắt buộc chạy heal/find_faces và kiểm tra tồn tại một Face thật chứa đủ cả 4 cạnh loop. Nếu SketchUp chưa heal, plugin thử tạo Face trên loop rồi heal lại; nếu vẫn không có topology thật thì báo lỗi thay vì tạo line rời. Edge lưu số Face đính kèm và target lưu số Face biên dạng để kiểm tra. Tag CNC được ép visible. Ánh sáng vàng sáng mịn 72 lớp, preview trong bảng, slider độ sáng/khoảng hắt/độ loang và chế độ tạo liên tục vẫn giữ nguyên.",
+  "notes": "TẠO LED: chốt quy ước CNC mới theo yêu cầu. Biên dạng rãnh vẫn là 4 Edge kín thật heal/split trực tiếp vào Face của Group/Component, không tạo Group CNC con. Tách riêng INSTANCE và Tag: INSTANCE mặc định ABF_RANHLED; Tag SketchUp mặc định ABF_ranhled. 4 Edge, Face rãnh và đối tượng chủ đều lưu ABF/instance + ABF/instance-name = ABF_RANHLED và ABF/tag-name = ABF_ranhled; Edge được gán Layer/Tag ABF_ranhled. Vẫn giữ ánh sáng vàng sáng mịn 72 lớp, preview trong bảng, slider độ sáng/khoảng hắt/độ loang và tạo liên tục.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "5c07b9909a49f72955cd79c428435d614b48199b38b9bdb01be5e7d281598dde"
+      "sha256": "d891cb3b24d4c9e61e4bfcd0caebe645938f4602de1e3fd183fd4daa28954b43"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -244,7 +244,7 @@
     {
       "path": "tran_tuan_noi_that/led_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/led_tool.rb",
-      "sha256": "f194813a4ad33c66f3e98fd58f40c2fe95cc437d4b6cf20bad502186f28607fd"
+      "sha256": "bd13bfbba1b904c9ebb86a8dc690d6e5740eef2e25fae5905a223f46f9b030ac"
     },
     {
       "path": "tran_tuan_noi_that/rename_tool.rb",
@@ -324,7 +324,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "7d584d6a241986989f330c9298355e0aabb2d09865444bf7faff691f50dae53b"
+      "sha256": "3f27f9cfbf2f9c897cf21728f2d86fe6dd71d673e9a9027a0015c58ee8041475"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
