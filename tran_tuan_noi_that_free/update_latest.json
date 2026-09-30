@@ -4,7 +4,7 @@
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "TẠO LED sửa 2 lỗi thực tế. 1) Rãnh CNC ABF_RANHLED nay bắt buộc tạo 4 Edge kín trực tiếp trong đúng Entities đang chứa Face host của Group/Component, không tạo Group con và không dùng lại Face cũ sau Make Unique; sau Make Unique sẽ tìm lại đúng Face trong definition mới rồi mới ghi biên dạng. 2) LED dọc không còn mất vầng sáng: ánh sáng vẫn ưu tiên hắt xuống Model -Z, nhưng nếu thanh LED gần song song Z thì tự thêm thành phần hắt ra khỏi mặt để tránh quầng sáng suy biến. Quầng sáng tăng 72 lớp, tim LED vàng-trắng sáng hơn, falloff mượt hơn. Khung preview trong bảng cập nhật nhãn LED dọc và gradient vàng sáng mềm hơn. Nút đổi thành BẮT ĐẦU TẠO LIÊN TỤC; sau mỗi click tool vẫn tiếp tục AUTO.",
+  "notes": "TẠO LED sửa 2 lỗi thực tế. 1) Rãnh CNC ABF_RANHLED nay bắt buộc tạo 4 Edge kín trực tiếp trong đúng Entities đang chứa Face host của Group/Component, không tạo Group con và không dùng lại Face cũ sau Make Unique; sau Make Unique sẽ tìm lại đúng Face trong definition mới rồi mới ghi biên dạng. 2) LED dọc không còn mất vầng sáng: ánh sáng vẫn ưu tiên hắt xuống Model -Z, nhưng nếu thanh LED gần song song Z thì tự thêm thành phần hắt ra khỏi mặt để tránh quầng sáng suy biến. Quầng sáng tăng 72 lớp, tim LED vàng-trắng sáng hơn, falloff mượt hơn. Khung preview trong bảng cập nhật nhãn LED dọc và gradient vàng sáng mềm hơn. Nút đổi thành BẮT ĐẦU TẠO LIÊN TỤC; sau mỗi click tool vẫn tiếp tục AUTO. Hotfix CI: dùng Vector3d#dot chuẩn SketchUp cho nhận diện LED dọc.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -244,7 +244,7 @@
     {
       "path": "tran_tuan_noi_that/led_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/led_tool.rb",
-      "sha256": "86632aaa48c619bc35bf96e4d660bd0167eb6164ab3bf66d43594509db1ece78"
+      "sha256": "e5a447518fd14c33026f6239832b7ccd6485288ca40a16c381f6224f86267183"
     },
     {
       "path": "tran_tuan_noi_that/rename_tool.rb",
