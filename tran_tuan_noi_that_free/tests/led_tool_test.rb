@@ -3,9 +3,10 @@ load File.join(__dir__, 'upgrade_146_test.rb')
 load ROOT+'/led_tool.rb'
 LED=TranTuanNoiThat::LedTool
 
-check('LED defaults and ABF_RANHLED tag normalize') do
+check('LED defaults keep exact CNC INSTANCE and Tag convention') do
   o=LED.normalize({})
-  assert(o['cnc_tag']=='ABF_RANHLED')
+  assert(o['cnc_instance']=='ABF_RANHLED')
+  assert(o['cnc_tag']=='ABF_ranhled')
   assert(o['groove_width']==10.0)
   assert(o['simulate']==true && o['cnc']==true)
   assert(o['brightness']==100.0)
@@ -14,8 +15,9 @@ check('LED defaults and ABF_RANHLED tag normalize') do
   assert(o['quantity']==1)
   assert(o['spacing']==50.0)
   assert(o['led_color']=='#ffe08a')
-  assert(LED.normalize({'cnc_tag'=>'ranh led phong khach'})['cnc_tag']=='ABF_RANH_LED_PHONG_KHACH')
-  assert(LED.normalize({'cnc_tag'=>'ABF_RANHLED_12'})['cnc_tag']=='ABF_RANHLED_12')
+  assert(LED.normalize({'cnc_instance'=>'ranh led phong khach'})['cnc_instance']=='ABF_RANH_LED_PHONG_KHACH')
+  assert(LED.normalize({'cnc_tag'=>'ranhled_phongkhach'})['cnc_tag']=='ABF_ranhled_phongkhach')
+  assert(LED.normalize({'cnc_instance'=>'ABF_RANHLED_12'})['cnc_instance']=='ABF_RANHLED_12')
 end
 
 check('AUTO LED length uses both end clearances') do
@@ -108,6 +110,9 @@ check('Tạo LED UI contains preset and live preview controls') do
   assert(html.include?('CHIẾU XUỐNG · Model -Z'))
   assert(html.include?('LED DỌC · HẮT XUỐNG + RA MẶT'))
   assert(html.include?('ABF_RANHLED'))
+  assert(html.include?('ABF_ranhled'))
+  assert(html.include?('INSTANCE CNC'))
+  assert(html.include?('TAG CNC'))
   assert(html.include?('CẬP NHẬT PREVIEW'))
   assert(html.include?('ABF/is-cutting-lines=true'))
   assert(html.include?('trực tiếp vào Face/hình học của Group/Component'))
@@ -122,6 +127,21 @@ check('Tạo LED CNC uses exact entities that own the host Face') do
   assert(source.include?('entities = face_entities(host_face,target)'))
   assert(source.include?("Không tìm lại được Face bên trong Group/Component"))
   assert(!source.include?("host_face ||= @face"))
+end
+
+check('Tạo LED CNC stores INSTANCE ABF_RANHLED and Tag ABF_ranhled without child group') do
+  source=File.read(ROOT+'/led_tool.rb',encoding:'UTF-8')
+  assert(source.include?("'cnc_instance'=>'ABF_RANHLED'"))
+  assert(source.include?("'cnc_tag'=>'ABF_ranhled'"))
+  body=source.split("def add_abf_profile",2)[1].split("def midpoint",2)[0]
+  assert(body.include?("instance_name = normalize_instance(opts['cnc_instance'])"))
+  assert(body.include?("tag_name = normalize_tag(opts['cnc_tag'])"))
+  assert(body.include?("edge.layer = tag"))
+  assert(body.include?("edge.set_attribute('ABF','instance',instance_name)"))
+  assert(body.include?("edge.set_attribute('ABF','instance-name',instance_name)"))
+  assert(body.include?("edge.set_attribute('ABF','tag-name',tag_name)"))
+  assert(body.include?("target.set_attribute('ABF','instance',instance_name)"))
+  assert(!body.include?("entities.add_group"))
 end
 
 check('Tạo LED CNC edges are embedded directly in host entities without child group') do
