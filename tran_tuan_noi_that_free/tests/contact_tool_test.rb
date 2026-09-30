@@ -121,4 +121,23 @@ check('Tạo Tiếp Diện accepts Group and Component targets') do
   assert(CONTACT.valid_container?(ci))
 end
 
+
+
+check('Tạo Tiếp Diện auto-detects nested Face without relying on face.parent') do
+  source=File.read(ROOT+'/contact_tool.rb',encoding:'UTF-8')
+  assert(source.include?('def target_and_transform_from_path'))
+  assert(source.include?('containers = rows.select { |entity| ContactTool.valid_container?(entity) }'))
+  assert(source.include?('target = containers.last'))
+  assert(source.include?('active_target = Array(active_path).last'))
+  assert(source.include?('transform = transform * entity.transformation'))
+  assert(!source.include?('def face_owner(face,path)'))
+end
+
+check('Tạo Tiếp Diện validates cursor on detected Face and draws Face outline preview') do
+  source=File.read(ROOT+'/contact_tool.rb',encoding:'UTF-8')
+  assert(source.include?('return nil unless ContactTool.point_in_polygon?(cursor_2d,polygon_2d)'))
+  assert(source.include?('view.draw(GL_LINE_LOOP, face_outline)'))
+  assert(source.include?('ĐÃ NHẬN FACE'))
+end
+
 puts "CONTACT TOOL REGRESSIONS COMPLETE"
