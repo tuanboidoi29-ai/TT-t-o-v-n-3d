@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.193",
+  "version": "1.9.194",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Sửa TẠO TIẾP DIỆN AUTO FACE: bỏ cơ chế face.parent dễ rớt ở Group/Component lồng nhau; tự lấy Face sâu nhất dưới chuột, Group/Component sâu nhất chứa Face và cộng transformation theo toàn bộ instance path. Khi đang chui vào Group/Component, fallback active_path.last + edit_transform. Cursor phải nằm thật trong polygon Face mới nhận. Preview vẽ viền xanh của Face đang nhận và biên tiếp diện; tooltip báo ĐÃ NHẬN FACE trước khi click tạo.",
+  "notes": "Sửa TẠO TIẾP DIỆN bị mất khi Trải tấm/Nesting: tiếp diện mới được tạo thành Edge topology thật ăn vào Face, gắn ABF/is-cutting-lines + ABF/is-intersect, đồng thời mirror vào đúng một group chuẩn _ABF_cuttingLines với Tag ABF_cuttingLines để ABF mang theo khi trải. Không tạo group cho từng tiếp diện. Thêm nút SỬA TIẾP DIỆN ABF ĐÃ CHỌN để nâng cấp các tấm cũ mà không cần vẽ lại.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "9c8de503ba675107565fd672c8ddca258c0effbb6ffacdd9cfda56a4d74254d4"
+      "sha256": "405879a47f797d86bd242c8560d1c63afad95dc106be31f6970164c28d43ea67"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -324,7 +324,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "d1db12e6a3ad4dd050d7e948b89af111eb12d23ed9479433b1ae800e8b22f69c"
+      "sha256": "c3dd2ea91ac346cda2983f96906ab75cd90ff2f7681335f93edb9897ffaf7fe3"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -334,7 +334,7 @@
     {
       "path": "tran_tuan_noi_that/contact_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/contact_tool.rb",
-      "sha256": "b62fa275910f40b39f8444dcbffe27024f3094dc6d86ce5937c1fe0fb1386366"
+      "sha256": "04b84b2a00e43396dc7543f168241583f94a2e1f1a70974d1b626ddac635adfc"
     },
     {
       "path": "tran_tuan_noi_that/icons/contact.svg",
@@ -343,8 +343,5 @@
     }
   ],
   "stretch_mode_version": "1.0.1",
-  "remove_files": [
-    "tran_tuan_noi_that/vector_cnc_tool.rb",
-    "tran_tuan_noi_that/icons/vector_cnc.svg"
-  ]
+  "remove_files": []
 }
