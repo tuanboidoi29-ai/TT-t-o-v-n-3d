@@ -304,8 +304,17 @@ module TranTuanNoiThat
       attached = edges.all? do |edge|
         edge.respond_to?(:faces) && !edge.faces.empty?
       end
+      profile_faces = edges.flat_map { |edge| edge.respond_to?(:faces) ? edge.faces : [] }.compact.uniq
+      loop_face = profile_faces.find do |face|
+        begin
+          face_edges = face.edges.to_a
+          edges.all? { |edge| face_edges.include?(edge) }
+        rescue StandardError
+          false
+        end
+      end
 
-      unless attached
+      unless attached && loop_face
         begin
           face = entities.add_face(points)
           if face && (!face.respond_to?(:valid?) || face.valid?)
@@ -333,11 +342,21 @@ module TranTuanNoiThat
       attached = edges.all? do |edge|
         edge.respond_to?(:faces) && !edge.faces.empty?
       end
+      profile_faces = edges.flat_map { |edge| edge.respond_to?(:faces) ? edge.faces : [] }.compact.uniq
+      loop_face = profile_faces.find do |face|
+        begin
+          face_edges = face.edges.to_a
+          edges.all? { |edge| face_edges.include?(edge) }
+        rescue StandardError
+          false
+        end
+      end
+
       raise "Biên dạng #{tag_name} chưa ăn vào Face thật của tấm." unless attached
+      raise "Biên dạng #{tag_name} chưa tạo được loop Face kín thật." unless loop_face
 
       # Face nhỏ bên trong loop được giữ lại: đây là phần mặt rãnh thật,
       # giúp biên CNC tồn tại như topology của chính tấm, không phải line rời.
-      profile_faces = edges.flat_map { |edge| edge.respond_to?(:faces) ? edge.faces : [] }.compact.uniq
       profile_faces.each do |face|
         begin
           face.set_attribute('ABF','is-cnced-face',true)
