@@ -7,7 +7,7 @@ module TranTuanNoiThat
   module LedTool
     extend self
 
-    VERSION = '1.4.4'.freeze
+    VERSION = '1.4.5'.freeze
     KEY = 'TT_LED'.freeze
     DATA_DIR = File.join(TranTuanNoiThat::ROOT, 'data', 'led_tool').freeze
     PRESET_FILE = File.join(DATA_DIR, 'presets.json').freeze
@@ -290,10 +290,71 @@ module TranTuanNoiThat
       target_entities(target)
     end
 
+    def heal_profile_face(entities,edges,points,tag_name)
+      # Ép loop CNC trở thành biên thật thuộc Face của tấm.
+      # add_line đơn thuần đôi khi để lại loose edge đồng phẳng, Aspire/ABF không nhận.
+      edges.each do |edge|
+        begin
+          edge.find_faces if edge.respond_to?(:find_faces)
+        rescue StandardError
+          nil
+        end
+      end
+
+      attached = edges.all? do |edge|
+        edge.respond_to?(:faces) && !edge.faces.empty?
+      end
+
+      unless attached
+        begin
+          face = entities.add_face(points)
+          if face && (!face.respond_to?(:valid?) || face.valid?)
+            face.set_attribute(KEY,'role','led_profile_face')
+            face.set_attribute(KEY,'cnc_name',tag_name)
+            face.set_attribute('ABF','is-cnced-face',true)
+            face.edges.each do |edge|
+              edge.set_attribute(KEY,'role','led_cnc_edge')
+              edge.set_attribute(KEY,'cnc_name',tag_name)
+            end
+          end
+        rescue StandardError
+          nil
+        end
+
+        edges.each do |edge|
+          begin
+            edge.find_faces if edge.respond_to?(:find_faces)
+          rescue StandardError
+            nil
+          end
+        end
+      end
+
+      attached = edges.all? do |edge|
+        edge.respond_to?(:faces) && !edge.faces.empty?
+      end
+      raise "Biên dạng #{tag_name} chưa ăn vào Face thật của tấm." unless attached
+
+      # Face nhỏ bên trong loop được giữ lại: đây là phần mặt rãnh thật,
+      # giúp biên CNC tồn tại như topology của chính tấm, không phải line rời.
+      profile_faces = edges.flat_map { |edge| edge.respond_to?(:faces) ? edge.faces : [] }.compact.uniq
+      profile_faces.each do |face|
+        begin
+          face.set_attribute('ABF','is-cnced-face',true)
+          face.set_attribute(KEY,'led_profile_boundary',true)
+          face.set_attribute(KEY,'cnc_name',tag_name)
+        rescue StandardError
+          nil
+        end
+      end
+      profile_faces
+    end
+
     def add_abf_profile(target,host_face,points,opts,profile_index = 0,profile_count = 1)
       model = Sketchup.active_model
       tag_name = normalize_tag(opts['cnc_tag'])
       tag = ensure_tag(model,tag_name)
+      tag.visible = true if tag.respond_to?(:visible=)
       entities = face_entities(host_face,target)
 
       # QUY TẮC CỐ ĐỊNH:
@@ -326,11 +387,17 @@ module TranTuanNoiThat
 
       raise "Biên dạng #{tag_name} phải có đúng 4 Edge kín." unless edges.length == 4
 
-      # add_line đồng phẳng sẽ chia trực tiếp Face của tấm. Đánh dấu lại Face lớn
-      # cùng mặt phẳng sau khi sinh Edge để ABF vẫn biết đây là mặt gia công.
+      # BẮT BUỘC: 4 Edge phải trở thành topology thật của Face, không được là loose edge.
+      profile_faces = heal_profile_face(entities,edges,points,tag_name)
+
+      # Đánh dấu lại tất cả Face cùng mặt phẳng sau khi split/heal.
       refreshed_face = find_host_face(target,points)
       refreshed_face.set_attribute('ABF','is-cnced-face',true) if refreshed_face && refreshed_face.valid?
 
+      edges.each do |edge|
+        edge.set_attribute(KEY,'embedded_face_count',edge.faces.length) if edge.respond_to?(:faces)
+      end
+      target.set_attribute(KEY,'led_profile_face_count',profile_faces.length)
       target.set_attribute('ABF','is-board',true)
       target.set_attribute('ABF','ranh_led',true)
       target.set_attribute(KEY,'cnc_tag',tag_name)
@@ -620,7 +687,7 @@ module TranTuanNoiThat
             <button class="createbtn" onclick="startContinuous()">BẮT ĐẦU TẠO LIÊN TỤC</button>
           </div>
           <div id="notice"></div>
-          <div class="hint" style="margin-top:9px"><b>CNC:</b> 4 Edge kín thật được tạo <b>trực tiếp vào Face/hình học của Group/Component</b>, không tạo Group CNC con. Edge mang Tag mặc định <b>ABF_RANHLED</b> (đổi tên được), có <code>ABF/is-cutting-lines=true</code>. Mô phỏng ánh sáng là lớp riêng và không làm bẩn dữ liệu CNC.</div>
+          <div class="hint" style="margin-top:9px"><b>CNC:</b> 4 Edge kín thật được tạo <b>trực tiếp vào Face/hình học của Group/Component</b> và bắt buộc heal/split vào Face thật, không tạo Group CNC con. Edge mang Tag mặc định <b>ABF_RANHLED</b> (đổi tên được), có <code>ABF/is-cutting-lines=true</code>. Mô phỏng ánh sáng là lớp riêng và không làm bẩn dữ liệu CNC.</div>
         </div>
       </div>
       <script>
