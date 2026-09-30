@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.191",
+  "version": "1.9.192",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Thêm chức năng mới TẠO TIẾP DIỆN. Tool chạy AUTO: rà Face thuộc Group/Component để preview 2D bám chuột liên tục; click tạo biên dạng kín trực tiếp vào entities của đối tượng, không sinh Group con. INSTANCE và Tag theo chuẩn ABF_<tên biên dạng>, Tag cho phép tùy chỉnh. Hỗ trợ Dài/Rộng, bán kính bo, Không bo/Bo 4 góc/Bo 2 góc trên/Bo 2 góc dưới; phím ←↑→↓ đổi hướng, SHIFT xoay 90°, TAB mở thư viện/cài đặt. Bảng xanh nhạt có thư viện mẫu, tạo mới/lưu/xóa; có canvas vẽ biên dạng trực tiếp và nút LẤY TỪ SKETCHUP để nhập từ Face hoặc chuỗi Edge kín đang chọn. Click xong tiếp tục tạo liên tục.",
+  "notes": "TẠO LED cập nhật thao tác CHỌN TIẾP DIỆN. Trong bảng có nút CHỌN TIẾP DIỆN · TẠO LIÊN TỤC; bấm nút rồi rê vào Face của Group/Component để mặt tiếp diện được highlight xanh nhạt, preview rãnh và ánh sáng LED vàng mịn hiện trực tiếp trên đúng mặt, tooltip hiển thị kích thước mặt; click tạo và tool tiếp tục chạy để rà/click mặt khác. Giữ nguyên các thanh trượt Độ sáng LED, Khoảng hắt sáng, Độ loang ánh sáng và khung preview ánh vàng trong bảng. CNC vẫn tạo 4 Edge kín trực tiếp vào Face/hình học của Group/Component, không tạo Group CNC con, INSTANCE mặc định ABF_RANHLED, Tag mặc định ABF_ranhled.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "ba3ca666498abbc1567e97738391f4a1ff40bb5b3ac99db46892222f6afdf12f"
+      "sha256": "3887a29f1cdaadbc437eb8848e5e5890a1e38fc534895b2e6902e55e2a400f37"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -244,7 +244,7 @@
     {
       "path": "tran_tuan_noi_that/led_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/led_tool.rb",
-      "sha256": "bd13bfbba1b904c9ebb86a8dc690d6e5740eef2e25fae5905a223f46f9b030ac"
+      "sha256": "d57fe4d2a1beada4f0b790a146ef040ad74b0855a5ebf9f8c786a225c06d38b5"
     },
     {
       "path": "tran_tuan_noi_that/rename_tool.rb",
@@ -324,7 +324,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "891218c83b9057fcf6cb38c4265a865e38d60397147825576731cedaf5b4686a"
+      "sha256": "61ca12a108dbc63593eea3b421dbc6536c4151172c2492046a7cb1a6ee9faf28"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
