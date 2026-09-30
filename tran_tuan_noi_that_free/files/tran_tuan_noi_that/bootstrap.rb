@@ -17,7 +17,7 @@ module TranTuanNoiThat
   }.freeze unless const_defined?(:LOCKED_FEATURE_BASELINES, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.194'.freeze
+  VERSION = '1.9.195'.freeze
 
   class << self
     def setting(key, default = nil)
@@ -399,7 +399,7 @@ module TranTuanNoiThat
       @contact_cmd ||= command(
         'Tạo Tiếp Diện',
         'contact.svg',
-        'AUTO rà Face Group/Component · preview 2D bám chuột · mũi tên hướng · SHIFT xoay · TAB thư viện'
+        'Chọn mẫu → rà Face Group/Component → preview mô phỏng bám mặt → click tạo ngay vào Face · SHIFT xoay · TAB thư viện'
       ) { ContactTool.show }
       add_feature_command_once(@contact_cmd, :contact_menu_installed)
       true
