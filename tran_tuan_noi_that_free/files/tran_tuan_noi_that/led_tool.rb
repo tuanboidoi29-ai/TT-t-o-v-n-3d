@@ -7,7 +7,7 @@ module TranTuanNoiThat
   module LedTool
     extend self
 
-    VERSION = '1.4.2'.freeze
+    VERSION = '1.4.3'.freeze
     KEY = 'TT_LED'.freeze
     DATA_DIR = File.join(TranTuanNoiThat::ROOT, 'data', 'led_tool').freeze
     PRESET_FILE = File.join(DATA_DIR, 'presets.json').freeze
@@ -389,7 +389,7 @@ module TranTuanNoiThat
       distance = opts['light_distance'].mm
       spread = opts['light_spread'].mm
       brightness = opts['brightness']/100.0
-      band_count = 40
+      band_count = 56
       previous_a = source_a
       previous_b = source_b
       levels = []
@@ -403,12 +403,10 @@ module TranTuanNoiThat
         current_a = shift_point(center_a,along,-end_expand)
         current_b = shift_point(center_b,along,end_expand)
 
-        # Giảm alpha theo đường cong để mép ngoài tan mềm như vầng sáng.
-        # Ease-out mềm hơn để ánh vàng tan đều, giảm cảm giác sọc từng dải.
-        # 40 lớp + đường cong mềm giúp ánh vàng tan đều, không thấy vạch từng dải.
-        falloff = (1.0-fraction)**1.85
-        soft_edge = 0.72 + 0.28*Math.cos(fraction*Math::PI/2.0)
-        alpha = [[(175.0*brightness*falloff*soft_edge).round,0].max,220].min
+        # 56 lớp + đường cong mượt để ánh vàng sáng tan mềm dần xuống dưới.
+        falloff = (1.0-fraction)**2.05
+        soft_edge = 0.78 + 0.22*Math.cos(fraction*Math::PI/2.0)
+        alpha = [[(168.0*brightness*falloff*soft_edge).round,0].max,215].min
         bands << {
           fraction:fraction,
           alpha:alpha,
@@ -439,6 +437,27 @@ module TranTuanNoiThat
       material
     end
 
+    def add_triangle_face(entities,a,b,c)
+      face = entities.add_face(a,b,c)
+      return face if face && (!face.respond_to?(:valid?) || face.valid?)
+      nil
+    rescue StandardError
+      nil
+    end
+
+    # Không dùng Face 4 điểm cho ánh sáng vì transform/scale của Group/Component
+    # có thể tạo sai số rất nhỏ và SketchUp báo "Points are not planar".
+    # Mỗi quad được tách thành 2 tam giác; 3 điểm luôn xác định một mặt phẳng.
+    def add_safe_quad_faces(entities,points)
+      return [] unless points && points.length == 4
+      faces = []
+      first = add_triangle_face(entities,points[0],points[1],points[2])
+      second = add_triangle_face(entities,points[0],points[2],points[3])
+      faces << first if first
+      faces << second if second
+      faces
+    end
+
     def add_led_simulation(world_rect,target_tr,analysis,plan,opts,profile_index = 0,profile_count = 1)
       return nil unless opts['simulate']
       model = Sketchup.active_model
@@ -464,36 +483,38 @@ module TranTuanNoiThat
       direction = light_direction_world(analysis,plan,target_tr[:transform])
       geometry = light_geometry(world_rect,opts,direction)
 
-      # Tim LED sáng rõ.
+      # Tim LED vàng sáng. Dùng 2 tam giác để không phát sinh "Points are not planar".
       core_pts = world_rect.map { |point| point.transform(active_inv) }
-      core_face = group.entities.add_face(core_pts)
-      if core_face
-        core_mat = ensure_material(
-          model,
-          "TT_LED_CORE_#{opts['led_color'].delete_prefix('#')}",
-          color_from_hex(opts['led_color']),
-          [[opts['brightness']/100.0,0.0].max,1.0].min
-        )
-        core_face.material = core_mat
-        core_face.back_material = core_mat if core_face.respond_to?(:back_material=)
-        core_face.edges.each { |edge| edge.hidden = true if edge.respond_to?(:hidden=) }
+      core_faces = add_safe_quad_faces(group.entities,core_pts)
+      core_mat = ensure_material(
+        model,
+        "TT_LED_CORE_#{opts['led_color'].delete_prefix('#')}",
+        Sketchup::Color.new(255,246,204),
+        [[opts['brightness']/100.0,0.0].max,1.0].min
+      )
+      core_faces.each do |face|
+        face.material = core_mat
+        face.back_material = core_mat if face.respond_to?(:back_material=)
+        face.edges.each { |edge| edge.hidden = true if edge.respond_to?(:hidden=) }
       end
 
-      # 40 dải trong suốt nối tiếp nhau tạo vầng sáng vàng mịn dần.
+      # 56 dải trong suốt nối tiếp nhau tạo ánh vàng mịn, không dùng quad 4 điểm.
       geometry[:bands].each_with_index do |band,index|
         next if band[:alpha] <= 0
         pts = band[:points].map { |point| point.transform(active_inv) }
-        face = group.entities.add_face(pts)
-        next unless face
+        faces = add_safe_quad_faces(group.entities,pts)
+        next if faces.empty?
         mat = ensure_material(
           model,
           "TT_LED_GLOW_#{opts['led_color'].delete_prefix('#')}_#{profile_index}_#{index}_#{band[:alpha]}",
           color_from_hex(opts['led_color']),
           band[:alpha]/255.0
         )
-        face.material = mat
-        face.back_material = mat if face.respond_to?(:back_material=)
-        face.edges.each { |edge| edge.hidden = true if edge.respond_to?(:hidden=) }
+        faces.each do |face|
+          face.material = mat
+          face.back_material = mat if face.respond_to?(:back_material=)
+          face.edges.each { |edge| edge.hidden = true if edge.respond_to?(:hidden=) }
+        end
       end
       group
     end
@@ -615,15 +636,16 @@ module TranTuanNoiThat
           let x=center+n*gap,y=36,y2=Math.min(H-12,y+distance);
           let halfTop=24,halfBottom=halfTop+spread;
           let grad=ctx.createLinearGradient(0,y,0,y2);
-          grad.addColorStop(0,rgba(c,Math.min(.62,.36*bright)));
-          grad.addColorStop(.18,rgba(c,Math.min(.44,.25*bright)));
-          grad.addColorStop(.55,rgba(c,Math.min(.18,.10*bright)));
+          grad.addColorStop(0,rgba(c,Math.min(.58,.34*bright)));
+          grad.addColorStop(.16,rgba(c,Math.min(.43,.24*bright)));
+          grad.addColorStop(.42,rgba(c,Math.min(.24,.13*bright)));
+          grad.addColorStop(.72,rgba(c,Math.min(.09,.05*bright)));
           grad.addColorStop(1,rgba(c,0));
           ctx.save();ctx.globalCompositeOperation='screen';ctx.fillStyle=grad;
           ctx.beginPath();ctx.moveTo(x-halfTop,y);ctx.lineTo(x+halfTop,y);ctx.lineTo(x+halfBottom,y2);ctx.lineTo(x-halfBottom,y2);ctx.closePath();ctx.fill();
           ctx.restore();
           [18,10,5,2].forEach((lw,i)=>{
-            ctx.save();ctx.strokeStyle=rgba(c,Math.min(1,(.16+(3-i)*.12)*bright));ctx.lineWidth=lw;ctx.shadowBlur=22+spread*.2;ctx.shadowColor=rgba(c,.82);
+            ctx.save();ctx.strokeStyle=rgba(c,Math.min(1,(.16+(3-i)*.12)*bright));ctx.lineWidth=lw;ctx.shadowBlur=28+spread*.28;ctx.shadowColor=rgba(c,.78);
             ctx.beginPath();ctx.moveTo(x-halfTop,y);ctx.lineTo(x+halfTop,y);ctx.stroke();ctx.restore();
           });
           ctx.save();ctx.strokeStyle=rgba([255,249,214],Math.min(1,.92*bright));ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(x-halfTop,y);ctx.lineTo(x+halfTop,y);ctx.stroke();ctx.restore();
