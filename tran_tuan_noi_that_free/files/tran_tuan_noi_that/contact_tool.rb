@@ -7,7 +7,7 @@ module TranTuanNoiThat
   module ContactTool
     extend self
 
-    VERSION = '1.0.1'.freeze
+    VERSION = '1.0.2'.freeze
     KEY = 'TT_TIEP_DIEN'.freeze
     DATA_DIR = File.join(TranTuanNoiThat::ROOT, 'data', 'contact_tool').freeze
     PRESET_FILE = File.join(DATA_DIR, 'presets.json').freeze
@@ -18,6 +18,8 @@ module TranTuanNoiThat
     KEY_DOWN = 40
     KEY_SHIFT = 16
     KEY_TAB = 9
+    ABF_CUTTING_TAG = 'ABF_cuttingLines'.freeze
+    ABF_CUTTING_GROUP = '_ABF_cuttingLines'.freeze
 
     DEFAULTS = {
       'width'=>80.0,
@@ -339,6 +341,155 @@ module TranTuanNoiThat
       entity.object_id
     end
 
+    def abf_cutting_group?(entity)
+      entity.is_a?(Sketchup::Group) &&
+        (entity.name.to_s == ABF_CUTTING_GROUP ||
+         entity.get_attribute('ABF','is-cutting-lines') == true)
+    end
+
+    def ensure_abf_cutting_group(target)
+      entities = target_entities(target)
+      group = entities.grep(Sketchup::Group).find { |item| abf_cutting_group?(item) }
+      unless group
+        group = entities.add_group
+        group.name = ABF_CUTTING_GROUP
+      end
+
+      tag = ensure_tag(Sketchup.active_model,ABF_CUTTING_TAG)
+      tag.visible = true if tag.respond_to?(:visible=)
+      group.layer = tag
+      group.name = ABF_CUTTING_GROUP
+      group.set_attribute('ABF','is-cutting-lines',true)
+      group.set_attribute(KEY,'role','abf_cutting_lines')
+      group
+    end
+
+    def apply_contact_edge_metadata(edge,opts,plan,target)
+      edge.set_attribute('ABF','is-cutting-lines',true)
+      edge.set_attribute('ABF','is-intersect',true)
+      edge.set_attribute('ABF','instance',opts['instance_name'])
+      edge.set_attribute('ABF','instance-name',opts['instance_name'])
+      edge.set_attribute('ABF','tag-name',opts['tag_name'])
+      edge.set_attribute('ABF','setting-name',opts['instance_name'].sub(/\AABF_/,'').downcase.tr('_',' '))
+      edge.set_attribute('ABF','intersect-group-b-id',entity_reference_id(target))
+      edge.set_attribute(KEY,'role','contact_edge')
+      edge.set_attribute(KEY,'closed_profile',true)
+      edge.set_attribute(KEY,'rotation_deg',plan[:rotation_deg])
+      edge.set_attribute(KEY,'persist_after_flatten',true)
+      edge
+    end
+
+    def heal_contact_topology(edges)
+      edges.each do |edge|
+        begin
+          edge.find_faces if edge.respond_to?(:find_faces)
+        rescue StandardError
+          nil
+        end
+      end
+
+      supported = edges.all? { |edge| edge.respond_to?(:faces) }
+      return true unless supported
+
+      loose = edges.select { |edge| edge.faces.empty? }
+      raise "Có #{loose.length} cạnh tiếp diện chưa ăn vào Face thật của tấm." unless loose.empty?
+      true
+    end
+
+    def mirror_contact_to_abf_group(target,local_points,opts,plan)
+      group = ensure_abf_cutting_group(target)
+      tag = ensure_tag(Sketchup.active_model,ABF_CUTTING_TAG)
+      points = local_points + [local_points.first]
+      mirrored = group.entities.add_edges(*points)
+      mirrored = Array(mirrored).compact.uniq
+      raise 'Không ghi được tiếp diện vào _ABF_cuttingLines.' if mirrored.empty?
+
+      mirrored.each do |edge|
+        edge.layer = tag
+        apply_contact_edge_metadata(edge,opts,plan,target)
+        edge.set_attribute(KEY,'role','contact_cutting_edge')
+      end
+      group.set_attribute(KEY,'last_instance',opts['instance_name'])
+      group.set_attribute(KEY,'last_tag',opts['tag_name'])
+      mirrored
+    end
+
+    def point_signature(point)
+      [point.x.to_f,point.y.to_f,point.z.to_f].map { |value| (value * 1_000_000.0).round }.join(':')
+    end
+
+    def edge_signature(edge)
+      a = point_signature(edge.start.position)
+      b = point_signature(edge.end.position)
+      [a,b].sort.join('|')
+    end
+
+    def repair_contact_target(target)
+      make_unique(target)
+      entities = target_entities(target)
+      source_edges = entities.grep(Sketchup::Edge).select do |edge|
+        edge.get_attribute(KEY,'role').to_s == 'contact_edge' ||
+          (edge.get_attribute('ABF','is-intersect') == true &&
+           edge.get_attribute('ABF','instance').to_s.start_with?('ABF_'))
+      end
+      return 0 if source_edges.empty?
+
+      group = ensure_abf_cutting_group(target)
+      tag = ensure_tag(Sketchup.active_model,ABF_CUTTING_TAG)
+      existing = {}
+      group.entities.grep(Sketchup::Edge).each { |edge| existing[edge_signature(edge)] = true }
+
+      copied = 0
+      source_edges.each do |source|
+        signature = edge_signature(source)
+        next if existing[signature]
+
+        edge = group.entities.add_line(source.start.position,source.end.position)
+        next unless edge && edge.valid?
+
+        edge.layer = tag
+        edge.set_attribute('ABF','is-cutting-lines',true)
+        edge.set_attribute('ABF','is-intersect',true)
+        %w[instance instance-name tag-name setting-name intersect-group-b-id].each do |key|
+          value = source.get_attribute('ABF',key)
+          edge.set_attribute('ABF',key,value) unless value.nil?
+        end
+        edge.set_attribute(KEY,'role','contact_cutting_edge')
+        edge.set_attribute(KEY,'persist_after_flatten',true)
+        existing[signature] = true
+        copied += 1
+      end
+
+      source_edges.each do |edge|
+        edge.set_attribute('ABF','is-cutting-lines',true)
+        edge.set_attribute(KEY,'persist_after_flatten',true)
+      end
+      heal_contact_topology(source_edges)
+
+      target.set_attribute('ABF','is-board',true)
+      target.set_attribute('ABF','has-contact-profile',true)
+      target.set_attribute(KEY,'contact_persist_after_flatten',true)
+      copied
+    end
+
+    def repair_selected_contacts
+      model = Sketchup.active_model
+      targets = model.selection.to_a.select { |entity| valid_container?(entity) }
+      raise 'Hãy chọn ít nhất 1 Group/Component có tiếp diện cũ.' if targets.empty?
+
+      model.start_operation('TT - SỬA TIẾP DIỆN ABF',true)
+      started = true
+      total = targets.inject(0) { |sum,target| sum + repair_contact_target(target) }
+      model.commit_operation
+      started = false
+      UI.messagebox("Đã sửa tiếp diện ABF cho #{targets.length} tấm.\nĐã bổ sung #{total} cạnh vào _ABF_cuttingLines.\nHãy trải tấm lại để kiểm tra.")
+      true
+    rescue StandardError => error
+      model.abort_operation if started rescue nil
+      UI.messagebox("SỬA TIẾP DIỆN ABF: #{error.message}")
+      false
+    end
+
     def create_contact(target,world_transform,plan)
       raise 'Biên dạng đang vượt khỏi Face.' unless plan[:valid]
       model = Sketchup.active_model
@@ -351,6 +502,7 @@ module TranTuanNoiThat
       local_points = plan[:points].map { |point| point.transform(inverse) }
       opts = plan[:options]
       tag = ensure_tag(model,opts['tag_name'])
+      tag.visible = true if tag.respond_to?(:visible=)
       edges = []
 
       local_points.each_with_index do |point,index|
@@ -358,22 +510,22 @@ module TranTuanNoiThat
         edge = entities.add_line(point,nxt)
         raise "Không tạo được cạnh tiếp diện số #{index+1}." unless edge && edge.valid?
         edge.layer = tag
-        edge.set_attribute('ABF','is-intersect',true)
-        edge.set_attribute('ABF','instance',opts['instance_name'])
-        edge.set_attribute('ABF','instance-name',opts['instance_name'])
-        edge.set_attribute('ABF','tag-name',opts['tag_name'])
-        edge.set_attribute('ABF','setting-name',opts['instance_name'].sub(/\AABF_/,'').downcase.tr('_',' '))
-        edge.set_attribute('ABF','intersect-group-b-id',entity_reference_id(target))
-        edge.set_attribute(KEY,'role','contact_edge')
-        edge.set_attribute(KEY,'closed_profile',true)
-        edge.set_attribute(KEY,'rotation_deg',plan[:rotation_deg])
+        apply_contact_edge_metadata(edge,opts,plan,target)
         edges << edge
       end
+      edges = edges.compact.uniq
+
+      # BẮT BUỘC: tiếp diện là topology thật của Face tấm, không phải loose edge.
+      heal_contact_topology(edges)
+
+      # Đồng thời ghi đúng cấu trúc ABF chuẩn để tiếp diện đi theo khi Trải/Nesting.
+      mirror_contact_to_abf_group(target,local_points,opts,plan)
 
       target.set_attribute('ABF','is-board',true)
       target.set_attribute('ABF','has-contact-profile',true)
       target.set_attribute(KEY,'last_instance',opts['instance_name'])
       target.set_attribute(KEY,'last_tag',opts['tag_name'])
+      target.set_attribute(KEY,'contact_persist_after_flatten',true)
 
       model.commit_operation
       started = false
@@ -528,6 +680,7 @@ module TranTuanNoiThat
         UI.messagebox("NHẬP BIÊN DẠNG: #{error.message}")
       end
       dialog.add_action_callback('activate') { activate }
+      dialog.add_action_callback('repair_contacts') { repair_selected_contacts }
       dialog
     end
 
@@ -582,7 +735,9 @@ module TranTuanNoiThat
             <button class="primary" onclick="savePreset()">LƯU MẪU</button>
             <button class="primary" onclick="applyNow()">CẬP NHẬT PREVIEW</button>
             <button class="dark" onclick="sketchup.activate()">BẬT LẠI AUTO</button>
+            <button class="primary" onclick="sketchup.repair_contacts()">SỬA TIẾP DIỆN ABF ĐÃ CHỌN</button>
           </div>
+          <div class="hint"><b>Trải tấm/Nesting:</b> tiếp diện mới được ghi thành Edge thật trên Face và đồng thời vào <b>_ABF_cuttingLines</b>. Với tấm cũ: chọn tấm rồi bấm SỬA TIẾP DIỆN ABF ĐÃ CHỌN.</div>
           <div class="hover">
             <b>AUTO:</b> <span id="target">Rà chuột vào Face của Group/Component.</span><br>
             <span id="faceDims"></span><br>
