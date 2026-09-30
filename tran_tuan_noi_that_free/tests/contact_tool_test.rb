@@ -78,15 +78,18 @@ check('arrow/SHIFT direction rotations are present in tool source') do
   assert(source.include?('KEY_TAB = 9'))
 end
 
-check('contact profile is embedded directly in host entities without child group') do
+check('contact profile is real host topology and mirrored to ABF cutting lines for flattening') do
   source=File.read(ROOT+'/contact_tool.rb',encoding:'UTF-8')
   body=source.split('def create_contact',2)[1].split('def selection_template',2)[0]
   assert(body.include?('edge = entities.add_line(point,nxt)'))
-  assert(body.include?("edge.set_attribute('ABF','is-intersect',true)"))
-  assert(body.include?("edge.set_attribute('ABF','instance',opts['instance_name'])"))
-  assert(body.include?("edge.set_attribute('ABF','tag-name',opts['tag_name'])"))
-  assert(body.include?('edge.layer = tag'))
-  assert(!body.include?('entities.add_group'))
+  assert(body.include?('heal_contact_topology(edges)'))
+  assert(body.include?('mirror_contact_to_abf_group(target,local_points,opts,plan)'))
+  assert(source.include?("ABF_CUTTING_TAG = 'ABF_cuttingLines'"))
+  assert(source.include?("ABF_CUTTING_GROUP = '_ABF_cuttingLines'"))
+  assert(source.include?("group.set_attribute('ABF','is-cutting-lines',true)"))
+  assert(source.include?("edge.set_attribute('ABF','is-cutting-lines',true)"))
+  assert(source.include?('def repair_selected_contacts'))
+  assert(source.include?('SỬA TIẾP DIỆN ABF ĐÃ CHỌN'))
 end
 
 check('Tạo Tiếp Diện supports drawing and importing profiles from SketchUp') do
