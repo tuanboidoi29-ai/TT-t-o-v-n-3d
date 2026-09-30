@@ -31,7 +31,7 @@ jobs:
           ! grep -Eq "^[[:space:]]*vector_cnc_tool[[:space:]]*$" tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb
           grep -Fq "VERSION = '1.9.193'" tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb
           grep -Fq "VERSION = '1.9.146'" tran_tuan_noi_that_free/files/tran_tuan_noi_that/tam_pro.rb
-          grep -Fq "ext.version = '1.9.192'" tran_tuan_noi_that_free/files/TranTuanNoiThat.rb
+          grep -Fq "ext.version = '1.9.193'" tran_tuan_noi_that_free/files/TranTuanNoiThat.rb
           ruby tran_tuan_noi_that_free/tests/slat_wall_test.rb
           ruby tran_tuan_noi_that_free/tests/led_tool_test.rb
           ruby tran_tuan_noi_that_free/tests/contact_tool_test.rb
