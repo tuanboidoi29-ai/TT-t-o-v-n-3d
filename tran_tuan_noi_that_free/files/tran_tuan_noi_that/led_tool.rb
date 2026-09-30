@@ -7,7 +7,7 @@ module TranTuanNoiThat
   module LedTool
     extend self
 
-    VERSION = '1.4.6'.freeze
+    VERSION = '1.4.7'.freeze
     KEY = 'TT_LED'.freeze
     DATA_DIR = File.join(TranTuanNoiThat::ROOT, 'data', 'led_tool').freeze
     PRESET_FILE = File.join(DATA_DIR, 'presets.json').freeze
@@ -690,10 +690,10 @@ module TranTuanNoiThat
       input,select{width:100%;padding:7px;border:1px solid #9bc8aa;border-radius:6px;background:white}input[type=checkbox]{width:auto}input[type=color]{height:35px;padding:2px}
       button{border:0;border-radius:7px;padding:9px 11px;background:#2f8f5b;color:white;font-weight:bold;cursor:pointer}.gray{background:#607d8b}.red{background:#b84b4b}.row{display:flex;gap:7px;margin-top:9px}.row button{flex:1}
       .detect{background:#f8fff9;border:1px dashed #7fbd94;padding:9px;border-radius:7px;margin-bottom:10px;line-height:1.55}.hint{font-size:12px;color:#52705e;line-height:1.5}
-      .lightbox{margin-top:10px;background:#173326;border:1px solid #7fbd94;border-radius:8px;padding:8px}.lightbox canvas{display:block;width:100%;height:180px;border-radius:6px;background:#111812}.lightlabel{color:#e7f7ec;font-size:12px;margin-bottom:6px}.color-presets{display:flex;gap:6px;flex-wrap:wrap;margin:7px 0}.color-presets button{padding:6px 8px;font-size:11px;flex:0 0 auto}.createbtn{background:#e08b19;color:#fff;font-size:14px}
+      .lightbox{margin-top:10px;background:#173326;border:1px solid #7fbd94;border-radius:8px;padding:8px}.lightbox canvas{display:block;width:100%;height:180px;border-radius:6px;background:#111812}.lightlabel{color:#e7f7ec;font-size:12px;margin-bottom:6px}.color-presets{display:flex;gap:6px;flex-wrap:wrap;margin:7px 0}.color-presets button{padding:6px 8px;font-size:11px;flex:0 0 auto}.createbtn{background:#e08b19;color:#fff;font-size:14px}.pickbtn{background:#168650;color:#fff;font-size:14px}
       #notice{min-height:20px;margin-top:8px;font-size:12px}.ok{color:#166534}.err{color:#a61b1b}
       </style></head><body>
-      <div class="head"><h2>TẠO LED</h2><small>AUTO rà mặt Group/Component · preview 3D · click tạo ngay</small></div>
+      <div class="head"><h2>TẠO LED</h2><small>CHỌN TIẾP DIỆN → rê vào Face của Group/Component → preview rãnh + ánh sáng → click tạo liên tục</small></div>
       <div class="layout">
         <div class="panel left"><div class="title">MẪU ĐÃ LƯU</div><div id="presets"></div>
           <div class="row"><button onclick="savePreset()">LƯU MẪU</button></div>
@@ -702,7 +702,7 @@ module TranTuanNoiThat
         </div>
         <div class="panel">
           <div class="title">THÔNG SỐ RÃNH LED</div>
-          <div class="detect"><b>Đối tượng đang rà:</b> <span id="target">Chưa nhận</span><br><b>Mặt:</b> <span id="dims">-</span><br><b>Rãnh preview:</b> <span id="groove">-</span></div>
+          <div class="detect"><b>TIẾP DIỆN ĐANG RÀ:</b> <span id="target">Chưa nhận</span><br><b>Kích thước mặt:</b> <span id="dims">-</span><br><b>Rãnh preview:</b> <span id="groove">-</span></div>
           <div class="grid">
             <label>Tên mẫu / rãnh</label><input id="name"><span></span>
             <label>Cách 2 đầu</label><input id="end_clearance" type="number" min="0" step="0.5"><span>mm</span>
@@ -733,7 +733,7 @@ module TranTuanNoiThat
           </div>
           <div class="row">
             <button onclick="apply()">CẬP NHẬT PREVIEW</button>
-            <button class="createbtn" onclick="startContinuous()">BẮT ĐẦU TẠO LIÊN TỤC</button>
+            <button class="pickbtn" onclick="chooseContact()">CHỌN TIẾP DIỆN · TẠO LIÊN TỤC</button>
           </div>
           <div id="notice"></div>
           <div class="hint" style="margin-top:9px"><b>CNC:</b> 4 Edge kín thật được tạo <b>trực tiếp vào Face/hình học của Group/Component</b> và bắt buộc heal/split vào Face thật, không tạo Group CNC con. Edge mang <b>INSTANCE mặc định ABF_RANHLED</b> và <b>Tag mặc định ABF_ranhled</b> (đổi tên được), có <code>ABF/is-cutting-lines=true</code>. Mô phỏng ánh sáng là lớp riêng và không làm bẩn dữ liệu CNC.</div>
@@ -795,7 +795,8 @@ module TranTuanNoiThat
         ctx.fillStyle='rgba(255,255,255,.42)';ctx.font='12px Arial';ctx.fillText('Ánh LED vàng sáng · mờ dần xuống dưới',16,H-10);
       }
       function setLedColor(hex){led_color.value=hex;drawLightPreview();apply()}
-      function startContinuous(){sketchup.start_continuous(JSON.stringify(TTLED.values()))}
+      function chooseContact(){sketchup.select_contact(JSON.stringify(TTLED.values()))}
+      function startContinuous(){chooseContact()}
       function apply(){syncRanges();sketchup.update(JSON.stringify(TTLED.values()))}
       function savePreset(){let v=TTLED.values();sketchup.save_preset(v.name||'LED',JSON.stringify(v))}
       function deletePreset(){if(!selected){TTLED.notice('Chưa chọn mẫu để xóa.',true);return}sketchup.delete_preset(selected)}
@@ -850,13 +851,21 @@ module TranTuanNoiThat
         rescue StandardError => error
           @dialog.execute_script("TTLED.notice(#{JSON.generate(error.message)},true)")
         end
-        @dialog.add_action_callback('start_continuous') do |_ctx,json|
+        start_contact = proc do |json|
           clean = save_settings(JSON.parse(json.to_s))
           tool = Tool.new(clean)
           @active_tool = tool
           Sketchup.active_model.select_tool(tool)
-          @dialog.execute_script("TTLED.notice('ĐÃ BẬT TẠO LIÊN TỤC · rà mặt và click để tạo LED.',false)")
+          @dialog.execute_script("TTLED.notice('ĐÃ BẬT CHỌN TIẾP DIỆN · rê vào Group/Component để preview · click tạo và tiếp tục.',false)")
           send_dialog_state
+        end
+        @dialog.add_action_callback('select_contact') do |_ctx,json|
+          start_contact.call(json)
+        rescue StandardError => error
+          @dialog.execute_script("TTLED.notice(#{JSON.generate(error.message)},true)")
+        end
+        @dialog.add_action_callback('start_continuous') do |_ctx,json|
+          start_contact.call(json)
         rescue StandardError => error
           @dialog.execute_script("TTLED.notice(#{JSON.generate(error.message)},true)")
         end
@@ -892,7 +901,7 @@ module TranTuanNoiThat
       end
 
       def activate
-        Sketchup.set_status_text('TẠO LED · Rê vào mặt Group/Component · CLICK tạo rãnh · ESC thoát',SB_PROMPT)
+        Sketchup.set_status_text('TẠO LED · CHỌN TIẾP DIỆN · rê vào Face Group/Component · CLICK tạo · tiếp tục tự động',SB_PROMPT)
       end
 
       def deactivate(view)
@@ -900,7 +909,7 @@ module TranTuanNoiThat
       end
 
       def resume(view)
-        Sketchup.set_status_text('TẠO LED · AUTO rà mặt · CLICK tạo ngay',SB_PROMPT)
+        Sketchup.set_status_text('TẠO LED · CHỌN TIẾP DIỆN · rê mặt để preview · CLICK tạo liên tục',SB_PROMPT)
         view.invalidate
       end
 
@@ -921,6 +930,12 @@ module TranTuanNoiThat
 
       def onMouseMove(_flags,x,y,view)
         pick(view,x,y)
+        if @target && @analysis && @plan
+          target_name = @target.respond_to?(:name) && !@target.name.to_s.empty? ? @target.name.to_s : @target.class.name.split('::').last
+          view.tooltip = "TIẾP DIỆN: #{target_name} · #{@analysis[:length_mm].round(1)} × #{@analysis[:width_mm].round(1)} mm · click tạo LED"
+        else
+          view.tooltip = 'CHỌN TIẾP DIỆN · rê vào Face của Group/Component'
+        end
         view.invalidate
       rescue StandardError => error
         clear_pick
@@ -938,6 +953,23 @@ module TranTuanNoiThat
 
       def draw(view)
         return unless @analysis && @plan && @target && @plans && !@plans.empty?
+
+        # Highlight tiếp diện đang nhận để người dùng biết chính xác mặt sẽ gia công.
+        if @face && (!@face.respond_to?(:valid?) || @face.valid?)
+          face_points = @face.outer_loop.vertices.map { |vertex| vertex.position.transform(@target_tr) }
+          if face_points.length >= 3
+            begin
+              view.drawing_color = Sketchup::Color.new(145,225,180,52)
+            rescue ArgumentError
+              view.drawing_color = Sketchup::Color.new(145,225,180)
+            end
+            view.draw(GL_POLYGON,face_points) if defined?(GL_POLYGON)
+            view.drawing_color = Sketchup::Color.new(57,170,105)
+            view.line_width = 2
+            view.draw(GL_LINE_LOOP,face_points)
+          end
+        end
+
         brightness_alpha = [[(230*@options['brightness']/100.0).round,0].max,255].min
         @plans.each_with_index do |plan,index|
           base = preview_world_rect(plan,0.55,1.0)
