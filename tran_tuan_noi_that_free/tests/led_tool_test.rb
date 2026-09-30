@@ -145,8 +145,8 @@ check('Tạo LED light always casts downward and halo fades smoothly') do
     Geom::Point3d.new(0,10.mm,100.mm)
   ]
   light=LED.light_geometry(rect,LED::DEFAULTS,direction)
-  assert(light[:bands].length==40)
-  assert(light[:levels].length==40)
+  assert(light[:bands].length==56)
+  assert(light[:levels].length==56)
   assert(light[:bands].first[:alpha] > light[:bands].last[:alpha])
   assert(light[:direction].z < 0)
   far=light[:bands].last[:points]
@@ -188,6 +188,15 @@ check('Tạo LED accepts Group and Component targets') do
   assert(LED.container?(g))
   ci=Sketchup::ComponentInstance.new(g.definition)
   assert(LED.container?(ci))
+end
+
+check('Tạo LED simulation avoids non-planar quad faces') do
+  source=File.read(ROOT+'/led_tool.rb',encoding:'UTF-8')
+  assert(source.include?('def add_safe_quad_faces'))
+  assert(source.include?('add_triangle_face(entities,points[0],points[1],points[2])'))
+  assert(source.include?('add_triangle_face(entities,points[0],points[2],points[3])'))
+  assert(!source.include?('group.entities.add_face(core_pts)'))
+  assert(source.include?('band_count = 56'))
 end
 
 puts "LED TOOL REGRESSIONS COMPLETE"
