@@ -115,6 +115,7 @@ module TranTuanNoiThat
         scale_corner_lock
         slat_wall_tool
         led_tool
+        contact_tool
         box_tool
         drawer_tool
         round_tool
@@ -254,6 +255,7 @@ module TranTuanNoiThat
       install_scale_corner_lock_ui
       install_slat_wall_ui
       install_led_ui
+      install_contact_ui
       install_round_ui
       install_stretch_mode_ui
       install_grain_ui
@@ -389,6 +391,20 @@ module TranTuanNoiThat
       true
     rescue StandardError => error
       puts "[TT UI LED] #{error.class}: #{error.message}"
+      false
+    end
+
+    def install_contact_ui
+      return false unless defined?(TranTuanNoiThat::ContactTool)
+      @contact_cmd ||= command(
+        'Tạo Tiếp Diện',
+        'contact.svg',
+        'AUTO rà Face Group/Component · preview 2D bám chuột · mũi tên hướng · SHIFT xoay · TAB thư viện'
+      ) { ContactTool.show }
+      add_feature_command_once(@contact_cmd, :contact_menu_installed)
+      true
+    rescue StandardError => error
+      puts "[TT UI Contact] #{error.class}: #{error.message}"
       false
     end
 
