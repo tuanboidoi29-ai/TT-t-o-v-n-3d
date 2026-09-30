@@ -385,7 +385,7 @@ module TranTuanNoiThat
       down = Geom::Vector3d.new(0,0,-1)
       along = analysis[:u].transform(transform)
       along = unit_vector(along,Geom::Vector3d.new(1,0,0))
-      parallel = dot(along,down).abs
+      parallel = along.dot(down).abs
 
       return down if parallel < 0.90
 
