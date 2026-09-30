@@ -7,7 +7,7 @@ module TranTuanNoiThat
   module ContactTool
     extend self
 
-    VERSION = '1.0.0'.freeze
+    VERSION = '1.0.1'.freeze
     KEY = 'TT_TIEP_DIEN'.freeze
     DATA_DIR = File.join(TranTuanNoiThat::ROOT, 'data', 'contact_tool').freeze
     PRESET_FILE = File.join(DATA_DIR, 'presets.json').freeze
@@ -629,7 +629,7 @@ module TranTuanNoiThat
       end
 
       def activate
-        Sketchup.set_status_text('TẠO TIẾP DIỆN · AUTO | Rà Face Group/Component · ←↑→↓ hướng · SHIFT xoay · TAB thư viện · Click tạo',SB_PROMPT)
+        Sketchup.set_status_text('TẠO TIẾP DIỆN · AUTO FACE | Rê trực tiếp lên Face trong Group/Component · preview bám mặt · Click tạo',SB_PROMPT)
       end
 
       def deactivate(view)
@@ -650,7 +650,7 @@ module TranTuanNoiThat
         @view = view
         @candidate = pick_candidate(view,x,y)
         rebuild
-        view.tooltip = @candidate ? (@plan && @plan[:valid] ? 'Click tạo tiếp diện' : 'Biên dạng vượt khỏi Face') : 'Rà Face của Group/Component'
+        view.tooltip = @candidate ? (@plan && @plan[:valid] ? 'ĐÃ NHẬN FACE · Click tạo tiếp diện' : 'ĐÃ NHẬN FACE · Biên dạng vượt khỏi mặt') : 'Rê chuột trực tiếp lên Face của Group/Component'
         view.invalidate
       rescue StandardError => error
         @candidate = nil
@@ -714,11 +714,32 @@ module TranTuanNoiThat
 
       def draw(view)
         return unless @candidate && @plan
+
+        n = ContactTool.normalized(@plan[:normal])
+
+        # Viền xanh/cam của chính Face đang AUTO nhận diện.
+        face_outline = @candidate[:points].map do |point|
+          Geom::Point3d.new(
+            point.x + n.x * 0.15.mm,
+            point.y + n.y * 0.15.mm,
+            point.z + n.z * 0.15.mm
+          )
+        end
+        if face_outline.length >= 3
+          view.drawing_color = Sketchup::Color.new(70,145,235)
+          view.line_width = 2
+          view.draw(GL_LINE_LOOP, face_outline)
+        end
+
+        # Biên tiếp diện preview: xanh khi nằm trọn trên Face, đỏ khi vượt Face.
         view.drawing_color = @plan[:valid] ? Sketchup::Color.new(58,190,112) : Sketchup::Color.new(220,70,70)
         view.line_width = 4
         points = @plan[:points].map do |point|
-          n = ContactTool.normalized(@plan[:normal])
-          Geom::Point3d.new(point.x+n.x*0.3.mm,point.y+n.y*0.3.mm,point.z+n.z*0.3.mm)
+          Geom::Point3d.new(
+            point.x + n.x * 0.30.mm,
+            point.y + n.y * 0.30.mm,
+            point.z + n.z * 0.30.mm
+          )
         end
         lines = []
         points.each_with_index { |point,index| lines.concat([point,points[(index+1)%points.length]]) }
@@ -727,38 +748,119 @@ module TranTuanNoiThat
 
       private
 
-      def face_owner(face,path)
-        entities = face.respond_to?(:parent) ? face.parent : nil
-        path.reverse.find do |entity|
-          next false unless ContactTool.valid_container?(entity)
-          entity.is_a?(Sketchup::Group) ? entity.entities.equal?(entities) : entity.definition.entities.equal?(entities)
+      def current_edit_transform
+        model = Sketchup.active_model
+        transform = model.respond_to?(:edit_transform) ? model.edit_transform : nil
+        transform || Geom::Transformation.new
+      rescue StandardError
+        Geom::Transformation.new
+      end
+
+      def path_entities(path)
+        return [] unless path
+        path.respond_to?(:to_a) ? path.to_a : Array(path)
+      rescue StandardError
+        []
+      end
+
+      # Tính transform từ local của Face/target ra world bằng chính instance path.
+      # Không dùng face.parent để nhận chủ Face vì cách đó dễ rớt ở Group/Component lồng nhau.
+      def target_and_transform_from_path(path)
+        rows = path_entities(path)
+        containers = rows.select { |entity| ContactTool.valid_container?(entity) }
+
+        model = Sketchup.active_model
+        if containers.empty?
+          active_path = model.respond_to?(:active_path) ? model.active_path : nil
+          active_target = Array(active_path).last
+          if active_target && ContactTool.valid_container?(active_target)
+            return [active_target, current_edit_transform]
+          end
+          return nil
         end
+
+        target = containers.last
+        transform = current_edit_transform
+
+        # path_at() là path tương đối với active edit context.
+        # Nhân lần lượt đến container sâu nhất chứa Face.
+        rows.each do |entity|
+          if ContactTool.valid_container?(entity)
+            transform = transform * entity.transformation
+            break if entity.equal?(target)
+          end
+        end
+
+        [target, transform]
+      rescue StandardError => error
+        puts "[TT Contact path] #{error.class}: #{error.message}"
+        nil
+      end
+
+      def candidate_from_path(view,x,y,helper,index,path)
+        rows = path_entities(path)
+        return nil if rows.empty?
+
+        face = rows.reverse.find { |entity| entity.is_a?(Sketchup::Face) }
+        return nil unless face && face.valid?
+
+        resolved = target_and_transform_from_path(rows)
+        return nil unless resolved
+        target, transform = resolved
+        return nil unless target && target.valid?
+
+        points = face.outer_loop.vertices.map { |vertex| vertex.position.transform(transform) }
+        return nil if points.length < 3
+
+        _origin,_x,_y,normal = ContactTool.face_basis(points)
+        cursor = Geom.intersect_line_plane(view.pickray(x,y),[points[0],normal])
+        return nil unless cursor
+
+        # Nếu cursor không nằm trên polygon Face thì tiếp tục thử hit kế tiếp.
+        origin,xaxis,yaxis,_n = ContactTool.face_basis(points)
+        polygon_2d = points.map do |point|
+          delta = origin.vector_to(point)
+          [ContactTool.dot(delta,xaxis),ContactTool.dot(delta,yaxis)]
+        end
+        delta = origin.vector_to(cursor)
+        cursor_2d = [ContactTool.dot(delta,xaxis),ContactTool.dot(delta,yaxis)]
+        return nil unless ContactTool.point_in_polygon?(cursor_2d,polygon_2d)
+
+        {
+          target:target,
+          face:face,
+          transform:transform,
+          points:points,
+          cursor:cursor,
+          pick_index:index
+        }
+      rescue StandardError => error
+        puts "[TT Contact candidate] #{error.class}: #{error.message}"
+        nil
       end
 
       def pick_candidate(view,x,y)
         helper = view.pick_helper
-        helper.do_pick(x,y)
-        count = helper.respond_to?(:count) ? helper.count : 0
-        model = Sketchup.active_model
+        picked_count = helper.do_pick(x,y).to_i
+        helper_count = helper.respond_to?(:count) ? helper.count.to_i : 0
+        count = [picked_count,helper_count,1].max
+
         count.times do |index|
           path = helper.path_at(index)
-          next unless path
-          face = path.reverse.find { |entity| entity.is_a?(Sketchup::Face) }
-          next unless face
-          target = face_owner(face,path)
-          next unless target
-          transform = helper.respond_to?(:transformation_at) ? helper.transformation_at(index) : Geom::Transformation.new
-          transform ||= Geom::Transformation.new
-          transform = model.edit_transform * transform if model.respond_to?(:edit_transform)
-          points = face.outer_loop.vertices.map { |vertex| vertex.position.transform(transform) }
-          next if points.length < 3
-          _origin,_x,_y,normal = ContactTool.face_basis(points)
-          cursor = Geom.intersect_line_plane(view.pickray(x,y),[points[0],normal])
-          next unless cursor
-          return {target:target,face:face,transform:transform,points:points,cursor:cursor}
+          candidate = candidate_from_path(view,x,y,helper,index,path)
+          return candidate if candidate
         end
+
+        # Fallback khi đang edit trực tiếp Group/Component và PickHelper chỉ trả Face.
+        best = helper.respond_to?(:best_picked) ? helper.best_picked : nil
+        if best.is_a?(Sketchup::Face)
+          candidate = candidate_from_path(view,x,y,helper,0,[best])
+          return candidate if candidate
+        end
+
         nil
-      rescue StandardError
+      rescue StandardError => error
+        puts "[TT Contact auto-face] #{error.class}: #{error.message}"
         nil
       end
 
