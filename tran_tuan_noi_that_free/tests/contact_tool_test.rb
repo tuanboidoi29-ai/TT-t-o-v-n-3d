@@ -144,3 +144,15 @@ check('Tạo Tiếp Diện validates cursor on detected Face and draws Face outl
 end
 
 puts "CONTACT TOOL REGRESSIONS COMPLETE"
+
+
+check('Tạo Tiếp Diện 1.0.3 uses select-hover-preview-click workflow') do
+  source=File.read(ROOT+'/contact_tool.rb',encoding:'UTF-8')
+  assert(source.include?("VERSION = '1.0.3'"))
+  assert(source.include?('CHỌN MẪU → RÀ FACE → CLICK TẠO'))
+  assert(source.include?('ContactTool.selected_preset'))
+  assert(source.include?('view.draw(GL_POLYGON, points)'))
+  assert(source.include?('view.draw(GL_LINE_LOOP, points)'))
+  assert(source.include?('Click tạo ngay vào Face'))
+end
+
