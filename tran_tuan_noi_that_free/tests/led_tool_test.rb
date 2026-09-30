@@ -104,13 +104,23 @@ check('Tạo LED UI contains preset and live preview controls') do
   assert(html.include?('VÀNG ẤM'))
   assert(html.include?('VÀNG SÁNG'))
   assert(html.include?('TRẮNG ẤM'))
-  assert(html.include?('TẠO LIÊN TỤC'))
+  assert(html.include?('BẮT ĐẦU TẠO LIÊN TỤC'))
   assert(html.include?('CHIẾU XUỐNG · Model -Z'))
+  assert(html.include?('LED DỌC · HẮT XUỐNG + RA MẶT'))
   assert(html.include?('ABF_RANHLED'))
   assert(html.include?('CẬP NHẬT PREVIEW'))
   assert(html.include?('ABF/is-cutting-lines=true'))
   assert(html.include?('trực tiếp vào Face/hình học của Group/Component'))
   assert(html.include?('không tạo Group CNC con'))
+end
+
+check('Tạo LED CNC uses exact entities that own the host Face') do
+  source=File.read(ROOT+'/led_tool.rb',encoding:'UTF-8')
+  assert(source.include?('def face_entities(host_face,target)'))
+  assert(source.include?('parent = host_face.respond_to?(:parent) ? host_face.parent : nil'))
+  assert(source.include?('entities = face_entities(host_face,target)'))
+  assert(source.include?("Không tìm lại được Face bên trong Group/Component"))
+  assert(!source.include?("host_face ||= @face"))
 end
 
 check('Tạo LED CNC edges are embedded directly in host entities without child group') do
@@ -138,6 +148,11 @@ check('Tạo LED light always casts downward and halo fades smoothly') do
   near(direction.y,0.0)
   near(direction.z,-1.0)
 
+  vertical_analysis=analysis.merge(u:Geom::Vector3d.new(0,0,1),normal:Geom::Vector3d.new(0,1,0))
+  vertical_direction=LED.light_direction_world(vertical_analysis,plan,Geom::Transformation.new)
+  assert(vertical_direction.z < -0.5)
+  assert(vertical_direction.y.abs > 0.1)
+
   rect=[
     Geom::Point3d.new(0,0,100.mm),
     Geom::Point3d.new(100.mm,0,100.mm),
@@ -145,8 +160,8 @@ check('Tạo LED light always casts downward and halo fades smoothly') do
     Geom::Point3d.new(0,10.mm,100.mm)
   ]
   light=LED.light_geometry(rect,LED::DEFAULTS,direction)
-  assert(light[:bands].length==56)
-  assert(light[:levels].length==56)
+  assert(light[:bands].length==72)
+  assert(light[:levels].length==72)
   assert(light[:bands].first[:alpha] > light[:bands].last[:alpha])
   assert(light[:direction].z < 0)
   far=light[:bands].last[:points]
@@ -196,7 +211,7 @@ check('Tạo LED simulation avoids non-planar quad faces') do
   assert(source.include?('add_triangle_face(entities,points[0],points[1],points[2])'))
   assert(source.include?('add_triangle_face(entities,points[0],points[2],points[3])'))
   assert(!source.include?('group.entities.add_face(core_pts)'))
-  assert(source.include?('band_count = 56'))
+  assert(source.include?('band_count = 72'))
 end
 
 puts "LED TOOL REGRESSIONS COMPLETE"
