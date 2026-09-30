@@ -29,9 +29,9 @@ jobs:
           test ! -e tran_tuan_noi_that_free/tests/vector_cnc_test.rb
           ! grep -Fq "install_vector_cnc_ui" tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb
           ! grep -Eq "^[[:space:]]*vector_cnc_tool[[:space:]]*$" tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb
-          grep -Fq "VERSION = '1.9.194'" tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb
+          grep -Fq "VERSION = '1.9.195'" tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb
           grep -Fq "VERSION = '1.9.146'" tran_tuan_noi_that_free/files/tran_tuan_noi_that/tam_pro.rb
-          grep -Fq "ext.version = '1.9.194'" tran_tuan_noi_that_free/files/TranTuanNoiThat.rb
+          grep -Fq "ext.version = '1.9.195'" tran_tuan_noi_that_free/files/TranTuanNoiThat.rb
           ruby tran_tuan_noi_that_free/tests/slat_wall_test.rb
           ruby tran_tuan_noi_that_free/tests/led_tool_test.rb
           ruby tran_tuan_noi_that_free/tests/contact_tool_test.rb
