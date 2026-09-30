@@ -106,7 +106,9 @@ check('Tạo LED UI contains preset and live preview controls') do
   assert(html.include?('VÀNG ẤM'))
   assert(html.include?('VÀNG SÁNG'))
   assert(html.include?('TRẮNG ẤM'))
-  assert(html.include?('BẮT ĐẦU TẠO LIÊN TỤC'))
+  assert(html.include?('CHỌN TIẾP DIỆN · TẠO LIÊN TỤC'))
+  assert(html.include?('TIẾP DIỆN ĐANG RÀ'))
+  assert(html.include?('chooseContact()'))
   assert(html.include?('CHIẾU XUỐNG · Model -Z'))
   assert(html.include?('LED DỌC · HẮT XUỐNG + RA MẶT'))
   assert(html.include?('ABF_RANHLED'))
@@ -214,14 +216,24 @@ check('Tạo LED viewport and dialog use fixed downward cast direction') do
   assert(source.include?("CHIẾU XUỐNG · Model -Z"))
 end
 
-check('Tạo LED dialog exposes warm color presets and explicit continuous-create callback') do
+check('Tạo LED dialog exposes warm color presets and choose-contact continuous callback') do
   source=File.read(ROOT+'/led_tool.rb',encoding:'UTF-8')
   assert(source.include?("setLedColor('#ffbd59')"))
   assert(source.include?("setLedColor('#ffe08a')"))
   assert(source.include?("setLedColor('#fff0c2')"))
-  assert(source.include?("function startContinuous(){sketchup.start_continuous"))
+  assert(source.include?("function chooseContact(){sketchup.select_contact"))
+  assert(source.include?("add_action_callback('select_contact')"))
   assert(source.include?("add_action_callback('start_continuous')"))
-  assert(source.include?("ĐÃ BẬT TẠO LIÊN TỤC"))
+  assert(source.include?("ĐÃ BẬT CHỌN TIẾP DIỆN"))
+end
+
+check('Tạo LED hover highlights the chosen contact face on model') do
+  source=File.read(ROOT+'/led_tool.rb',encoding:'UTF-8')
+  assert(source.include?('Highlight tiếp diện đang nhận'))
+  assert(source.include?('view.draw(GL_POLYGON,face_points)'))
+  assert(source.include?('view.draw(GL_LINE_LOOP,face_points)'))
+  assert(source.include?('TIẾP DIỆN: #{target_name}'))
+  assert(source.include?('CHỌN TIẾP DIỆN · rê vào Face của Group/Component'))
 end
 
 check('Tạo LED create flow loops all groove plans and stays continuous') do
