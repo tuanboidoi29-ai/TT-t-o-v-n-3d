@@ -160,7 +160,7 @@ check('Tạo LED CNC heals four edges into real Face topology') do
   assert(source.include?('def heal_profile_face'))
   assert(source.include?('edge.find_faces if edge.respond_to?(:find_faces)'))
   assert(source.include?('chưa ăn vào Face thật của tấm.'))
-  assert(source.include?("profile_faces = heal_profile_face(entities,edges,points,tag_name)"))
+  assert(source.include?("profile_faces = heal_profile_face(entities,edges,points,instance_name,tag_name)"))
   assert(source.include?('chưa tạo được loop Face kín thật.'))
   assert(source.include?("edges.all? { |edge| face_edges.include?(edge) }"))
   assert(source.include?("embedded_face_count"))
