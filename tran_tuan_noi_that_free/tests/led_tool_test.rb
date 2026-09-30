@@ -111,6 +111,7 @@ check('Tạo LED UI contains preset and live preview controls') do
   assert(html.include?('CẬP NHẬT PREVIEW'))
   assert(html.include?('ABF/is-cutting-lines=true'))
   assert(html.include?('trực tiếp vào Face/hình học của Group/Component'))
+  assert(html.include?('bắt buộc heal/split vào Face thật'))
   assert(html.include?('không tạo Group CNC con'))
 end
 
@@ -132,6 +133,17 @@ check('Tạo LED CNC edges are embedded directly in host entities without child 
   assert(body.include?("led_profile_grouped',false"))
   assert(body.include?("phải có đúng 4 Edge kín"))
   assert(!body.include?("entities.add_group"))
+end
+
+check('Tạo LED CNC heals four edges into real Face topology') do
+  source=File.read(ROOT+'/led_tool.rb',encoding:'UTF-8')
+  assert(source.include?('def heal_profile_face'))
+  assert(source.include?('edge.find_faces if edge.respond_to?(:find_faces)'))
+  assert(source.include?("raise \"Biên dạng #{tag_name} chưa ăn vào Face thật của tấm.\" unless attached"))
+  assert(source.include?("profile_faces = heal_profile_face(entities,edges,points,tag_name)"))
+  assert(source.include?("embedded_face_count"))
+  assert(source.include?("led_profile_face_count"))
+  assert(source.include?("tag.visible = true if tag.respond_to?(:visible=)"))
 end
 
 check('Tạo LED light always casts downward and halo fades smoothly') do
