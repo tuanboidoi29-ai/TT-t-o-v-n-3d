@@ -13,6 +13,7 @@ check('LED defaults and ABF_RANHLED tag normalize') do
   assert(o['light_spread']==40.0)
   assert(o['quantity']==1)
   assert(o['spacing']==50.0)
+  assert(o['led_color']=='#ffe08a')
   assert(LED.normalize({'cnc_tag'=>'ranh led phong khach'})['cnc_tag']=='ABF_RANH_LED_PHONG_KHACH')
   assert(LED.normalize({'cnc_tag'=>'ABF_RANHLED_12'})['cnc_tag']=='ABF_RANHLED_12')
 end
@@ -98,8 +99,13 @@ check('Tạo LED UI contains preset and live preview controls') do
   assert(html.include?('Độ loang ánh sáng'))
   assert(html.include?('Số lượng rãnh'))
   assert(html.include?('Khoảng cách giữa'))
-  assert(html.include?('PREVIEW VẦNG SÁNG'))
+  assert(html.include?('PREVIEW ÁNH SÁNG LED'))
   assert(html.include?('light_preview'))
+  assert(html.include?('VÀNG ẤM'))
+  assert(html.include?('VÀNG SÁNG'))
+  assert(html.include?('TRẮNG ẤM'))
+  assert(html.include?('TẠO LIÊN TỤC'))
+  assert(html.include?('CHIẾU XUỐNG · Model -Z'))
   assert(html.include?('ABF_RANHLED'))
   assert(html.include?('CẬP NHẬT PREVIEW'))
   assert(html.include?('ABF/is-cutting-lines=true'))
@@ -118,45 +124,55 @@ check('Tạo LED CNC edges are embedded directly in host entities without child 
   assert(!body.include?("entities.add_group"))
 end
 
-check('Tạo LED light direction follows groove side and halo fades smoothly') do
+check('Tạo LED light always casts downward and halo fades smoothly') do
   analysis={
     origin:Geom::Point3d.new(0,0,0),
-    u:Geom::Vector3d.new(0,0,1),
-    v:Geom::Vector3d.new(1,0,0),
-    normal:Geom::Vector3d.new(0,1,0),
+    u:Geom::Vector3d.new(1,0,0),
+    v:Geom::Vector3d.new(0,1,0),
+    normal:Geom::Vector3d.new(0,0,1),
     min_u:0,min_v:0
   }
-  min_plan=LED.groove_plan(1000,400,LED::DEFAULTS,:min)
-  max_plan=LED.groove_plan(1000,400,LED::DEFAULTS,:max)
-  min_dir=LED.light_direction(analysis,min_plan)
-  max_dir=LED.light_direction(analysis,max_plan)
-  near(min_dir.x,1.0)
-  near(max_dir.x,-1.0)
+  plan=LED.groove_plan(1000,400,LED::DEFAULTS,:min)
+  direction=LED.light_direction_world(analysis,plan,Geom::Transformation.new)
+  near(direction.x,0.0)
+  near(direction.y,0.0)
+  near(direction.z,-1.0)
 
   rect=[
-    Geom::Point3d.new(0,0,0),
     Geom::Point3d.new(0,0,100.mm),
-    Geom::Point3d.new(10.mm,0,100.mm),
-    Geom::Point3d.new(10.mm,0,0)
+    Geom::Point3d.new(100.mm,0,100.mm),
+    Geom::Point3d.new(100.mm,10.mm,100.mm),
+    Geom::Point3d.new(0,10.mm,100.mm)
   ]
-  light=LED.light_geometry(rect,LED::DEFAULTS,Geom::Vector3d.new(-1,0,0))
-  assert(light[:bands].length==24)
-  assert(light[:levels].length==24)
+  light=LED.light_geometry(rect,LED::DEFAULTS,direction)
+  assert(light[:bands].length==40)
+  assert(light[:levels].length==40)
   assert(light[:bands].first[:alpha] > light[:bands].last[:alpha])
-  assert(light[:direction].x < 0)
+  assert(light[:direction].z < 0)
   far=light[:bands].last[:points]
-  assert(far[2].x < rect[1].x)
+  assert(far[2].z < rect[1].z)
 
-  off=LED.light_geometry(rect,LED::DEFAULTS.merge('brightness'=>0),Geom::Vector3d.new(-1,0,0))
+  off=LED.light_geometry(rect,LED::DEFAULTS.merge('brightness'=>0),direction)
   assert(off[:bands].all?{|row|row[:alpha]==0})
 end
 
-check('Tạo LED viewport direction arrow uses same cast vector as glow') do
+check('Tạo LED viewport and dialog use fixed downward cast direction') do
   source=File.read(ROOT+'/led_tool.rb',encoding:'UTF-8')
   assert(source.include?("direction = LedTool.light_direction_world(@analysis,plan,@target_tr)"))
+  assert(source.include?("Geom::Vector3d.new(0,0,-1)"))
   assert(source.include?("tip = LedTool.shift_point(source,direction,arrow_len)"))
   assert(source.include?("view.draw(GL_LINES,[source,tip,tip,left,tip,right])"))
-  assert(source.include?("AUTO theo rãnh + mép đang bám"))
+  assert(source.include?("CHIẾU XUỐNG · Model -Z"))
+end
+
+check('Tạo LED dialog exposes warm color presets and explicit continuous-create callback') do
+  source=File.read(ROOT+'/led_tool.rb',encoding:'UTF-8')
+  assert(source.include?("setLedColor('#ffbd59')"))
+  assert(source.include?("setLedColor('#ffe08a')"))
+  assert(source.include?("setLedColor('#fff0c2')"))
+  assert(source.include?("function startContinuous(){sketchup.start_continuous"))
+  assert(source.include?("add_action_callback('start_continuous')"))
+  assert(source.include?("ĐÃ BẬT TẠO LIÊN TỤC"))
 end
 
 check('Tạo LED create flow loops all groove plans and stays continuous') do
