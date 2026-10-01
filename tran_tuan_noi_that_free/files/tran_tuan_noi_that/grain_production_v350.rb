@@ -107,10 +107,10 @@ module TranTuanNoiThat
         @dialog = UI::HtmlDialog.new(
           dialog_title: 'TRẦN TUẤN - KHỔ VÁN / HƯỚNG VÂN',
           preferences_key: 'TranTuanNoiThat.Grain.V350',
-          scrollable: false,
+          scrollable: true,
           resizable: false,
           width: 460,
-          height: 560,
+          height: 680,
           style: UI::HtmlDialog::STYLE_DIALOG
         )
         @dialog.set_html(<<~HTML)
@@ -119,9 +119,14 @@ module TranTuanNoiThat
           <h2>XOAY VÂN VÁN V3.5.0</h2><div class="sub">1 map texture = 1 khổ tấm vật liệu. Không co giãn theo chi tiết.</div>
           <div class="card"><label>Vật liệu đang cấu hình</label><div class="mat">#{material_name}</div><label>Chiều dài / hướng vân (mm)</label><input id="l" type="number" value="#{l}"><label>Chiều rộng (mm)</label><input id="w" type="number" value="#{w}"><div class="row" style="margin-top:9px"><button class="preset" onclick="p(2440,1220)">2440×1220</button><button class="preset" onclick="p(2800,1220)">2800×1220</button></div><label>Dày tối đa nhận ván (mm)</label><input id="t" type="number" value="#{t}"></div>
           <div class="card"><label>Luật AUTO mặc định</label><select id="m"><option value="auto">Theo tên chi tiết + khổ vật liệu</option><option value="length">Khóa theo chiều DÀI</option><option value="width">Khóa theo chiều RỘNG</option></select></div>
-          <button class="save" onclick="s()">LƯU CHO VẬT LIỆU NÀY</button><div class="note" style="margin-top:12px">A hoặc SHIFT: quét preview · ENTER: áp dụng · TAB: bảng này · Ctrl+Click: khóa/mở khóa sản xuất.</div>
+          <button class="save" style="margin-bottom:12px" onclick="this.disabled=true;sketchup.auto_all()">QUÉT TẤT CẢ → TỰ XOAY THEO CHIỀU DÀI</button><div class="note">Toàn model, gồm các nhóm lồng nhau. Bỏ qua tấm khóa vân, đối tượng khóa và vật liệu không có ảnh. Một lần Undo.</div><button class="save" onclick="s()">LƯU CHO VẬT LIỆU NÀY</button><div class="note" style="margin-top:12px">A hoặc SHIFT: quét preview · ENTER: áp dụng · TAB: bảng này · Ctrl+Click: khóa/mở khóa sản xuất.</div>
           <script>m.value=#{m.inspect};function p(a,b){l.value=a;w.value=b}function s(){sketchup.save(Number(l.value),Number(w.value),Number(t.value),m.value)}</script></body></html>
         HTML
+        @dialog.add_action_callback('auto_all') do |_ctx|
+          tool = @active_tool || Tool.new
+          @dialog.close
+          tool.auto_all_length
+        end
         @dialog.add_action_callback('save') do |_ctx, ll, ww, tt, mm|
           length, width = save_material_sheet(material, ll, ww)
           thickness = [[tt.to_f, 1.0].max, 500.0].min
@@ -173,7 +178,92 @@ module TranTuanNoiThat
         UI.beep
       end
 
+
+      # Walk fresh child entities after make_unique: nested component instances
+      # may acquire new identities when their parent definition is copied.
+      def auto_all_length
+        return false if @auto_all_running
+        @auto_all_running = true
+        old_mode = @lock_mode
+        @lock_mode = 'length'
+        @scan = nil
+        counts = { applied: 0, locked: 0, skipped: 0 }
+        started = false
+        @model.start_operation('TRẦN TUẤN - Tự xoay vân toàn model', true)
+        started = true
+        @model.entities.to_a.each do |root|
+          auto_length_branch(root, Geom::Transformation.new, nil, counts)
+        end
+        @model.commit_operation
+        started = false
+        message = "Toàn model: đã xoay #{counts[:applied]} tấm · Khóa: #{counts[:locked]} · Bỏ qua: #{counts[:skipped]}."
+        Sketchup.set_status_text(message, SB_PROMPT)
+        UI.messagebox(message)
+        true
+      rescue StandardError => error
+        @model.abort_operation if started
+        UI.messagebox("Đã hủy lượt xoay vân; không giữ thay đổi dở dang.\n#{error.message}")
+        false
+      ensure
+        @lock_mode = old_mode
+        @auto_all_running = false
+        clear_pick
+        @view.invalidate if @view
+      end
+
       private
+
+      def auto_length_branch(target, parent_tr, inherited, counts)
+        return unless valid_target?(target)
+        if target.locked? || locked_target?(target)
+          counts[:locked] += 1
+          return
+        end
+        tr = parent_tr * target.transformation
+        material = target.material || inherited
+        es = entities(target)
+        return unless es
+        analysis = analyze(target, tr)
+        board = analysis && analysis[:sizes_mm].min >= 0.1 &&
+          analysis[:sizes_mm].min <= @max_t &&
+          analysis[:sizes_mm].sort[1] >= MIN_PLANE_MM &&
+          !es.grep(Sketchup::Face).empty?
+        candidates = []
+        if board
+          main_faces(target, analysis).each do |face|
+            add_material_candidate(candidates, face.material, :target_face)
+            add_material_candidate(candidates, face.back_material, :target_face_back)
+          end
+          add_material_candidate(candidates, target.material, :target)
+          add_material_candidate(candidates, inherited, :ancestor)
+        end
+        detected = candidates.find { |pair| textured?(pair[0]) }
+        usable = detected && textured?(detected[0])
+        children = es.to_a.select { |child| container?(child) }
+        # Unique both Groups and Components before editing any descendants.
+        return if !board && children.empty?
+        target.make_unique if usable || !children.empty?
+        if usable
+          selected_material, source = detected
+          length, width = Grain.sheet_for_material(selected_material)
+          analysis = analyze_for_sheet(target, tr, length, width)
+          @target, @target_tr = target, tr
+          @material, @material_source = selected_material, source
+          @analysis = analysis
+          @sheet_l, @sheet_w = length, width
+          before = structure_signature(target)
+          mapped = map_faces(target, selected_material, analysis)
+          raise 'Không tìm thấy mặt ván để xoay vân.' unless mapped > 0
+          raise StructureGuardError, 'Hình học thay đổi ngoài dự kiến.' unless before == structure_signature(target)
+          save_metadata(target, selected_material, analysis, 'all_model_length')
+          counts[:applied] += 1
+        elsif board
+          counts[:skipped] += 1
+        end
+        entities(target).to_a.each do |child|
+          auto_length_branch(child, tr, material, counts) if container?(child)
+        end
+      end
 
       def pick(view, x, y)
         tt_v350_pick_base(view, x, y)

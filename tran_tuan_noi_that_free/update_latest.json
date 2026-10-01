@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.198",
+  "version": "1.9.199",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Gỡ Tạo LED và Tạo Tiếp Diện: bỏ bộ nạp, menu, toolbar, tệp công cụ, icon và mẫu lưu riêng. Mở lại SketchUp sau cập nhật để xóa nút cũ. Không sửa hình học model.",
+  "notes": "Xoay Vân Ván: TAB → Quét tất cả → Tự xoay theo chiều dài. Quét toàn model và Group/Component lồng nhau; bỏ qua khóa và vật liệu không có texture; một lần Undo. Giữ việc gỡ LED/Tiếp Diện.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "f9367319655d3b80e7bdfac16bac8a27ef61d11288bec47d82376ad321ea3815"
+      "sha256": "58cba1763a677359160b2f1f30540538910460815f9d57e84934e1591d548d4f"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -59,7 +59,7 @@
     {
       "path": "tran_tuan_noi_that/grain_production_v350.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/grain_production_v350.rb",
-      "sha256": "26b79694b3ebf5b186e54457c187f0699347217c250a45ac683ca18ce338965e"
+      "sha256": "da56bad84f1a91197ae7ca19b11268e653f2f24fcab9e9ebbd35c9f49be19242"
     },
     {
       "path": "tran_tuan_noi_that/grain_reload_v351_fix.rb",
@@ -314,7 +314,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "073df4d828234a9a063986669dec5ef3b9c38a243cd6d74e2f882fc09da71a99"
+      "sha256": "45df43b875ed4728e69e656c86aa35d883680ed22c4f86ea1f101a61bcaa4587"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
