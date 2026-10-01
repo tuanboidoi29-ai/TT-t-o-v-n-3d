@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.199",
+  "version": "1.9.200",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Xoay Vân Ván: TAB → Quét tất cả → Tự xoay theo chiều dài. Quét toàn model và Group/Component lồng nhau; bỏ qua khóa và vật liệu không có texture; một lần Undo. Giữ việc gỡ LED/Tiếp Diện.",
+  "notes": "Thêm Đánh dấu hướng mở cánh: chữ V nét đứt, đỉnh phía bản lề. Rê gần cạnh bản lề trên mặt cánh chữ nhật, click tạo; thay dấu cùng mặt; một lần Undo; có icon riêng.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "58cba1763a677359160b2f1f30540538910460815f9d57e84934e1591d548d4f"
+      "sha256": "2a2bf8076c0f57be99d8b7b31b9d04a98d49fa924eee53b8cbbd1382ef583fde"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -314,12 +314,22 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "45df43b875ed4728e69e656c86aa35d883680ed22c4f86ea1f101a61bcaa4587"
+      "sha256": "120502057a93c33d52bd342c3fc20fe7f2e5e3a44f02402282d80dc32f0d8b10"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TT_TranTuan_UpdateLoader.rb",
       "sha256": "d873a103796542b0d3ca6ff864f4a9105173f8fa3baafbd8526e7cb65de0de7d"
+    },
+    {
+      "path": "tran_tuan_noi_that/door_open_mark.rb",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/door_open_mark.rb",
+      "sha256": "d974e979d44d6364de17729ed8092e297461ceda10feee259d542f30a95cb066"
+    },
+    {
+      "path": "tran_tuan_noi_that/icons/door_open_mark.svg",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/icons/door_open_mark.svg",
+      "sha256": "44789db2fbd5105fda9d50fef3b8f75ab5a58469175b3c9448daf6382166cbcf"
     }
   ],
   "stretch_mode_version": "1.0.1",
