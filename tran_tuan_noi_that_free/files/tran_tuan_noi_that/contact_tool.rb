@@ -7,7 +7,7 @@ module TranTuanNoiThat
   module ContactTool
     extend self
 
-    VERSION = '1.0.3'.freeze
+    VERSION = '1.0.4'.freeze
     KEY = 'TT_TIEP_DIEN'.freeze
     DATA_DIR = File.join(TranTuanNoiThat::ROOT, 'data', 'contact_tool').freeze
     PRESET_FILE = File.join(DATA_DIR, 'presets.json').freeze
@@ -379,20 +379,29 @@ module TranTuanNoiThat
       edge
     end
 
+    # Geometry belonging to the board must not depend on a machining tag.
+    # The separate ABF export copy retains its own tag and metadata.
+    def show_contact_geometry(edge)
+      edge.layer = Sketchup.active_model.layers[0]
+      edge.hidden = false
+      edge.soft = false
+      edge.smooth = false
+      edge
+    end
+
     def heal_contact_topology(edges)
+      raise 'Không có cạnh tiếp diện để kiểm tra.' if edges.empty?
       edges.each do |edge|
-        begin
-          edge.find_faces if edge.respond_to?(:find_faces)
-        rescue StandardError
-          nil
-        end
+        raise 'Cạnh tiếp diện không còn hợp lệ.' unless edge.valid?
+        edge.find_faces
       end
-
-      supported = edges.all? { |edge| edge.respond_to?(:faces) }
-      return true unless supported
-
-      loose = edges.select { |edge| edge.faces.empty? }
-      raise "Có #{loose.length} cạnh tiếp diện chưa ăn vào Face thật của tấm." unless loose.empty?
+      # An interior imprint must divide the host surface: a detached filled
+      # polygon has only one face per edge and must not be accepted.
+      detached = edges.select { |edge| !edge.valid? || edge.faces.length != 2 }
+      unless detached.empty?
+        raise "Có #{detached.length} cạnh chưa chia Face tấm thành hai phía. Đã hủy thao tác; hãy đặt mẫu hoàn toàn trong mặt tấm."
+      end
+      edges.each { |edge| show_contact_geometry(edge) }
       true
     end
 
@@ -482,7 +491,7 @@ module TranTuanNoiThat
       total = targets.inject(0) { |sum,target| sum + repair_contact_target(target) }
       model.commit_operation
       started = false
-      UI.messagebox("Đã sửa tiếp diện ABF cho #{targets.length} tấm.\nĐã bổ sung #{total} cạnh vào _ABF_cuttingLines.\nHãy trải tấm lại để kiểm tra.")
+      UI.messagebox("Đã sửa tiếp diện ABF cho #{targets.length} tấm.\nĐã bổ sung #{total} cạnh gia công và khôi phục hiển thị cạnh thật trên tấm.\nHãy kiểm tra lại thao tác gán nhãn.")
       true
     rescue StandardError => error
       model.abort_operation if started rescue nil
@@ -509,7 +518,7 @@ module TranTuanNoiThat
         nxt = local_points[(index+1)%local_points.length]
         edge = entities.add_line(point,nxt)
         raise "Không tạo được cạnh tiếp diện số #{index+1}." unless edge && edge.valid?
-        edge.layer = tag
+        show_contact_geometry(edge)
         apply_contact_edge_metadata(edge,opts,plan,target)
         edges << edge
       end
@@ -1075,3 +1084,4 @@ module TranTuanNoiThat
     end
   end
 end
+

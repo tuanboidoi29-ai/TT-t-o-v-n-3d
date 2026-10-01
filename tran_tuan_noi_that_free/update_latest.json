@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.195",
+  "version": "1.9.196",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Nâng cấp TẠO TIẾP DIỆN: giữ đúng quy trình CHỌN MẪU → RÀ FACE Group/Component → preview mô phỏng bám trực tiếp trên mặt → click tạo ngay vào chính Face. Preview mới tô mờ biên dạng, viền xanh/đỏ, tâm và hướng; hiển thị mẫu đang chọn + Face đang nhận. Sau click tool tiếp tục chạy để rà mặt khác. Giữ topology thật trên Face và cấu trúc ABF _ABF_cuttingLines hiện có; không tạo geometry preview rác.",
+  "notes": "Sửa tiếp diện: cạnh thật của tấm dùng Untagged, bỏ hidden/soft/smooth để không phụ thuộc Tag gia công. Kiểm tra mỗi cạnh chia mặt có hai Face, hủy thao tác nếu biên dạng rời hoặc không kín đúng. Nút sửa tiếp diện cũ khôi phục hiển thị cạnh thật. Giữ bản sao _ABF_cuttingLines. Đã kiểm tra logic mô phỏng, chưa xác minh gán nhãn ABF trên SketchUp Windows.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "4799d053404847aaec41f6002182ef9efa714ecbae18b82b1dd486d3a5c682d7"
+      "sha256": "50edec94b0e37671d064b843a080c342310e6d637880bf54cbd0d18ff577c189"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -324,7 +324,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "48486e3681b378551abc1de0b8cd943024966e734f28258d98f554aecbe3edff"
+      "sha256": "cb9b6cf592551958d15ff26ca2544196fbc2e89dc5f40aa949b678293bf479e5"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -334,7 +334,7 @@
     {
       "path": "tran_tuan_noi_that/contact_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/contact_tool.rb",
-      "sha256": "b2fd93f7aa8cf5f8f2dbd909921f94fd2d5bce2a565cca8f1b0c6921efc5b1a8"
+      "sha256": "8518841e5e7cb5325bc29682aa90fa192c8a3f294cfee7c6b4c4f7f55481859f"
     },
     {
       "path": "tran_tuan_noi_that/icons/contact.svg",
