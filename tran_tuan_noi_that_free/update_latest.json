@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.196",
+  "version": "1.9.197",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Sửa tiếp diện: cạnh thật của tấm dùng Untagged, bỏ hidden/soft/smooth để không phụ thuộc Tag gia công. Kiểm tra mỗi cạnh chia mặt có hai Face, hủy thao tác nếu biên dạng rời hoặc không kín đúng. Nút sửa tiếp diện cũ khôi phục hiển thị cạnh thật. Giữ bản sao _ABF_cuttingLines. Đã kiểm tra logic mô phỏng, chưa xác minh gán nhãn ABF trên SketchUp Windows.",
+  "notes": "Tạo tiếp diện bằng cạnh thật chia Face trong cùng Group/Component của ván. Không tạo Group con, không tạo bản sao _ABF_cuttingLines, không ghi thuộc tính ABF, không khoét sâu. Tiếp diện cũ không tự chuyển đổi. Kiểm tra logic mô phỏng đã đạt; chưa kiểm thử trực tiếp SketchUp/ABF.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "50edec94b0e37671d064b843a080c342310e6d637880bf54cbd0d18ff577c189"
+      "sha256": "7513b2d336f6397cc27d3734fda08b7ea83b8c78148fb1b58157f76f9962fa5d"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -324,7 +324,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "cb9b6cf592551958d15ff26ca2544196fbc2e89dc5f40aa949b678293bf479e5"
+      "sha256": "906e99017a347db0153b45afe4fbcd498fc27a8df7d5066de51ee2b937dd812e"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -334,7 +334,7 @@
     {
       "path": "tran_tuan_noi_that/contact_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/contact_tool.rb",
-      "sha256": "8518841e5e7cb5325bc29682aa90fa192c8a3f294cfee7c6b4c4f7f55481859f"
+      "sha256": "412a57312d444b4c7456f6c1b12f67891032bdb19bba9debec1a65f8f1d3cbe7"
     },
     {
       "path": "tran_tuan_noi_that/icons/contact.svg",

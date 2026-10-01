@@ -7,7 +7,7 @@ module TranTuanNoiThat
   module ContactTool
     extend self
 
-    VERSION = '1.0.4'.freeze
+    VERSION = '1.0.5'.freeze
     KEY = 'TT_TIEP_DIEN'.freeze
     DATA_DIR = File.join(TranTuanNoiThat::ROOT, 'data', 'contact_tool').freeze
     PRESET_FILE = File.join(DATA_DIR, 'presets.json').freeze
@@ -347,40 +347,16 @@ module TranTuanNoiThat
          entity.get_attribute('ABF','is-cutting-lines') == true)
     end
 
-    def ensure_abf_cutting_group(target)
-      entities = target_entities(target)
-      group = entities.grep(Sketchup::Group).find { |item| abf_cutting_group?(item) }
-      unless group
-        group = entities.add_group
-        group.name = ABF_CUTTING_GROUP
-      end
-
-      tag = ensure_tag(Sketchup.active_model,ABF_CUTTING_TAG)
-      tag.visible = true if tag.respond_to?(:visible=)
-      group.layer = tag
-      group.name = ABF_CUTTING_GROUP
-      group.set_attribute('ABF','is-cutting-lines',true)
-      group.set_attribute(KEY,'role','abf_cutting_lines')
-      group
-    end
-
     def apply_contact_edge_metadata(edge,opts,plan,target)
-      edge.set_attribute('ABF','is-cutting-lines',true)
-      edge.set_attribute('ABF','is-intersect',true)
-      edge.set_attribute('ABF','instance',opts['instance_name'])
-      edge.set_attribute('ABF','instance-name',opts['instance_name'])
-      edge.set_attribute('ABF','tag-name',opts['tag_name'])
-      edge.set_attribute('ABF','setting-name',opts['instance_name'].sub(/\AABF_/,'').downcase.tr('_',' '))
-      edge.set_attribute('ABF','intersect-group-b-id',entity_reference_id(target))
       edge.set_attribute(KEY,'role','contact_edge')
+      edge.set_attribute(KEY,'profile_name',opts['instance_name'])
       edge.set_attribute(KEY,'closed_profile',true)
       edge.set_attribute(KEY,'rotation_deg',plan[:rotation_deg])
-      edge.set_attribute(KEY,'persist_after_flatten',true)
       edge
     end
 
     # Geometry belonging to the board must not depend on a machining tag.
-    # The separate ABF export copy retains its own tag and metadata.
+    # Profiles are ordinary face edges; no separate export group is created.
     def show_contact_geometry(edge)
       edge.layer = Sketchup.active_model.layers[0]
       edge.hidden = false
@@ -405,80 +381,14 @@ module TranTuanNoiThat
       true
     end
 
-    def mirror_contact_to_abf_group(target,local_points,opts,plan)
-      group = ensure_abf_cutting_group(target)
-      tag = ensure_tag(Sketchup.active_model,ABF_CUTTING_TAG)
-      points = local_points + [local_points.first]
-      mirrored = group.entities.add_edges(*points)
-      mirrored = Array(mirrored).compact.uniq
-      raise 'Không ghi được tiếp diện vào _ABF_cuttingLines.' if mirrored.empty?
-
-      mirrored.each do |edge|
-        edge.layer = tag
-        apply_contact_edge_metadata(edge,opts,plan,target)
-        edge.set_attribute(KEY,'role','contact_cutting_edge')
-      end
-      group.set_attribute(KEY,'last_instance',opts['instance_name'])
-      group.set_attribute(KEY,'last_tag',opts['tag_name'])
-      mirrored
-    end
-
-    def point_signature(point)
-      [point.x.to_f,point.y.to_f,point.z.to_f].map { |value| (value * 1_000_000.0).round }.join(':')
-    end
-
-    def edge_signature(edge)
-      a = point_signature(edge.start.position)
-      b = point_signature(edge.end.position)
-      [a,b].sort.join('|')
-    end
-
     def repair_contact_target(target)
       make_unique(target)
-      entities = target_entities(target)
-      source_edges = entities.grep(Sketchup::Edge).select do |edge|
-        edge.get_attribute(KEY,'role').to_s == 'contact_edge' ||
-          (edge.get_attribute('ABF','is-intersect') == true &&
-           edge.get_attribute('ABF','instance').to_s.start_with?('ABF_'))
+      edges = target_entities(target).grep(Sketchup::Edge).select do |edge|
+        edge.get_attribute(KEY,'role').to_s == 'contact_edge'
       end
-      return 0 if source_edges.empty?
-
-      group = ensure_abf_cutting_group(target)
-      tag = ensure_tag(Sketchup.active_model,ABF_CUTTING_TAG)
-      existing = {}
-      group.entities.grep(Sketchup::Edge).each { |edge| existing[edge_signature(edge)] = true }
-
-      copied = 0
-      source_edges.each do |source|
-        signature = edge_signature(source)
-        next if existing[signature]
-
-        edge = group.entities.add_line(source.start.position,source.end.position)
-        next unless edge && edge.valid?
-
-        edge.layer = tag
-        edge.set_attribute('ABF','is-cutting-lines',true)
-        edge.set_attribute('ABF','is-intersect',true)
-        %w[instance instance-name tag-name setting-name intersect-group-b-id].each do |key|
-          value = source.get_attribute('ABF',key)
-          edge.set_attribute('ABF',key,value) unless value.nil?
-        end
-        edge.set_attribute(KEY,'role','contact_cutting_edge')
-        edge.set_attribute(KEY,'persist_after_flatten',true)
-        existing[signature] = true
-        copied += 1
-      end
-
-      source_edges.each do |edge|
-        edge.set_attribute('ABF','is-cutting-lines',true)
-        edge.set_attribute(KEY,'persist_after_flatten',true)
-      end
-      heal_contact_topology(source_edges)
-
-      target.set_attribute('ABF','is-board',true)
-      target.set_attribute('ABF','has-contact-profile',true)
-      target.set_attribute(KEY,'contact_persist_after_flatten',true)
-      copied
+      return 0 if edges.empty?
+      heal_contact_topology(edges)
+      edges.length
     end
 
     def repair_selected_contacts
@@ -486,12 +396,12 @@ module TranTuanNoiThat
       targets = model.selection.to_a.select { |entity| valid_container?(entity) }
       raise 'Hãy chọn ít nhất 1 Group/Component có tiếp diện cũ.' if targets.empty?
 
-      model.start_operation('TT - SỬA TIẾP DIỆN ABF',true)
+      model.start_operation('TT - KIỂM TRA BIÊN DẠNG',true)
       started = true
       total = targets.inject(0) { |sum,target| sum + repair_contact_target(target) }
       model.commit_operation
       started = false
-      UI.messagebox("Đã sửa tiếp diện ABF cho #{targets.length} tấm.\nĐã bổ sung #{total} cạnh gia công và khôi phục hiển thị cạnh thật trên tấm.\nHãy kiểm tra lại thao tác gán nhãn.")
+      UI.messagebox("Đã kiểm tra #{total} cạnh biên dạng trên #{targets.length} tấm.")
       true
     rescue StandardError => error
       model.abort_operation if started rescue nil
@@ -510,8 +420,6 @@ module TranTuanNoiThat
       inverse = world_transform.inverse
       local_points = plan[:points].map { |point| point.transform(inverse) }
       opts = plan[:options]
-      tag = ensure_tag(model,opts['tag_name'])
-      tag.visible = true if tag.respond_to?(:visible=)
       edges = []
 
       local_points.each_with_index do |point,index|
@@ -527,14 +435,8 @@ module TranTuanNoiThat
       # BẮT BUỘC: tiếp diện là topology thật của Face tấm, không phải loose edge.
       heal_contact_topology(edges)
 
-      # Đồng thời ghi đúng cấu trúc ABF chuẩn để tiếp diện đi theo khi Trải/Nesting.
-      mirror_contact_to_abf_group(target,local_points,opts,plan)
-
-      target.set_attribute('ABF','is-board',true)
-      target.set_attribute('ABF','has-contact-profile',true)
       target.set_attribute(KEY,'last_instance',opts['instance_name'])
-      target.set_attribute(KEY,'last_tag',opts['tag_name'])
-      target.set_attribute(KEY,'contact_persist_after_flatten',true)
+      target.set_attribute(KEY,'geometry_mode','face_edges')
 
       model.commit_operation
       started = false
@@ -744,9 +646,9 @@ module TranTuanNoiThat
             <button class="primary" onclick="savePreset()">LƯU MẪU</button>
             <button class="primary" onclick="applyNow()">CẬP NHẬT PREVIEW</button>
             <button class="dark" onclick="sketchup.activate()">BẬT LẠI AUTO</button>
-            <button class="primary" onclick="sketchup.repair_contacts()">SỬA TIẾP DIỆN ABF ĐÃ CHỌN</button>
+            <button class="primary" onclick="sketchup.repair_contacts()">KIỂM TRA BIÊN DẠNG ĐÃ CHỌN</button>
           </div>
-          <div class="hint"><b>Trải tấm/Nesting:</b> tiếp diện mới được ghi thành Edge thật trên Face và đồng thời vào <b>_ABF_cuttingLines</b>. Với tấm cũ: chọn tấm rồi bấm SỬA TIẾP DIỆN ABF ĐÃ CHỌN.</div>
+          <div class="hint">Biên dạng mới là cạnh thật chia mặt ván trong cùng Group/Component. Không tạo Group con, không khoét sâu và không ghi thuộc tính ABF. Biên dạng cũ không được tự động chuyển đổi.</div>
           <div class="hover">
             <b>AUTO FACE:</b> <span id="target">Rà chuột vào Face của Group/Component.</span><br>
             <span id="faceDims"></span><br>
@@ -1084,4 +986,3 @@ module TranTuanNoiThat
     end
   end
 end
-
