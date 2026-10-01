@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.203",
+  "version": "1.9.204",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Khấu AUTO một click: rê/click khuôn, tự tìm và cắt thật các Solid giao nhau cùng cấp đang chỉnh sửa. TAB mở rộng biên. Kiểm tra giao thể tích trên bản sao, giữ khuôn, một Undo. Không cần chọn tấm đích/Enter. Chưa kiểm chứng native Windows.",
+  "notes": "Thêm Chia ván lọt lòng: chọn Face tấm mẫu, kéo chọn hướng theo trục tấm, tia dò mặt chắn, preview tấm đơn bám chuột. /N chia N tấm mới với khe đều đã trừ độ dày; Enter lần đầu xem trước, Enter/click tạo. TAB mép/tâm/mép. Một Undo, giữ mẫu. Chưa thử native Windows.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "f56b3398e4c9181bd7e0b4cf3d1a44811fab5b9be0649d0b385c2833f97ddd78"
+      "sha256": "15f88c3ad00fdc92df21c2b19a0d3c0e0d83f42587217da94776d6877670e424"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -314,7 +314,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "d7a6d5fb6109367fe508f8297c447bb5d4578aae3d9a849717b9cd9b97d66587"
+      "sha256": "16bfeebc9fb9c7c07a27742a5d634ea75c0e9c3c382289105e865b6c952b8317"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -340,6 +340,16 @@
       "path": "tran_tuan_noi_that/icons/notch.svg",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/icons/notch.svg",
       "sha256": "a18795c899a28b18f54ebb6970158b50b4c483b0d032c6787acb3e6569832b76"
+    },
+    {
+      "path": "tran_tuan_noi_that/divide_boards.rb",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/divide_boards.rb",
+      "sha256": "9fffab62b2612802e8658bc749568e8324a2ac34cd098a0bb49c53a800f51e66"
+    },
+    {
+      "path": "tran_tuan_noi_that/icons/divide_boards.svg",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/icons/divide_boards.svg",
+      "sha256": "53e8abe756518ba8ea97e2f85ee5c29e6d82d3404dc7d9574724f1173be37d33"
     }
   ],
   "stretch_mode_version": "1.0.1",

@@ -17,7 +17,7 @@ module TranTuanNoiThat
   }.freeze unless const_defined?(:LOCKED_FEATURE_BASELINES, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.203'.freeze
+  VERSION = '1.9.204'.freeze
 
   class << self
     def setting(key, default = nil)
@@ -119,6 +119,7 @@ module TranTuanNoiThat
         drawer_tool
         round_tool
         stretch_mode_tool
+        divide_boards
         notch_tool
         door_open_mark
         grain_tool
@@ -286,6 +287,7 @@ module TranTuanNoiThat
       install_grain_ui
       install_door_open_mark_ui
       install_notch_ui
+      install_divide_boards_ui
       install_layout_stats_ui
       install_dimensions_ui
       refresh_feature_commands
@@ -427,6 +429,12 @@ module TranTuanNoiThat
     rescue StandardError => error
       puts "[TT UI StretchMode] #{error.class}: #{error.message}"
       false
+    end
+
+    def install_divide_boards_ui
+      return false unless defined?(TranTuanNoiThat::DivideBoards)
+      @divide_boards_cmd ||= command('Chia ván lọt lòng', 'divide_boards.svg', 'Chọn Face tấm mẫu; kéo hướng; /N chia đều khe; TAB mép/tâm/mép; click hoặc ENTER tạo.') { DivideBoards.activate }
+      add_feature_command_once(@divide_boards_cmd, :divide_boards_menu_installed)
     end
 
     def install_notch_ui
