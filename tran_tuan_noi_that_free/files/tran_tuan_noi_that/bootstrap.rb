@@ -17,7 +17,7 @@ module TranTuanNoiThat
   }.freeze unless const_defined?(:LOCKED_FEATURE_BASELINES, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.201'.freeze
+  VERSION = '1.9.202'.freeze
 
   class << self
     def setting(key, default = nil)
@@ -119,6 +119,7 @@ module TranTuanNoiThat
         drawer_tool
         round_tool
         stretch_mode_tool
+        notch_tool
         door_open_mark
         grain_tool
         grain_material_fix
@@ -284,6 +285,7 @@ module TranTuanNoiThat
       install_stretch_mode_ui
       install_grain_ui
       install_door_open_mark_ui
+      install_notch_ui
       install_layout_stats_ui
       install_dimensions_ui
       refresh_feature_commands
@@ -425,6 +427,12 @@ module TranTuanNoiThat
     rescue StandardError => error
       puts "[TT UI StretchMode] #{error.class}: #{error.message}"
       false
+    end
+
+    def install_notch_ui
+      return false unless defined?(TranTuanNoiThat::NotchTool)
+      @notch_cmd ||= command('Khấu ván AUTO', 'notch.svg', 'Khuôn xanh nhạt, tấm bị khấu xanh đậm. SHIFT chọn nhiều; ENTER đổi bước/thực hiện; TAB mở rộng biên.') { NotchTool.activate }
+      add_feature_command_once(@notch_cmd, :notch_menu_installed)
     end
 
     def install_door_open_mark_ui
