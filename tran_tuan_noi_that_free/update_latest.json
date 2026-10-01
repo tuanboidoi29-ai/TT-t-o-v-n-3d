@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.200",
+  "version": "1.9.201",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Thêm Đánh dấu hướng mở cánh: chữ V nét đứt, đỉnh phía bản lề. Rê gần cạnh bản lề trên mặt cánh chữ nhật, click tạo; thay dấu cùng mặt; một lần Undo; có icon riêng.",
+  "notes": "Đánh dấu hướng mở: rê giữa tấm tạo X nét đứt; rê gần cạnh tạo V nét đứt đỉnh phía bản lề. Click thay dấu trên cùng mặt; một lần Undo.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "2a2bf8076c0f57be99d8b7b31b9d04a98d49fa924eee53b8cbbd1382ef583fde"
+      "sha256": "2dec4d74628ccbdd74ef65374e276bbd9af50099ede13c2faca05060234512da"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -314,7 +314,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "120502057a93c33d52bd342c3fc20fe7f2e5e3a44f02402282d80dc32f0d8b10"
+      "sha256": "0d2159796edd3c520e56096a1af1d918e92bac3ad6ee6f793bf3f5e907187565"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -324,7 +324,7 @@
     {
       "path": "tran_tuan_noi_that/door_open_mark.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/door_open_mark.rb",
-      "sha256": "d974e979d44d6364de17729ed8092e297461ceda10feee259d542f30a95cb066"
+      "sha256": "0a22c65c77970f68baf7668472531ca588c01fa64611a3300c1fea0f51d70dd2"
     },
     {
       "path": "tran_tuan_noi_that/icons/door_open_mark.svg",

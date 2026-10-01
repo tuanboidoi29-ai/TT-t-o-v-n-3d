@@ -15,10 +15,20 @@ module TranTuanNoiThat
          Geom.linear_combination(1.0-(i+0.60)/count,a,(i+0.60)/count,b)]
       end
     end
+    def center_zone?(u, v)
+      u >= 0.30 && u <= 0.70 && v >= 0.30 && v <= 0.70
+    end
+    def mark_segments(points, mids, side, cross)
+      if cross
+        [[points[0], points[2]], [points[1], points[3]]].flat_map { |a,b| dashes(a,b) }
+      else
+        [points[(side+2)%4], points[(side+3)%4]].flat_map { |p| dashes(mids[side],p) }
+      end
+    end
     class Tool
       def activate
         @model = Sketchup.active_model
-        Sketchup.set_status_text('HƯỚNG MỞ CÁNH: rê vào mặt cánh, gần cạnh bản lề · Click tạo V nét đứt · ESC thoát', SB_PROMPT)
+        Sketchup.set_status_text('HƯỚNG MỞ CÁNH: giữa tấm: X · gần cạnh bản lề: V · Click tạo dấu nét đứt · ESC thoát', SB_PROMPT)
       end
       def deactivate(view); view.invalidate; end
       def onCancel(reason, view); @model.select_tool(nil); end
@@ -45,9 +55,16 @@ module TranTuanNoiThat
             screen = view.screen_coords(mids[j].transform(tr))
             (screen.x-x)**2+(screen.y-y)**2
           end
-          apex = mids[side]
-          ends = [inset[(side+2)%4],inset[(side+3)%4]]
-          @local_segments = ends.flat_map { |p| DoorOpenMark.dashes(apex,p) }
+          ray = view.pickray(x,y)
+          inverse = tr.inverse
+          hit = Geom.intersect_line_plane([ray[0].transform(inverse), ray[1].transform(inverse)], face.plane)
+          next unless hit
+          u_axis, v_axis = points[1]-points[0], points[3]-points[0]
+          delta = hit-points[0]
+          u = delta.dot(u_axis) / u_axis.dot(u_axis)
+          v = delta.dot(v_axis) / v_axis.dot(v_axis)
+          @cross = DoorOpenMark.center_zone?(u,v)
+          @local_segments = DoorOpenMark.mark_segments(inset,mids,side,@cross)
           @segments = @local_segments.map { |pair| pair.map { |p| p.transform(tr) } }
           @parents, @face_points = parents, points
           @face_key = points.map { |p| p.to_a.map { |n| n.round(7) } }.sort.inspect
@@ -93,7 +110,8 @@ module TranTuanNoiThat
         old=es.grep(Sketchup::Group).select { |g| g.get_attribute(DICT,'face_key','')==@face_key }
         es.erase_entities(old) unless old.empty?
         marker=es.add_group
-        marker.name='Hướng mở cánh - đỉnh phía bản lề'
+        marker.name = @cross ? 'Hướng mở - X nét đứt' : 'Hướng mở cánh - đỉnh phía bản lề'
+        marker.set_attribute(DICT,'kind',@cross ? 'X' : 'V')
         marker.set_attribute(DICT,'marker',true)
         marker.set_attribute(DICT,'face_key',@face_key)
         marker.layer=@model.layers.add('TT_HUONG_MO_CANH')
