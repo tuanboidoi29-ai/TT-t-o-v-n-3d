@@ -56,7 +56,7 @@ module TranTuanNoiThat
         @model=Sketchup.active_model
         @context=@model.active_entities
         @edit=@model.edit_transform
-        @cutters=@model.selection.to_a.select { |e| NotchTool.container?(e) }
+        @cutters=[]
         @targets=[]; @phase=:cutters; @hover=nil
         @gap=Sketchup.read_default(PREF,'gap_mm',0.0).to_f
         @gap=0.0 unless @gap.finite? && @gap>=0 && @gap<=100
@@ -65,29 +65,66 @@ module TranTuanNoiThat
         status
       end
       def status
-        role=@phase==:cutters ? 'KHUÔN xanh nhạt' : 'TẤM BỊ KHẤU xanh đậm'
-        Sketchup.set_status_text("KHẤU AUTO · Chọn #{role} · SHIFT+click thêm/bỏ · ENTER tiếp tục/khấu · TAB mở rộng #{@gap} mm · #{@cutters.size} khuôn / #{@targets.size} tấm. Chọn ván trong cùng cấp; mở nhóm cha để chọn ván con.",SB_PROMPT)
+        Sketchup.set_status_text("KHẤU 1 CLICK · Rê/click tấm khuôn xanh nhạt → tự khấu các tấm xanh đậm · TAB mở rộng #{@gap} mm · #{@targets.size} ứng viên · Cùng cấp đang chỉnh sửa; mở nhóm cha để chọn ván con.",SB_PROMPT)
+      end
+      def world_bounds(e)
+        box=Geom::BoundingBox.new
+        tr=@edit*e.transformation
+        box.add((0..7).map { |i| e.definition.bounds.corner(i).transform(tr) })
+        box
+      end
+      def boxes_overlap?(a,b)
+        box=a.intersect(b)
+        box.valid? && box.width>1e-6 && box.height>1e-6 && box.depth>1e-6
+      end
+      def collect_targets
+        @targets=[]; @skipped=0
+        return if @cutters.empty? || @preview_error
+        cutter=@cutters.first
+        box=world_bounds(cutter)
+        if @gap>0
+          box=Geom::BoundingBox.new
+          box.add(@expanded.fetch(cutter).flatten(1))
+        end
+        @context.to_a.each do |e|
+          next if e==cutter || !NotchTool.container?(e) || !e.valid?
+          next unless boxes_overlap?(box,world_bounds(e))
+          begin
+            NotchTool.validate!(e)
+            @targets << e
+          rescue StandardError
+            @skipped+=1
+          end
+        end
       end
       def onMouseMove(flags,x,y,view)
         ph=view.pick_helper; ph.do_pick(x,y)
-        @hover=ph.best_picked
-        @hover=nil unless NotchTool.container?(@hover) && @context.include?(@hover)
+        picked=ph.best_picked
+        picked=nil unless NotchTool.container?(picked) && @context.include?(picked)
+        if picked!=@hover
+          @hover=picked
+          @cutters=@hover ? [@hover] : []
+          rebuild
+          collect_targets
+          status
+        end
         view.invalidate
       end
       def onLButtonDown(flags,x,y,view)
         onMouseMove(flags,x,y,view)
         return UI.beep unless @hover
         NotchTool.validate!(@hover)
-        list=@phase==:cutters ? @cutters : @targets
-        other=@phase==:cutters ? @targets : @cutters
-        return UI.beep if other.include?(@hover)
-        shift=(flags & CONSTRAIN_MODIFIER_MASK)!=0
-        if shift
-          list.include?(@hover) ? list.delete(@hover) : list.push(@hover)
-        else
-          list.replace([@hover])
+        @cutters=[@hover]
+        rebuild
+        raise @preview_error if @preview_error
+        collect_targets
+        if @targets.empty?
+          UI.messagebox("Không tìm thấy tấm Solid giao với khuôn trong cấp đang chỉnh sửa. Bỏ qua #{@skipped} khối khóa/không kín.")
+          return
         end
-        rebuild; status; view.invalidate
+        execute
+        @hover=nil; @cutters=[]; @targets=[]; @expanded={}
+        status; view.invalidate
       rescue StandardError=>e
         UI.messagebox(e.message)
       end
@@ -103,18 +140,8 @@ module TranTuanNoiThat
             Sketchup.write_default(PREF,'gap_mm',@gap)
             rebuild
             raise @preview_error if @preview_error
+            collect_targets
           end
-        when 13
-          if @phase==:cutters
-            raise 'Chọn ít nhất một tấm khuôn.' if @cutters.empty?
-            @cutters.each { |e| NotchTool.validate!(e) }
-            raise @preview_error if @preview_error
-            @phase=:targets
-          else
-            execute
-          end
-        when 8
-          @phase=:cutters
         end
         status; view.invalidate
       rescue StandardError=>e
@@ -179,6 +206,15 @@ module TranTuanNoiThat
         box=a.bounds.intersect(b.bounds)
         box.valid? && box.width>1e-6 && box.height>1e-6 && box.depth>1e-6
       end
+      # Native intersection is performed on disposable copies to exclude
+      # disjoint solids whose bounding boxes overlap. Never probe originals.
+      def volume_overlap?(a,b)
+        left=a.copy; right=b.copy
+        intersection=left.intersect(right)
+        intersection && intersection.valid? && intersection.manifold? && intersection.volume>1e-7
+      ensure
+        [intersection,left,right].compact.uniq.each { |e| e.erase! if e.valid? }
+      end
       def execute
         raise 'Chọn ít nhất một tấm bị khấu.' if @targets.empty?
         raise 'Ngữ cảnh model đã thay đổi. Mở lại công cụ.' unless @context==@model.active_entities
@@ -197,7 +233,7 @@ module TranTuanNoiThat
           before=current.volume
           @cutters.each do |cutter|
             tool=cutter_copy(work,cutter)
-            if overlap?(tool,current)
+            if overlap?(tool,current) && volume_overlap?(tool,current)
               result=tool.trim(current)
               raise 'SketchUp không cắt được cặp tấm này (hoặc khuôn phủ hết tấm). Đã hủy toàn bộ lượt.' unless result && result.valid? && result.manifold?
               current=result
@@ -222,7 +258,7 @@ module TranTuanNoiThat
           @model.commit_operation
         end
         started=false
-        UI.messagebox("Đã khấu #{results.length}/#{@targets.length} tấm. Khuôn giữ nguyên. Ctrl+Z hoàn tác cả lượt.")
+        UI.messagebox("Đã khấu #{results.length}/#{@targets.length} tấm. Bỏ qua #{@skipped.to_i} khối khóa/không kín. Khuôn giữ nguyên. Ctrl+Z hoàn tác cả lượt.")
         @targets=[]; @phase=:targets
       rescue StandardError
         @model.abort_operation if started
