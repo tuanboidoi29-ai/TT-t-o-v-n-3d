@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.197",
+  "version": "1.9.198",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Tạo tiếp diện bằng cạnh thật chia Face trong cùng Group/Component của ván. Không tạo Group con, không tạo bản sao _ABF_cuttingLines, không ghi thuộc tính ABF, không khoét sâu. Tiếp diện cũ không tự chuyển đổi. Kiểm tra logic mô phỏng đã đạt; chưa kiểm thử trực tiếp SketchUp/ABF.",
+  "notes": "Gỡ Tạo LED và Tạo Tiếp Diện: bỏ bộ nạp, menu, toolbar, tệp công cụ, icon và mẫu lưu riêng. Mở lại SketchUp sau cập nhật để xóa nút cũ. Không sửa hình học model.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "7513b2d336f6397cc27d3734fda08b7ea83b8c78148fb1b58157f76f9962fa5d"
+      "sha256": "f9367319655d3b80e7bdfac16bac8a27ef61d11288bec47d82376ad321ea3815"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -125,11 +125,6 @@
       "path": "tran_tuan_noi_that/icons/layout_stats.svg",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/icons/layout_stats.svg",
       "sha256": "bfabbb73cc10eb40d3dc8a948ac3a80558b9e9d97d4639868ebc0bd0c2a72ae9"
-    },
-    {
-      "path": "tran_tuan_noi_that/icons/led.svg",
-      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/icons/led.svg",
-      "sha256": "acb15c902f3a06045dc4f3b1b6873870623538d167cdc818093c1b5a88c871e2"
     },
     {
       "path": "tran_tuan_noi_that/icons/main.svg",
@@ -242,11 +237,6 @@
       "sha256": "37ba6924d9f661eedc2bcd1699fd03c2fd452389f31708b959e19a52298d0af8"
     },
     {
-      "path": "tran_tuan_noi_that/led_tool.rb",
-      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/led_tool.rb",
-      "sha256": "d57fe4d2a1beada4f0b790a146ef040ad74b0855a5ebf9f8c786a225c06d38b5"
-    },
-    {
       "path": "tran_tuan_noi_that/rename_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/rename_tool.rb",
       "sha256": "c93fcb6fd3a82e537d578655d38b5f68d310d2fa6f74d0d2d69ba2b211b80d1c"
@@ -324,24 +314,19 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "906e99017a347db0153b45afe4fbcd498fc27a8df7d5066de51ee2b937dd812e"
+      "sha256": "073df4d828234a9a063986669dec5ef3b9c38a243cd6d74e2f882fc09da71a99"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TT_TranTuan_UpdateLoader.rb",
       "sha256": "d873a103796542b0d3ca6ff864f4a9105173f8fa3baafbd8526e7cb65de0de7d"
-    },
-    {
-      "path": "tran_tuan_noi_that/contact_tool.rb",
-      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/contact_tool.rb",
-      "sha256": "412a57312d444b4c7456f6c1b12f67891032bdb19bba9debec1a65f8f1d3cbe7"
-    },
-    {
-      "path": "tran_tuan_noi_that/icons/contact.svg",
-      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/icons/contact.svg",
-      "sha256": "ba9c88b680102b9641fe0ae86f27aed343a1b84558bca8662cac833921dbd796"
     }
   ],
   "stretch_mode_version": "1.0.1",
-  "remove_files": []
+  "remove_files": [
+    "tran_tuan_noi_that/led_tool.rb",
+    "tran_tuan_noi_that/contact_tool.rb",
+    "tran_tuan_noi_that/icons/led.svg",
+    "tran_tuan_noi_that/icons/contact.svg"
+  ]
 }

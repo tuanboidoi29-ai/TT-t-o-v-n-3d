@@ -17,7 +17,7 @@ module TranTuanNoiThat
   }.freeze unless const_defined?(:LOCKED_FEATURE_BASELINES, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.197'.freeze
+  VERSION = '1.9.198'.freeze
 
   class << self
     def setting(key, default = nil)
@@ -99,6 +99,7 @@ module TranTuanNoiThat
     end
 
     def reload_runtime
+      cleanup_retired_led_contact
       if const_defined?(:TamPro, false)
         TamPro.clear_highlight if TamPro.respond_to?(:clear_highlight)
         dialog = TamPro.instance_variable_get(:@dialog_thickness)
@@ -114,8 +115,6 @@ module TranTuanNoiThat
         bao_gia_tool
         scale_corner_lock
         slat_wall_tool
-        led_tool
-        contact_tool
         box_tool
         drawer_tool
         round_tool
@@ -148,6 +147,32 @@ module TranTuanNoiThat
     rescue StandardError => error
       UI.messagebox("Không thể nạp lại hệ thống:\n#{error.message}")
       false
+    end
+
+    def cleanup_retired_led_contact
+      if const_defined?(:LedTool, false) || const_defined?(:ContactTool, false)
+        Sketchup.active_model.select_tool(nil)
+      end
+      [:LedTool, :ContactTool].each do |name|
+        next unless const_defined?(name, false)
+        runtime = const_get(name)
+        dialog = runtime.instance_variable_get(:@dialog)
+        dialog.close if dialog
+        remove_const(name)
+      end
+      [:@led_cmd, :@contact_cmd].each do |key|
+        cmd = instance_variable_get(key)
+        next unless cmd
+        cmd.set_validation_proc { MF_GRAYED }
+        cmd.status_bar_text = 'Đã gỡ công cụ. Mở lại SketchUp để xóa nút cũ.'
+      end
+      %w[led_tool.rb contact_tool.rb icons/led.svg icons/contact.svg].each do |path|
+        FileUtils.rm_f(File.join(ROOT, path))
+      end
+      %w[led_tool contact_tool].each do |folder|
+        FileUtils.rm_rf(File.join(ROOT, 'data', folder))
+      end
+      true
     end
 
     def cleanup_retired_library
@@ -254,8 +279,6 @@ module TranTuanNoiThat
       install_bao_gia_ui
       install_scale_corner_lock_ui
       install_slat_wall_ui
-      install_led_ui
-      install_contact_ui
       install_round_ui
       install_stretch_mode_ui
       install_grain_ui
@@ -378,34 +401,6 @@ module TranTuanNoiThat
         'Hai góc chéo · SHIFT lam đơn/có lót · TAB thông số · chia khổ ván · biên dạng CNC') { SlatWall.activate }
       add_feature_command_once(@slat_wall_cmd, :slat_wall_menu_installed)
       true
-    end
-
-    def install_led_ui
-      return false unless defined?(TranTuanNoiThat::LedTool)
-      @led_cmd ||= command(
-        'Tạo LED',
-        'led.svg',
-        'AUTO rà mặt Group/Component · preview rãnh + ánh sáng · ABF_RANHLED · click tạo ngay'
-      ) { LedTool.activate }
-      add_feature_command_once(@led_cmd, :led_menu_installed)
-      true
-    rescue StandardError => error
-      puts "[TT UI LED] #{error.class}: #{error.message}"
-      false
-    end
-
-    def install_contact_ui
-      return false unless defined?(TranTuanNoiThat::ContactTool)
-      @contact_cmd ||= command(
-        'Tạo Tiếp Diện',
-        'contact.svg',
-        'Chọn mẫu → rà Face Group/Component → preview mô phỏng bám mặt → click tạo ngay vào Face · SHIFT xoay · TAB thư viện'
-      ) { ContactTool.show }
-      add_feature_command_once(@contact_cmd, :contact_menu_installed)
-      true
-    rescue StandardError => error
-      puts "[TT UI Contact] #{error.class}: #{error.message}"
-      false
     end
 
     def install_round_ui
