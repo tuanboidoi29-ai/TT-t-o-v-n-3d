@@ -5,7 +5,7 @@ require 'json'
 module TranTuanNoiThat
   module SlatWall
     extend self
-    VERSION = '1.9.214'.freeze
+    VERSION = '1.9.215'.freeze
     KEY = 'TT_VACH_LAM'.freeze
     MAX_SLATS = 2000
     SNAP_RADIUS = 24.0
@@ -584,19 +584,19 @@ module TranTuanNoiThat
       group.entities.grep(Sketchup::Face)
     end
 
+    # Slats are convex prisms. Their vertex mean lies strictly inside;
+    # a bounding-box center can lie on the diagonal face of a triangular end.
     def shell_center(faces)
-      bounds = Geom::BoundingBox.new
-      faces.each do |face|
-        face.vertices.each { |vertex| bounds.add(vertex.position) }
-      end
-      raise 'Khối không có Face để kiểm tra hướng.' if faces.empty?
-      bounds.center
+      points = faces.flat_map { |face| face.vertices.map(&:position) }
+      raise 'Khối không có Face để kiểm tra hướng.' if points.empty?
+      n = points.length.to_f
+      Geom::Point3d.new(points.sum(&:x) / n, points.sum(&:y) / n, points.sum(&:z) / n)
     end
 
     def face_outward_score(face, center)
-      outward = center.vector_to(face.bounds.center)
-      return 1.0 if outward.length < 1.0e-9
-      face.normal.dot(outward)
+      # Use a point on the actual plane, never the face bounding-box center.
+      point = face.vertices.first.position
+      face.normal.dot(point - center)
     end
 
     def orient_outward_faces(group, material = nil)
