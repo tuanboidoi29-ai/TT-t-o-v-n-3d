@@ -51,7 +51,7 @@ module TranTuanNoiThat
       raise 'Bản sao hình học không kín.' unless g.manifold?
       g
     end
-    def perform(model,target,point,normal,mode)
+    def perform(model,target,point,normal,mode,operation=true)
       raise 'Cắt khối cần SketchUp Pro có Solid Tools.' if Sketchup.respond_to?(:is_pro?) && !Sketchup.is_pro?
       context=model.active_entities
       validate!(target,context)
@@ -61,7 +61,9 @@ module TranTuanNoiThat
       raise 'Mặt phẳng phải nằm bên trong khối, không nằm ngoài hoặc trùng mép.' unless data[:min]<-tolerance && data[:max]>tolerance
       raise 'Chế độ giữ phần không hợp lệ.' unless [:both,:positive,:negative].include?(mode)
       started=false
-      model.start_operation('TRẦN TUẤN - Cắt khối',true);started=true
+      if operation
+        model.start_operation('TRẦN TUẤN - Cắt khối',true);started=true
+      end
       work=context.add_group;es=work.entities
       results=[true,false].map do |positive|
         source=copy_solid(es,target)
@@ -98,7 +100,8 @@ module TranTuanNoiThat
       target.erase!
       model.selection.clear
       made.each { |g| model.selection.add(g) }
-      model.commit_operation;started=false
+      model.commit_operation if operation
+      started=false
       made
     rescue StandardError, NotImplementedError => error
       model.abort_operation if started
@@ -110,25 +113,27 @@ module TranTuanNoiThat
     class Tool
       def activate
         @model=Sketchup.active_model;@context=@model.active_entities
-        @target=nil;@normal=Geom::Vector3d.new(0,0,1);@mode=:both;@down={};@placed=false
+        @targets=[];@normal=Geom::Vector3d.new(0,0,1);@down={};@placed=false
         @ip=Sketchup::InputPoint.new
         selected=@model.selection.to_a.select { |e| CutBlock.container?(e) }
-        select_target(selected.first) if selected.length==1
+        select_targets(selected) unless selected.empty?
         status
       rescue StandardError=>e
-        @target=nil;status(e.message)
+        @targets=[];status(e.message)
       end
       def status(message=nil)
-        label={both:'Giữ hai phần',positive:'Giữ phía +',negative:'Giữ phía -'}[@mode]
-        Sketchup.set_status_text(message || "CẮT KHỐI · #{@target ? 'Rê điểm, click giữ mặt cắt; ENTER cắt' : 'Click chọn khối kín'} · ↑ Z / → X / ← Y · TAB: #{label} · Nhập mm từ tâm",SB_PROMPT)
+        prompt=@targets.empty? ? 'Click hoặc kéo khung quét chọn khối' : 'Rê preview mặt cắt, CLICK CẮT NGAY — giữ cả hai phần'
+        Sketchup.set_status_text(message || "CẮT KHỐI · #{prompt} · ↑ Z / → X / ← Y · TAB đổi trục · Nhập mm từ tâm · ESC chọn lại",SB_PROMPT)
       end
-      def select_target(target)
-        CutBlock.validate!(target,@context)
-        @target=target;@world=@model.edit_transform*target.transformation
-        @points=CutBlock.corners(target,@world)
-        @center=target.definition.bounds.center.transform(@world)
+      def select_targets(targets)
+        raise 'Chưa chọn được khối kín.' if targets.empty?
+        targets=targets.uniq
+        targets.each { |t| CutBlock.validate!(t,@context) }
+        @targets=targets
+        @points=targets.flat_map { |t| CutBlock.corners(t,@model.edit_transform*t.transformation) }
+        @center=Geom::Point3d.new(*3.times.map { |i| values=@points.map { |p| p.to_a[i] };(values.min+values.max)/2.0 })
         @point=@center;@placed=false
-        @model.selection.clear;@model.selection.add(target)
+        @model.selection.clear;targets.each { |t| @model.selection.add(t) }
       end
       def pick(view,x,y)
         ph=view.pick_helper;ph.do_pick(x,y)
@@ -140,52 +145,81 @@ module TranTuanNoiThat
         nil
       end
       def onMouseMove(_flags,x,y,view)
-        return unless @target && !@placed
-        @ip.pick(view,x,y)
-        @point=@ip.position if @ip.valid?
+        if @drag_start
+          @drag_end=[x,y]
+        elsif !@targets.empty? && !@placed
+          @ip.pick(view,x,y)
+          @point=@ip.position if @ip.valid?
+        end
         view.invalidate
       end
       def onLButtonDown(_flags,x,y,view)
-        if @target
-          @ip.pick(view,x,y)
-          @point=@ip.position if @ip.valid?
-          @placed=true
+        if @targets.empty?
+          @drag_start=[x,y];@drag_end=[x,y]
         else
-          select_target(pick(view,x,y))
+          # Cut at the displayed plane; numeric input must not be overwritten.
+          cut_now(view)
         end
-        status;view.invalidate
+        view.invalidate
       rescue StandardError=>e
-        status(e.message)
+        status(e.message);UI.beep
+      end
+      def onLButtonUp(_flags,x,y,view)
+        return unless @drag_start
+        first=@drag_start;@drag_start=nil;@drag_end=nil
+        if Math.hypot(x-first[0],y-first[1])>=5
+          ph=view.pick_helper
+          kind=x>=first[0] ? Sketchup::PickHelper::PICK_INSIDE : Sketchup::PickHelper::PICK_CROSSING
+          ph.window_pick(Geom::Point3d.new(first[0],first[1],0),Geom::Point3d.new(x,y,0),kind)
+          selected=ph.all_picked.select { |e| CutBlock.container?(e) && @context.include?(e) }
+        else
+          selected=[pick(view,x,y)].compact
+        end
+        select_targets(selected);status;view.invalidate
+      rescue StandardError=>e
+        status(e.message);view.invalidate
+      end
+      def cut_now(view)
+        raise 'Cấp chỉnh sửa đã đổi. Thoát công cụ và chọn lại khối.' unless @context==@model.active_entities
+        @targets.each { |t| CutBlock.validate!(t,@context) }
+        crossing=@targets.select do |t|
+          data=CutBlock.plane_data(CutBlock.corners(t,@model.edit_transform*t.transformation),@point,@normal)
+          data[:min]<-0.001/25.4 && data[:max]>0.001/25.4
+        end
+        raise 'Mặt cắt chưa đi qua bên trong khối nào.' if crossing.empty?
+        started=false
+        @model.start_operation('TRẦN TUẤN - Cắt khối giữ hai phần',true);started=true
+        made=crossing.flat_map { |t| CutBlock.perform(@model,t,@point,@normal,:both,false) }
+        @model.selection.clear;made.each { |g| @model.selection.add(g) }
+        @model.commit_operation;started=false
+        @targets=[];@placed=false
+        UI.beep;status('Đã cắt và giữ cả hai phần. Quét chọn khối khác để tiếp tục.');view.invalidate
+      rescue StandardError
+        @model.abort_operation if started
+        raise
       end
       def enableVCB?;true;end
       def onUserText(text,view)
-        raise 'Chọn khối trước khi nhập vị trí cắt.' unless @target
+        raise 'Chọn khối trước khi nhập vị trí cắt.' if @targets.empty?
         value=Float(text.strip.tr(',','.'))
         raise 'Khoảng cách không hợp lệ.' unless value.finite?
         @point=@center.offset(@normal,value/25.4);@placed=true
-        status("Mặt cắt cách tâm #{value} mm · ENTER để cắt");view.invalidate
+        status("Mặt cắt cách tâm #{value} mm · CLICK để cắt, giữ cả hai phần");view.invalidate
       rescue StandardError=>e
         status(e.message)
-      end
-      def settings(view)
-        labels=['Giữ cả hai phần','Giữ phía +','Giữ phía -'];modes=[:both,:positive,:negative]
-        values=UI.inputbox(['Phần giữ lại'],[labels[modes.index(@mode)]],[labels.join('|')],'Cắt khối')
-        @mode=modes[labels.index(values[0])] if values && labels.include?(values[0])
-        @down.clear;status;view.invalidate
       end
       def onKeyDown(key,_repeat,_flags,view)
         return false unless [9,13,37,38,39,88,89,90].include?(key)
         return true if @down[key]
         @down[key]=true
-        case key
-        when 9 then settings(view)
-        when 13
-          return true unless @target
-          raise 'Cấp chỉnh sửa đã đổi. Thoát công cụ và chọn lại khối.' unless @context==@model.active_entities
-          CutBlock.perform(@model,@target,@point,@normal,@mode)
-          @target=nil;@placed=false;UI.beep;status('Đã cắt khối. Click khối khác để tiếp tục. Ctrl+Z hoàn tác.')
+        if key==13
+          cut_now(view) unless @targets.empty?
         else
-          axis=([39,88].include?(key) ? 0 : ([37,89].include?(key) ? 1 : 2))
+          axis=if key==9
+                 (@normal.to_a.index(1)+1)%3
+               else
+                 [39,88].include?(key) ? 0 : ([37,89].include?(key) ? 1 : 2)
+               end
           @normal=Geom::Vector3d.new(*3.times.map { |i| i==axis ? 1 : 0 });status
         end
         view.invalidate;true
@@ -194,30 +228,33 @@ module TranTuanNoiThat
       end
       def onKeyUp(key,*);@down.delete(key);end
       def onCancel(_reason,view)
-        if @placed
-          @placed=false;status
-        elsif @target
-          @target=nil;status
+        if @drag_start
+          @drag_start=nil;@drag_end=nil
+        elsif @placed
+          @placed=false
+        elsif !@targets.empty?
+          @targets=[]
         else
           @model.select_tool(nil)
         end
-        view.invalidate
+        status;view.invalidate
       end
       def resume(view);@down.clear;status;view.invalidate;end
       def deactivate(view);view.invalidate;end
-      def getMenu(menu)
-        menu.add_item('Cài đặt phần giữ lại') { settings(@model.active_view) }
-      end
       def draw(view)
-        return unless @target && @target.valid?
-        data=CutBlock.plane_data(@points,@point,@normal)
-        polygon=CutBlock.quad(data)
-        view.drawing_color=Sketchup::Color.new(255,160,70,65)
-        view.draw(GL_QUADS,polygon)
-        view.drawing_color=Sketchup::Color.new(240,120,20)
-        view.line_width=2;view.line_stipple='-'
-        view.draw(GL_LINE_LOOP,polygon)
-        view.line_stipple=''
+        if @drag_start && @drag_end
+          a,b=@drag_start,@drag_end
+          rect=[[a[0],a[1]],[b[0],a[1]],[b[0],b[1]],[a[0],b[1]]].map { |x,y| Geom::Point3d.new(x,y,0) }
+          view.drawing_color=Sketchup::Color.new(30,140,210)
+          view.line_stipple=b[0]<a[0] ? '-' : '';view.line_width=2
+          view.draw2d(GL_LINE_LOOP,rect);view.line_stipple=''
+          return
+        end
+        return if @targets.empty? || @targets.any? { |t| !t.valid? }
+        data=CutBlock.plane_data(@points,@point,@normal);polygon=CutBlock.quad(data)
+        view.drawing_color=Sketchup::Color.new(255,160,70,65);view.draw(GL_QUADS,polygon)
+        view.drawing_color=Sketchup::Color.new(240,120,20);view.line_width=2;view.line_stipple='-'
+        view.draw(GL_LINE_LOOP,polygon);view.line_stipple=''
         @ip.draw(view) if @ip.valid? && !@placed
       end
     end

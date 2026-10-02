@@ -86,3 +86,43 @@ model=Model.new;target=Solid.new;model.active_entities << target
 begin;C.perform(model,target,Geom::Point3d.new(0,0,10),Z_AXIS,:both);rescue RuntimeError;end
 check(model.events.empty?,'reject outside plane before mutation')
 puts "PASS #{$checks} assertions (native boolean not simulated geometrically)"
+module UI
+ def self.beep;end
+end
+def ready_tool(model,targets)
+ t=C::Tool.new
+ {model:model,context:model.active_entities,targets:targets,point:ORIGIN,normal:Z_AXIS,placed:false,down:{}}.each { |k,v| t.instance_variable_set('@'+k.to_s,v) }
+ t
+end
+view=Object.new;def view.invalidate;end
+model=Model.new;targets=[Solid.new,Solid.new];targets.each { |t| model.active_entities << t }
+tool=ready_tool(model,targets)
+C.answers=[40,60,30,70].map { |v| x=Solid.new;x.vol=v;x }
+tool.onLButtonDown(0,100,100,view)
+check(model.events==[:start,:commit],'click batch uses one operation')
+check(model.selection.length==4,'two selected blocks yield four retained groups')
+check(tool.instance_variable_get(:@targets).empty?,'ready to select next batch')
+model=Model.new;targets=[Solid.new,Solid.new];targets.each { |t| model.active_entities << t }
+tool=ready_tool(model,targets)
+C.answers=[40,60].map { |v| x=Solid.new;x.vol=v;x }+[nil,nil]
+begin;tool.cut_now(view);rescue RuntimeError;end
+check(model.events==[:start,:abort],'second block failure aborts entire batch')
+# Selection mouse-down/up must only select, never cut.
+module Sketchup
+ class PickHelper
+  PICK_INSIDE=0;PICK_CROSSING=1
+ end
+end
+picker=Object.new
+picker.define_singleton_method(:window_pick) { |a,b,kind| @kind=kind }
+picker.define_singleton_method(:all_picked) { targets }
+view.define_singleton_method(:pick_helper) { picker }
+model=Model.new;targets=[Solid.new,Solid.new];targets.each { |t| model.active_entities << t }
+tool=ready_tool(model,[])
+tool.onLButtonDown(0,10,10,view)
+tool.onMouseMove(0,100,100,view)
+tool.onLButtonUp(0,100,100,view)
+check(tool.instance_variable_get(:@targets)==targets,'rectangle selects multiple groups')
+check(picker.instance_variable_get(:@kind)==0,'left-to-right inside selection')
+check(model.events.empty?,'selection release does not cut')
+puts "PASS #{$checks} total assertions"

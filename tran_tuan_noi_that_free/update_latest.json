@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.212",
+  "version": "1.9.213",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Thêm Cắt Khối: chọn Group/Component khối kín, preview mặt cắt, ↑ Z / → X / ← Y; nhập mm từ tâm; TAB giữ hai phần/phía +/phía -; ENTER cắt thật. Kết quả Group riêng giữ tên, tag, vật liệu; một Undo, lỗi hủy thao tác. Cần SketchUp Pro Solid Tools.",
+  "notes": "Cắt Khối: chọn sẵn hoặc kéo khung quét nhiều khối; rê preview rồi CLICK CẮT NGAY, luôn giữ hai phần. Khối không giao mặt cắt giữ nguyên. Một Undo cho cả lượt. Mũi tên/TAB đổi trục, nhập mm đặt mặt cắt từ tâm.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "fc771f3873908f4bb4c33a9234b3de7a9303ba65c1293ba9af465e4cb20de83f"
+      "sha256": "059e3fd3e8b13b240746844b8bd432159f84e3bc26518e6fdae85eee914313d4"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -314,7 +314,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "5ffd688f725f9586baba3f8f2196c599c503f08447da5e092420a3a4b1c39579"
+      "sha256": "34694afeb6db8ce19abf114e6365369b93bc9b2c709f70d49d0112724d906e90"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -359,7 +359,7 @@
     {
       "path": "tran_tuan_noi_that/cut_block.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/cut_block.rb",
-      "sha256": "cef23711c004f1b7509bd4f8205c5c63975bff79ce45f01b335dad435096432c"
+      "sha256": "867152f11af2b3ab01d74e58006d5935db08f7bb7c0638d7421825fc0a5b1279"
     },
     {
       "path": "tran_tuan_noi_that/icons/cut_block.svg",

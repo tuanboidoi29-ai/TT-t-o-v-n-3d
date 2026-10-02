@@ -17,7 +17,7 @@ module TranTuanNoiThat
   }.freeze unless const_defined?(:LOCKED_FEATURE_BASELINES, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.212'.freeze
+  VERSION = '1.9.213'.freeze
 
   class << self
     def setting(key, default = nil)
@@ -442,7 +442,8 @@ module TranTuanNoiThat
 
     def install_cut_block_ui
       return false unless defined?(TranTuanNoiThat::CutBlock)
-      @cut_block_cmd ||= command('Cắt Khối', 'cut_block.svg', 'Chọn khối kín · đặt mặt cắt · mũi tên đổi trục · TAB giữ phần · ENTER cắt thật') { CutBlock.activate }
+      @cut_block_cmd ||= command('Cắt Khối', 'cut_block.svg', 'Quét chọn khối · preview mặt cắt · CLICK cắt ngay, giữ cả hai phần · mũi tên/TAB đổi trục') { CutBlock.activate }
+      @cut_block_cmd.status_bar_text = 'Quét chọn khối · preview mặt cắt · CLICK cắt ngay, giữ cả hai phần · mũi tên/TAB đổi trục'
       add_feature_command_once(@cut_block_cmd, :cut_block_menu_installed)
     end
 
