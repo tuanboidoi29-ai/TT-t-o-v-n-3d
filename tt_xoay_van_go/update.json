@@ -1,8 +1,8 @@
 {
   "name": "TT - Xoay Vân Gỗ",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "channel": "stable",
-  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tt_xoay_van_go/releases/TT_Xoay_Van_Go_v1.2.1.rbz",
-  "sha256": "aaa62ee9d01f097e250f405c2cca883712fbc685344c6367bf3bc17c57a7cf17",
-  "notes": "Sửa UV bị kéo giãn: 100% = đúng khổ ván 1220 x 2440 mm. Khóa tỷ lệ UV mặc định BẬT nên UV Dài/Rộng phóng thu đồng đều, không bóp méo vân. Bù Scale Group/Component khi tính kích thước thật. Gọi plugin mở Cài đặt Khổ Ván/UV trước, không tự xoay và không đổi mode."
+  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tt_xoay_van_go/releases/TT_Xoay_Van_Go_v1.2.2.rbz",
+  "sha256": "bd4dc4c93b26e6dbb6e9cddf230e7a454cad3694411ee51e9c89630adb4df960",
+  "notes": "Sửa lõi nhận hướng vân: Group đúng dạng một tấm dùng trục dài thật của cả tấm; Group/cụm chứa nhiều tấm tự nhận chiều dài riêng từng mặt, không còn ép theo BoundingBox cả tủ. Tự nhận trục U/V theo tỷ lệ ảnh texture; UV 100% vẫn đúng khổ 1220 x 2440 mm."
 }
