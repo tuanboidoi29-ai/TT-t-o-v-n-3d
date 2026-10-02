@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.211",
+  "version": "1.9.212",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Xoay Vân Ván: bỏ chữ trên viewport, giữ mũi tên hướng vân và quy tắc ván đứng/ván nằm.",
+  "notes": "Thêm Cắt Khối: chọn Group/Component khối kín, preview mặt cắt, ↑ Z / → X / ← Y; nhập mm từ tâm; TAB giữ hai phần/phía +/phía -; ENTER cắt thật. Kết quả Group riêng giữ tên, tag, vật liệu; một Undo, lỗi hủy thao tác. Cần SketchUp Pro Solid Tools.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "008fccc8bf3f429c9d3075b0585c8f37e649c101193083c5717a84dc2329e0ab"
+      "sha256": "fc771f3873908f4bb4c33a9234b3de7a9303ba65c1293ba9af465e4cb20de83f"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -314,7 +314,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "7ea791aac2b6a0c5ed42814c6247ff728ce32b5ae5bf5d95d4edf109995b5e71"
+      "sha256": "5ffd688f725f9586baba3f8f2196c599c503f08447da5e092420a3a4b1c39579"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -355,6 +355,16 @@
       "path": "tran_tuan_noi_that/grain_board_auto.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/grain_board_auto.rb",
       "sha256": "0b3729119f6fe65e489af10d916712376f451c9b8bf7e8bcbaf9006bedf315ec"
+    },
+    {
+      "path": "tran_tuan_noi_that/cut_block.rb",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/cut_block.rb",
+      "sha256": "cef23711c004f1b7509bd4f8205c5c63975bff79ce45f01b335dad435096432c"
+    },
+    {
+      "path": "tran_tuan_noi_that/icons/cut_block.svg",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/icons/cut_block.svg",
+      "sha256": "79efb63811cbfce0ebfe432019157d69718100b60823a1788923502c7c22926a"
     }
   ],
   "stretch_mode_version": "1.0.1",

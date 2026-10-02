@@ -17,7 +17,7 @@ module TranTuanNoiThat
   }.freeze unless const_defined?(:LOCKED_FEATURE_BASELINES, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.211'.freeze
+  VERSION = '1.9.212'.freeze
 
   class << self
     def setting(key, default = nil)
@@ -121,6 +121,7 @@ module TranTuanNoiThat
         stretch_mode_tool
         divide_boards
         notch_tool
+        cut_block
         door_open_mark
         grain_tool
         grain_material_fix
@@ -288,6 +289,7 @@ module TranTuanNoiThat
       install_grain_ui
       install_door_open_mark_ui
       install_notch_ui
+      install_cut_block_ui
       install_divide_boards_ui
       install_layout_stats_ui
       install_dimensions_ui
@@ -436,6 +438,12 @@ module TranTuanNoiThat
       return false unless defined?(TranTuanNoiThat::DivideBoards)
       @divide_boards_cmd ||= command('Chia ván lọt lòng', 'divide_boards.svg', 'Chọn Face tấm mẫu; kéo hướng; /N chia đều khe; TAB mép/tâm/mép; click hoặc ENTER tạo.') { DivideBoards.activate }
       add_feature_command_once(@divide_boards_cmd, :divide_boards_menu_installed)
+    end
+
+    def install_cut_block_ui
+      return false unless defined?(TranTuanNoiThat::CutBlock)
+      @cut_block_cmd ||= command('Cắt Khối', 'cut_block.svg', 'Chọn khối kín · đặt mặt cắt · mũi tên đổi trục · TAB giữ phần · ENTER cắt thật') { CutBlock.activate }
+      add_feature_command_once(@cut_block_cmd, :cut_block_menu_installed)
     end
 
     def install_notch_ui
