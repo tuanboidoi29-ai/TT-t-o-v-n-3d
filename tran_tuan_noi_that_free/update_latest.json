@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.207",
+  "version": "1.9.208",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Tinh chỉnh Khấu: xóa preview cũ khi đổi tấm/vai trò; đóng cài đặt chưa lưu trả thông số cũ, lưu giữ đúng giá trị; chặn click khi đang chỉnh thông số. Khử góc đã ghi nhận ở chế độ tấm bị khấu không cần khuôn còn bên cạnh. Lọc dữ liệu góc không hợp lệ. Giữ click cắt ngay, SHIFT đổi vai trò, TAB cài đặt, thành công chỉ beep. Đã kiểm tra mô phỏng; chưa thử trực tiếp Windows.",
+  "notes": "Khấu ván: hiện chữ lớn trong viewport cho vai trò SHIFT (TẤM KHUÔN — GIỮ NGUYÊN / TẤM BỊ KHẤU). Tấm bị khấu preview hồng nhạt; khuôn xanh nhạt, dogbone đỏ. Chỉ đổi hiển thị, không đổi vật liệu thật.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "d56a810d5ed0bbd566fd413d802c7c59ae9182380795101ae9e184f877240eaa"
+      "sha256": "c9e732519fa7d026051298dd88ec44beef4d0f3bba2d9567b91f10e868cd7f9c"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -314,7 +314,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "7ed857c49993ea034ca44c345c8758579a5bb1a8b55d582368b4fa38a3bfa025"
+      "sha256": "8902c059db9d95a9a6d3112a800aae8b17ed2d6d449445bdfeb3ba0e0492eb7a"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -334,7 +334,7 @@
     {
       "path": "tran_tuan_noi_that/notch_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/notch_tool.rb",
-      "sha256": "c79983f5f40b61ee1ba58286a5c104b221eb39cead7c44a593300398c5834573"
+      "sha256": "52e3d1a2ba99a4f88b2e0e798720f62529a68797db4281e1bd6af66838b02f2d"
     },
     {
       "path": "tran_tuan_noi_that/icons/notch.svg",

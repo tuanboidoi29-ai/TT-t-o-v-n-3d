@@ -296,8 +296,11 @@ module TranTuanNoiThat
         view.draw(GL_LINES,lines) unless lines.empty?
       end
       def draw(view)
+        label=@role==:cutter ? 'TẤM KHUÔN — GIỮ NGUYÊN' : 'TẤM BỊ KHẤU'
+        view.draw_text(Geom::Point3d.new(24,32,0),label,size:20,bold:true,color:Sketchup::Color.new(35,45,65))
+        view.draw_text(Geom::Point3d.new(24,64,0),'SHIFT: đổi vai trò · Click: khấu · TAB: cài đặt',size:13,color:Sketchup::Color.new(70,80,95))
         @cutters.each { |e| draw_entity(view,e,Sketchup::Color.new(95,215,255,110)) }
-        @targets.each { |e| draw_entity(view,e,Sketchup::Color.new(15,65,190,155)) }
+        @targets.each { |e| draw_entity(view,e,Sketchup::Color.new(255,182,200,145)) }
         view.drawing_color=Sketchup::Color.new(65,190,255)
         view.line_width=2; view.line_stipple='-'
         @expanded.each_value do |faces|
