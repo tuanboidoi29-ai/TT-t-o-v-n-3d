@@ -1,8 +1,8 @@
 {
   "name": "TT - Xoay Vân Gỗ",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "channel": "stable",
-  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tt_xoay_van_go/releases/TT_Xoay_Van_Go_v1.1.1.rbz",
-  "sha256": "62513ce9e267a2d3a48e76fc4fed3d5a8c6da02e3d19062e763ba12d9563d609",
-  "notes": "TAB nhanh đổi TỰ ĐỘNG ↔ THỦ CÔNG và hiện text lớn trên viewport khoảng 1.25 giây. Giữ TAB 3 giây vẫn mở Cài đặt Kho Ván và không đổi mode."
+  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tt_xoay_van_go/releases/TT_Xoay_Van_Go_v1.2.0.rbz",
+  "sha256": "1f03947de8d7b996a6985084bd5ab0b3ef97a6e6ee51cd1f9e157aa8c1ca85f8",
+  "notes": "Gọi plugin chỉ mở Cài đặt Khổ Ván/UV, không tự xoay và không đổi mode. TAB nhanh đổi TỰ ĐỘNG ↔ THỦ CÔNG. UV chuẩn theo khổ ván nguyên, mặc định 2440×1220 mm; có trục vân U/V, tỷ lệ Dài/Rộng và offset mm riêng."
 }
