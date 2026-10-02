@@ -1,8 +1,8 @@
 {
   "name": "TT - Xoay Vân Gỗ",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "channel": "stable",
-  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tt_xoay_van_go/releases/TT_Xoay_Van_Go_v1.2.0.rbz",
-  "sha256": "1f03947de8d7b996a6985084bd5ab0b3ef97a6e6ee51cd1f9e157aa8c1ca85f8",
-  "notes": "Gọi plugin chỉ mở Cài đặt Khổ Ván/UV, không tự xoay và không đổi mode. TAB nhanh đổi TỰ ĐỘNG ↔ THỦ CÔNG. UV chuẩn theo khổ ván nguyên, mặc định 2440×1220 mm; có trục vân U/V, tỷ lệ Dài/Rộng và offset mm riêng."
+  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tt_xoay_van_go/releases/TT_Xoay_Van_Go_v1.2.1.rbz",
+  "sha256": "aaa62ee9d01f097e250f405c2cca883712fbc685344c6367bf3bc17c57a7cf17",
+  "notes": "Sửa UV bị kéo giãn: 100% = đúng khổ ván 1220 x 2440 mm. Khóa tỷ lệ UV mặc định BẬT nên UV Dài/Rộng phóng thu đồng đều, không bóp méo vân. Bù Scale Group/Component khi tính kích thước thật. Gọi plugin mở Cài đặt Khổ Ván/UV trước, không tự xoay và không đổi mode."
 }
