@@ -31,6 +31,13 @@ module TranTuanNoiThat
         {g:canonical(g), c:canonical(c), n:normal, length:l, width:s, area:a*b}
       end
       best=candidates.min_by { |f| [f[:area].round(7),-f[:g][2].abs] }
+      # Upright boards use model Z even when the horizontal span is longer.
+      # Horizontal/inclined boards keep the fitted longest outline direction.
+      if normal[2].abs <= 0.0174524064
+        up=unit(sub([0.0,0.0,1.0],normal.map { |v| v*normal[2] }))
+        across=canonical(unit(cross(normal,up)))
+        best=best.merge(g:up,c:across,length:span(points,up),width:span(points,across))
+      end
       best[:origin]=points.first
       best
     end
@@ -253,7 +260,7 @@ module TranTuanNoiThat
         @busy=false; view.invalidate
       end
       def draw(view)
-        view.draw_text(Geom::Point3d.new(20,25,0),@manual ? 'THỦ CÔNG · Click xoay 90°' : 'TỰ ĐỘNG · Theo chiều dài từng tấm',size:17,bold:true)
+        view.draw_text(Geom::Point3d.new(20,25,0),@manual ? 'THỦ CÔNG · Click xoay 90°' : 'TỰ ĐỘNG · Ván đứng: vân đứng · Ván nằm: theo chiều dài',size:17,bold:true)
         view.drawing_color=Sketchup::Color.new(255,150,50)
         view.line_width=3
         @preview.each do |plan|

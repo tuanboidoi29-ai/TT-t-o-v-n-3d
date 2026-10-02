@@ -106,4 +106,11 @@ h.fail=true;model.events.clear;tool.apply([target],view);check(model.events==[:s
 model.selection=[target];tool.scan(view);model.active_entities=[];model.events.clear;tool.onKeyDown(13,1,0,view);check(model.events.empty?,'changed context blocks stale apply')
 load File.expand_path('../../files/tran_tuan_noi_that/grain_board_auto.rb',__dir__)
 check(TranTuanNoiThat::Grain.method(:activate).source_location.first.end_with?('grain_board_auto.rb'),'suite entry calls new tool')
+wide_upright=[[0,0,0],[80,0,0],[80,0,12],[0,0,12]]
+wide=G.frame(wide_upright)
+check(wide[:g][2]>0.999 && near(wide[:length],12),'wide upright board uses vertical grain')
+flat=G.frame([[0,0,0],[12,0,0],[12,80,0],[0,80,0]])
+check(flat[:g][1].abs>0.999 && near(flat[:length],80),'flat board uses true long direction')
+rotated=wide_upright.map { |x,y,z| [x*0.6,x*0.8,z] }
+check(G.frame(rotated)[:g][2]>0.999,'rotated upright still vertical')
 puts "PASS #{$checks} assertions"
