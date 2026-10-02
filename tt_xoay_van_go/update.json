@@ -1,8 +1,8 @@
 {
   "name": "TT - Xoay Vân Gỗ",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "channel": "stable",
-  "rbz_url": "",
-  "sha256": "",
-  "notes": "Auto theo khổ Dài × Rộng × Dày thực tế; TAB đổi Tự động/Thủ công; giữ TAB 3 giây mở Cài đặt Kho Ván; đồng bộ UV để giảm lệch và gằn vân."
+  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tt_xoay_van_go/releases/TT_Xoay_Van_Go_v1.1.1.rbz",
+  "sha256": "62513ce9e267a2d3a48e76fc4fed3d5a8c6da02e3d19062e763ba12d9563d609",
+  "notes": "TAB nhanh đổi TỰ ĐỘNG ↔ THỦ CÔNG và hiện text lớn trên viewport khoảng 1.25 giây. Giữ TAB 3 giây vẫn mở Cài đặt Kho Ván và không đổi mode."
 }
