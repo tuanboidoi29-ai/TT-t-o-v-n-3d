@@ -9,15 +9,16 @@ require 'base64'
 module TranTuanNoiThat
   ROOT = __dir__.freeze unless const_defined?(:ROOT, false)
   NAME = 'TRẦN TUẤN NỘI THẤT'.freeze unless const_defined?(:NAME, false)
+  remove_const(:LOCKED_FEATURE_BASELINES) if const_defined?(:LOCKED_FEATURE_BASELINES, false)
   LOCKED_FEATURE_BASELINES = {
     'slat_wall_tool.rb' => {
-      version: '1.9.168',
-      sha256: '37fbffe45ba2ae5cbe7b3f4c62cc554c3588b81f29d1669243afaad0fce886cd'
+      version: '1.9.214',
+      sha256: '6ce3d021fd5dff0be38e70718a1ccc0b28df8f50d49d4554558f1aae43fd8f61'
     }
   }.freeze unless const_defined?(:LOCKED_FEATURE_BASELINES, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.213'.freeze
+  VERSION = '1.9.214'.freeze
 
   class << self
     def setting(key, default = nil)
@@ -407,7 +408,8 @@ module TranTuanNoiThat
     def install_slat_wall_ui
       return false unless defined?(TranTuanNoiThat::SlatWall)
       @slat_wall_cmd ||= command('Tạo Vách Lam', 'slat_wall.svg',
-        'Hai góc chéo · SHIFT lam đơn/có lót · TAB thông số · chia khổ ván · biên dạng CNC') { SlatWall.activate }
+        'Bắt Face hoặc hai góc · Preview lam · TAB thông số · SHIFT đổi hướng') { SlatWall.activate }
+      @slat_wall_cmd.status_bar_text = 'Bắt Face hoặc hai góc · Preview lam · TAB thông số · SHIFT đổi hướng'
       add_feature_command_once(@slat_wall_cmd, :slat_wall_menu_installed)
       true
     end

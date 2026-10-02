@@ -5,7 +5,7 @@ require 'json'
 module TranTuanNoiThat
   module SlatWall
     extend self
-    VERSION = '1.9.168'.freeze
+    VERSION = '1.9.214'.freeze
     KEY = 'TT_VACH_LAM'.freeze
     MAX_SLATS = 2000
     SNAP_RADIUS = 24.0
@@ -16,7 +16,7 @@ module TranTuanNoiThat
     DEFAULTS = {
       'mode' => 'single', 'stock_length' => 2440.0, 'stock_width' => 1220.0,
       'stock_thickness' => 17.5, 'width' => 40.0, 'depth' => 17.5,
-      'orientation' => 'vertical', 'spacing_mode' => 'auto', 'gap' => 40.0, 'count' => 10,
+      'orientation' => 'vertical', 'spacing_mode' => 'manual', 'gap' => 40.0, 'count' => 10,
       'left' => 0.0, 'right' => 0.0, 'top' => 0.0, 'bottom' => 0.0,
       'backing' => 17.5, 'recess' => 0.0, 'cnc' => false, 'tag' => 'ABF_HANENLAMAM'
     }.freeze
@@ -24,6 +24,9 @@ module TranTuanNoiThat
     def validate(raw)
       raw = {} unless raw.is_a?(Hash)
       o = DEFAULTS.merge(raw.select { |k, _| DEFAULTS.key?(k) })
+      # Retired stock/backing settings cannot constrain or create new slats.
+      %w[stock_length stock_width stock_thickness backing recess cnc tag].each { |key| o[key] = DEFAULTS[key] }
+      o['mode'] = 'single'
       %w[stock_length stock_width stock_thickness width depth gap left right top bottom backing recess].each do |key|
         o[key] = Float(o[key].to_s.tr(',', '.'))
         raise 'Thông số phải là số hữu hạn.' unless o[key].finite?
@@ -36,7 +39,6 @@ module TranTuanNoiThat
       %w[stock_length stock_width stock_thickness width depth backing].each do |key|
         raise 'Khổ ván, rộng/dày lam và dày lót phải lớn hơn 0.' unless o[key] >= 0.1
       end
-      raise 'Rộng lam lớn hơn rộng khổ ván.' if o['width'] > o['stock_width']
       raise 'Chế độ không hợp lệ.' unless %w[single backed].include?(o['mode'])
       raise 'Hướng lam không hợp lệ.' unless SLAT_ORIENTATIONS.include?(o['orientation'])
       raise 'Chế độ khoảng cách không hợp lệ.' unless %w[manual auto count].include?(o['spacing_mode'])
@@ -324,12 +326,20 @@ module TranTuanNoiThat
       height = ys.max - ys.min
       raise 'Face quá nhỏ để tạo nan.' if width <= 0.1 || height <= 0.1
 
+      poly = clip_polygon_boundary(poly,0,xs.min+o['left'],true)
+      poly = clip_polygon_boundary(poly,0,xs.max-o['right'],false)
+      poly = clip_polygon_boundary(poly,1,ys.min+o['bottom'],true)
+      poly = clip_polygon_boundary(poly,1,ys.max-o['top'],false)
+      poly = normalize_polygon_2d(poly)
+      raise 'Khoảng cách mép làm hết vùng đặt lam.' if poly.length < 3 || polygon_area_2d(poly).abs < 0.01
+
       dx,dy,nx,ny = slat_direction_vectors(o['orientation'])
       projections = poly.map { |x,y| x*nx + y*ny }
       pmin = projections.min
       pmax = projections.max
       run = pmax - pmin
-      count, gap, extra = diagonal_spacing_values(run, o)
+      count, gap, extra = %w[vertical horizontal].include?(o['orientation']) ? spacing_values(run,o) : diagonal_spacing_values(run,o)
+      raise 'Quá nhiều lam. Tăng khe hoặc chiều rộng lam.' if count > MAX_SLATS
       half = o['width'] / 2.0
       first_center = pmin + extra + half
 
@@ -371,8 +381,8 @@ module TranTuanNoiThat
       o = validate(options)
       w, h = width.to_f, height.to_f
       raise 'Kéo hai góc chéo để tạo vùng có rộng/cao lớn hơn 0.' unless w.finite? && h.finite? && w > 0.1 && h > 0.1
-      cols = (w / o['stock_width']).ceil
-      rows = (h / o['stock_length']).ceil
+      cols = 1
+      rows = 1
       raise 'Vùng quá lớn: tối đa 200 tấm trong một lần tạo.' if cols * rows > 200
       pw, ph = w / cols, h / rows
       usable_w = pw - o['left'] - o['right']
@@ -477,9 +487,11 @@ module TranTuanNoiThat
           @dialog.execute_script("showError(#{JSON.generate(e.message)});") if @dialog
         end
       end
-      @dialog.add_action_callback('repair_abf') { |_ctx| repair_selected_backings }
       @dialog.add_action_callback('apply_edit') { |_ctx| @tool.apply_selected_edit if @tool }
-      @dialog.set_on_closed { @dialog = nil }
+      @dialog.set_on_closed do
+        @dialog = nil
+        @tool.instance_variable_set(:@tab_down,false) if @tool
+      end
       @dialog.show
     end
 
@@ -489,32 +501,27 @@ module TranTuanNoiThat
     end
 
     def settings_html
-      fields = [['stock_length','Dài khổ ván'],['stock_width','Rộng khổ ván'],['stock_thickness','Dày khổ ván'],
-                ['width','Chiều rộng nan'],['depth','Chiều dày nan'],['gap','Khe nan / khe dự kiến'],
+      fields = [['width','Chiều rộng nan'],['depth','Chiều dày nan'],['gap','Khe nan / khe dự kiến'],
                 ['left','Cách trái'],['right','Cách phải'],['top','Cách trên'],['bottom','Cách dưới']]
       inputs = fields.map { |key, label| "<label>#{label}<span><input id='#{key}' type='number' min='0' step='0.1'> mm</span></label>" }.join
       <<~HTML
         <!doctype html><html lang="vi"><meta charset="utf-8"><style>
         *{box-sizing:border-box}body{font:14px Arial;margin:0;background:#f4f5f7;color:#202a34}header{padding:17px;background:#223d50;color:white}h2{font-size:18px;margin:0 0 6px}main{padding:14px}section{background:white;padding:14px;border-radius:8px;margin-bottom:12px}label{display:flex;justify-content:space-between;align-items:center;margin:8px 0;gap:10px}input[type=number]{width:105px}input,select{padding:7px;border:1px solid #bbc6cc;border-radius:4px}select{max-width:245px}button{width:100%;padding:12px;background:#c4752a;color:white;border:0;border-radius:5px;font-weight:bold;cursor:pointer}small{display:block;color:#647380;line-height:1.5}canvas{width:100%;height:170px;background:#eef1f4;border-radius:5px}#error{color:#b12828;white-space:pre-line}#info{font-size:12px;line-height:1.5;margin:8px 0}.backed,.counted{display:none}.edit button{background:#27784a}
-        </style><header><h2>TRẦN TUẤN · TẠO VÁCH LAM</h2>AUTO Face trong Group/Component · SHIFT xoay nan · TAB mở Cài đặt · vùng trống vẫn dùng P1-P2</header><main>
-        <section><label>Chế độ<select id="mode" onchange="visibility()"><option value="single">Vách lam đơn</option><option value="backed">Vách lam có tấm lót</option></select></label>
+        </style><header><h2>TRẦN TUẤN · TẠO VÁCH LAM</h2>AUTO Face ngoài model hoặc trong Group/Component · SHIFT xoay nan · TAB mở Cài đặt · vùng trống vẫn dùng P1-P2</header><main>
+        <section>
         <label>Hướng nan<select id="orientation"><option value="vertical">Nan dọc</option><option value="horizontal">Nan ngang</option><option value="diag_right">Chéo phải 45°</option><option value="diag_left">Chéo trái 45°</option></select></label>
         #{inputs}
         <label>Kiểu chia<select id="spacing_mode" onchange="visibility()"><option value="manual">Giữ đúng khe + căn giữa</option><option value="auto">Tự động chia đều khe</option><option value="count">Theo số lượng nan</option></select></label>
         <label class="counted">Số lượng nan / cụm<span><input id="count" type="number" min="1" max="#{MAX_SLATS}" step="1"></span></label>
-        <small>Chiều dài nan bám đúng vùng kéo. Nếu vượt khổ ván, vùng tự chia thành các cụm VL. Mép trái/phải/trên/dưới áp dụng cho từng cụm. Chế độ số lượng tự tính khe để phủ đều vùng còn lại.</small></section>
-        <section class="backed"><label>Độ dày tấm lót<span><input id="backing" type="number" min="0.1" step="0.1"> mm</span></label>
-        <label>Hạ âm<span><input id="recess" type="number" min="0" step="0.1"> mm</span></label>
-        <label>Bật CNC<input id="cnc" type="checkbox"></label><label>Tên công đoạn CNC<input id="tag" type="text" style="width:240px"></label>
-        <small><b>ASPIRE:</b> Mỗi lam tạo một vùng gia công <b>TAM_LOT → _ABF_Intersect</b> gồm 1 Face + 4 Edge, gắn Tag công đoạn (mặc định ABF_HANENLAMAM). Face tấm lót được đánh dấu ABF/is-cnced-face. Không dùng _ABF_cuttingLines để mô tả rãnh lam nữa.</small></section>
+        <small>Thanh lam chạy liền theo vùng đặt, không chia theo khổ ván. Các mép áp dụng cho toàn vùng. Giữ đúng khe: dùng đúng số mm đã nhập; chia đều hoặc số lượng: tự tính khe thực tế hiển thị dưới preview.</small></section>
         <button onclick="apply()">CẬP NHẬT PREVIEW</button>
         <p id="editBox" class="edit" style="display:none"><button onclick="sketchup.apply_edit()">ÁP DỤNG VÀO VÁCH ĐÃ CHỌN</button></p>
-        <p><button onclick="sketchup.repair_abf()">SỬA TẤM LÓT ABF ĐÃ CHỌN</button></p><p id="error"></p>
-        <section><canvas id="preview" width="420" height="170"></canvas><div id="info"></div><small><b>AUTO:</b> rê vào Face nằm trong Group/Component → preview nan xuất hiện ngay → click 1 lần để tạo. Face rời ngoài model không nhận. Nếu rê vùng trống, vẫn dùng P1 → P2. TAB mở Cài đặt; SHIFT xoay nan.</small></section></main>
+        <p id="error"></p>
+        <section><canvas id="preview" width="420" height="170"></canvas><div id="info"></div><small><b>AUTO:</b> rê vào mặt Face ngoài model hoặc trong Group/Component → preview nan xuất hiện ngay → click 1 lần để tạo. Bắt được mặt Face rời và Face trong khối. Nếu rê vùng trống, vẫn dùng P1 → P2. TAB mở Cài đặt; SHIFT xoay nan.</small></section></main>
         <script>
         const keys=#{JSON.generate(DEFAULTS.keys)};
-        function visibility(){document.querySelectorAll('.backed').forEach(e=>e.style.display=document.getElementById('mode').value==='backed'?'block':'none');document.querySelectorAll('.counted').forEach(e=>e.style.display=document.getElementById('spacing_mode').value==='count'?'flex':'none')}
-        function apply(){const o={};keys.forEach(k=>{let e=document.getElementById(k);o[k]=e.type==='checkbox'?e.checked:(e.type==='number'?Number(e.value):e.value)});sketchup.update(JSON.stringify(o))}
+        function visibility(){document.querySelectorAll('.counted').forEach(e=>e.style.display=document.getElementById('spacing_mode').value==='count'?'flex':'none')}
+        function apply(){const o={};keys.forEach(k=>{let e=document.getElementById(k);if(!e)return;o[k]=e.type==='checkbox'?e.checked:(e.type==='number'?Number(e.value):e.value)});sketchup.update(JSON.stringify(o))}
         function showError(s){document.getElementById('error').textContent=s}
         function receive(s){keys.forEach(k=>{let e=document.getElementById(k);if(!e)return;if(e.type==='checkbox')e.checked=s.options[k];else e.value=s.options[k]});visibility();document.getElementById('editBox').style.display=s.editing?'block':'none';showError(s.error||'');const c=document.getElementById('preview'),ctx=c.getContext('2d');ctx.clearRect(0,0,c.width,c.height);const d=s.layout;if(!d)return;let scale=Math.min(392/d.width,142/d.height),ox=(420-d.width*scale)/2,oy=(170-d.height*scale)/2;d.panels.forEach(p=>{if(p.backing){ctx.fillStyle='#b1bac2';ctx.fillRect(ox+p.x*scale,oy+p.y*scale,p.width*scale,p.height*scale)}p.slats.forEach((b,i)=>{ctx.fillStyle='#c58e57';let poly=p.slat_polygons&&p.slat_polygons[i];if(poly){ctx.beginPath();poly.forEach((pt,j)=>{let X=ox+pt[0]*scale,Y=oy+pt[1]*scale;j?ctx.lineTo(X,Y):ctx.moveTo(X,Y)});ctx.closePath();ctx.fill()}else{ctx.fillRect(ox+b[0]*scale,oy+b[1]*scale,Math.max(1,b[3]*scale),Math.max(1,b[4]*scale))}});ctx.strokeStyle='#5c707d';ctx.strokeRect(ox+p.x*scale,oy+p.y*scale,p.width*scale,p.height*scale)});document.getElementById('info').textContent=(s.editing?'Vách đang chọn · ':(s.sample?'Mô phỏng mẫu · ':'Vùng đang vẽ · '))+d.width.toFixed(1)+' × '+d.height.toFixed(1)+' mm · '+({vertical:'nan dọc',horizontal:'nan ngang',diag_right:'chéo phải 45°',diag_left:'chéo trái 45°'}[d.orientation]||d.orientation)+' · '+d.panels.length+' cụm VL · '+d.slat_count+' nan · khe '+d.gap.toFixed(2)+' mm'}
         window.addEventListener('load',()=>sketchup.ready());
@@ -906,17 +913,11 @@ module TranTuanNoiThat
       parent.set_attribute(KEY, 'first_vl', first_number)
 
       wood = material(model, 'TT Vách lam - Gỗ', [190,140,88])
-      backmat = material(model, 'TT Vách lam - Tấm lót', [160,166,174])
-      profile_enabled = o['mode'] == 'backed'
-      operation_tag = profile_enabled ? ensure_tag(model, o['tag']) : nil
-
       plan[:panels].each_with_index do |panel, index|
         vl = parent.entities.add_group
         vl.name = "VL#{first_number + index}"
         vl.layer = parent_tag
         vl.set_attribute(KEY, 'role', 'panel')
-        vl.set_attribute(KEY, 'stock_mm', [o['stock_length'],o['stock_width'],o['stock_thickness']])
-        backing = panel[:backing] ? make_box(vl.entities, panel[:backing], "#{vl.name}_TAM_LOT", backmat) : nil
 
         panel[:slats].each_with_index do |box, slat_index|
           polygon = panel[:slat_polygons] && panel[:slat_polygons][slat_index]
@@ -929,33 +930,6 @@ module TranTuanNoiThat
             slat.set_attribute(KEY, 'size_mm', [box[3],box[4],box[5]])
           end
           slat.set_attribute(KEY, 'role', 'slat')
-          next unless backing && profile_enabled
-          face_z = backing_front_z(backing)
-          if polygon
-            pts = polygon.map { |a,b| Geom::Point3d.new(a.mm,b.mm,face_z) }
-          else
-            x,y,_z,w,h,_d = box
-            pts = [[x,y],[x+w,y],[x+w,y+h],[x,y+h]].map { |a,b| Geom::Point3d.new(a.mm,b.mm,face_z) }
-          end
-          depth = o['cnc'] ? o['recess'] : 0.0
-          add_abf_intersect_profile(backing, pts, slat_index + 1, o['tag'], depth, slat)
-        end
-
-        if backing
-          backing.layer = model.layers[0]
-          backing.set_attribute('ABF', 'is-board', true)
-          backing.set_attribute('TRẦN TUẤN NỘI THẤT', 'do_day_mm', o['backing'])
-          backing.set_attribute('TRẦN TUẤN NỘI THẤT', 'loai', 'VAN')
-          backing.set_attribute('TRẦN TUẤN NỘI THẤT', 'chi_tiet', 'TAM_LOT_VACH_LAM')
-          backing.set_attribute(KEY, 'role', 'backing')
-          backing.set_attribute(KEY, 'size_mm', [panel[:width], panel[:height], o['backing']])
-          backing.set_attribute(KEY, 'profile_count', profile_enabled ? panel[:slats].length : 0)
-          backing.set_attribute(KEY, 'depth_mm', o['cnc'] ? o['recess'] : 0.0)
-          backing.set_attribute(KEY, 'cnc_tag', o['tag']) if profile_enabled
-          backing.set_attribute(KEY, 'operation_tag', o['tag']) if profile_enabled
-          backing.set_attribute(KEY, 'profiles_source', 'slats')
-          expected_profiles = profile_enabled ? panel[:slats].length : 0
-          enforce_backing_integrity(backing, expected_profiles)
         end
       end
       parent
@@ -1255,7 +1229,7 @@ module TranTuanNoiThat
         @auto_face_detected = false
       end
       def status
-        mode = @options['mode'] == 'backed' ? 'CÓ TẤM LÓT' : 'LAM ĐƠN'
+        mode = 'LAM ĐƠN'
         direction = {
           'vertical'=>'NAN DỌC','horizontal'=>'NAN NGANG',
           'diag_right'=>'NAN CHÉO PHẢI 45°','diag_left'=>'NAN CHÉO TRÁI 45°'
@@ -1267,7 +1241,7 @@ module TranTuanNoiThat
         elsif @p1
           'P1 CỐ ĐỊNH · bắt P2'
         else
-          'AUTO · rê Face trong Group/Component; vùng trống dùng P1-P2'
+          'AUTO · rê mặt Face; vùng trống chọn P1-P2'
         end
         Sketchup.status_text = "TT VÁCH LAM · #{mode} · #{direction} · #{action} · SHIFT XOAY NAN · TAB CÀI ĐẶT · SNAP ENDPOINT 24px · ESC hủy"
       end
@@ -1335,12 +1309,12 @@ module TranTuanNoiThat
 
       def onKeyDown(key, repeat, _flags, view)
         if key == 16
-          return true if @shift_down || repeat.to_i > 1
+          return true if @shift_down
           @shift_down = true
           cycle_slat_orientation(view)
           true
         elsif key == 9
-          return true if @tab_down || repeat.to_i > 1
+          return true if @tab_down
           @tab_down = true
           SlatWall.show_settings(self)
           status
@@ -1503,7 +1477,7 @@ module TranTuanNoiThat
       end
 
       def face_auto_geometry(face, transform, view)
-        raise 'AUTO chỉ nhận Face nằm trong Group hoặc Component.' unless grouped_component_face?(face)
+        raise 'Không nhận được mặt Face hợp lệ.' unless face && face.valid?
         if face.respond_to?(:loops) && face.loops.length > 1
           raise 'AUTO Face chưa nhận biên dạng có lỗ bên trong.'
         end
@@ -1552,7 +1526,7 @@ module TranTuanNoiThat
       def detect_auto_face(view,x,y)
         @ip.pick(view,x,y)
         face = @ip.respond_to?(:face) ? @ip.face : nil
-        unless face && grouped_component_face?(face)
+        unless face && face.valid?
           @auto_face = nil
           @auto_face_transform = nil
           @auto_face_key = nil
@@ -1771,6 +1745,7 @@ module TranTuanNoiThat
         view.invalidate
       end
       def onLButtonDown(_flags,x,y,view)
+        detect_auto_face(view,x,y) unless @p1
         if !@p1 && @auto_face_detected
           return UI.beep unless @plan && @draw_transform
           commit(view)
