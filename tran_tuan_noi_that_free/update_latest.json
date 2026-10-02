@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.210",
+  "version": "1.9.211",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Xoay Vân Ván: ván đứng luôn vân đứng theo trục Z, kể cả tấm ngang rộng hơn chiều cao; ván nằm theo chiều dài thật. Giữ UV 1220x2440 mm và TAB Tự động/Thủ công.",
+  "notes": "Xoay Vân Ván: bỏ chữ trên viewport, giữ mũi tên hướng vân và quy tắc ván đứng/ván nằm.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "95583d772ce25d6c3be9f7de34199a46cc5dd17ef4e1a108db258201198f46a5"
+      "sha256": "008fccc8bf3f429c9d3075b0585c8f37e649c101193083c5717a84dc2329e0ab"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -314,7 +314,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "8dd7cf4196e90b919d17c5fc7bce74998c2c6f98eaf1563e1b1cb77c1a15461a"
+      "sha256": "7ea791aac2b6a0c5ed42814c6247ff728ce32b5ae5bf5d95d4edf109995b5e71"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -354,7 +354,7 @@
     {
       "path": "tran_tuan_noi_that/grain_board_auto.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/grain_board_auto.rb",
-      "sha256": "b328b5c8a7995e21f7ad3276fb6decfb0a20310e13595e459dcdcf3c8c134d4c"
+      "sha256": "0b3729119f6fe65e489af10d916712376f451c9b8bf7e8bcbaf9006bedf315ec"
     }
   ],
   "stretch_mode_version": "1.0.1",

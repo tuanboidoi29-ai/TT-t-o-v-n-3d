@@ -260,7 +260,6 @@ module TranTuanNoiThat
         @busy=false; view.invalidate
       end
       def draw(view)
-        view.draw_text(Geom::Point3d.new(20,25,0),@manual ? 'THỦ CÔNG · Click xoay 90°' : 'TỰ ĐỘNG · Ván đứng: vân đứng · Ván nằm: theo chiều dài',size:17,bold:true)
         view.drawing_color=Sketchup::Color.new(255,150,50)
         view.line_width=3
         @preview.each do |plan|
