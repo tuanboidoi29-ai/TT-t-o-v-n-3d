@@ -1,15 +1,15 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.208",
+  "version": "1.9.209",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Khấu ván: hiện chữ lớn trong viewport cho vai trò SHIFT (TẤM KHUÔN — GIỮ NGUYÊN / TẤM BỊ KHẤU). Tấm bị khấu preview hồng nhạt; khuôn xanh nhạt, dogbone đỏ. Chỉ đổi hiển thị, không đổi vật liệu thật.",
+  "notes": "Xoay Vân Ván: nhận chiều dài thực từng tấm/nhóm hình học, không lấy cạnh chamfer ngắn; tự nhận U/V theo ảnh; UV cố định 1220x2440 mm, không co giãn theo Group; TAB chuyển Tự động/Thủ công, A quét vùng chọn, ENTER áp dụng; bảo vệ Component và một lần Undo.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bao_gia_tool.rb",
-      "sha256": "d85dfe1e83e5d3f6b3737582a7fb38fcf529785f0bf48a0b04d0f8cc9b656b2e"
+      "sha256": "421b80c11c347d35af14a2ad0a5469e4786a845a058a0dac0c409ccdb46b7480"
     },
     {
       "path": "tran_tuan_noi_that/board_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "c9e732519fa7d026051298dd88ec44beef4d0f3bba2d9567b91f10e868cd7f9c"
+      "sha256": "0f1985c84f58836ebaad040346b0f492e4699e1bb166ca2ef6a64b4d25edfbec"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -259,7 +259,7 @@
     {
       "path": "tran_tuan_noi_that/scale_corner_lock.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/scale_corner_lock.rb",
-      "sha256": "af66056580febabec24292a9abfe7c548ef5e9b284a3e9194f16aad1584295b9"
+      "sha256": "f381af4e9a449f9b660b4f91b8b517a0b6c864c763bf90c928ae00a75310f2bd"
     },
     {
       "path": "tran_tuan_noi_that/settings.rb",
@@ -314,7 +314,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "8902c059db9d95a9a6d3112a800aae8b17ed2d6d449445bdfeb3ba0e0492eb7a"
+      "sha256": "a0c77c3784bd162a30d1e553850c054d88bce758cbdadaee94540dc5c85196a5"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -350,6 +350,11 @@
       "path": "tran_tuan_noi_that/icons/divide_boards.svg",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/icons/divide_boards.svg",
       "sha256": "53e8abe756518ba8ea97e2f85ee5c29e6d82d3404dc7d9574724f1173be37d33"
+    },
+    {
+      "path": "tran_tuan_noi_that/grain_board_auto.rb",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/grain_board_auto.rb",
+      "sha256": "70d236030704c8b47d034297e97e4522b471950ca5e769821418d432ddcf4cec"
     }
   ],
   "stretch_mode_version": "1.0.1",

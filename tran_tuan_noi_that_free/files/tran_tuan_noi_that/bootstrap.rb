@@ -17,7 +17,7 @@ module TranTuanNoiThat
   }.freeze unless const_defined?(:LOCKED_FEATURE_BASELINES, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.208'.freeze
+  VERSION = '1.9.209'.freeze
 
   class << self
     def setting(key, default = nil)
@@ -134,6 +134,7 @@ module TranTuanNoiThat
         layout_stats_v040_patch
         layout_stats_v040_compat
         settings
+        grain_board_auto
         updater
       ].each { |stem| raise "Không nạp được #{stem}" unless runtime_load(stem) }
 
@@ -458,6 +459,7 @@ module TranTuanNoiThat
         'Preview quét trước khi áp dụng · rule chi tiết · khổ theo vật liệu · UV đúng tỷ lệ · nạp nóng an toàn.',
         :grain
       ) { Grain.activate }
+      @grain_cmd.status_bar_text = 'Theo chiều dài từng tấm · UV 1220×2440 mm · TAB Tự động/Thủ công · A quét · ENTER áp dụng'
       add_feature_command_once(@grain_cmd, :grain_menu_installed)
       true
     rescue StandardError => error
