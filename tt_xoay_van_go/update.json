@@ -1,8 +1,8 @@
 {
   "name": "TT - Xoay Vân Gỗ",
-  "version": "1.2.2",
+  "version": "1.3.0",
   "channel": "stable",
-  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tt_xoay_van_go/releases/TT_Xoay_Van_Go_v1.2.2.rbz",
-  "sha256": "bd4dc4c93b26e6dbb6e9cddf230e7a454cad3694411ee51e9c89630adb4df960",
-  "notes": "Sửa lõi nhận hướng vân: Group đúng dạng một tấm dùng trục dài thật của cả tấm; Group/cụm chứa nhiều tấm tự nhận chiều dài riêng từng mặt, không còn ép theo BoundingBox cả tủ. Tự nhận trục U/V theo tỷ lệ ảnh texture; UV 100% vẫn đúng khổ 1220 x 2440 mm."
+  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tt_xoay_van_go/releases/TT_Xoay_Van_Go_v1.3.0.rbz",
+  "sha256": "6ac74fe01fb52a001d72ef3120ea5a0834fbb9cf60b2f9f055aeaa1b0dbe3e08",
+  "notes": "SHIFT đổi AUTO ↔ TỰ DO. AUTO tự xoay theo chiều dài thật. TỰ DO: click cạnh để lấy hướng vân hoặc click mặt rồi dùng ↑ 0° / → 90° / ↓ 180° / ← 270°. TAB nhanh không đổi mode; giữ TAB 3 giây mở Cài đặt Kho Ván. UV 1220×2440 mm giữ nguyên."
 }
