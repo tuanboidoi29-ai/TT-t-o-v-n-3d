@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.206",
+  "version": "1.9.207",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Khấu: click cắt ngay; SHIFT đổi khuôn/tấm đích; TAB cài đặt và lưu mở rộng biên, bật/tắt dogbone, đường kính dao. Thành công chỉ beep. Ghi nhận góc khấu mới để bật dao rồi click khoét bù sau (từ bản này). Dogbone: góc lõm 90 độ, xuyên độ dày. Đã kiểm tra mô phỏng; chưa thử native Windows.",
+  "notes": "Tinh chỉnh Khấu: xóa preview cũ khi đổi tấm/vai trò; đóng cài đặt chưa lưu trả thông số cũ, lưu giữ đúng giá trị; chặn click khi đang chỉnh thông số. Khử góc đã ghi nhận ở chế độ tấm bị khấu không cần khuôn còn bên cạnh. Lọc dữ liệu góc không hợp lệ. Giữ click cắt ngay, SHIFT đổi vai trò, TAB cài đặt, thành công chỉ beep. Đã kiểm tra mô phỏng; chưa thử trực tiếp Windows.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "ee99da5f260f5d4cd1427ab2b4b2a36341aae9b3c727b22d3a8b9257da6ecef2"
+      "sha256": "d56a810d5ed0bbd566fd413d802c7c59ae9182380795101ae9e184f877240eaa"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -314,7 +314,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "0026beabcb26f27fd03c019dc4f0ab4bd766dcc87ca8b531d2231a95d7375791"
+      "sha256": "7ed857c49993ea034ca44c345c8758579a5bb1a8b55d582368b4fa38a3bfa025"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -334,7 +334,7 @@
     {
       "path": "tran_tuan_noi_that/notch_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/notch_tool.rb",
-      "sha256": "68501f9ab4122cdb221bff7000ac655c942ca7e115ffac1b9fbd32e0469b0a24"
+      "sha256": "c79983f5f40b61ee1ba58286a5c104b221eb39cead7c44a593300398c5834573"
     },
     {
       "path": "tran_tuan_noi_that/icons/notch.svg",

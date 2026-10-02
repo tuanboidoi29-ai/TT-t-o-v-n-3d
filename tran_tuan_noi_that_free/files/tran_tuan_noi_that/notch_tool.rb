@@ -45,6 +45,13 @@ module TranTuanNoiThat
       moved=vertices.to_h { |v| [v,Geom::Point3d.new(solve_planes(v.faces.map { |f| planes.fetch(f) }))] }
       faces.map { |f| f.outer_loop.vertices.map { |v| moved[v] } }
     end
+    def pending_corners(entity)
+      raw=entity.get_attribute(PREF,'pending_corners',[])
+      return [] unless raw.is_a?(Array)
+      raw.select do |point|
+        point.is_a?(Array) && point.length==3 && point.all? { |v| v.is_a?(Numeric) && v.finite? }
+      end.uniq
+    end
     def validate!(e)
       raise 'Tấm đã bị xóa hoặc đang khóa.' unless e && e.valid? && !e.locked?
       raise "#{e.name}: cần Group/Component kín (Solid)." unless e.manifold?
@@ -66,6 +73,22 @@ module TranTuanNoiThat
         @model.selection.clear
         rebuild
         status
+      end
+      def clear_preview
+        @ready=false;@reliefs=[];@result_lines=[];@expanded={}
+      end
+      def settings_values
+        [@gap,@diameter,@dogbone]
+      end
+      def close_settings
+        @gap,@diameter,@dogbone=@settings_before if @settings_before
+        @settings_before=nil;@dialog=nil;@chosen=nil
+        clear_preview
+        @model.active_view.invalidate
+        status
+      end
+      def can_process?
+        !@targets.empty? && (!@cutters.empty? || (@dogbone && @targets.any? { |e| !NotchTool.pending_corners(e).empty? }))
       end
       def status
         role=@role==:cutter ? 'KHUÔN GIỮ NGUYÊN' : 'TẤM BỊ KHẤU'
@@ -127,13 +150,18 @@ module TranTuanNoiThat
         return if @chosen || @busy
         ph=view.pick_helper; ph.do_pick(x,y)
         picked=ph.best_picked
-        @hover=NotchTool.container?(picked) && @context.include?(picked) ? picked : nil
+        picked=NotchTool.container?(picked) && @context.include?(picked) ? picked : nil
+        clear_preview if picked!=@hover
+        @hover=picked
         @cutters=@role==:cutter && @hover ? [@hover] : []
         @targets=@role==:target && @hover ? [@hover] : []
         view.invalidate
       end
       def onLButtonDown(flags,x,y,view)
         return if @busy
+        if @dialog && @dialog.visible?
+          report('Bấm Lưu cài đặt hoặc đóng bảng trước khi click khấu.');return
+        end
         ph=view.pick_helper;ph.do_pick(x,y)
         picked=ph.best_picked
         return UI.beep unless NotchTool.container?(picked) && @context.include?(picked)
@@ -145,19 +173,24 @@ module TranTuanNoiThat
         @chosen=nil;@hover=nil;@cutters=[];@targets=[];@reliefs=[];@result_lines=[]
         view.invalidate
       rescue StandardError=>e
-        @ready=false;report(e.message,true)
+        clear_preview;report(e.message,true)
       ensure
         @busy=false;@chosen=nil
       end
       def flip_role
         return if @busy
         @role=@role==:cutter ? :target : :cutter
+        clear_preview
         unless @chosen
           @cutters=@role==:cutter && @hover ? [@hover] : []
           @targets=@role==:target && @hover ? [@hover] : []
         end
         @dialog.execute_script("document.getElementById('role').textContent=#{JSON.generate(@role==:cutter ? 'Khuôn giữ nguyên' : 'Tấm bị khấu')}") if @dialog && @dialog.visible?
-        refresh_preview if @chosen
+        if @dialog && @dialog.visible?
+          settings_preview
+        elsif @chosen
+          refresh_preview
+        end
         status
       end
       def onKeyDown(key,repeat,flags,view)
@@ -170,6 +203,7 @@ module TranTuanNoiThat
         if @dialog && @dialog.visible?
           @dialog.bring_to_front;settings_preview;return
         end
+        @settings_before=settings_values
         @dialog=UI::HtmlDialog.new(dialog_title:'Cài đặt khấu ván / Dao',preferences_key:'TT.Notch205',width:420,height:440,resizable:true,scrollable:true,style:UI::HtmlDialog::STYLE_DIALOG)
         @dialog.set_html(<<~HTML)
           <!doctype html><html lang="vi"><meta charset="utf-8"><style>
@@ -179,7 +213,7 @@ module TranTuanNoiThat
           <label>Mở rộng mỗi biên (mm)</label><input id="gap" type="number" min="0" max="100" step="0.1" value="#{@gap}">
           <label><input id="bone" type="checkbox" #{@dogbone ? 'checked' : ''}> Khử góc dogbone — preview đỏ</label>
           <label>Đường kính dao (mm)</label><input id="diameter" type="number" min="0.5" max="50" step="0.1" value="#{@diameter}">
-          <button onclick="preview()">Xem trước</button><button id="save" onclick="sketchup.save(Number(document.getElementById('gap').value),Number(document.getElementById('diameter').value),document.getElementById('bone').checked)">Lưu cài đặt</button>
+          <button onclick="preview()">Xem trước</button><button id="save" onclick="clearTimeout(timer);sketchup.save(Number(document.getElementById('gap').value),Number(document.getElementById('diameter').value),document.getElementById('bone').checked)">Lưu cài đặt</button>
           <div id="msg">Lưu thông số rồi click tấm trong model để khấu. Bật dao để khoét bù các góc khấu đã ghi nhận.</div>
           <script>let timer;function preview(){sketchup.preview(Number(document.getElementById('gap').value),Number(document.getElementById('diameter').value),document.getElementById('bone').checked)}
           document.querySelectorAll('input').forEach(e=>e.addEventListener('input',()=>{clearTimeout(timer);timer=setTimeout(preview,400)}));
@@ -189,6 +223,7 @@ module TranTuanNoiThat
         @dialog.add_action_callback('ready') { |_ctx| settings_preview }
         @dialog.add_action_callback('flip') { |_ctx| flip_role }
         @dialog.add_action_callback('preview') do |_ctx,gap,diameter,bone|
+          next unless @dialog && @dialog.visible?
           begin
             raise 'Mở rộng: 0–100 mm; đường kính dao: 0,5–50 mm.' unless gap.is_a?(Numeric) && gap.finite? && gap.between?(0,100) && diameter.is_a?(Numeric) && diameter.finite? && diameter.between?(0.5,50)
             @gap=gap.to_f;@diameter=diameter.to_f;@dogbone=bone==true
@@ -204,16 +239,18 @@ module TranTuanNoiThat
             Sketchup.write_default(PREF,'gap_mm',@gap)
             Sketchup.write_default(PREF,'dao_mm',@diameter)
             Sketchup.write_default(PREF,'dogbone',@dogbone)
+            @settings_before=nil
             @chosen=nil;@dialog.close if @dialog
             status
           rescue StandardError=>e
             report(e.message,true)
           end
         end
-        @dialog.set_on_closed { @dialog=nil }
+        @dialog.set_on_closed { close_settings }
         @dialog.show
       end
       def settings_preview
+        raise 'Ngữ cảnh model đã đổi. Đóng công cụ và mở lại.' unless @context==@model.active_entities
         @chosen=@hover if @hover && @hover.valid?
         if @chosen
           refresh_preview
@@ -336,7 +373,7 @@ module TranTuanNoiThat
               incoming=point-previous;outgoing=following-point
               next if incoming.length<1e-6 || outgoing.length<1e-6
               next unless incoming.normalize.cross(outgoing.normalize).dot(normal)<-0.001
-              recorded=target.get_attribute(PREF,'pending_corners',[]).map { |p| Geom::Point3d.new(*p).transform(tr) }
+              recorded=NotchTool.pending_corners(target).map { |p| Geom::Point3d.new(*p).transform(tr) }
               next if original.any? { |p| p.distance(point)<0.0001 } && !recorded.any? { |p| p.distance(point)<0.0001 }
               opposite=point.offset(axis,low-high)
               unless result_points.any? { |p| p.distance(opposite)<0.0001 }
@@ -390,7 +427,7 @@ module TranTuanNoiThat
             tool.erase! if tool.valid?
           end
           changed=before-current.volume>1e-7
-          pending=target.get_attribute(PREF,'pending_corners',[])
+          pending=NotchTool.pending_corners(target)
           next unless changed || (@dogbone && !pending.empty?)
           if changed
             tr=@edit*target.transformation
@@ -417,7 +454,7 @@ module TranTuanNoiThat
         @busy=true;@ready=false
         report('Đang dựng bản sao xem trước…')
         gather
-        raise 'Không có cặp tấm Solid giao nhau trong cấp đang chỉnh sửa.' if @cutters.empty? || @targets.empty?
+        raise 'Không có tấm giao nhau hoặc góc khấu đã ghi nhận để xử lý.' unless can_process?
         raise 'Hơn 30 cặp tấm: hãy mở nhóm nhỏ hơn để tránh preview quá nặng.' if @cutters.length*@targets.length>30
         started=false
         @model.start_operation('TT - Xem trước khấu (tạm)',true)
@@ -445,7 +482,7 @@ module TranTuanNoiThat
         raise 'Ngữ cảnh model đã thay đổi. Mở lại công cụ.' unless @context==@model.active_entities
         (@cutters+@targets).each { |e| NotchTool.validate!(e) }
         gather
-        raise 'Không có khuôn/tấm giao nhau.' if @cutters.empty? || @targets.empty?
+        raise 'Không có tấm giao nhau hoặc góc khấu đã ghi nhận để xử lý.' unless can_process?
         started=false
         @model.start_operation('TRẦN TUẤN - Khấu ván AUTO',true)
         started=true
@@ -473,7 +510,7 @@ module TranTuanNoiThat
         started=false
         Sketchup.set_status_text("Đã khấu #{results.length} tấm; #{@reliefs.length} góc dogbone. Ctrl+Z hoàn tác cả lượt.",SB_PROMPT)
         UI.beep unless results.empty?
-        @targets=[]; @phase=:targets
+        @targets=[];clear_preview
       rescue StandardError
         @model.abort_operation if started
         raise
