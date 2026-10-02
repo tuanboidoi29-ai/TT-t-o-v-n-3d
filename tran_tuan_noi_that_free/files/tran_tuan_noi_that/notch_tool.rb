@@ -59,7 +59,8 @@ module TranTuanNoiThat
         @edit=@model.edit_transform
         @cutters=[]
         @targets=[]; @role=:cutter; @hover=nil; @chosen=nil
-        @diameter=6.0; @dogbone=true; @reliefs=[]; @result_lines=[]; @ready=false; @busy=false
+        @diameter=Sketchup.read_default(PREF,'dao_mm',6.0).to_f; @dogbone=Sketchup.read_default(PREF,'dogbone',false)==true;
+        @diameter=6.0 unless @diameter.finite? && @diameter.between?(0.5,50); @reliefs=[]; @result_lines=[]; @ready=false; @busy=false
         @gap=Sketchup.read_default(PREF,'gap_mm',0.0).to_f
         @gap=0.0 unless @gap.finite? && @gap>=0 && @gap<=100
         @model.selection.clear
@@ -68,10 +69,10 @@ module TranTuanNoiThat
       end
       def status
         role=@role==:cutter ? 'KHUÔN GIỮ NGUYÊN' : 'TẤM BỊ KHẤU'
-        Sketchup.set_status_text("KHẤU · #{role} · SHIFT đổi vai trò · Click chọn và mở cài đặt · TAB mở lại bảng · Chỉ ÁP DỤNG mới cắt · Cùng cấp nhóm đang chỉnh sửa.",SB_PROMPT)
+        Sketchup.set_status_text("KHẤU · #{role} · SHIFT đổi vai trò · Click khấu ngay · TAB cài đặt và lưu dao · Cùng cấp nhóm đang chỉnh sửa.",SB_PROMPT)
       end
       def report(message,error=false)
-        @dialog.execute_script("document.getElementById('msg').textContent=#{JSON.generate(message)};document.getElementById('apply').disabled=#{!@ready};") if @dialog && @dialog.visible?
+        @dialog.execute_script("document.getElementById('msg').textContent=#{JSON.generate(message)};") if @dialog && @dialog.visible?
         Sketchup.set_status_text(message,SB_PROMPT)
       end
       def expanded_box(e)
@@ -138,9 +139,15 @@ module TranTuanNoiThat
         return UI.beep unless NotchTool.container?(picked) && @context.include?(picked)
         NotchTool.validate!(picked)
         @chosen=picked
-        open_settings
+        @busy=true
+        gather
+        execute
+        @chosen=nil;@hover=nil;@cutters=[];@targets=[];@reliefs=[];@result_lines=[]
+        view.invalidate
       rescue StandardError=>e
         @ready=false;report(e.message,true)
+      ensure
+        @busy=false;@chosen=nil
       end
       def flip_role
         return if @busy
@@ -156,14 +163,14 @@ module TranTuanNoiThat
       def onKeyDown(key,repeat,flags,view)
         return if repeat.to_i>0 || @busy
         flip_role if key==16
-        open_settings if key==9 && @chosen
+        open_settings if key==9
         view.invalidate
       end
       def open_settings
         if @dialog && @dialog.visible?
-          @dialog.bring_to_front;refresh_preview;return
+          @dialog.bring_to_front;settings_preview;return
         end
-        @dialog=UI::HtmlDialog.new(dialog_title:'Khấu ván / Dogbone',preferences_key:'TT.Notch205',width:420,height:440,resizable:true,scrollable:true,style:UI::HtmlDialog::STYLE_DIALOG)
+        @dialog=UI::HtmlDialog.new(dialog_title:'Cài đặt khấu ván / Dao',preferences_key:'TT.Notch205',width:420,height:440,resizable:true,scrollable:true,style:UI::HtmlDialog::STYLE_DIALOG)
         @dialog.set_html(<<~HTML)
           <!doctype html><html lang="vi"><meta charset="utf-8"><style>
           body{font:15px Arial;padding:16px;background:#f3f6fa;color:#19324c}label{display:block;margin:14px 0 6px}input[type=number]{padding:9px;width:90%}button{padding:11px;margin:12px 4px 0 0;border:0;background:#186a80;color:white;border-radius:5px}#msg{line-height:1.5;margin-top:16px}button:disabled{opacity:.4}</style>
@@ -172,39 +179,48 @@ module TranTuanNoiThat
           <label>Mở rộng mỗi biên (mm)</label><input id="gap" type="number" min="0" max="100" step="0.1" value="#{@gap}">
           <label><input id="bone" type="checkbox" #{@dogbone ? 'checked' : ''}> Khử góc dogbone — preview đỏ</label>
           <label>Đường kính dao (mm)</label><input id="diameter" type="number" min="0.5" max="50" step="0.1" value="#{@diameter}">
-          <button onclick="preview()">Xem trước</button><button id="apply" disabled onclick="this.disabled=true;sketchup.apply(Number(document.getElementById('gap').value),Number(document.getElementById('diameter').value),document.getElementById('bone').checked)">Áp dụng</button>
-          <div id="msg">Chưa cắt model. Chỉnh số để cập nhật preview.</div>
-          <script>let timer;function preview(){document.getElementById('apply').disabled=true;sketchup.preview(Number(document.getElementById('gap').value),Number(document.getElementById('diameter').value),document.getElementById('bone').checked)}
-          document.querySelectorAll('input').forEach(e=>e.addEventListener('input',()=>{clearTimeout(timer);document.getElementById('apply').disabled=true;timer=setTimeout(preview,400)}));
+          <button onclick="preview()">Xem trước</button><button id="save" onclick="sketchup.save(Number(document.getElementById('gap').value),Number(document.getElementById('diameter').value),document.getElementById('bone').checked)">Lưu cài đặt</button>
+          <div id="msg">Lưu thông số rồi click tấm trong model để khấu. Bật dao để khoét bù các góc khấu đã ghi nhận.</div>
+          <script>let timer;function preview(){sketchup.preview(Number(document.getElementById('gap').value),Number(document.getElementById('diameter').value),document.getElementById('bone').checked)}
+          document.querySelectorAll('input').forEach(e=>e.addEventListener('input',()=>{clearTimeout(timer);timer=setTimeout(preview,400)}));
           document.addEventListener('DOMContentLoaded',()=>sketchup.ready());
           document.addEventListener('keydown',e=>{if(e.key==='Shift'&&!e.repeat){e.preventDefault();sketchup.flip()}});</script></html>
         HTML
-        @dialog.add_action_callback('ready') { |_ctx| refresh_preview }
+        @dialog.add_action_callback('ready') { |_ctx| settings_preview }
         @dialog.add_action_callback('flip') { |_ctx| flip_role }
         @dialog.add_action_callback('preview') do |_ctx,gap,diameter,bone|
           begin
             raise 'Mở rộng: 0–100 mm; đường kính dao: 0,5–50 mm.' unless gap.is_a?(Numeric) && gap.finite? && gap.between?(0,100) && diameter.is_a?(Numeric) && diameter.finite? && diameter.between?(0.5,50)
             @gap=gap.to_f;@diameter=diameter.to_f;@dogbone=bone==true
-            refresh_preview
+            settings_preview
           rescue StandardError=>e
             @ready=false;report(e.message,true)
           end
         end
-        @dialog.add_action_callback('apply') do |_ctx,gap,diameter,bone|
+        @dialog.add_action_callback('save') do |_ctx,gap,diameter,bone|
           begin
-            raise 'Thông số đã đổi: bấm Xem trước trước khi áp dụng.' unless gap==@gap && diameter==@diameter && bone==@dogbone
-            raise 'Cần preview hợp lệ trước khi áp dụng.' unless @ready
-            execute
-            @chosen=nil;@ready=false;@cutters=[];@targets=[];@reliefs=[];@result_lines=[]
-            @dialog.close if @dialog
+            raise 'Mở rộng 0–100 mm; đường kính dao 0,5–50 mm.' unless gap.is_a?(Numeric) && gap.finite? && gap.between?(0,100) && diameter.is_a?(Numeric) && diameter.finite? && diameter.between?(0.5,50)
+            @gap=gap.to_f;@diameter=diameter.to_f;@dogbone=bone==true
+            Sketchup.write_default(PREF,'gap_mm',@gap)
+            Sketchup.write_default(PREF,'dao_mm',@diameter)
+            Sketchup.write_default(PREF,'dogbone',@dogbone)
+            @chosen=nil;@dialog.close if @dialog
+            status
           rescue StandardError=>e
-            @ready=false;report(e.message,true)
-          ensure
-            @model.active_view.invalidate
+            report(e.message,true)
           end
         end
         @dialog.set_on_closed { @dialog=nil }
         @dialog.show
+      end
+      def settings_preview
+        @chosen=@hover if @hover && @hover.valid?
+        if @chosen
+          refresh_preview
+          @chosen=nil
+        else
+          report('Đã đổi thông số. Rê lên tấm rồi TAB để xem trước; Lưu để dùng cho lần click tiếp theo.')
+        end
       end
       def onCancel(reason,view)
         if @chosen
@@ -320,7 +336,8 @@ module TranTuanNoiThat
               incoming=point-previous;outgoing=following-point
               next if incoming.length<1e-6 || outgoing.length<1e-6
               next unless incoming.normalize.cross(outgoing.normalize).dot(normal)<-0.001
-              next if original.any? { |p| p.distance(point)<0.0001 }
+              recorded=target.get_attribute(PREF,'pending_corners',[]).map { |p| Geom::Point3d.new(*p).transform(tr) }
+              next if original.any? { |p| p.distance(point)<0.0001 } && !recorded.any? { |p| p.distance(point)<0.0001 }
               opposite=point.offset(axis,low-high)
               unless result_points.any? { |p| p.distance(opposite)<0.0001 }
                 raise 'Dogbone hiện hỗ trợ khấu xuyên độ dày. Rãnh mù: tắt dogbone để khấu thường.'
@@ -358,7 +375,7 @@ module TranTuanNoiThat
         group
       end
       def build_results(work)
-        @reliefs=[]
+        @reliefs=[];@pending_marks={}
         results=[]
         @targets.each do |target|
           current=copy_solid(work,target)
@@ -372,7 +389,15 @@ module TranTuanNoiThat
             end
             tool.erase! if tool.valid?
           end
-          next unless before-current.volume>1e-7
+          changed=before-current.volume>1e-7
+          pending=target.get_attribute(PREF,'pending_corners',[])
+          next unless changed || (@dogbone && !pending.empty?)
+          if changed
+            tr=@edit*target.transformation
+            old=target.definition.entities.grep(Sketchup::Edge).flat_map { |e| [e.start.position.transform(tr),e.end.position.transform(tr)] }
+            fresh=current.definition.entities.grep(Sketchup::Edge).flat_map { |e| [e.start.position.transform(current.transformation),e.end.position.transform(current.transformation)] }.uniq
+            pending=pending+fresh.reject { |p| old.any? { |q| p.distance(q)<0.0001 } }.map { |p| p.transform(tr.inverse).to_a }
+          end
           bones=dogbone_plan(target,current)
           bones.each do |bone|
             tool=relief_solid(work,bone)
@@ -382,7 +407,8 @@ module TranTuanNoiThat
             tool.erase! if tool.valid?
           end
           @reliefs.concat(bones)
-          results<<[target,current]
+          @pending_marks[target]=@dogbone ? [] : pending
+          results<<[target,current] if before-current.volume>1e-7
         end
         results
       end
@@ -436,6 +462,7 @@ module TranTuanNoiThat
           inst=dest.add_instance(result.definition,(@edit*target.transformation).inverse*result.transformation)
           inst.explode
           raise 'Tấm sau khấu không kín.' unless target.manifold?
+          target.set_attribute(PREF,'pending_corners',@pending_marks.fetch(target,[]))
         end
         workspace.erase!
         if results.empty?

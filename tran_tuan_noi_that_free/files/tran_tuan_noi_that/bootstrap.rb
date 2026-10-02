@@ -17,7 +17,7 @@ module TranTuanNoiThat
   }.freeze unless const_defined?(:LOCKED_FEATURE_BASELINES, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.205'.freeze
+  VERSION = '1.9.206'.freeze
 
   class << self
     def setting(key, default = nil)
@@ -439,7 +439,7 @@ module TranTuanNoiThat
 
     def install_notch_ui
       return false unless defined?(TranTuanNoiThat::NotchTool)
-      @notch_cmd ||= command('Khấu ván AUTO', 'notch.svg', 'Chọn tấm mở cài đặt; SHIFT đổi khuôn/tấm bị khấu; preview dogbone đỏ; Áp dụng mới cắt.') { NotchTool.activate }
+      @notch_cmd ||= command('Khấu ván AUTO', 'notch.svg', 'Click khấu ngay; SHIFT đổi khuôn/tấm bị khấu; TAB lưu mở rộng biên và dao; hoàn tất chỉ beep.') { NotchTool.activate }
       add_feature_command_once(@notch_cmd, :notch_menu_installed)
     end
 
