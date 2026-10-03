@@ -42,24 +42,29 @@ check.call(t.onKeyDown(191,1,0,view)==false)
 check.call(t.onKeyDown(51,1,0,view)==false)
 check.call(t.onKeyDown(13,1,0,view)==false)
 puts "#{n} door checks passed"
-# Exact corner/edge hits resolve an adjacent face instead of rejecting P1.
 class Geom::Vector3d
  def transform(t);self;end
 end
-face=Sketchup::Face.new
-def face.normal;Z_AXIS;end
-edge=Object.new;edge.define_singleton_method(:faces){[face]}
-helper=Object.new
-helper.define_singleton_method(:do_pick){|*a|nil}
-helper.define_singleton_method(:count){1}
-helper.define_singleton_method(:path_at){|i|[edge]}
-helper.define_singleton_method(:transformation_at){|i|Geom::Transformation.new}
-view.define_singleton_method(:pick_helper){helper}
+class Geom::Point3d
+ def self.linear_combination(a,p,b,q);new(a*p.x+b*q.x,a*p.y+b*q.y,a*p.z+b*q.z);end
+end
+V=Struct.new(:position);E=Struct.new(:start,:end);L=Struct.new(:vertices,:edges)
+class SnapFace < Sketchup::Face
+ attr_reader :outer_loop
+ def initialize(x)
+  vs=[[x,0,0],[x+18,0,0],[x+18,800,0],[x,800,0]].map{|p|V.new(Geom::Point3d.new(*p))}
+  @outer_loop=L.new(vs,vs.each_with_index.map{|v,i|E.new(v,vs[(i+1)%4])})
+ end
+ def normal;Z_AXIS;end
+end
+view.define_singleton_method(:screen_coords){|p|p}
 view.define_singleton_method(:camera){Struct.new(:direction).new(Z_AXIS)}
-ip=Object.new;def ip.pick(*);end;def ip.valid?;true;end;def ip.position;ORIGIN;end
-t.instance_variable_set(:@ip,ip)
-def t.nearest_face_snap_point(view,face,tr,x,y,fallback);fallback;end
-def t.setup_plane(face,tr,point,view);@face=face;end
-check.call(t.send(:pick_first_point,view,0,0)==ORIGIN)
-check.call(t.instance_variable_get(:@face)==face)
-puts "#{n} total door checks passed"
+f1=SnapFace.new(0);f2=SnapFace.new(600);tr=Geom::Transformation.new
+[600,609,618].each do |x|
+ snap=t.send(:nearest_board_snap,view,x,0,[[f1,tr],[f2,tr]],true)
+ check.call(snap && snap[1].x==x && snap[2]==f2)
+end
+snap=t.send(:nearest_board_snap,view,609,400,[[f2,tr]],true)
+check.call(snap && snap[4]=='Tâm mặt hồi')
+check.call(t.send(:nearest_board_snap,view,300,300,[[f1,tr],[f2,tr]],true).nil?)
+puts "#{n} total checks passed"

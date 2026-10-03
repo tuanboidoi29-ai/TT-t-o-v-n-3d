@@ -21,7 +21,7 @@ module TranTuanNoiThat
   module DoorStandard
     extend self
 
-    VERSION = '1.9.216'.freeze
+    VERSION = '1.9.217'.freeze
     DICT = 'TT_DOOR_STANDARD'.freeze
     SETTINGS_KEY = 'door_standard_settings_v1'.freeze
     PRESETS_KEY = 'door_standard_presets_v1'.freeze
@@ -1155,33 +1155,60 @@ module TranTuanNoiThat
         @hover_handle = nil
       end
 
-      def pick_first_point(view, x, y)
-        @ip.pick(view, x, y)
-        return nil unless @ip.valid?
-
+      # Pick only geometry near the cursor, across all instance paths.
+      def nearby_face_hits(view, x, y)
         helper = view.pick_helper
-        helper.do_pick(x, y)
-        face = nil
-        transform = nil
-        # A corner hit commonly ends at an Edge/Vertex rather than a Face.
+        helper.do_pick(x, y, SNAP_RADIUS)
+        hits = []
         helper.count.times do |index|
           path = helper.path_at(index)
           next unless path && !path.empty?
-          hit = path.last
-          candidates = path.reverse.select { |entity| entity.is_a?(Sketchup::Face) }
-          candidates += hit.faces.to_a if candidates.empty? && hit.respond_to?(:faces)
-          next if candidates.empty?
+          leaf = path.last
+          faces = path.reverse.select { |entity| entity.is_a?(Sketchup::Face) }
+          faces += leaf.faces.to_a if leaf.respond_to?(:faces)
           tr = helper.transformation_at(index) || Geom::Transformation.new
-          face = candidates.max_by { |candidate| candidate.normal.transform(tr).normalize.dot(view.camera.direction).abs }
-          transform = tr
-          break
+          faces.uniq.each { |face| hits << [face, tr] }
         end
-        return nil unless face
+        hits
+      end
 
-        point = nearest_face_snap_point(
-          view, face, transform, x, y, @ip.position
-        )
-        setup_plane(face, transform, point, view)
+      def nearest_board_snap(view, x, y, hits, constrain_plane = false)
+        best = nil
+        hits.each do |face,tr|
+          candidates = face.outer_loop.vertices.map { |v| ['Mép',v.position.transform(tr)] }
+          face.outer_loop.edges.each do |edge|
+            a = edge.start.position.transform(tr)
+            b = edge.end.position.transform(tr)
+            candidates << ['Tâm cạnh',Geom::Point3d.linear_combination(0.5,a,0.5,b)]
+          end
+          points = face.outer_loop.vertices.map { |v| v.position.transform(tr) }
+          candidates << ['Tâm mặt hồi',average_point(points)] unless points.empty?
+          candidates.each do |label,point|
+            next if constrain_plane && point_plane_distance(point,@origin,@normal).abs > 5.mm
+            screen = view.screen_coords(point)
+            distance = Math.hypot(screen.x-x,screen.y-y)
+            next if distance > SNAP_RADIUS
+            facing = face.normal.transform(tr).normalize.dot(view.camera.direction).abs
+            score = [distance,-facing]
+            best = [score,point,face,tr,label] if !best || (score <=> best[0]) < 0
+          end
+        end
+        @snap_label = best ? "Bắt #{best[4]}" : nil
+        best
+      end
+
+      def pick_first_point(view, x, y)
+        @ip.pick(view,x,y)
+        hits = nearby_face_hits(view,x,y)
+        snap = nearest_board_snap(view,x,y,hits)
+        if snap
+          _,point,face,tr = snap
+        else
+          return nil unless @ip.valid? && !hits.empty?
+          face,tr = hits.min_by { |f,t| -f.normal.transform(t).normalize.dot(view.camera.direction).abs }
+          point = @ip.position
+        end
+        setup_plane(face,tr,point,view)
         point
       rescue StandardError
         nil
@@ -1287,10 +1314,10 @@ module TranTuanNoiThat
         end
         return nil unless fallback
 
-        snapped = nearest_face_snap_point(
-          view, @face, @face_transform, x, y, fallback
-        )
-        project_point_to_plane(snapped, @origin, @normal)
+        hits = nearby_face_hits(view,x,y)
+        hits << [@face,@face_transform] if @face
+        snap = nearest_board_snap(view,x,y,hits,true)
+        project_point_to_plane(snap ? snap[1] : fallback, @origin, @normal)
       rescue StandardError
         nil
       end
