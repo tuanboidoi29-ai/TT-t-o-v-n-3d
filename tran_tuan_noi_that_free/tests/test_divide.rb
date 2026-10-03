@@ -19,3 +19,16 @@ n=0
 end
 t.onUserText('250',v);raise unless (t.instance_variable_get(:@distance)-250.mm).abs<1e-8 && t.instance_variable_get(:@count).nil?;n+=1
 puts "#{n} checks passed"
+subject=[[0,0],[100,0],[100,100],[0,100]]
+[[[[40,-10],[60,-10],[60,110],[40,110]],8000],[[[20,20],[80,20],[80,80],[20,80]],6400],[[[200,200],[210,200],[210,210],[200,210]],10000]].each do |cut,expected|
+ result=D.subtract_polygon(subject,cut)
+ area=result.sum{|p|D.area2(p).abs/2}
+ raise "area #{area}" unless (area-expected).abs<1e-6
+ raise 'Missing boundary' if D.boundary_segments(result).empty?
+ n+=2
+end
+triangles=[[[0,0],[100,0],[100,100]],[[0,0],[100,100],[0,100]]]
+segments=D.boundary_segments(triangles)
+raise 'Diagonal retained' unless segments.length==4
+n+=1
+puts "#{n} geometry/input checks passed"

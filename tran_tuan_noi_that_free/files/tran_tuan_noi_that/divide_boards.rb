@@ -14,6 +14,62 @@ module TranTuanNoiThat
     def anchor_offset(thickness,index)
       [-thickness/2.0,0.0,thickness/2.0].fetch(index)
     end
+    # Convex planar polygon subtraction. Subject faces and cutters come from meshes.
+    def area2(poly)
+      poly.each_with_index.sum { |p,i| q=poly[(i+1)%poly.length];p[0]*q[1]-q[0]*p[1] }
+    end
+    def clip_half(poly,a,b,inside)
+      result=[]
+      poly.each_with_index do |p,i|
+        q=poly[(i+1)%poly.length]
+        dp=(b[0]-a[0])*(p[1]-a[1])-(b[1]-a[1])*(p[0]-a[0])
+        dq=(b[0]-a[0])*(q[1]-a[1])-(b[1]-a[1])*(q[0]-a[0])
+        dp=-dp unless inside;dq=-dq unless inside
+        pin=dp>=-1e-9;qin=dq>=-1e-9
+        result << p if pin
+        if pin!=qin && (dp-dq).abs>1e-12
+          t=dp.to_f/(dp-dq);result << [p[0]+t*(q[0]-p[0]),p[1]+t*(q[1]-p[1])]
+        end
+      end
+      result=result.each_with_object([]) { |p,out| out << p if out.empty? || Math.hypot(p[0]-out[-1][0],p[1]-out[-1][1])>1e-8 }
+      result.pop if result.length>1 && Math.hypot(result[0][0]-result[-1][0],result[0][1]-result[-1][1])<1e-8
+      result
+    end
+    def subtract_polygon(subject,cutter)
+      cutter=cutter.reverse if area2(cutter)<0
+      remainder=subject;outside=[]
+      cutter.each_with_index do |a,i|
+        break if remainder.length<3
+        b=cutter[(i+1)%cutter.length]
+        piece=clip_half(remainder,a,b,false)
+        outside << piece if piece.length>=3 && area2(piece).abs>1e-8
+        remainder=clip_half(remainder,a,b,true)
+      end
+      outside
+    end
+    def boundary_segments(polygons)
+      points=polygons.flatten(1)
+      segments={}
+      polygons.each do |poly|
+        poly.each_with_index do |a,i|
+          b=poly[(i+1)%poly.length];dx=b[0]-a[0];dy=b[1]-a[1];len=dx*dx+dy*dy
+          next if len<1e-14
+          ts=[0.0,1.0]
+          points.each do |p|
+            t=((p[0]-a[0])*dx+(p[1]-a[1])*dy)/len
+            next unless t>1e-8 && t<1-1e-8
+            ts << t if ((p[0]-a[0])*dy-(p[1]-a[1])*dx).abs/Math.sqrt(len)<1e-7
+          end
+          ts.sort.uniq.each_cons(2) do |l,r|
+            next if r-l<1e-8
+            p=[a[0]+l*dx,a[1]+l*dy];q=[a[0]+r*dx,a[1]+r*dy]
+            key=[p.map{|v|v.round(7)},q.map{|v|v.round(7)}].sort
+            segments[key] ? segments.delete(key) : segments[key]=[p,q]
+          end
+        end
+      end
+      segments.values
+    end
     class Tool
       def activate
         @model=Sketchup.active_model; @context=@model.active_entities
@@ -68,29 +124,62 @@ module TranTuanNoiThat
         back_vector=inward.clone;back_vector.length=@face_thickness
         @axes=[normal]
         @face_polygons=[]
-        mesh=@face.mesh
-        mesh.polygons.each do |poly|
-          next unless poly.length==3
-          front=poly.map { |idx| mesh.point_at(idx.abs).transform(@source_tr) }
+        basis_x=(vertices[1]-vertices[0]).normalize
+        basis_y=normal.cross(basis_x).normalize
+        base=vertices[0]
+        to2=->(p) { d=p-base;[d.dot(basis_x),d.dot(basis_y)] }
+        to3=->(p) { base.offset(basis_x,p[0]).offset(basis_y,p[1]) }
+        pieces=@face.mesh.polygons.map { |poly| poly.map { |i| to2.call(@face.mesh.point_at(i.abs).transform(@source_tr)) } }
+        cutters=[]
+        scan=lambda do |entities,tr,depth|
+          raise 'Model lồng quá sâu.' if depth>64
+          entities.each do |entity|
+            next if entity.respond_to?(:visible?) && !entity.visible?
+            next if entity.respond_to?(:layer) && !entity.layer.visible?
+            if DivideBoards.container?(entity)
+              wt=tr*entity.transformation
+              next if entity==@source && wt.to_a.zip(@source_tr.to_a).all? { |x,y| (x-y).abs<1e-8 }
+              scan.call(entity.definition.entities,wt,depth+1)
+            elsif entity.is_a?(Sketchup::Face)
+              pts=entity.vertices.map { |v| v.position.transform(tr) }
+              next unless pts.all? { |p| (p-base).dot(normal).abs<0.1.mm }
+              mesh=entity.mesh
+              mesh.polygons.each { |poly| cutters << poly.map { |i| to2.call(mesh.point_at(i.abs).transform(tr)) } }
+            end
+          end
+        end
+        scan.call(@model.entities,Geom::Transformation.new,0)
+        cutters.each do |cut|
+          xs=cut.map(&:first);ys=cut.map(&:last)
+          pieces=pieces.flat_map do |poly|
+            px=poly.map(&:first);py=poly.map(&:last)
+            if px.max<=xs.min+1e-8 || px.min>=xs.max-1e-8 || py.max<=ys.min+1e-8 || py.min>=ys.max-1e-8
+              [poly]
+            else
+              DivideBoards.subtract_polygon(poly,cut)
+            end
+          end
+          raise 'Biên dạng quá phức tạp; hãy chọn cụm nhỏ hơn.' if pieces.length>1000
+        end
+        raise 'Face mẫu bị che kín bởi các tấm tiếp xúc.' if pieces.empty?
+        pieces.map! { |poly| DivideBoards.area2(poly)<0 ? poly.reverse : poly }
+        boundaries=DivideBoards.boundary_segments(pieces)
+        pieces.each do |poly|
+          front=poly.map { |p| to3.call(p) }
           front.reverse! if (front[1]-front[0]).cross(front[2]-front[0]).dot(inward)>0
           @face_polygons << front
           @face_polygons << front.reverse.map { |v| v+back_vector }
         end
-        @face.loops.each do |loop|
-          points=loop.vertices.map { |v| v.position.transform(@source_tr) }
-          points.reverse! if @face.normal.transform(@source_tr).dot(inward)<0
-          points.each_with_index do |v,i|
-            w=points[(i+1)%points.length]
-            @face_polygons << [v,w,w+back_vector,v+back_vector]
-          end
+        @edges=[]
+        boundaries.each do |a,b|
+          v=to3.call(a);w=to3.call(b)
+          v,w=w,v if normal.dot(inward)<0
+          @face_polygons << [v,w,w+back_vector,v+back_vector]
+          @edges.concat([v,w,v+back_vector,w+back_vector,v,v+back_vector])
         end
         @corners=@face_polygons.flatten
         @center=Geom::Point3d.new(*3.times.map { |i| @corners.sum { |v| v.to_a[i] }/@corners.length.to_f })
         @triangles=@face_polygons.flat_map { |poly| (1...poly.length-1).flat_map { |i| [poly[0],poly[i],poly[i+1]] } }
-        @edges=@face.loops.flat_map do |loop|
-          points=loop.vertices.map { |v| v.position.transform(@source_tr) }
-          points.each_with_index.flat_map { |v,i| w=points[(i+1)%points.length];[v,w,v+back_vector,w+back_vector,v,v+back_vector] }
-        end
         ray=view.pickray(x,y)
         local_ray=[ray[0].transform(@source_tr.inverse),ray[1].transform(@source_tr.inverse)]
         p=Geom.intersect_line_plane(local_ray,@face.plane)
@@ -273,6 +362,14 @@ module TranTuanNoiThat
           @face_polygons.each do |polygon|
             face=copy.entities.add_face(polygon.map { |v| v.transform(transform) })
             raise 'Không tạo được Face của ván mới.' unless face
+          end
+          # Merge coplanar triangles; preserve real perimeter and notch edges.
+          copy.entities.grep(Sketchup::Edge).each do |edge|
+            next unless edge.valid? && edge.faces.length==2
+            a,b=edge.faces
+            next unless a.normal.cross(b.normal).length<1e-8
+            next unless b.vertices.all? { |v| v.position.distance_to_plane(a.plane).abs<1e-6 }
+            edge.erase!
           end
           # Reverse the complete closed shell if its signed volume is inward.
           if copy.respond_to?(:volume) && copy.volume < 0
