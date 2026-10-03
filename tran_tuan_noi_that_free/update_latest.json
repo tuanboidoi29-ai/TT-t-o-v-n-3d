@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.221",
+  "version": "1.9.222",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Chia cánh lồng: /N sửa preview ô đang trỏ; rê chuột chọn ô tiếp theo để chia ngang/dọc. Giữ ô khác, SHIFT chọn khe đúng hướng, click mới tạo thật.",
+  "notes": "Chia ván lọt lòng theo biên dạng Face; /2 tạo một ván chia hai khoang, /N tạo N-1 ván; / hoặc /1 chia đôi. Nhập mm đặt khoảng cách từ Face mẫu theo neo TAB.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "da1f3f496a55fd6750f2f8ee54015f377e6b881ecbe9968f0891177a7818df19"
+      "sha256": "8f4a1fa9a92f0fedd1c015d0781c4488d044eb11abd73dff6e7d232e5df6eb50"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -314,7 +314,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "0fdebdde5655e319e9d28432d3572950252db011ca4b0377801b7cf60c1966c6"
+      "sha256": "b6aaef2b2fa8660f829dd23f60668202c9ac08051ac309c9bf4b901021facf30"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -344,7 +344,7 @@
     {
       "path": "tran_tuan_noi_that/divide_boards.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/divide_boards.rb",
-      "sha256": "9fffab62b2612802e8658bc749568e8324a2ac34cd098a0bb49c53a800f51e66"
+      "sha256": "fe37a91a45bfd40829fd9f018a5f1c77567b0df9696c807c73e6bab3a5291653"
     },
     {
       "path": "tran_tuan_noi_that/icons/divide_boards.svg",

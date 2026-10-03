@@ -29,12 +29,12 @@ module TranTuanNoiThat
         text=if !@source
           'CHIA VÁN LỌT LÒNG · Click mặt Face của tấm mẫu (Group/Component).'
         else
-          mode=@count ? "/#{@count}: ENTER/click tạo dãy · ESC về tấm đơn" : 'Tấm đơn bám chuột · Click đặt · Nhập /N chia đều'
+          mode=@count ? "/#{@count+1}: #{@count} ván mới · click tạo · ESC về tấm đơn" : 'Tấm đơn bám chuột · Click đặt · Nhập /2 chia đôi hoặc số mm đặt khoảng cách'
           hit=@clear ? "Lọt lòng #{(@clear*25.4).round(1)} mm" : 'Chưa gặp mặt chắn: /N chưa dùng được'
           "#{mode} · TAB: #{label} · #{hit}#{@error ? ' · '+@error : ''}"
         end
         Sketchup.set_status_text(text,SB_PROMPT)
-        Sketchup.vcb_label='Chia /N'
+        Sketchup.vcb_label='/ số khoang hoặc mm'
       end
       def pick_face(view,x,y)
         ph=view.pick_helper; ph.do_pick(x,y)
@@ -54,25 +54,48 @@ module TranTuanNoiThat
         @source,@face,@source_tr=found
         es=@source.definition.entities
         raise 'Chọn tấm ván riêng, không chọn cụm có nhóm con.' if es.any? { |e| DivideBoards.container?(e) }
-        @center=@source.definition.bounds.center.transform(@source_tr)
-        @corners=(0..7).map { |i| @source.definition.bounds.corner(i).transform(@source_tr) }
-        @axes=[@source_tr.xaxis,@source_tr.yaxis,@source_tr.zaxis].map { |v| v.normalize }
-        raise 'Tấm bị xiên trục (shear), chưa hỗ trợ chia chính xác.' if @axes.combination(2).any? { |a,b| a.dot(b).abs>1e-5 }
-        @triangles=[]
-        es.grep(Sketchup::Face).each do |f|
-          mesh=f.mesh
-          mesh.polygons.each do |poly|
-            next unless poly.length==3
-            @triangles.concat(poly.map { |idx| mesh.point_at(idx.abs).transform(@source_tr) })
+        vertices=@face.outer_loop.vertices.map { |v| v.position.transform(@source_tr) }
+        normal=vertices.each_cons(3).map { |a,b,c| (b-a).cross(c-a) }.find { |v| v.length>1e-8 }
+        raise 'Face không có biên dạng hợp lệ.' unless normal
+        raise 'Face không có biên dạng hợp lệ.' if normal.length<1e-8
+        normal.normalize!
+        all_points=es.grep(Sketchup::Face).flat_map { |f| f.vertices.map { |v| v.position.transform(@source_tr) } }
+        distances=all_points.map { |v| (v-vertices[0]).dot(normal) }
+        lo,hi=distances.minmax
+        inward=hi.abs>lo.abs ? normal : normal.reverse
+        @face_thickness=hi-lo
+        raise 'Không nhận được độ dày tấm từ Face.' if @face_thickness<0.001
+        back_vector=inward.clone;back_vector.length=@face_thickness
+        @axes=[normal]
+        @face_polygons=[]
+        mesh=@face.mesh
+        mesh.polygons.each do |poly|
+          next unless poly.length==3
+          front=poly.map { |idx| mesh.point_at(idx.abs).transform(@source_tr) }
+          front.reverse! if (front[1]-front[0]).cross(front[2]-front[0]).dot(inward)>0
+          @face_polygons << front
+          @face_polygons << front.reverse.map { |v| v+back_vector }
+        end
+        @face.loops.each do |loop|
+          points=loop.vertices.map { |v| v.position.transform(@source_tr) }
+          points.reverse! if @face.normal.transform(@source_tr).dot(inward)<0
+          points.each_with_index do |v,i|
+            w=points[(i+1)%points.length]
+            @face_polygons << [v,w,w+back_vector,v+back_vector]
           end
         end
-        @edges=es.grep(Sketchup::Edge).flat_map { |e| [e.start.position.transform(@source_tr),e.end.position.transform(@source_tr)] }
-        raise 'Tấm không có mặt để mô phỏng.' if @triangles.empty?
+        @corners=@face_polygons.flatten
+        @center=Geom::Point3d.new(*3.times.map { |i| @corners.sum { |v| v.to_a[i] }/@corners.length.to_f })
+        @triangles=@face_polygons.flat_map { |poly| (1...poly.length-1).flat_map { |i| [poly[0],poly[i],poly[i+1]] } }
+        @edges=@face.loops.flat_map do |loop|
+          points=loop.vertices.map { |v| v.position.transform(@source_tr) }
+          points.each_with_index.flat_map { |v,i| w=points[(i+1)%points.length];[v,w,v+back_vector,w+back_vector,v,v+back_vector] }
+        end
         ray=view.pickray(x,y)
         local_ray=[ray[0].transform(@source_tr.inverse),ray[1].transform(@source_tr.inverse)]
         p=Geom.intersect_line_plane(local_ray,@face.plane)
         @origin=p ? p.transform(@source_tr) : @center
-        @direction=nil; @count=nil; @deltas=[]
+        @direction=nil; @count=nil; @distance=nil; @deltas=[]
         status
       rescue StandardError
         @source=nil
@@ -96,18 +119,22 @@ module TranTuanNoiThat
       def update_preview(view,x,y)
         @deltas=[];@error=nil
         return unless @source && @source.valid?
-        @direction=choose_direction(view,x,y) unless @count
+        @direction=choose_direction(view,x,y) unless @count || @distance
         return unless @direction
         projections=@corners.map { |p| (p-@center).dot(@direction) }
         @low,@high=projections.minmax
         @thickness=@high-@low
-        @ray_start=@center.offset(@direction,@high)
+        @ray_start=@origin.offset(@direction,@high-(@origin-@center).dot(@direction))
         hit=@model.raytest([@ray_start.offset(@direction,0.001),@direction],true)
         @hit=hit && hit[0]
         @clear=@hit ? (@hit-@ray_start).dot(@direction) : nil
         if @count
           raise 'Chưa gặp mặt chắn theo hướng kéo. Rê về tấm đơn để chọn hướng khác.' unless @clear
           @deltas,@gap=DivideBoards.spacing(@clear,@thickness,@count)
+        elsif @distance
+          # Distance is measured from the selected face to the chosen new-board anchor.
+          coordinate=(@origin-@center).dot(@direction)+@distance
+          @deltas=[coordinate-DivideBoards.anchor_offset(@thickness,@anchor_mode)]
         else
           @ip.pick(view,x,y)
           if @ip.valid? && (@ip.vertex || @ip.edge || @ip.face)
@@ -158,14 +185,23 @@ module TranTuanNoiThat
       def onUserText(text,view)
         @typing=false; @skip_enter_until=Time.now.to_f+0.25
         raise 'Chọn tấm mẫu và kéo hướng trước.' unless @source && @direction
-        match=text.strip.match(%r{\A/\s*(\d+)\z})
-        raise 'Nhập /N, ví dụ /3 = ba tấm mới.' unless match
-        n=match[1].to_i
-        raise 'Chưa có mặt chắn theo hướng kéo.' unless @clear
-        DivideBoards.spacing(@clear,@thickness,n)
-        @count=n
+        input=text.strip
+        if input.start_with?('/')
+          match=input.match(%r{\A/\s*(\d*)\s*\z})
+          raise 'Nhập /2, /3... để chia số khoang.' unless match
+          bays=match[1].empty? ? 2 : match[1].to_i
+          bays=2 if bays==1
+          raise 'Số khoang phải từ 2 đến 101.' unless bays.between?(2,101)
+          raise 'Chưa có mặt chắn theo hướng kéo.' unless @clear
+          DivideBoards.spacing(@clear,@thickness,bays-1)
+          @count=bays-1;@distance=nil
+        else
+          mm=Float(input.tr(',','.'))
+          raise 'Khoảng cách phải lớn hơn 0 mm.' unless mm.finite? && mm>0
+          @distance=mm.mm;@count=nil
+        end
         update_preview(view,*@mouse)
-        Sketchup.vcb_value="/#{n}"
+        Sketchup.vcb_value=input
         view.invalidate
       rescue StandardError=>e
         UI.messagebox(e.message)
@@ -184,8 +220,8 @@ module TranTuanNoiThat
         UI.messagebox(e.message)
       end
       def onCancel(reason,view)
-        if @count
-          @count=nil;@typing=false
+        if @count || @distance
+          @count=nil;@distance=nil;@typing=false
           update_preview(view,*@mouse) if @mouse
         elsif @source
           @source=nil;@deltas=[];@direction=nil
@@ -232,13 +268,15 @@ module TranTuanNoiThat
         created=[]
         @deltas.each do |distance|
           vec=@direction.clone;vec.length=distance.abs;vec.reverse! if distance<0
-          transform=@edit.inverse*Geom::Transformation.translation(vec)*@source_tr
-          if @source.is_a?(Sketchup::Group)
-            copy=@context.add_group
-            copy.entities.add_instance(@source.definition,Geom::Transformation.new).explode
-            copy.transformation=transform
-          else
-            copy=@context.add_instance(@source.definition,transform)
+          transform=@edit.inverse*Geom::Transformation.translation(vec)
+          copy=@context.add_group
+          @face_polygons.each do |polygon|
+            face=copy.entities.add_face(polygon.map { |v| v.transform(transform) })
+            raise 'Không tạo được Face của ván mới.' unless face
+          end
+          # Reverse the complete closed shell if its signed volume is inward.
+          if copy.respond_to?(:volume) && copy.volume < 0
+            copy.entities.grep(Sketchup::Face).each(&:reverse!)
           end
           copy.name=@source.name
           copy.layer=@source.layer
@@ -251,7 +289,7 @@ module TranTuanNoiThat
           created << copy
         end
         @model.commit_operation;started=false
-        @count=nil;@deltas=[];@typing=false
+        @count=nil;@distance=nil;@deltas=[];@typing=false
         Sketchup.set_status_text("Đã tạo #{created.size} tấm. Tấm mẫu giữ nguyên. Rê chuột đặt tiếp hoặc ESC chọn mẫu khác.",SB_PROMPT)
       rescue StandardError
         @model.abort_operation if started
