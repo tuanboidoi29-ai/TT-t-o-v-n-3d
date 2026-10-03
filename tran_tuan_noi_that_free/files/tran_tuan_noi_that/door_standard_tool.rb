@@ -21,7 +21,7 @@ module TranTuanNoiThat
   module DoorStandard
     extend self
 
-    VERSION = '1.9.146'.freeze
+    VERSION = '1.9.216'.freeze
     DICT = 'TT_DOOR_STANDARD'.freeze
     SETTINGS_KEY = 'door_standard_settings_v1'.freeze
     PRESETS_KEY = 'door_standard_presets_v1'.freeze
@@ -889,33 +889,8 @@ module TranTuanNoiThat
           return
         end
 
-        # "/" chốt đường chia tự do tại vị trí TÂM động.
-        if [47, 111, 191].include?(key) && @state == :ready
-          split_active_segment
-          view.invalidate
-          return
-        end
-
-        # 2 / 3 / 4: chia nhanh TOÀN KHOANG thành số cánh tương ứng.
-        quick_count = {
-          50 => 2, 98 => 2,
-          51 => 3, 99 => 3,
-          52 => 4, 100 => 4
-        }[key]
-        if quick_count && @state == :ready
-          set_equal_door_count(quick_count)
-          view.invalidate
-          return
-        end
-
-        # ENTER: tạo ngay preview hiện tại.
-        if key == 13 && @state == :ready
-          create_doors
-          reset_all
-          update_status
-          view.invalidate
-          return
-        end
+        # Printable keys belong to SketchUp's VCB; Enter is handled by onReturn.
+        return false if key == 13 || [47, 111, 191].include?(key) || (48..57).include?(key) || (96..105).include?(key)
 
         # SHIFT: đổi Dọc/Ngang và khóa hướng do người dùng chọn.
         if key == 16 && @state == :ready
@@ -944,6 +919,28 @@ module TranTuanNoiThat
         end
       rescue StandardError => error
         puts "[TT DoorStandard key] #{error.class}: #{error.message}"
+      end
+
+      def enableVCB?
+        true
+      end
+
+      def onUserText(text, view)
+        return unless @state == :ready
+        match = text.to_s.strip.match(%r{\A/([1-9]\d*)\z})
+        unless match && set_equal_door_count(match[1].to_i)
+          Sketchup.status_text = 'Nhập /N với N từ 1 đến 64; khe hở phải vừa ô cánh.'
+          UI.beep
+        end
+        view.invalidate
+      end
+
+      def onReturn(view)
+        return unless @state == :ready && @doors && !@doors.empty?
+        create_doors
+        reset_all
+        update_status
+        view.invalidate
       end
 
       def onMouseMove(_flags, x, y, view)
@@ -1164,17 +1161,22 @@ module TranTuanNoiThat
 
         helper = view.pick_helper
         helper.do_pick(x, y)
-        path = helper.path_at(0)
-        return nil unless path
-
-        face = path.reverse.find { |entity| entity.is_a?(Sketchup::Face) }
-        return nil unless face
-
-        transform = if helper.respond_to?(:transformation_at)
-          helper.transformation_at(0)
-        else
-          Geom::Transformation.new
+        face = nil
+        transform = nil
+        # A corner hit commonly ends at an Edge/Vertex rather than a Face.
+        helper.count.times do |index|
+          path = helper.path_at(index)
+          next unless path && !path.empty?
+          hit = path.last
+          candidates = path.reverse.select { |entity| entity.is_a?(Sketchup::Face) }
+          candidates += hit.faces.to_a if candidates.empty? && hit.respond_to?(:faces)
+          next if candidates.empty?
+          tr = helper.transformation_at(index) || Geom::Transformation.new
+          face = candidates.max_by { |candidate| candidate.normal.transform(tr).normalize.dot(view.camera.direction).abs }
+          transform = tr
+          break
         end
+        return nil unless face
 
         point = nearest_face_snap_point(
           view, face, transform, x, y, @ip.position
@@ -1420,53 +1422,47 @@ module TranTuanNoiThat
         []
       end
 
+      # Divide visible widths equally after deducting internal and boundary gaps.
+      def equal_cell_parts(cell, n, direction)
+        axis = direction == 'Dọc' ? 0 : 2
+        bounds = adjusted_bounds
+        span = axis == 0 ? bounds[1]-bounds[0] : bounds[3]-bounds[2]
+        gap = @options[axis == 0 ? 'gap_vertical' : 'gap_horizontal'].mm
+        a,b = cell[axis],cell[axis+1]
+        low = a > 0.000001 ? gap*0.5 : 0.0
+        high = b < 0.999999 ? gap*0.5 : 0.0
+        width = (span*(b-a)-low-high-(n-1)*gap)/n
+        raise 'Khe giữa quá lớn so với ô cánh.' unless width > 0.1.mm
+        cuts = [a] + (1...n).map { |i| a+(low+i*width+(i-0.5)*gap)/span } + [b]
+        cuts.each_cons(2).map { |l,r| part=cell.dup;part[axis]=l;part[axis+1]=r;part }
+      end
+
       def set_equal_door_count(count)
         n = count.to_i
-        return false unless n.between?(2, 4)
-
-        if @split_committed && @cells && !@cells.empty?
-          index = [[@active_cell_index.to_i, 0].max, @cells.length - 1].min
-          cell = @cells[index]
-          pieces = []
-
-          n.times do |i|
-            a = i.to_f / n
-            b = (i + 1).to_f / n
-
-            if @options['split_direction'] == 'Dọc'
-              u0 = cell[0] + (cell[1] - cell[0]) * a
-              u1 = cell[0] + (cell[1] - cell[0]) * b
-              pieces << [u0, u1, cell[2], cell[3]]
-            else
-              v0 = cell[2] + (cell[3] - cell[2]) * a
-              v1 = cell[2] + (cell[3] - cell[2]) * b
-              pieces << [cell[0], cell[1], v0, v1]
-            end
-          end
-
-          @cells[index, 1] = pieces
-          @active_cell_index = index
-        else
-          @segments = equal_segments(n)
-          @cells = cells_from_segments(@segments, @options['split_direction'])
-          @active_cell_index = 0
+        return false unless n.between?(1,64) && valid_region?
+        old_cells = @cells.map(&:dup)
+        index = [[@active_cell_index.to_i,0].max,@cells.length-1].min
+        return false if @cells.length-1+n > 64
+        pieces = equal_cell_parts(@cells[index],n,@options['split_direction'])
+        @cells = @cells.map(&:dup)
+        @cells[index,1] = pieces
+        rebuild_preview
+        if @doors.empty?
+          @cells = old_cells
+          rebuild_preview
+          return false
         end
-
-        @split_ratio = nil
-        @split_point = nil
-        @options = @options.merge('door_count' => @cells.length)
+        @active_cell_index = index
+        @split_ratio = @split_point = nil
+        @options = @options.merge('door_count'=>@cells.length)
         @split_committed = @cells.length > 1
         @direction_lock ||= @options['split_direction']
         DoorStandard.save_settings(@options)
-        rebuild_preview
         DoorStandard.send_settings
-
-        Sketchup.status_text =
-          "CHIA NHANH #{@cells.length} CÁNH · đường cũ giữ nguyên · rê sang cánh khác và SHIFT đổi hướng để chia tiếp."
+        Sketchup.status_text = "Đã chia ô thành #{n} cánh đều nhau · ENTER tạo · SHIFT đổi hướng · TAB thông số."
         true
       rescue StandardError => error
-        UI.beep
-        Sketchup.status_text = "Không chia nhanh được: #{error.message}"
+        Sketchup.status_text = "Không chia được: #{error.message}"
         false
       end
 
@@ -1673,6 +1669,7 @@ module TranTuanNoiThat
       end
 
       def update_split_cursor(view, x, y)
+        @split_ratio = @split_point = nil
         return false unless valid_region?
 
         point = point_on_region_from_mouse(view, x, y)
@@ -1820,6 +1817,7 @@ module TranTuanNoiThat
       end
 
       def point_inside_region_screen?(view, x, y)
+        @split_ratio = @split_point = nil
         return false unless valid_region?
 
         point = point_on_region_from_mouse(view, x, y)
@@ -2163,7 +2161,7 @@ module TranTuanNoiThat
         when :pick_p2
           'Rê P2 chéo tự do trên mặt · tự bắt Endpoint/Edge/Inference · preview ván 3D theo chuột · click P2.'
         when :ready
-          "P1-P2 · TÂM chạy theo chuột · / hoặc TÂM = chia tự do · 2/3/4 = chia nhanh · SHIFT Dọc/Ngang · CTRL Phủ/Lọt · ENTER = TẠO · TAB."
+          "P1-P2 · TÂM chạy theo chuột · Click = chia theo chuột · /N = chia đều ô đang trỏ · SHIFT Dọc/Ngang · CTRL Phủ/Lọt · ENTER = TẠO · TAB."
         end
       end
     end

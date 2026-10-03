@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.215",
+  "version": "1.9.216",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Sửa lỗi báo lộn Face khi tạo nan chéo: dùng điểm nằm trong khối và điểm trên mặt thật để định hướng mặt, xử lý đầu nan tam giác.",
+  "notes": "Chia cánh: nhận P1 tại đỉnh/cạnh Face, chọn hai góc chéo từ mọi chiều; /N chia đều ô đang trỏ có tính khe hở. Enter nhập số chỉ cập nhật preview, Enter tiếp tạo cánh; chuột ra khỏi vùng bỏ dấu chia cũ.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "f956060ecaa6c7501da3610a8f88d698c915f80c8ca3532b6703483726f373c9"
+      "sha256": "2102810ab6dcffe1a19422ec2dbec0842d305980627cfd5d075661c7573cbab9"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -34,7 +34,7 @@
     {
       "path": "tran_tuan_noi_that/door_standard_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/door_standard_tool.rb",
-      "sha256": "191ed42c304b4fc0dfec3bfd12180fe6246cf828c353526dfa288396832a13fc"
+      "sha256": "f63bf2878cfbd742e54f6292248ac227f49cd71063f18cca0a3a877c92f03613"
     },
     {
       "path": "tran_tuan_noi_that/drawer_tool.rb",
@@ -314,7 +314,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "44f0ca15bd6d30eb6cfaf9b81856c84b5d754ee95febaf04dc5aa6237ee9076d"
+      "sha256": "cd30f4b1b8e223e8b679132dbdf726842533cdabb77917928fb8574733bca46f"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
