@@ -21,7 +21,7 @@ module TranTuanNoiThat
   module DoorStandard
     extend self
 
-    VERSION = '1.9.218'.freeze
+    VERSION = '1.9.219'.freeze
     DICT = 'TT_DOOR_STANDARD'.freeze
     SETTINGS_KEY = 'door_standard_settings_v1'.freeze
     PRESETS_KEY = 'door_standard_presets_v1'.freeze
@@ -1299,8 +1299,8 @@ module TranTuanNoiThat
         fallback
       end
 
-      def setup_plane(face, transform, origin, view)
-        normal = face.normal.transform(transform)
+      def setup_plane(face, transform, origin, view, direction_normal = nil)
+        normal = direction_normal ? direction_normal.clone : face.normal.transform(transform)
         raise 'Không nhận được pháp tuyến Face.' if normal.length < 0.000001
         normal.normalize!
 
@@ -1336,29 +1336,43 @@ module TranTuanNoiThat
         @v = vertical
       end
 
+      # Choose a plane from the actual P1->P2 diagonal, not from P1's face.
+      def p2_direction_normal(delta, normals, camera_direction)
+        candidates = normals.map do |normal|
+          next if normal.length < 0.000001
+          n = normal.normalize
+          vertical = project_vector_to_plane(Z_AXIS,n)
+          vertical = project_vector_to_plane(Y_AXIS,n) if vertical.length < 0.1
+          next if vertical.length < 0.000001
+          vertical.normalize!
+          horizontal = vertical.cross(n).normalize
+          next if delta.dot(vertical).abs < 20.mm || delta.dot(horizontal).abs < 20.mm
+          [delta.dot(n).abs,-n.dot(camera_direction).abs,n]
+        end.compact
+        candidates.min_by { |distance,facing,_| [distance.round(6),facing] }&.last
+      end
+
       def pick_second_point(view, x, y)
-        return nil unless @origin && @normal
-
-        @ip.pick(view, x, y)
-        fallback = nil
-
-        if @ip.valid?
-          picked = @ip.position
-          distance = point_plane_distance(picked, @origin, @normal)
-          fallback = project_point_to_plane(picked, @origin, @normal) if distance.abs <= 5.mm
-        end
-
-        unless fallback
-          ray = view.pickray(x, y)
-          return nil unless ray && ray.length == 2
-          fallback = Geom.intersect_line_plane(ray, [@origin, @normal])
-        end
-        return nil unless fallback
-
+        return nil unless @p1
+        @ip.pick(view,x,y)
         hits = nearby_face_hits(view,x,y)
-        hits << [@face,@face_transform] if @face
-        snap = nearest_board_snap(view,x,y,hits,true)
-        project_point_to_plane(snap ? snap[1] : fallback, @origin, @normal)
+        snap = nearest_board_snap(view,x,y,hits,false)
+        point = snap ? snap[1] : (@ip.valid? ? @ip.position : nil)
+        unless point
+          return nil unless @normal
+          point = Geom.intersect_line_plane(view.pickray(x,y),[@p1,@normal])
+        end
+        return nil unless point
+        delta = point-@p1
+        normals = hits.map { |face,tr| face.normal.transform(tr) }
+        # Only accept a P2 face direction if it also contains P1.
+        normals.select! { |n| n.length > 0.000001 && delta.dot(n.normalize).abs <= 0.1.mm }
+        normal = p2_direction_normal(delta,normals,view.camera.direction)
+        normal ||= p2_direction_normal(delta,[X_AXIS,Y_AXIS,Z_AXIS],view.camera.direction)
+        return nil unless normal
+        face,tr = snap ? [snap[2],snap[3]] : [@face,@face_transform]
+        setup_plane(face,tr,@p1,view,normal)
+        project_point_to_plane(point,@p1,@normal)
       rescue StandardError
         nil
       end
@@ -2225,9 +2239,9 @@ module TranTuanNoiThat
       def update_status
         Sketchup.status_text = case @state
         when :pick_p1
-          'TẠO CÁNH · Click P1 trên Face bất kỳ · P1/P2 bắt điểm tự do, không khóa trục · TAB cài đặt.'
+          'TẠO CÁNH · Click P1 trên Face bất kỳ · P1 giữ gốc · P2 quyết định hướng mặt cánh · TAB cài đặt.'
         when :pick_p2
-          'Rê P2 chéo tự do trên mặt · tự bắt Endpoint/Edge/Inference · preview ván 3D theo chuột · click P2.'
+          'Rê P2 để đổi hướng mặt cánh · bắt mép/tâm hồi · preview theo P2 · click P2 khóa mặt phẳng.'
         when :ready
           "P1-P2 · TÂM chạy theo chuột · Click = chia theo chuột · /N = chia đều ô đang trỏ · SHIFT Dọc/Ngang · CTRL Phủ/Lọt · ENTER = TẠO · TAB."
         end

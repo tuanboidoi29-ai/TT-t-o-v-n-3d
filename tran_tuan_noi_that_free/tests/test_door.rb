@@ -90,3 +90,16 @@ t.onKeyDown(16,6,0,view);check.call(t.instance_variable_get(:@options)['split_di
 t.onKeyUp(16,1,0,view)
 t.onKeyDown(16,1,0,view);check.call(t.instance_variable_get(:@options)['split_direction']=='Dọc')
 puts "#{n} total checks passed"
+# P2 chooses XY, XZ, YZ regardless of which corner started the diagonal.
+[[[600,800,0],Z_AXIS],[[600,0,800],Y_AXIS],[[0,600,800],X_AXIS]].each do |values,expected|
+ [-1,1].each do |sign|
+  delta=Geom::Vector3d.new(*values.map{|v|v*sign})
+  normal=t.send(:p2_direction_normal,delta,[X_AXIS,Y_AXIS,Z_AXIS],Z_AXIS)
+  check.call(normal && normal.dot(expected).abs>0.999)
+ end
+end
+check.call(t.send(:p2_direction_normal,Geom::Vector3d.new(600,0,0),[X_AXIS,Y_AXIS,Z_AXIS],Z_AXIS).nil?)
+rotated=Geom::Vector3d.new(1,-1,0).normalize
+delta=Geom::Vector3d.new(600,600,800)
+check.call(t.send(:p2_direction_normal,delta,[rotated],Y_AXIS).dot(rotated).abs>0.999)
+puts "#{n} total checks passed"
