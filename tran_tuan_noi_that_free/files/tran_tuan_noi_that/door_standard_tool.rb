@@ -21,7 +21,7 @@ module TranTuanNoiThat
   module DoorStandard
     extend self
 
-    VERSION = '1.9.219'.freeze
+    VERSION = '1.9.220'.freeze
     DICT = 'TT_DOOR_STANDARD'.freeze
     SETTINGS_KEY = 'door_standard_settings_v1'.freeze
     PRESETS_KEY = 'door_standard_presets_v1'.freeze
@@ -533,8 +533,8 @@ module TranTuanNoiThat
                 <label>Độ rộng khe dọc</label><input id="gap_vertical" type="number" step="0.5"><span>mm</span>
                 <label>Độ rộng khe ngang (B)</label><input id="gap_horizontal" type="number" step="0.5"><span>mm</span>
                 <label>Nhô (+) / lùi (-)</label><input id="offset" type="number" step="0.5"><span>mm</span>
-                <label>Tên cánh</label><input id="name_prefix"><span></span>
-                <label>Tag / Layer</label><input id="tag_name"><span></span>
+                <label>Instance (tên cánh)</label><input id="name_prefix"><span></span>
+                <label>Tag</label><input id="tag_name"><span></span>
                 <label></label><div class="hint" style="grid-column:span 2">Tag/Layer này được lưu RIÊNG trong từng mẫu và được gán thật cho group tổng + từng cánh con.</div>
               </div>
             </div>
@@ -898,7 +898,7 @@ module TranTuanNoiThat
           @shift_down = true
           direction = @options['split_direction'] == 'Dọc' ? 'Ngang' : 'Dọc'
           set_split_direction(direction, true)
-          update_split_cursor(view, @last_ready_mouse[0], @last_ready_mouse[1]) if @last_ready_mouse
+          update_split_cursor(view, @last_ready_mouse[0], @last_ready_mouse[1]) if @last_ready_mouse && !@numeric_count
           Sketchup.status_text =
             "SHIFT · #{direction == 'Dọc' ? 'CÁNH DỌC' : 'CÁNH NGANG'} · đã khóa hướng chia."
           view.invalidate
@@ -947,10 +947,7 @@ module TranTuanNoiThat
       end
 
       def onReturn(view)
-        return unless @state == :ready && @doors && !@doors.empty?
-        create_doors
-        reset_all
-        update_status
+        # Enter only confirms VCB input; geometry is committed by a mouse click.
         view.invalidate
       end
 
@@ -976,7 +973,7 @@ module TranTuanNoiThat
         when :ready
           auto_detect_split_direction(x, y) unless @direction_lock
           @last_ready_mouse = [x, y]
-          update_split_cursor(view, x, y)
+          update_split_cursor(view, x, y) unless @numeric_count
           @hover_handle = :center
         end
 
@@ -1033,11 +1030,9 @@ module TranTuanNoiThat
           @hover_handle = nearest_handle(view, x, y)
 
         when :ready
-          auto_detect_split_direction(x, y) unless @direction_lock
-          @last_ready_mouse = [x, y]
-          if update_split_cursor(view, x, y)
-            # Chuột là công cụ CHIA: click chốt ngay TÂM hiện tại.
-            split_active_segment
+          if @doors && !@doors.empty?
+            create_doors
+            reset_all
           else
             UI.beep
           end
@@ -1103,6 +1098,10 @@ module TranTuanNoiThat
         @options = @options.merge('split_direction' => direction)
         @direction_lock = direction if lock
 
+        if changed && @numeric_count
+          set_equal_door_count(@numeric_count)
+          return true
+        end
         if changed
           active_index = @active_cell_index
           # Nếu chưa có đường chia thật, xoay lại chia đều theo hướng mới.
@@ -1142,6 +1141,7 @@ module TranTuanNoiThat
       end
 
       def reset_all
+        @numeric_count = nil
         @shift_down = false
         @state = :pick_p1
         @p1 = nil
@@ -1523,17 +1523,16 @@ module TranTuanNoiThat
         n = count.to_i
         return false unless n.between?(1,64) && valid_region?
         old_cells = @cells.map(&:dup)
-        index = [[@active_cell_index.to_i,0].max,@cells.length-1].min
-        return false if @cells.length-1+n > 64
-        pieces = equal_cell_parts(@cells[index],n,@options['split_direction'])
-        @cells = @cells.map(&:dup)
-        @cells[index,1] = pieces
+        index = 0
+        pieces = equal_cell_parts([0.0,1.0,0.0,1.0],n,@options['split_direction'])
+        @cells = pieces
         rebuild_preview
         if @doors.empty?
           @cells = old_cells
           rebuild_preview
           return false
         end
+        @numeric_count = n
         @active_cell_index = index
         @split_ratio = @split_point = nil
         @options = @options.merge('door_count'=>@cells.length)
@@ -1541,7 +1540,7 @@ module TranTuanNoiThat
         @direction_lock ||= @options['split_direction']
         DoorStandard.save_settings(@options)
         DoorStandard.send_settings
-        Sketchup.status_text = "Đã chia ô thành #{n} cánh đều nhau · ENTER tạo · SHIFT đổi hướng · TAB thông số."
+        Sketchup.status_text = "Đã chia ô thành #{n} cánh đều nhau · CLICK tạo · SHIFT đổi hướng · TAB thông số."
         true
       rescue StandardError => error
         Sketchup.status_text = "Không chia được: #{error.message}"
@@ -2243,7 +2242,7 @@ module TranTuanNoiThat
         when :pick_p2
           'Rê P2 để đổi hướng mặt cánh · bắt mép/tâm hồi · preview theo P2 · click P2 khóa mặt phẳng.'
         when :ready
-          "P1-P2 · TÂM chạy theo chuột · Click = chia theo chuột · /N = chia đều ô đang trỏ · SHIFT Dọc/Ngang · CTRL Phủ/Lọt · ENTER = TẠO · TAB."
+          "P1-P2 · TÂM chạy theo chuột · /N = thay số cánh preview · CLICK = tạo thật · SHIFT Dọc/Ngang · CTRL Phủ/Lọt · ENTER = cập nhật preview · TAB."
         end
       end
     end

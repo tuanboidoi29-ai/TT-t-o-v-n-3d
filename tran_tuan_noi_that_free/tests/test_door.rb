@@ -103,3 +103,27 @@ rotated=Geom::Vector3d.new(1,-1,0).normalize
 delta=Geom::Vector3d.new(600,600,800)
 check.call(t.send(:p2_direction_normal,delta,[rotated],Y_AXIS).dot(rotated).abs>0.999)
 puts "#{n} total checks passed"
+module TranTuanNoiThat;NAME="TT test";end
+u=T.allocate
+u.instance_variable_set(:@state,:ready)
+u.instance_variable_set(:@cells,[[0,1,0,1]])
+u.instance_variable_set(:@options,{'gap_vertical'=>2,'gap_horizontal'=>4,'split_direction'=>'Dọc'})
+def u.valid_region?;true;end
+def u.adjusted_bounds;[0,600,0,800];end
+def u.rebuild_preview;@doors=@cells.map(&:dup);end
+def D.send_settings;end
+(1..6).each do |count|
+ check.call(u.send(:set_equal_door_count,count))
+ check.call(u.instance_variable_get(:@cells).length==count)
+end
+u.send(:set_split_direction,'Ngang',true)
+check.call(u.instance_variable_get(:@cells).length==6)
+check.call(u.instance_variable_get(:@cells).all?{|c|c[0]==0 && c[1]==1})
+u.onReturn(view)
+check.call(u.instance_variable_get(:@state)==:ready)
+def u.create_doors;@created=true;end
+def u.reset_all;@state=:pick_p1;end
+def u.update_status;end
+u.onLButtonDown(0,0,0,view)
+check.call(u.instance_variable_get(:@created)==true)
+puts "#{n} final checks passed"
