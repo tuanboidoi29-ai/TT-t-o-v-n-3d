@@ -127,3 +127,25 @@ def u.update_status;end
 u.onLButtonDown(0,0,0,view)
 check.call(u.instance_variable_get(:@created)==true)
 puts "#{n} final checks passed"
+w=T.allocate
+w.instance_variable_set(:@state,:ready)
+w.instance_variable_set(:@cells,[[0,1,0,1]])
+w.instance_variable_set(:@options,{'gap_vertical'=>2,'gap_horizontal'=>4,'split_direction'=>'Ngang'})
+def w.valid_region?;true;end
+def w.adjusted_bounds;[0,600,0,800];end
+def w.rebuild_preview;@doors=@cells.map(&:dup);end
+w.instance_variable_set(:@last_ready_mouse,[100,100])
+check.call(w.send(:set_equal_door_count,2))
+original=w.instance_variable_get(:@cells).map(&:dup)
+w.send(:advance_division_target,103,103)
+check.call(w.instance_variable_get(:@numeric_count)==2)
+w.send(:advance_division_target,200,200)
+w.instance_variable_set(:@active_cell_index,1)
+w.send(:set_split_direction,'Dọc',true)
+check.call(w.send(:set_equal_door_count,3))
+check.call(w.instance_variable_get(:@cells).length==4)
+check.call(w.instance_variable_get(:@cells).first==original.first)
+check.call(w.send(:set_equal_door_count,4))
+check.call(w.instance_variable_get(:@cells).length==5)
+check.call(w.instance_variable_get(:@cells).first==original.first)
+puts "#{n} nested preview checks passed"

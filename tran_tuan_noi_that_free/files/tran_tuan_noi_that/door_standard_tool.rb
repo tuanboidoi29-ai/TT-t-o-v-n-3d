@@ -21,7 +21,7 @@ module TranTuanNoiThat
   module DoorStandard
     extend self
 
-    VERSION = '1.9.220'.freeze
+    VERSION = '1.9.221'.freeze
     DICT = 'TT_DOOR_STANDARD'.freeze
     SETTINGS_KEY = 'door_standard_settings_v1'.freeze
     PRESETS_KEY = 'door_standard_presets_v1'.freeze
@@ -971,6 +971,7 @@ module TranTuanNoiThat
           view.tooltip = @snap_label || @ip.tooltip if @ip.valid?
 
         when :ready
+          advance_division_target(x,y)
           auto_detect_split_direction(x, y) unless @direction_lock
           @last_ready_mouse = [x, y]
           update_split_cursor(view, x, y) unless @numeric_count
@@ -1141,6 +1142,7 @@ module TranTuanNoiThat
       end
 
       def reset_all
+        @division_base = @division_index = @division_mouse = nil
         @numeric_count = nil
         @shift_down = false
         @state = :pick_p1
@@ -1519,19 +1521,37 @@ module TranTuanNoiThat
         cuts.each_cons(2).map { |l,r| part=cell.dup;part[axis]=l;part[axis+1]=r;part }
       end
 
+      def advance_division_target(x,y)
+        return unless @numeric_count
+        origin = @division_mouse || @last_ready_mouse
+        @division_mouse ||= [x,y]
+        return unless origin && Math.hypot(x-origin[0],y-origin[1]) > 8.0
+        # Moving away accepts the last subdivision in the preview only.
+        @numeric_count = nil
+        @division_base = nil
+        @division_index = nil
+        @division_mouse = nil
+      end
+
       def set_equal_door_count(count)
         n = count.to_i
         return false unless n.between?(1,64) && valid_region?
         old_cells = @cells.map(&:dup)
-        index = 0
-        pieces = equal_cell_parts([0.0,1.0,0.0,1.0],n,@options['split_direction'])
-        @cells = pieces
+        base = @division_base || @cells.map(&:dup)
+        index = @division_index || [[@active_cell_index.to_i,0].max,base.length-1].min
+        return false if base.length - 1 + n > 64
+        pieces = equal_cell_parts(base[index],n,@options['split_direction'])
+        @cells = base.map(&:dup)
+        @cells[index,1] = pieces
         rebuild_preview
         if @doors.empty?
           @cells = old_cells
           rebuild_preview
           return false
         end
+        @division_base = base
+        @division_index = index
+        @division_mouse ||= @last_ready_mouse && @last_ready_mouse.dup
         @numeric_count = n
         @active_cell_index = index
         @split_ratio = @split_point = nil
@@ -2242,7 +2262,7 @@ module TranTuanNoiThat
         when :pick_p2
           'Rê P2 để đổi hướng mặt cánh · bắt mép/tâm hồi · preview theo P2 · click P2 khóa mặt phẳng.'
         when :ready
-          "P1-P2 · TÂM chạy theo chuột · /N = thay số cánh preview · CLICK = tạo thật · SHIFT Dọc/Ngang · CTRL Phủ/Lọt · ENTER = cập nhật preview · TAB."
+          "P1-P2 · TÂM chạy theo chuột · /N = chia ô đang trỏ; rê sang ô để chia tiếp · CLICK = tạo thật · SHIFT Dọc/Ngang · CTRL Phủ/Lọt · ENTER = cập nhật preview · TAB."
         end
       end
     end

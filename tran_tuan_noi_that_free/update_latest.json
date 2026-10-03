@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.220",
+  "version": "1.9.221",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Chia cánh: nhập /1.. /64 liên tục thay preview toàn vùng P1-P2; Enter không tạo thật, click tạo. SHIFT xoay preview theo khe ngang/dọc. Nhãn cài đặt Tag và Instance.",
+  "notes": "Chia cánh lồng: /N sửa preview ô đang trỏ; rê chuột chọn ô tiếp theo để chia ngang/dọc. Giữ ô khác, SHIFT chọn khe đúng hướng, click mới tạo thật.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "2bdfb4e7ec5650c7e86a03a007998404044ef1d6dc08c1de8681ec7f85e84cd1"
+      "sha256": "da1f3f496a55fd6750f2f8ee54015f377e6b881ecbe9968f0891177a7818df19"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -34,7 +34,7 @@
     {
       "path": "tran_tuan_noi_that/door_standard_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/door_standard_tool.rb",
-      "sha256": "945cdf9c5245cc8b9505b5a6e74e43869f0ad1883cc937a068bb0d96a986c6c3"
+      "sha256": "c7a6626cc5956b55491bb096a241f75d3ff85e37c27feea4af5e3d98d3ee9d2f"
     },
     {
       "path": "tran_tuan_noi_that/drawer_tool.rb",
@@ -314,7 +314,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "282406f2b4a7295612285e1349768c21236b1011e4c4014bb0883a9a396f3546"
+      "sha256": "0fdebdde5655e319e9d28432d3572950252db011ca4b0377801b7cf60c1966c6"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
