@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.217",
+  "version": "1.9.218",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Chia cánh: bắt mép, trung điểm cạnh và tâm mặt của các hồi dưới con trỏ, kể cả Group/Component khác. Giữ mặt phẳng P1 khi chọn P2.",
+  "notes": "Chia cánh: bắt mép-tâm-mép liên tục theo chuột trên hồi chữ nhật đứng/nằm; SHIFT chống lặp phím và giữ ô đang chia; nhận /N có khoảng trắng, tự dùng khe ngang/dọc.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "a30d2cf0866b60587dd1784c77fc877537221d37e77c1845f6eddc91b14297e4"
+      "sha256": "fa92190e925758cf17a48e07fcc112bfaae68d98b1c839066ca1246aa4e0136c"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -34,7 +34,7 @@
     {
       "path": "tran_tuan_noi_that/door_standard_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/door_standard_tool.rb",
-      "sha256": "c9a3c12addcf642eacd722294b117b68e27e0ccc2cdf417778c25f76ff55cc7a"
+      "sha256": "0507d6e31f3c5a6469cc419b8175140f1ed000df83d3efc3a798c959931ebbc4"
     },
     {
       "path": "tran_tuan_noi_that/drawer_tool.rb",
@@ -314,7 +314,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "513a25da3f293a287251a7f94e1abfb02d1e1b53d6067181b8d9b8fa4aaba156"
+      "sha256": "54c95cdbf089b8fbb90dcdfe616de931c5c2883dcfe0afa06b5b18aa2620c8da"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",

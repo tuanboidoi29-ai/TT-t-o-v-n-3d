@@ -57,6 +57,8 @@ class SnapFace < Sketchup::Face
  end
  def normal;Z_AXIS;end
 end
+def Geom.intersect_line_plane(ray,plane);ray[0];end
+view.define_singleton_method(:pickray){|x,y|[Geom::Point3d.new(x,y,0),Z_AXIS]}
 view.define_singleton_method(:screen_coords){|p|p}
 view.define_singleton_method(:camera){Struct.new(:direction).new(Z_AXIS)}
 f1=SnapFace.new(0);f2=SnapFace.new(600);tr=Geom::Transformation.new
@@ -67,4 +69,24 @@ end
 snap=t.send(:nearest_board_snap,view,609,400,[[f2,tr]],true)
 check.call(snap && snap[4]=='Tâm mặt hồi')
 check.call(t.send(:nearest_board_snap,view,300,300,[[f1,tr],[f2,tr]],true).nil?)
+puts "#{n} total checks passed"
+
+[137,369,711].each do |y|
+ [600,609,618].each do |x|
+  snap=t.send(:nearest_board_snap,view,x,y,[[f2,tr]],true)
+  check.call(snap && (snap[1].x-x).abs<1e-8 && (snap[1].y-y).abs<1e-8)
+ end
+end
+points=[[0,0,0],[800,0,0],[800,18,0],[0,18,0]].map{|a|Geom::Point3d.new(*a)}
+rails=t.send(:board_rail_candidates,view,327,9,points)
+check.call(rails.map{|a|a[1].y}.sort==[0,9,18])
+check.call(rails.all?{|a|a[1].x==327})
+t.onUserText('/ 3',view);check.call(t.instance_variable_get(:@received)==3)
+# A held Shift changes direction exactly once, regardless of repeat count.
+def t.set_split_direction(d,lock);@options['split_direction']=d;end
+t.instance_variable_set(:@options,{'split_direction'=>'Dọc'})
+t.onKeyDown(16,5,0,view);check.call(t.instance_variable_get(:@options)['split_direction']=='Ngang')
+t.onKeyDown(16,6,0,view);check.call(t.instance_variable_get(:@options)['split_direction']=='Ngang')
+t.onKeyUp(16,1,0,view)
+t.onKeyDown(16,1,0,view);check.call(t.instance_variable_get(:@options)['split_direction']=='Dọc')
 puts "#{n} total checks passed"

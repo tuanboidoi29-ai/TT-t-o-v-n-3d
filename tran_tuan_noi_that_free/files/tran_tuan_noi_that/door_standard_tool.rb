@@ -21,7 +21,7 @@ module TranTuanNoiThat
   module DoorStandard
     extend self
 
-    VERSION = '1.9.217'.freeze
+    VERSION = '1.9.218'.freeze
     DICT = 'TT_DOOR_STANDARD'.freeze
     SETTINGS_KEY = 'door_standard_settings_v1'.freeze
     PRESETS_KEY = 'door_standard_presets_v1'.freeze
@@ -894,7 +894,8 @@ module TranTuanNoiThat
 
         # SHIFT: đổi Dọc/Ngang và khóa hướng do người dùng chọn.
         if key == 16 && @state == :ready
-          return if repeat.to_i > 1
+          return true if @shift_down
+          @shift_down = true
           direction = @options['split_direction'] == 'Dọc' ? 'Ngang' : 'Dọc'
           set_split_direction(direction, true)
           update_split_cursor(view, @last_ready_mouse[0], @last_ready_mouse[1]) if @last_ready_mouse
@@ -921,13 +922,23 @@ module TranTuanNoiThat
         puts "[TT DoorStandard key] #{error.class}: #{error.message}"
       end
 
+      def onKeyUp(key, _repeat, _flags, _view)
+        @shift_down = false if key == 16
+        false
+      end
+
+      def resume(view)
+        @shift_down = false
+        view.invalidate
+      end
+
       def enableVCB?
         true
       end
 
       def onUserText(text, view)
         return unless @state == :ready
-        match = text.to_s.strip.match(%r{\A/([1-9]\d*)\z})
+        match = text.to_s.strip.match(%r{\A/\s*([1-9]\d*)\s*\z})
         unless match && set_equal_door_count(match[1].to_i)
           Sketchup.status_text = 'Nhập /N với N từ 1 đến 64; khe hở phải vừa ô cánh.'
           UI.beep
@@ -1093,6 +1104,7 @@ module TranTuanNoiThat
         @direction_lock = direction if lock
 
         if changed
+          active_index = @active_cell_index
           # Nếu chưa có đường chia thật, xoay lại chia đều theo hướng mới.
           # Nếu đã chia: GIỮ NGUYÊN toàn bộ ô 2D, chỉ đổi hướng cho lần chia kế tiếp.
           unless @split_committed
@@ -1102,7 +1114,7 @@ module TranTuanNoiThat
           end
 
           @active_segment_index = 0
-          @active_cell_index = 0
+          @active_cell_index = @split_committed ? active_index : 0
           @split_ratio = nil
           @split_point = nil
           rebuild_preview if @region
@@ -1130,6 +1142,7 @@ module TranTuanNoiThat
       end
 
       def reset_all
+        @shift_down = false
         @state = :pick_p1
         @p1 = nil
         @p2 = nil
@@ -1172,6 +1185,33 @@ module TranTuanNoiThat
         hits
       end
 
+      # Three continuous rails across a rectangular board edge: edge/center/edge.
+      # Project the mouse ray onto the face, then onto each rail in world space.
+      def board_rail_candidates(view, x, y, points)
+        return [] unless points.length == 4
+        a,b,c,d = points
+        ab = b-a
+        dc = c-d
+        ad = d-a
+        bc = c-b
+        return [] if [ab,dc,ad,bc].any? { |v| v.length < 0.000001 }
+        return [] if ab.normalize.cross(dc.normalize).length > 0.001 || ad.normalize.cross(bc.normalize).length > 0.001
+        if ad.length + bc.length > ab.length + dc.length
+          a,b,c,d = a,d,c,b
+        end
+        normal = (b-a).cross(d-a)
+        return [] if normal.length < 0.000001
+        hit = Geom.intersect_line_plane(view.pickray(x,y),[a,normal])
+        return [] unless hit
+        mid_a = Geom::Point3d.linear_combination(0.5,a,0.5,d)
+        mid_b = Geom::Point3d.linear_combination(0.5,b,0.5,c)
+        [['Mép hồi',a,b],['Tâm hồi',mid_a,mid_b],['Mép hồi',d,c]].map do |label,start,finish|
+          direction = finish-start
+          t = [[(hit-start).dot(direction)/direction.dot(direction),0.0].max,1.0].min
+          [label,Geom::Point3d.linear_combination(1.0-t,start,t,finish)]
+        end
+      end
+
       def nearest_board_snap(view, x, y, hits, constrain_plane = false)
         best = nil
         hits.each do |face,tr|
@@ -1183,6 +1223,7 @@ module TranTuanNoiThat
           end
           points = face.outer_loop.vertices.map { |v| v.position.transform(tr) }
           candidates << ['Tâm mặt hồi',average_point(points)] unless points.empty?
+          candidates.concat(board_rail_candidates(view,x,y,points))
           candidates.each do |label,point|
             next if constrain_plane && point_plane_distance(point,@origin,@normal).abs > 5.mm
             screen = view.screen_coords(point)
