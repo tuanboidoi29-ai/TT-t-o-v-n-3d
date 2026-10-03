@@ -1,8 +1,8 @@
 {
   "name": "TT - Xoay Vân Gỗ",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "channel": "stable",
-  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tt_xoay_van_go/releases/TT_Xoay_Van_Go_v1.4.0_AUTO_SCAN.rbz",
-  "sha256": "7c5ed2cf57c81c6f1566cedc96fd6f481239710a4779f3139ade9f9d9a00168d",
-  "notes": "Bấm icon chính = tự quét và xoay ngay. Có chọn Group/Component thì quét vùng chọn; không chọn gì thì quét toàn model. Ván đứng theo Z, ván nằm theo chiều dài thật; UV cố định 1220x2440 mm; một lần quét = 1 Undo."
+  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tt_xoay_van_go/releases/TT_Xoay_Van_Go_v1.4.1_AUTO_DUNG_NAM.rbz",
+  "sha256": "def936517581d94a600c90e075cd6b6ced3e0a458d439a0aee77f9e153c43910",
+  "notes": "AUTO nhận từng tấm riêng: ván đứng luôn theo Z model, không so rộng/cao; ván nằm mới đo chiều dài thật của chính tấm. Tự tách nhiều shell trong cùng Group; Component chung definition khác tư thế/scale/material được tách khi cần. UV khóa cứng 1220x2440 mm."
 }
