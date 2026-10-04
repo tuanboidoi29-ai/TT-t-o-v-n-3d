@@ -32,3 +32,23 @@ segments=D.boundary_segments(triangles)
 raise 'Diagonal retained' unless segments.length==4
 n+=1
 puts "#{n} geometry/input checks passed"
+loops=D.boundary_loops(D.boundary_segments(triangles))
+raise 'Not one rectangle' unless loops.length==1 && loops[0].length==4
+n+=1
+cut=[[20,20],[80,20],[80,80],[20,80]]
+parts=D.subtract_polygon(subject,cut).map{|p|D.area2(p)<0 ? p.reverse : p}
+loops=D.boundary_loops(D.boundary_segments(parts))
+raise 'Hole lost' unless loops.length==2 && loops.count{|p|D.area2(p)>0}==1
+n+=1
+puts "#{n} closed-boundary checks passed"
+# A crossing shelf separates two regions; neither gets triangulation edges.
+parts=D.subtract_polygon(subject,[[40,-10],[60,-10],[60,110],[40,110]])
+loops=D.boundary_loops(D.boundary_segments(parts))
+raise 'Separated regions incorrect' unless loops.length==2 && loops.all?{|p|p.length==4}
+n+=1
+# A notch touching the outside must remain in the final outline.
+parts=D.subtract_polygon(subject,[[40,50],[60,50],[60,110],[40,110]])
+loops=D.boundary_loops(D.boundary_segments(parts))
+raise 'Notch lost' unless loops.length==1 && loops[0].length==8
+n+=1
+puts "#{n} final checks passed"

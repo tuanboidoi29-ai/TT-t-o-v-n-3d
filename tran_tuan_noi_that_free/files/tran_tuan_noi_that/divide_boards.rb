@@ -56,7 +56,7 @@ module TranTuanNoiThat
           next if len<1e-14
           ts=[0.0,1.0]
           points.each do |p|
-            t=((p[0]-a[0])*dx+(p[1]-a[1])*dy)/len
+            t=((p[0]-a[0])*dx+(p[1]-a[1])*dy).to_f/len
             next unless t>1e-8 && t<1-1e-8
             ts << t if ((p[0]-a[0])*dy-(p[1]-a[1])*dx).abs/Math.sqrt(len)<1e-7
           end
@@ -69,6 +69,29 @@ module TranTuanNoiThat
         end
       end
       segments.values
+    end
+    def boundary_loops(segments)
+      key=->(p) { p.map { |v| v.round(7) } }
+      remaining=segments.map { |a,b| [a,b] }
+      loops=[]
+      until remaining.empty?
+        first=remaining.shift;loop=[first[0]];current=first[1]
+        limit=remaining.length+2
+        until key.call(current)==key.call(loop.first)
+          loop << current
+          index=remaining.index { |a,b| key.call(a)==key.call(current) }
+          raise 'Biên dạng chưa kín; không tạo ván để tránh sinh cạnh thừa.' unless index
+          current=remaining.delete_at(index)[1]
+          raise 'Biên dạng tự giao.' if loop.length>limit
+        end
+        # Remove collinear segmentation inherited from clipped triangles.
+        loop=loop.each_with_index.reject do |p,i|
+          a=loop[(i-1)%loop.length];b=loop[(i+1)%loop.length]
+          ((p[0]-a[0])*(b[1]-p[1])-(p[1]-a[1])*(b[0]-p[0])).abs<1e-8
+        end.map(&:first)
+        loops << loop if loop.length>=3
+      end
+      loops.sort_by { |poly| -area2(poly).abs }
     end
     class Tool
       def activate
@@ -164,6 +187,12 @@ module TranTuanNoiThat
         raise 'Face mẫu bị che kín bởi các tấm tiếp xúc.' if pieces.empty?
         pieces.map! { |poly| DivideBoards.area2(poly)<0 ? poly.reverse : poly }
         boundaries=DivideBoards.boundary_segments(pieces)
+        loops=DivideBoards.boundary_loops(boundaries)
+        @cap_loops=loops.map { |poly| [poly.map { |p| to3.call(p) },DivideBoards.area2(poly)>0] }
+        boundaries=loops.flat_map { |poly| poly.each_with_index.map { |p,i| [p,poly[(i+1)%poly.length]] } }
+        @back_vector=back_vector
+        @cap_normal=inward.reverse
+        @side_polygons=[]
         pieces.each do |poly|
           front=poly.map { |p| to3.call(p) }
           front.reverse! if (front[1]-front[0]).cross(front[2]-front[0]).dot(inward)>0
@@ -174,7 +203,9 @@ module TranTuanNoiThat
         boundaries.each do |a,b|
           v=to3.call(a);w=to3.call(b)
           v,w=w,v if normal.dot(inward)<0
-          @face_polygons << [v,w,w+back_vector,v+back_vector]
+          side=[v,w,w+back_vector,v+back_vector]
+          @face_polygons << side
+          @side_polygons << side
           @edges.concat([v,w,v+back_vector,w+back_vector,v,v+back_vector])
         end
         @corners=@face_polygons.flatten
@@ -359,11 +390,24 @@ module TranTuanNoiThat
           vec=@direction.clone;vec.length=distance.abs;vec.reverse! if distance<0
           transform=@edit.inverse*Geom::Transformation.translation(vec)
           copy=@context.add_group
-          @face_polygons.each do |polygon|
-            face=copy.entities.add_face(polygon.map { |v| v.transform(transform) })
-            raise 'Không tạo được Face của ván mới.' unless face
+          # Build entire planar faces from boundary loops, never mesh triangles.
+          [false,true].each do |back|
+            @cap_loops.each do |points,outer|
+              polygon=points.map { |v| (back ? v+@back_vector : v).transform(transform) }
+              face=copy.entities.add_face(polygon)
+              raise 'Không tạo được mặt theo vòng biên kín.' unless face
+              unless outer
+                face.erase!
+                next
+              end
+              expected=(back ? @cap_normal.reverse : @cap_normal).transform(@edit.inverse)
+              face.reverse! if face.normal.dot(expected)<0
+            end
           end
-          # Merge coplanar triangles; preserve real perimeter and notch edges.
+          @side_polygons.each do |polygon|
+            face=copy.entities.add_face(polygon.map { |v| v.transform(transform) })
+            raise 'Không tạo được mặt cạnh ván.' unless face
+          end
           copy.entities.grep(Sketchup::Edge).each do |edge|
             next unless edge.valid? && edge.faces.length==2
             a,b=edge.faces
