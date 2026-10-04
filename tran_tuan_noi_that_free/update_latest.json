@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.234",
+  "version": "1.9.235",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Tự quét vùng chọn hoặc toàn ngữ cảnh khi không chọn; tự nhận diện sau quét. Nhận đường bao kín dài hẹp và cặp nét song song; lớp chưa rõ cần xác nhận. Giữ icon 1.9.233.",
+  "notes": "Nhận đường bao kín góc vuông dạng L/T, kể cả xoay; dựng đúng đa giác và giữ phần lõm. Không tự đóng biên hở; lớp chưa rõ vẫn cần xác nhận.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "dd8dfaa5fb98c02bc94004e7e51649c100b8358e9609d9a47f7948406d70cef0"
+      "sha256": "848372af3b796d0af36baf47e45186c9cd7904e8468e177303f123006ef4488e"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -314,7 +314,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "ed1b4d38a684548c4b369a61c6891341030ec90748863dfae5e84b4ae9a77931"
+      "sha256": "3be9c1a6ba7afb638acb562c7092c85cf232a4640d8e5800b0f5ceb0d67ace4c"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -384,12 +384,12 @@
     {
       "path": "tran_tuan_noi_that/cad_wall_engine.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/cad_wall_engine.rb",
-      "sha256": "2f1f1b8837a9f755ff02ff76c27f7671aa9c10b641865ff7976eb73001679b21"
+      "sha256": "869fdea0b547623b115247f598e09407d27157213ceeb5823f2201616ad46831"
     },
     {
       "path": "tran_tuan_noi_that/cad_walls.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/cad_walls.rb",
-      "sha256": "a0fb2dd8fb9558fdcc0793f58de5e7bc4c5e078d91af10fbf8ba9f521d5b365b"
+      "sha256": "d6f94ed8940fca4b974bc69c6323d39b2cb2b57fccd31e3c3578591646f00757"
     },
     {
       "path": "tran_tuan_noi_that/icons/cad_walls.svg",
@@ -399,7 +399,7 @@
     {
       "path": "tran_tuan_noi_that/cad_walls_ui.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/cad_walls_ui.rb",
-      "sha256": "53df84c9544992a956946ad94af9118f2ef43ff95de69ab379dc15ef30c473af"
+      "sha256": "0bfa8e12252f8a6f1655bdb70d94ddc6590eaa1e5bb8c367bb1c74aa6ceecd4c"
     },
     {
       "path": "tran_tuan_noi_that/wall_junctions.rb",

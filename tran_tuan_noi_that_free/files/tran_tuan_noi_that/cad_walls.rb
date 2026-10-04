@@ -204,8 +204,11 @@ module TranTuanNoiThat
         suggested.select!{|w|w[:length]>=1000 && w[:length]/w[:width]>=5}
         suggested.each{|w|w[:selected]=false;w[:warning]='Cặp nét nghi là tường — xác nhận trước khi dựng'}
         pairs+=suggested
+        corners=outlines.select{|w|w[:shape]}
+        pairs.reject!{|pair|corners.any?{|c|c[:layer]==pair[:layer] && CadWallEngine.footprint(pair).all?{|p|CadWallEngine.inside_outline?(p,c[:outline])}}}
         # Do not add a closed contour over an already proposed parallel strip.
         outlines.reject! do |outline|
+          next false if outline[:shape]
           bounds=CadWallEngine.footprint(outline).transpose.map(&:minmax)
           pairs.any? do |pair|
             next false unless pair[:layer]==outline[:layer]

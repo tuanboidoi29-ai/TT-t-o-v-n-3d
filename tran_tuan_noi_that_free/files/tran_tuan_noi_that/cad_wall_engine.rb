@@ -153,6 +153,46 @@ module TranTuanNoiThat
       end
       true
     end
+    def inside_outline?(p,poly)
+      inside=false
+      poly.each_with_index do |a,i|
+        b=poly[(i+1)%poly.length]
+        return true if cross(a,b,p).abs<1e-6 && p[0].between?(*[a[0],b[0]].minmax) && p[1].between?(*[a[1],b[1]].minmax)
+        if (a[1]>p[1]) != (b[1]>p[1])
+          x=a[0]+(p[1]-a[1])*(b[0]-a[0])/(b[1]-a[1])
+          inside=!inside if p[0]<x
+        end
+      end
+      inside
+    end
+    # Orthogonal L/T profiles, also when rotated relative to model axes.
+    def corner_profile(poly,tolerance)
+      q=poly.dup
+      loop do
+        index=q.each_index.find{|i|a=q[(i-1)%q.length];b=q[i];c=q[(i+1)%q.length];cross(a,b,c).abs<1e-7 && dot(sub(b,a),sub(c,b))>0}
+        break unless index && q.length>4
+        q.delete_at(index)
+      end
+      return nil unless [6,8].include?(q.length)
+      vectors=q.each_index.map{|i|sub(q[(i+1)%q.length],q[i])}
+      lengths=vectors.map{|v|Math.hypot(*v)}
+      return nil if lengths.min<1
+      return nil unless vectors.each_index.all?{|i|dot(vectors[i],vectors[(i+1)%q.length]).abs/(lengths[i]*lengths[(i+1)%q.length])<1e-6}
+      reflex=q.each_index.select{|i|cross(q[(i-1)%q.length],q[i],q[(i+1)%q.length])<0}
+      shape=nil
+      shape='L' if q.length==6 && reflex.length==1
+      if q.length==8 && reflex.length==2
+        gap=(reflex[0]-reflex[1]).abs
+        shape='T' if [gap,8-gap].min==3
+      end
+      return nil unless shape
+      # Ends of each arm have two convex vertices; their edge length is thickness.
+      ends=q.each_index.select{|i|!reflex.include?(i)&&!reflex.include?((i+1)%q.length)}.map{|i|lengths[i]}.select{|l|l.between?(60,500)}
+      return nil unless ends.length>=(shape=='L' ? 2 : 3)
+      width=ends.min
+      return nil unless lengths.max>=500 && lengths.max/width>=3
+      {shape:shape,width:width}
+    end
     # Exact closed components only; no inferred closure across openings.
     def closed_outlines(edges,roles,opts)
       adjacency=Hash.new{|h,k|h[k]=[]};points={};unique={}
@@ -194,11 +234,13 @@ module TranTuanNoiThat
         end.compact
         box=boxes.min_by(&:first);box_area,u,n,x,y=box
         length,width=[x[1]-x[0],y[1]-y[0]].max,[x[1]-x[0],y[1]-y[0]].min
-        next unless width.between?(60,500) && length>=[opts[:min_length],500].max && length/width>=4 && area.abs/box_area>=0.65
+        corner=corner_profile(poly,opts[:tolerance])
+        next unless corner || width.between?(60,500) && length>=[opts[:min_length],500].max && length/width>=4 && area.abs/box_area>=0.65
+        width=corner[:width] if corner
         poly.reverse! if area<0
         a=xy(u,n,x[0],(y[0]+y[1])/2);b=xy(u,n,x[1],(y[0]+y[1])/2)
         trusted=roles[first[0]]=='Tường'
-        result<<{a:a,b:b,width:width,length:length,layer:first[0],outline:poly,selected:trusted,warning:trusted ? 'Đường bao kín — giữ biên CAD' : 'Đường bao nghi là tường — cần xác nhận lớp'}
+        result<<{a:a,b:b,width:width,length:length,layer:first[0],outline:poly,shape:corner && corner[:shape],selected:trusted,warning:trusted ? (corner ? "Đường bao #{corner[:shape]} — giữ góc vuông và phần lõm" : 'Đường bao kín — giữ biên CAD') : 'Đường bao nghi là tường — cần xác nhận lớp'}
         used.concat(ids)
         raise 'Quá 800 đường bao. Chọn riêng mặt bằng cần dựng.' if result.length>800
       end
