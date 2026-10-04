@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.231",
+  "version": "1.9.232",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Nhận diện tường CAD dày 250 mm mặc định; hướng dẫn kiểm tra độ dày/lớp/tỷ lệ nếu không có kết quả. Giữ tự động làm sạch giao L/T.",
+  "notes": "CAD: phân loại lớp và lưu quy tắc; nền CAD zoom/pan, thêm tường theo hai điểm tim; gợi ý độ dày từ cặp nét. GUIDE/VECTOR cần xác nhận. Chưa đọc DIM/OCR hoặc tự khoét cửa.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "493a47ad91050a82487e10d84b4e66949ab6f00585ce7c0892809ac7ae6f49ac"
+      "sha256": "47830437a750df40f64d61b8251cdf9d5a4a32cc0d0290a0db07d47df16e8c8e"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -314,7 +314,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "33d427a9cfd0ac968f9b0bddd9604aa91064cbf3ae66fabe641a3765cea3922a"
+      "sha256": "d053b83b4bc10c1bff76029554853ea4a4a0cf93e94e0d92fba6f6c5bb3e0aa8"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -384,12 +384,12 @@
     {
       "path": "tran_tuan_noi_that/cad_wall_engine.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/cad_wall_engine.rb",
-      "sha256": "f2ee0723456fa7c974154e48f4b3422f55dc46c2dd451e40ab00a13e8525d6e4"
+      "sha256": "bf91ad2ae2f963e67ee3b09a5f235f210f7117a9d20328c42303ffbec69822cc"
     },
     {
       "path": "tran_tuan_noi_that/cad_walls.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/cad_walls.rb",
-      "sha256": "3efc02d24d7da50730ee92174974626a4e1d5a90b140e45daddbbbe7c92e73f5"
+      "sha256": "b803b6a2ac5673c8da6a29dfb37df80a8d1c891de5e4ea2095561f3ca5025cf6"
     },
     {
       "path": "tran_tuan_noi_that/icons/cad_walls.svg",
@@ -399,7 +399,7 @@
     {
       "path": "tran_tuan_noi_that/cad_walls_ui.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/cad_walls_ui.rb",
-      "sha256": "17198dad2e4932807c128f3905aca14636f5e0abe21c5861255e06722ee28fc0"
+      "sha256": "7b59c2e85fbb240a5c33b00275d3870b3b9b5ffb4ef033b4d497c3dbdbac1f0b"
     },
     {
       "path": "tran_tuan_noi_that/wall_junctions.rb",

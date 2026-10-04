@@ -14,7 +14,7 @@ module TranTuanNoiThat
     end
     def send_data
       return unless @dialog
-      data={layers:@layers||[],walls:@walls||[],symbols:@symbols||[],height:(@options||{})[:height],base:(@options||{})[:base]}
+      data={evidence:@evidence||[],layers:@layers||[],walls:@walls||[],symbols:@symbols||[],raw:(@raw||[]).first(20000),scale:@scale||1.0,height:(@options||{})[:height],base:(@options||{})[:base]}
       @dialog.execute_script("receive(#{JSON.generate(data)})")
       @model.active_view.invalidate if @model && Sketchup.active_model==@model
     end
@@ -24,7 +24,7 @@ module TranTuanNoiThat
     def open
       if @dialog && @dialog.visible?;@dialog.bring_to_front;return;end
       @model=Sketchup.active_model;@context=@model.active_entities;@edit=@model.edit_transform
-      @walls=[];@raw=[];@layers=[];@symbols=[];@sources=[];@job=nil
+      @walls=[];@raw=[];@layers=[];@symbols=[];@sources=[];@job=nil;@scale=1.0;@options=nil;@evidence=[]
       @dialog=UI::HtmlDialog.new(dialog_title:'TT — Nhập CAD / Dựng tường',preferences_key:'TT_CAD_WALLS',scrollable:true,resizable:true,width:1100,height:780,style:UI::HtmlDialog::STYLE_DIALOG)
       @dialog.set_html(CadWallsUI.html)
       @dialog.add_action_callback('ready'){|_|send_data}
@@ -32,6 +32,8 @@ module TranTuanNoiThat
       @dialog.add_action_callback('scan_selected'){|_|guard{scan_selected}}
       @dialog.add_action_callback('recognize'){|_,payload|guard{recognize(JSON.parse(payload))}}
       @dialog.add_action_callback('toggle_wall'){|_,id,selected|guard{raise 'Đang quét.' if @job;c=@walls.find{|w|w[:id]==id.to_i};c[:selected]=!!selected if c;send_data}}
+      @dialog.add_action_callback('save_rules'){|_,payload|guard{save_rules(JSON.parse(payload))}}
+      @dialog.add_action_callback('manual_wall'){|_,payload|guard{add_manual(JSON.parse(payload))}}
       @dialog.add_action_callback('preview'){|_|guard{preview}}
       @dialog.add_action_callback('create'){|_|guard{create}}
       @dialog.add_action_callback('cancel_job'){|_|@job=nil;message('Đã dừng quét. Hình học gốc được giữ nguyên.')}
@@ -87,7 +89,7 @@ module TranTuanNoiThat
       raise 'Đợi quét xong hoặc bấm Dừng.' if @job
       selected=@model.selection.to_a
       raise 'Chọn Group CAD hoặc các nét mặt bằng cần quét trước.' if selected.empty?
-      @sources=selected;@walls=[];@raw=[];@layers=[];@symbols=[];send_data
+      @sources=selected;@options=nil;@scale=1.0;@evidence=[];@walls=[];@raw=[];@layers=[];@symbols=[];send_data
       run_job do |yielder|
         stack=selected.map{|e|[e,@edit,'',0]};stats={};curves={};visited=0;nonplanar=0;zs=[]
         until stack.empty?
@@ -130,13 +132,39 @@ module TranTuanNoiThat
             message("Đang đọc CAD: #{visited} đối tượng…");yielder<<nil
           end
         end
-        @layers=stats.values.sort_by{|s|s[:name]};@layers.each{|s|s[:use]=s[:kind]=='Tường'}
+        @layers=stats.values.sort_by{|s|s[:name]};rules=read_rules
+        @layers.each{|s|s[:role]=rules.fetch(s[:name],CadWallEngine.role_for(s[:name]));s[:use]=s[:role]=='Tường'}
         @layers.select{|s|s[:kind].include?('kiểm tra')}.each{|s|@symbols<<{name:s[:name],kind:s[:kind],count:s[:count]}}
         @symbols=@symbols.first(200)
         @multi_level=!zs.empty? && zs.max-zs.min>1.0
         send_data
         message("Đọc #{@raw.length} nét thẳng / #{@layers.length} lớp; bỏ #{nonplanar} nét nghiêng Z. #{@multi_level ? 'Có nhiều cao độ: chọn riêng mặt bằng cùng cao độ rồi quét lại.' : 'Kiểm tra lớp tường, tỷ lệ rồi bấm Nhận diện.'}")
       end
+    end
+    def read_rules
+      value=JSON.parse(Sketchup.read_default('TT_CAD_WALLS','layer_rules','{}').to_s)
+      value.is_a?(Hash) ? value.select{|k,v|k.is_a?(String)&&CadWallEngine::ROLES.include?(v)} : {}
+    rescue JSON::ParserError
+      {}
+    end
+    def save_rules(data)
+      rules=read_rules
+      @layers.each do |l|
+        role=data[l[:name]]
+        next unless CadWallEngine::ROLES.include?(role)
+        rules[l[:name]]=role
+      end
+      raise 'Không lưu được quy tắc.' unless Sketchup.write_default('TT_CAD_WALLS','layer_rules',JSON.generate(rules))
+      message('Đã lưu phân loại theo đúng tên lớp; áp dụng khi quét lại các bản vẽ cùng chuẩn.')
+    end
+    def add_manual(data)
+      raise 'Đợi nhận diện hoàn tất.' if @job
+      raise 'Bấm Nhận diện để xác nhận thông số trước.' unless @options
+      raise 'Quá 800 đoạn tường.' if @walls.length>=800
+      width=number(data['width'],30,2000,'Dày tường')
+      wall=CadWallEngine.manual_wall(data['a'],data['b'],width,(@walls.map{|w|w[:id]}.max||-1)+1)
+      @walls<<wall;send_data
+      message('Đã thêm preview theo tim tường. Kiểm tra vị trí, độ dày và khoảng cửa rồi mới TẠO TƯỜNG.')
     end
     def number(value,min,max,label)
       n=Float(value.to_s.tr(',','.'));raise "#{label} phải từ #{min} đến #{max}." unless n.finite? && n>=min && n<=max;n
@@ -149,17 +177,21 @@ module TranTuanNoiThat
       raise 'Nhập ít nhất một độ dày, ví dụ 110;220.' if widths.empty?
       scale=number(data['scale'],0.000001,1000000,'Hệ số tỷ lệ')
       @options={height:number(data['height'],100,30000,'Cao tường'),base:number(data['base'],-100000,100000,'Cao độ chân'),widths:widths,tolerance:number(data['tolerance'],0.1,10,'Sai số'),min_length:number(data['min_length'],50,10000,'Đoạn ngắn nhất')}
-      layers=Array(data['layers']);@layers.each{|l|l[:use]=layers.include?(l[:name])}
+      @scale=scale
+      roles=data['roles'].is_a?(Hash) ? data['roles'] : {}
+      layers=Array(data['layers']);@layers.each{|l|l[:use]=layers.include?(l[:name]);l[:role]=roles[l[:name]] if CadWallEngine::ROLES.include?(roles[l[:name]])}
       edges=@raw.select{|e|layers.include?(e[:layer])}.map{|e|{a:e[:a].map{|v|v*scale},b:e[:b].map{|v|v*scale},layer:e[:layer]}}
-      raise 'Chọn ít nhất một lớp có nét thẳng.' if edges.empty?
+      # Empty selection still allows explicit manual wall tracing over source CAD.
       @walls=[];send_data
       run_job do |y|
+        message('Đang kiểm tra khoảng cách cặp nét…');y<<nil
+        @evidence=CadWallEngine.width_evidence(edges){y<<nil}
         message('Đang ghép cặp nét tường…');y<<nil
         @walls=CadWallEngine.recognize(edges,@options){|p|message("Nhận diện #{(p*100).round}%…");y<<nil}
         send_data
         message("Có #{@walls.length} đoạn tường; #{@walls.count{|w|!w[:selected]}} đoạn chồng nhau cần chọn lại. Xem trước và kiểm tra khoảng cửa trước khi tạo.")
         if @walls.empty?
-          message('Không tìm được tường theo độ dày đã nhập. Kiểm tra lớp WALL/TƯỜNG, hệ số tỷ lệ và bổ sung độ dày thực tế (ví dụ 250 mm), rồi bấm Nhận diện lại.')
+          message('Chưa có cặp nét tường phù hợp. Kiểm tra phân loại/độ dày hoặc bật Thêm theo tim trên nền CAD. Lớp GUIDE/VECTOR cần xác nhận, không tự coi là tường.')
         else
           preview
         end

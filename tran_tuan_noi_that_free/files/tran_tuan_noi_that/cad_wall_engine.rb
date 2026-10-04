@@ -10,9 +10,43 @@ module TranTuanNoiThat
       return 'Cửa sổ (kiểm tra)' if s =~ /window|cua.?so/
       return 'Cửa đi (kiểm tra)' if s =~ /door|cua/
       return 'Nội thất (bỏ qua)' if s =~ /furn|noi.?that|sofa|bed|giuong|sanitary|fixture/
+      return 'Hướng dẫn tường (kiểm tra)' if s =~ /wall.*guide|trace|vector|raster/
       return 'Tường' if s =~ /wall|tuong|masonry/
       return 'Cột (kiểm tra)' if s =~ /column|cot|pillar/
       'Chưa phân loại'
+    end
+    ROLES = ['Tường','Cửa đi','Cửa sổ','Cột','Nội thất','Bỏ qua','Chưa rõ'].freeze
+    def role_for(name)
+      kind=label_kind(name)
+      return 'Tường' if kind=='Tường'
+      return 'Cửa đi' if kind.start_with?('Cửa đi')
+      return 'Cửa sổ' if kind.start_with?('Cửa sổ')
+      return 'Cột' if kind.start_with?('Cột')
+      return 'Nội thất' if kind.start_with?('Nội thất')
+      return 'Bỏ qua' if kind.start_with?('Bỏ qua')
+      'Chưa rõ'
+    end
+    # Evidence only: furniture can also contain these parallel pairs.
+    def width_evidence(edges)
+      rows=edges.map{|e|canonical(e)}.compact.select{|e|e[:hi]-e[:lo]>=500}
+      return [] if rows.length>1500
+      counts=Hash.new(0)
+      rows.each_with_index do |a,i|
+        rows[(i+1)..-1].each do |b|
+          next unless a[:layer]==b[:layer] && dot(a[:u],b[:u])>0.99999999
+          width=(a[:c]-b[:c]).abs
+          next unless width.between?(60,500) && [a[:hi],b[:hi]].min-[a[:lo],b[:lo]].max>=500
+          counts[width.round]+=1
+        end
+        yield if block_given? && i%30==0
+      end
+      counts.sort_by{|width,count|[-count,width]}.first(8).map{|width,count|{width:width,count:count}}
+    end
+    def manual_wall(a,b,width,id)
+      raise 'Điểm và độ dày không hợp lệ.' unless [a,b].all?{|p|p.is_a?(Array)&&p.length==2&&p.all?{|v|v.is_a?(Numeric)&&v.finite?&&v.abs<1e8}} && width.finite? && width.between?(30,2000)
+      length=distance(a,b)
+      raise 'Đoạn tường phải dài ít nhất 50 mm.' if length<50
+      {a:a,b:b,width:width,id:id,length:length,layer:'Chỉ định trên bản vẽ',selected:true,warning:'Tim tường do người dùng xác nhận'}
     end
     def dot(a,b);a[0]*b[0]+a[1]*b[1];end
     def sub(a,b);[a[0]-b[0],a[1]-b[1]];end
