@@ -192,12 +192,13 @@ module TranTuanNoiThat
           group.set_attribute('TT_CAD_WALLS','source_layer',w[:layer])
           group.set_attribute('TT_CAD_WALLS','thickness_mm',w[:width])
         end
+        WallJunctions.finish(parent)
         @model.selection.clear;@model.selection.add(parent);@model.commit_operation
       rescue StandardError
         @model.abort_operation;raise
       end
       @walls=[];@model.select_tool(nil) if @preview_active;send_data
-      message("Đã tạo #{chosen.length} đoạn tường Solid trong một Group. CAD gốc giữ nguyên; Ctrl+Z hoàn tác lượt dựng. Góc giao/cửa chưa rõ cần kiểm tra theo CAD.")
+      message("Đã tạo #{chosen.length} đoạn tường, hợp nhất và làm sạch giao L/T thành một Group Solid. CAD gốc giữ nguyên; Ctrl+Z hoàn tác lượt dựng. Góc giao/cửa chưa rõ cần kiểm tra theo CAD.")
     end
     class Preview
       def initialize(owner);@owner=owner;end

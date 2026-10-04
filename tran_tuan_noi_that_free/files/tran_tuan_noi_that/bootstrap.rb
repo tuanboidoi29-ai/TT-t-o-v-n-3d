@@ -18,7 +18,7 @@ module TranTuanNoiThat
   }.freeze unless const_defined?(:LOCKED_FEATURE_BASELINES, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.229'.freeze
+  VERSION = '1.9.230'.freeze
 
   class << self
     def setting(key, default = nil)
@@ -124,6 +124,7 @@ module TranTuanNoiThat
         divide_boards
         notch_tool
         cut_block
+        wall_junctions
         wall_block
         cad_wall_engine
         cad_walls_ui
