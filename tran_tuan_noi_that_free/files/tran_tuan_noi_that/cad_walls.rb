@@ -158,7 +158,11 @@ module TranTuanNoiThat
         @walls=CadWallEngine.recognize(edges,@options){|p|message("Nhận diện #{(p*100).round}%…");y<<nil}
         send_data
         message("Có #{@walls.length} đoạn tường; #{@walls.count{|w|!w[:selected]}} đoạn chồng nhau cần chọn lại. Xem trước và kiểm tra khoảng cửa trước khi tạo.")
-        preview unless @walls.empty?
+        if @walls.empty?
+          message('Không tìm được tường theo độ dày đã nhập. Kiểm tra lớp WALL/TƯỜNG, hệ số tỷ lệ và bổ sung độ dày thực tế (ví dụ 250 mm), rồi bấm Nhận diện lại.')
+        else
+          preview
+        end
       end
     end
     def preview
