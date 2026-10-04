@@ -18,7 +18,7 @@ module TranTuanNoiThat
   }.freeze unless const_defined?(:LOCKED_FEATURE_BASELINES, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.227'.freeze
+  VERSION = '1.9.228'.freeze
 
   class << self
     def setting(key, default = nil)
@@ -100,6 +100,7 @@ module TranTuanNoiThat
     end
 
     def reload_runtime
+      CadWalls.close if const_defined?(:CadWalls, false) && CadWalls.respond_to?(:close)
       cleanup_retired_led_contact
       if const_defined?(:TamPro, false)
         TamPro.clear_highlight if TamPro.respond_to?(:clear_highlight)
@@ -124,6 +125,8 @@ module TranTuanNoiThat
         notch_tool
         cut_block
         wall_block
+        cad_wall_engine
+        cad_walls
         door_open_mark
         grain_tool
         grain_material_fix
@@ -293,6 +296,7 @@ module TranTuanNoiThat
       install_notch_ui
       install_cut_block_ui
       install_wall_block_ui
+      install_cad_walls_ui
       install_divide_boards_ui
       install_layout_stats_ui
       install_dimensions_ui
@@ -442,6 +446,11 @@ module TranTuanNoiThat
       return false unless defined?(TranTuanNoiThat::DivideBoards)
       @divide_boards_cmd ||= command('Chia ván lọt lòng', 'divide_boards.svg', 'Chọn Face tấm mẫu; kéo hướng; /N chia đều khe; TAB mép/tâm/mép; click hoặc ENTER tạo.') { DivideBoards.activate }
       add_feature_command_once(@divide_boards_cmd, :divide_boards_menu_installed)
+    end
+
+    def install_cad_walls_ui
+      @cad_walls_cmd ||= command('Nhập CAD — Dựng tường', 'cad_walls.svg', 'Nhập DWG/DXF hoặc quét CAD đã chọn; lọc lớp, nhận diện nét tường, preview 3D rồi tạo khối.') { CadWalls.open }
+      add_feature_command_once(@cad_walls_cmd, :cad_walls_menu_installed)
     end
 
     def install_wall_block_ui
