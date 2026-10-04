@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.235",
+  "version": "1.9.236",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Nhận đường bao kín góc vuông dạng L/T, kể cả xoay; dựng đúng đa giác và giữ phần lõm. Không tự đóng biên hở; lớp chưa rõ vẫn cần xác nhận.",
+  "notes": "Thêm Dọn DIM / Line thừa: DIM native và DIM cứng theo tên/tag trong Group/Component; nét rời tùy chọn; giữ cạnh tạo mặt, bỏ qua khóa, tách bản sao trước chỉnh sửa; một Undo.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "848372af3b796d0af36baf47e45186c9cd7904e8468e177303f123006ef4488e"
+      "sha256": "078fcf5fcee1c511affb3df215adb63f854c3a5165f629e9009f366e5fafafdf"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -314,7 +314,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "3be9c1a6ba7afb638acb562c7092c85cf232a4640d8e5800b0f5ceb0d67ace4c"
+      "sha256": "6eccdcfcb0ffc8d0b76b70ea3e28329578f6ec1e1067e1149e89bcd8365f18f2"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -405,6 +405,16 @@
       "path": "tran_tuan_noi_that/wall_junctions.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/wall_junctions.rb",
       "sha256": "0009511fbb2156be72dc8ad02c8a125f6138ab7aa23b729f0ea36665a41e0d7b"
+    },
+    {
+      "path": "tran_tuan_noi_that/don_dim_line.rb",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/don_dim_line.rb",
+      "sha256": "5835532403dbb32868b24c2c18335a049333f9ace2fc972426c67ffcb8ff4799"
+    },
+    {
+      "path": "tran_tuan_noi_that/icons/don_dim_line.svg",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/icons/don_dim_line.svg",
+      "sha256": "a1312939a6cc677feddc861240d5880fa3478ea64891ad1bc3d7802b95b19d2a"
     }
   ],
   "stretch_mode_version": "1.0.1",

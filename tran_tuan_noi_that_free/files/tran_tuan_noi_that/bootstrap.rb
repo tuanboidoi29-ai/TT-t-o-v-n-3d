@@ -18,7 +18,7 @@ module TranTuanNoiThat
   }.freeze unless const_defined?(:LOCKED_FEATURE_BASELINES, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.235'.freeze
+  VERSION = '1.9.236'.freeze
 
   class << self
     def setting(key, default = nil)
@@ -144,6 +144,7 @@ module TranTuanNoiThat
         settings
         grain_board_auto
         updater
+        don_dim_line
       ].each { |stem| raise "Không nạp được #{stem}" unless runtime_load(stem) }
 
       verify_locked_features
@@ -299,6 +300,7 @@ module TranTuanNoiThat
       install_cut_block_ui
       install_wall_block_ui
       install_cad_walls_ui
+      install_don_dim_line_ui
       install_divide_boards_ui
       install_layout_stats_ui
       install_dimensions_ui
@@ -448,6 +450,11 @@ module TranTuanNoiThat
       return false unless defined?(TranTuanNoiThat::DivideBoards)
       @divide_boards_cmd ||= command('Chia ván lọt lòng', 'divide_boards.svg', 'Chọn Face tấm mẫu; kéo hướng; /N chia đều khe; TAB mép/tâm/mép; click hoặc ENTER tạo.') { DivideBoards.activate }
       add_feature_command_once(@divide_boards_cmd, :divide_boards_menu_installed)
+    end
+
+    def install_don_dim_line_ui
+      @don_dim_line_cmd ||= command('Dọn DIM / Line thừa', 'don_dim_line.svg', 'Dọn DIM trong Group/Component; tùy chọn nét rời; giữ cạnh tạo Face; một lần Undo.') { DonDimLine.run }
+      add_feature_command_once(@don_dim_line_cmd, :don_dim_line_menu_installed)
     end
 
     def install_cad_walls_ui
