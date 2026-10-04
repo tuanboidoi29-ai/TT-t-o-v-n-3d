@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.226",
+  "version": "1.9.227",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Chia ván lọt lòng: Instance copy 1, copy 2... đánh số tiếp trong model; Tag copy van cho các ván mới.",
+  "notes": "Thêm Vẽ Tường Khối và Gộp Group thành 1 khối vào menu và toolbar chung.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "636699cbc9921a300122dc262dc1c133238f1596b04d93e4364517f53191914d"
+      "sha256": "affc224c40793e2342c813cfe37891f97308805dd41ebc6e685809ec6a774dfa"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -314,7 +314,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "0109a5868f4079cfb1991db1a81e6792805cf5d50dfc3780d030c5e0b8362a80"
+      "sha256": "5e6c89a5e45547ae3830ea19e0bd84d26c73ffd0e4b0f6322854c3d4790d92ba"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -365,6 +365,21 @@
       "path": "tran_tuan_noi_that/icons/cut_block.svg",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/icons/cut_block.svg",
       "sha256": "79efb63811cbfce0ebfe432019157d69718100b60823a1788923502c7c22926a"
+    },
+    {
+      "path": "tran_tuan_noi_that/wall_block.rb",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/wall_block.rb",
+      "sha256": "b82a878f18a63f70f13d22e83b255bb424b89cafc1c2536247cc3d6ed476796f"
+    },
+    {
+      "path": "tran_tuan_noi_that/icons/wall_block.svg",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/icons/wall_block.svg",
+      "sha256": "22ff1c25fb25b33051a591f83a3c50ac57388faa0f2e2784d069541d8b699d6e"
+    },
+    {
+      "path": "tran_tuan_noi_that/icons/merge_groups.svg",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/icons/merge_groups.svg",
+      "sha256": "a5ec80d535c4ba9404a497439e317a5896f4df3fdc6c90a6c1b07f3aa8075f2b"
     }
   ],
   "stretch_mode_version": "1.0.1",

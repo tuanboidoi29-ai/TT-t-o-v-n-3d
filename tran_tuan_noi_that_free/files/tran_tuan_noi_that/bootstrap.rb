@@ -18,7 +18,7 @@ module TranTuanNoiThat
   }.freeze unless const_defined?(:LOCKED_FEATURE_BASELINES, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.226'.freeze
+  VERSION = '1.9.227'.freeze
 
   class << self
     def setting(key, default = nil)
@@ -123,6 +123,7 @@ module TranTuanNoiThat
         divide_boards
         notch_tool
         cut_block
+        wall_block
         door_open_mark
         grain_tool
         grain_material_fix
@@ -291,6 +292,7 @@ module TranTuanNoiThat
       install_door_open_mark_ui
       install_notch_ui
       install_cut_block_ui
+      install_wall_block_ui
       install_divide_boards_ui
       install_layout_stats_ui
       install_dimensions_ui
@@ -440,6 +442,13 @@ module TranTuanNoiThat
       return false unless defined?(TranTuanNoiThat::DivideBoards)
       @divide_boards_cmd ||= command('Chia ván lọt lòng', 'divide_boards.svg', 'Chọn Face tấm mẫu; kéo hướng; /N chia đều khe; TAB mép/tâm/mép; click hoặc ENTER tạo.') { DivideBoards.activate }
       add_feature_command_once(@divide_boards_cmd, :divide_boards_menu_installed)
+    end
+
+    def install_wall_block_ui
+      @wall_block_cmd ||= command('Vẽ Tường Khối', 'wall_block.svg', 'Nhập dày/cao; chọn P1, P2; TAB đổi giữa/trái/phải; vẽ nối tiếp.') { VeTuongKhoi.start_tool }
+      @merge_groups_cmd ||= command('Gộp Group thành 1 khối', 'merge_groups.svg', 'Chọn từ 2 Group; ưu tiên hợp nhất Solid, nếu không được thì gom thành một Group.') { VeTuongKhoi.merge_selected_groups }
+      add_feature_command_once(@wall_block_cmd, :wall_block_menu_installed)
+      add_feature_command_once(@merge_groups_cmd, :merge_groups_menu_installed)
     end
 
     def install_cut_block_ui
