@@ -93,6 +93,28 @@ module TranTuanNoiThat
       end
       loops.sort_by { |poly| -area2(poly).abs }
     end
+    def inside_polygon?(point,poly)
+      x,y=point;inside=false
+      poly.each_with_index do |a,i|
+        b=poly[(i+1)%poly.length]
+        next unless (a[1]>y)!=(b[1]>y)
+        cross=a[0]+(y-a[1])*(b[0]-a[0]).to_f/(b[1]-a[1])
+        inside=!inside if x<cross
+      end
+      inside
+    end
+    def compartment_pieces(pieces,point)
+      loops=boundary_loops(boundary_segments(pieces))
+      candidates=loops.select { |poly| area2(poly)>0 && inside_polygon?(point,poly) }
+      outer=candidates.min_by { |poly| area2(poly).abs }
+      raise 'Click vào phần lọt lòng trống trên Face, tránh phần đang tiếp xúc với tấm khác.' unless outer
+      holes=loops.select { |poly| area2(poly)<0 && inside_polygon?(point,poly) }
+      raise 'Điểm chọn nằm trên vùng tiếp xúc. Chọn phần trống trong khoang.' unless holes.empty?
+      pieces.select do |poly|
+        center=[poly.sum(&:first)/poly.length.to_f,poly.sum(&:last)/poly.length.to_f]
+        inside_polygon?(center,outer)
+      end
+    end
     class Tool
       def activate
         @model=Sketchup.active_model; @context=@model.active_entities
@@ -186,6 +208,10 @@ module TranTuanNoiThat
         end
         raise 'Face mẫu bị che kín bởi các tấm tiếp xúc.' if pieces.empty?
         pieces.map! { |poly| DivideBoards.area2(poly)<0 ? poly.reverse : poly }
+        ray=view.pickray(x,y)
+        picked=Geom.intersect_line_plane(ray,[base,normal])
+        raise 'Không xác định được điểm trong khoang.' unless picked
+        pieces=DivideBoards.compartment_pieces(pieces,to2.call(picked))
         boundaries=DivideBoards.boundary_segments(pieces)
         loops=DivideBoards.boundary_loops(boundaries)
         @cap_loops=loops.map { |poly| [poly.map { |p| to3.call(p) },DivideBoards.area2(poly)>0] }

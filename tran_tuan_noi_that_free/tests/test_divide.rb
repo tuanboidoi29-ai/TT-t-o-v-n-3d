@@ -52,3 +52,11 @@ loops=D.boundary_loops(D.boundary_segments(parts))
 raise 'Notch lost' unless loops.length==1 && loops[0].length==8
 n+=1
 puts "#{n} final checks passed"
+parts=D.subtract_polygon(subject,[[40,-10],[60,-10],[60,110],[40,110]])
+parts.map!{|p|D.area2(p)<0 ? p.reverse : p}
+left=D.compartment_pieces(parts,[20,50]);right=D.compartment_pieces(parts,[80,50])
+raise 'Wrong left bay' unless left.flatten(1).all?{|p|p[0]<=40.00001}
+raise 'Wrong right bay' unless right.flatten(1).all?{|p|p[0]>=59.99999}
+begin;D.compartment_pieces(parts,[50,50]);raise 'Accepted obstruction';rescue RuntimeError=>e;raise if e.message=='Accepted obstruction';end
+n+=3
+puts "#{n} compartment checks passed"

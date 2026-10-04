@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.224",
+  "version": "1.9.225",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Chia ván: dựng mặt thật từ vòng biên kín thay vì mảnh tam giác; gộp đoạn biên thẳng hàng; giữ lỗ và biên khấu. Áp dụng cho ván tạo mới.",
+  "notes": "Chia ván: chỉ lấy vùng lọt lòng chứa điểm click sau khi trừ các mặt tiếp xúc đồng phẳng; bỏ các khoang khác và từ chối điểm nằm trên vùng bị che.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "abfcb69de60648090cf2fa3211afccca6f2c3ee6b85742c0686154d58b77eaa0"
+      "sha256": "0a04671610cafbd5c3f2b3e008addc1928cd47a66c280da3fad5eecfda67d6d2"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -314,7 +314,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "61dc1389d6031be0b2495fed621f27272aa2ee32fa5e76ba252ca7d523b71225"
+      "sha256": "0b03665f4e2ed3c8867d2679614a16ae2719f9692ea7f5e915b74aede4a9e5f0"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -344,7 +344,7 @@
     {
       "path": "tran_tuan_noi_that/divide_boards.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/divide_boards.rb",
-      "sha256": "5b06e832f024db5bd5e953d11966649c8ec8062918448b4b3757b10422d36eae"
+      "sha256": "1986a654c3d9f41a22015360dfaae5463a1ae151ac741c3d7402b0d502b4ba99"
     },
     {
       "path": "tran_tuan_noi_that/icons/divide_boards.svg",
