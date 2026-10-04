@@ -26,7 +26,7 @@ module TranTuanNoiThat
       @model=Sketchup.active_model;@context=@model.active_entities;@edit=@model.edit_transform
       @walls=[];@raw=[];@layers=[];@symbols=[];@sources=[];@job=nil
       @dialog=UI::HtmlDialog.new(dialog_title:'TT — Nhập CAD / Dựng tường',preferences_key:'TT_CAD_WALLS',scrollable:true,resizable:true,width:1100,height:780,style:UI::HtmlDialog::STYLE_DIALOG)
-      @dialog.set_file(File.join(__dir__,'ui','cad_walls.html'))
+      @dialog.set_html(CadWallsUI.html)
       @dialog.add_action_callback('ready'){|_|send_data}
       @dialog.add_action_callback('import_cad'){|_|guard{import_cad}}
       @dialog.add_action_callback('scan_selected'){|_|guard{scan_selected}}

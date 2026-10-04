@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.228",
+  "version": "1.9.229",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Thêm Nhập CAD — Dựng tường: nhập DWG/DXF, quét vùng chọn, lọc lớp, ghép nét tường, xem trước mặt bằng/3D và dựng Solid. Nhận diện theo quy tắc; ký hiệu cửa cần kiểm tra, chưa tự khoét hoặc tạo lanh tô.",
+  "notes": "Sửa lỗi Đường dẫn cập nhật không hợp lệ: nhúng giao diện CAD trong Ruby để tương thích bộ cập nhật cũ, giữ nguyên kiểm tra an toàn đường dẫn.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "8ec6bad860653d99a1eac8bef7bdf84540779df5467baaa54d32dbf2ffbbfc61"
+      "sha256": "2e403927ec0fe9a93650c40f7dcd347e73ca0701a0ca55b444b373273d3972d0"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -314,7 +314,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "933a46c336a121310c1467bff84a71e1412ffd565d7d223c69f43a0443a2b317"
+      "sha256": "fc2a25569bb1ff6a92b5dd5d39ab2f0087824e976f5d135ff4023af9bfc24ab6"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -389,17 +389,17 @@
     {
       "path": "tran_tuan_noi_that/cad_walls.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/cad_walls.rb",
-      "sha256": "bae0ba3fe2ea12eddb00ad9f3b2f425603be37fe09ec06d8291bfa2d95feb351"
-    },
-    {
-      "path": "tran_tuan_noi_that/ui/cad_walls.html",
-      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/ui/cad_walls.html",
-      "sha256": "c989b3471df65887fd247ceeb25ffdd41cbeb86a651216a053549426a2d5b74e"
+      "sha256": "e5b809c44d8a29a8195b6b8419e0338886910249de8f399842f933ce3d081a19"
     },
     {
       "path": "tran_tuan_noi_that/icons/cad_walls.svg",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/icons/cad_walls.svg",
       "sha256": "0f24ab9fe7967648e1f112505fa0d6e6f73dd791a237d89412b486276ac00fd6"
+    },
+    {
+      "path": "tran_tuan_noi_that/cad_walls_ui.rb",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/cad_walls_ui.rb",
+      "sha256": "1112dda4bd92cce1878d1fe90fc41ffdfe4a65bdc5875535f883047ba1f9caa3"
     }
   ],
   "stretch_mode_version": "1.0.1",
