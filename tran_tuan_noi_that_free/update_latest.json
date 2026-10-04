@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.233",
+  "version": "1.9.234",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Thiết kế lại toàn bộ 27 icon SVG: nét xanh đậm, màu theo nhóm công cụ, rõ ở cỡ toolbar. Giữ nguyên thao tác và chức năng. Khởi động lại SketchUp nếu toolbar còn giữ icon cũ.",
+  "notes": "Tự quét vùng chọn hoặc toàn ngữ cảnh khi không chọn; tự nhận diện sau quét. Nhận đường bao kín dài hẹp và cặp nét song song; lớp chưa rõ cần xác nhận. Giữ icon 1.9.233.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "a9a7dc8199cffd8cd8f668119cc8bf70e1c8da504f102a5a56c2f67d947ab005"
+      "sha256": "dd8dfaa5fb98c02bc94004e7e51649c100b8358e9609d9a47f7948406d70cef0"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -314,7 +314,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "5f648d1e35f82bdcb2de83c4496d73b789489cd64aa7513ebc94b58abdcef27c"
+      "sha256": "ed1b4d38a684548c4b369a61c6891341030ec90748863dfae5e84b4ae9a77931"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -384,12 +384,12 @@
     {
       "path": "tran_tuan_noi_that/cad_wall_engine.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/cad_wall_engine.rb",
-      "sha256": "bf91ad2ae2f963e67ee3b09a5f235f210f7117a9d20328c42303ffbec69822cc"
+      "sha256": "2f1f1b8837a9f755ff02ff76c27f7671aa9c10b641865ff7976eb73001679b21"
     },
     {
       "path": "tran_tuan_noi_that/cad_walls.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/cad_walls.rb",
-      "sha256": "b803b6a2ac5673c8da6a29dfb37df80a8d1c891de5e4ea2095561f3ca5025cf6"
+      "sha256": "a0fb2dd8fb9558fdcc0793f58de5e7bc4c5e078d91af10fbf8ba9f521d5b365b"
     },
     {
       "path": "tran_tuan_noi_that/icons/cad_walls.svg",
@@ -399,7 +399,7 @@
     {
       "path": "tran_tuan_noi_that/cad_walls_ui.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/cad_walls_ui.rb",
-      "sha256": "7b59c2e85fbb240a5c33b00275d3870b3b9b5ffb4ef033b4d497c3dbdbac1f0b"
+      "sha256": "53df84c9544992a956946ad94af9118f2ef43ff95de69ab379dc15ef30c473af"
     },
     {
       "path": "tran_tuan_noi_that/wall_junctions.rb",

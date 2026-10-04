@@ -136,7 +136,76 @@ module TranTuanNoiThat
       candidates.each_with_index{|c,i|c[:id]=i;c[:length]=distance(c[:a],c[:b])}
       candidates
     end
+    def polygon_area(points)
+      points.each_with_index.sum{|p,i|q=points[(i+1)%points.length];p[0]*q[1]-q[0]*p[1]}/2.0
+    end
+    def cross(a,b,c)
+      (b[0]-a[0])*(c[1]-a[1])-(b[1]-a[1])*(c[0]-a[0])
+    end
+    def simple_polygon?(p)
+      p.each_index do |i|
+        a,b=p[i],p[(i+1)%p.length]
+        ((i+1)...p.length).each do |j|
+          next if j==i+1 || (i==0 && j==p.length-1)
+          c,d=p[j],p[(j+1)%p.length]
+          return false if cross(a,b,c)*cross(a,b,d)<0 && cross(c,d,a)*cross(c,d,b)<0
+        end
+      end
+      true
+    end
+    # Exact closed components only; no inferred closure across openings.
+    def closed_outlines(edges,roles,opts)
+      adjacency=Hash.new{|h,k|h[k]=[]};points={};unique={}
+      edges.each_with_index do |e,id|
+        next unless ['Tường','Chưa rõ'].include?(roles[e[:layer]])
+        a,b=[e[:a],e[:b]].map{|p|[e[:layer],(p[0]*100).round,(p[1]*100).round]}
+        next if a==b
+        key=[a,b].sort;next if unique[key];unique[key]=true
+        points[a]=e[:a];points[b]=e[:b]
+        adjacency[a]<<[b,id];adjacency[b]<<[a,id]
+      end
+      adjacency.each{|k,list|list.sort_by!{|q,id|Math.atan2(points[q][1]-points[k][1],points[q][0]-points[k][0])}}
+      visited={};result=[];used=[]
+      directed=adjacency.flat_map{|k,list|list.map{|q,id|[k,q]}}
+      directed.each_with_index do |(first,second),iteration|
+        yield if block_given? && iteration%100==0
+        next if visited[[first,second]]
+        keys=[];ids=[];from,to=first,second;closed=false
+        loop do
+          break if visited[[from,to]]
+          visited[[from,to]]=true;keys<<from
+          list=adjacency[to];at=list.index{|q,id|q==from}
+          ids<<list[at][1]
+          nxt=list[(at-1)%list.length][0]
+          from,to=to,nxt
+          if from==first && to==second;closed=true;break;end
+          break if keys.length>512
+        end
+        next unless closed && keys.length.between?(4,128) && keys.uniq.length==keys.length
+        poly=keys.map{|k|points[k]}
+        next unless polygon_area(poly)>0.01
+        next unless simple_polygon?(poly)
+        area=polygon_area(poly);next if area.abs<1
+        # Minimum oriented bounding rectangle, measured from source geometry.
+        boxes=poly.each_index.map do |i|
+          d=sub(poly[(i+1)%poly.length],poly[i]);length=Math.hypot(*d);next if length<0.01
+          u=d.map{|v|v/length};n=[-u[1],u[0]];x=poly.map{|p|dot(p,u)}.minmax;y=poly.map{|p|dot(p,n)}.minmax
+          [ (x[1]-x[0])*(y[1]-y[0]),u,n,x,y ]
+        end.compact
+        box=boxes.min_by(&:first);box_area,u,n,x,y=box
+        length,width=[x[1]-x[0],y[1]-y[0]].max,[x[1]-x[0],y[1]-y[0]].min
+        next unless width.between?(60,500) && length>=[opts[:min_length],500].max && length/width>=4 && area.abs/box_area>=0.65
+        poly.reverse! if area<0
+        a=xy(u,n,x[0],(y[0]+y[1])/2);b=xy(u,n,x[1],(y[0]+y[1])/2)
+        trusted=roles[first[0]]=='Tường'
+        result<<{a:a,b:b,width:width,length:length,layer:first[0],outline:poly,selected:trusted,warning:trusted ? 'Đường bao kín — giữ biên CAD' : 'Đường bao nghi là tường — cần xác nhận lớp'}
+        used.concat(ids)
+        raise 'Quá 800 đường bao. Chọn riêng mặt bằng cần dựng.' if result.length>800
+      end
+      [result,used]
+    end
     def footprint(c)
+      return c[:outline] if c[:outline]
       d=sub(c[:b],c[:a]);l=Math.hypot(*d);n=[-d[1]/l*c[:width]/2,d[0]/l*c[:width]/2]
       a,b=c[:a],c[:b]
       [[a[0]-n[0],a[1]-n[1]],[b[0]-n[0],b[1]-n[1]],[b[0]+n[0],b[1]+n[1]],[a[0]+n[0],a[1]+n[1]]]

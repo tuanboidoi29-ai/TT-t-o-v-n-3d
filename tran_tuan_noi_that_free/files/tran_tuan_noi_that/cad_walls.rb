@@ -36,7 +36,7 @@ module TranTuanNoiThat
       @dialog.add_action_callback('manual_wall'){|_,payload|guard{add_manual(JSON.parse(payload))}}
       @dialog.add_action_callback('preview'){|_|guard{preview}}
       @dialog.add_action_callback('create'){|_|guard{create}}
-      @dialog.add_action_callback('cancel_job'){|_|@job=nil;message('Đã dừng quét. Hình học gốc được giữ nguyên.')}
+      @dialog.add_action_callback('cancel_job'){|_|@job=nil;@recognize_after_scan=false;message('Đã dừng quét. Hình học gốc được giữ nguyên.')}
       @dialog.set_on_closed do
         @job=nil
         @model.select_tool(nil) if @preview_active && Sketchup.active_model==@model
@@ -80,6 +80,9 @@ module TranTuanNoiThat
           same_context!;current.next;advance_job
         rescue StopIteration
           @job=nil
+          if @recognize_after_scan
+            @recognize_after_scan=false;@dialog.execute_script('recognize()') if @dialog
+          end
         rescue StandardError=>e
           @job=nil;message(e.message)
         end
@@ -88,8 +91,9 @@ module TranTuanNoiThat
     def scan_selected
       raise 'Đợi quét xong hoặc bấm Dừng.' if @job
       selected=@model.selection.to_a
-      raise 'Chọn Group CAD hoặc các nét mặt bằng cần quét trước.' if selected.empty?
-      @sources=selected;@options=nil;@scale=1.0;@evidence=[];@walls=[];@raw=[];@layers=[];@symbols=[];send_data
+      selected=@context.to_a if selected.empty?
+      raise 'Không có đối tượng để quét.' if selected.empty?
+      @recognize_after_scan=false;@sources=selected;@options=nil;@scale=1.0;@evidence=[];@walls=[];@raw=[];@layers=[];@symbols=[];send_data
       run_job do |yielder|
         stack=selected.map{|e|[e,@edit,'',0]};stats={};curves={};visited=0;nonplanar=0;zs=[]
         until stack.empty?
@@ -98,6 +102,8 @@ module TranTuanNoiThat
           visited+=1
           raise 'Bản vẽ quá lớn (>100.000 đối tượng). Chọn riêng mặt bằng hoặc lớp cần dựng.' if visited>100000
           next if e.respond_to?(:hidden?) && e.hidden?
+          next if e.respond_to?(:layer) && e.layer && e.layer.respond_to?(:visible?) && !e.layer.visible?
+          next if e.respond_to?(:get_attribute) && e.get_attribute('TT_CAD_WALLS','generated',false)
           tag=e.respond_to?(:layer) && e.layer ? e.layer.name.to_s : ''
           tag='' if e.respond_to?(:layer) && e.layer==@model.layers[0]
           label=tag.empty? ? inherited : tag
@@ -136,6 +142,7 @@ module TranTuanNoiThat
         @layers.each{|s|s[:role]=rules.fetch(s[:name],CadWallEngine.role_for(s[:name]));s[:use]=s[:role]=='Tường'}
         @layers.select{|s|s[:kind].include?('kiểm tra')}.each{|s|@symbols<<{name:s[:name],kind:s[:kind],count:s[:count]}}
         @symbols=@symbols.first(200)
+        @recognize_after_scan=true
         @multi_level=!zs.empty? && zs.max-zs.min>1.0
         send_data
         message("Đọc #{@raw.length} nét thẳng / #{@layers.length} lớp; bỏ #{nonplanar} nét nghiêng Z. #{@multi_level ? 'Có nhiều cao độ: chọn riêng mặt bằng cùng cao độ rồi quét lại.' : 'Kiểm tra lớp tường, tỷ lệ rồi bấm Nhận diện.'}")
@@ -180,16 +187,37 @@ module TranTuanNoiThat
       @scale=scale
       roles=data['roles'].is_a?(Hash) ? data['roles'] : {}
       layers=Array(data['layers']);@layers.each{|l|l[:use]=layers.include?(l[:name]);l[:role]=roles[l[:name]] if CadWallEngine::ROLES.include?(roles[l[:name]])}
-      edges=@raw.select{|e|layers.include?(e[:layer])}.map{|e|{a:e[:a].map{|v|v*scale},b:e[:b].map{|v|v*scale},layer:e[:layer]}}
+      all_edges=@raw.map{|e|{a:e[:a].map{|v|v*scale},b:e[:b].map{|v|v*scale},layer:e[:layer]}}
+      role_map=@layers.to_h{|l|[l[:name],l[:role]]}
+      edges=all_edges.select{|e|layers.include?(e[:layer])}
       # Empty selection still allows explicit manual wall tracing over source CAD.
       @walls=[];send_data
       run_job do |y|
         message('Đang kiểm tra khoảng cách cặp nét…');y<<nil
         @evidence=CadWallEngine.width_evidence(edges){y<<nil}
         message('Đang ghép cặp nét tường…');y<<nil
-        @walls=CadWallEngine.recognize(edges,@options){|p|message("Nhận diện #{(p*100).round}%…");y<<nil}
+        outlines,used=CadWallEngine.closed_outlines(all_edges,role_map,@options){y<<nil}
+        pairs=CadWallEngine.recognize(edges,@options){|p|message("Nhận diện #{(p*100).round}%…");y<<nil}
+        unknown=all_edges.select{|e|role_map[e[:layer]]=='Chưa rõ' && e[:layer].to_s !~ /guide|raster/i}
+        measured=CadWallEngine.width_evidence(unknown){y<<nil}
+        suggested=CadWallEngine.recognize(unknown,@options.merge(widths:(@options[:widths]+measured.map{|v|v[:width]}).uniq)){y<<nil}
+        suggested.select!{|w|w[:length]>=1000 && w[:length]/w[:width]>=5}
+        suggested.each{|w|w[:selected]=false;w[:warning]='Cặp nét nghi là tường — xác nhận trước khi dựng'}
+        pairs+=suggested
+        # Do not add a closed contour over an already proposed parallel strip.
+        outlines.reject! do |outline|
+          bounds=CadWallEngine.footprint(outline).transpose.map(&:minmax)
+          pairs.any? do |pair|
+            next false unless pair[:layer]==outline[:layer]
+            other=CadWallEngine.footprint(pair).transpose.map(&:minmax)
+            2.times.all?{|axis|[bounds[axis][1],other[axis][1]].min-[bounds[axis][0],other[axis][0]].max>0.01}
+          end
+        end
+        @walls=outlines+pairs
+        raise 'Quá 800 kết quả. Chọn riêng mặt bằng cần dựng.' if @walls.length>800
+        @walls.each_with_index{|w,i|w[:id]=i}
         send_data
-        message("Có #{@walls.length} đoạn tường; #{@walls.count{|w|!w[:selected]}} đoạn chồng nhau cần chọn lại. Xem trước và kiểm tra khoảng cửa trước khi tạo.")
+        message("Có #{@walls.length} đoạn tường; #{@walls.count{|w|!w[:selected]}} đường bao cần xác nhận. Xem trước và kiểm tra khoảng cửa trước khi tạo.")
         if @walls.empty?
           message('Chưa có cặp nét tường phù hợp. Kiểm tra phân loại/độ dày hoặc bật Thêm theo tim trên nền CAD. Lớp GUIDE/VECTOR cần xác nhận, không tự coi là tường.')
         else
@@ -214,6 +242,7 @@ module TranTuanNoiThat
       @model.start_operation('TT - Dựng tường từ CAD',true)
       begin
         parent=@context.add_group;parent.name='TT — Tường từ CAD'
+        parent.set_attribute('TT_CAD_WALLS','generated',true)
         tag=@model.layers['TT_TUONG_CAD']||@model.layers.add('TT_TUONG_CAD');parent.layer=tag
         inv=@edit.inverse
         chosen.each_with_index do |w,i|
@@ -246,12 +275,12 @@ module TranTuanNoiThat
         walls.select{|w|w[:selected]}.each do |w|
           low=CadWallEngine.footprint(w).map{|p|Geom::Point3d.new(p[0].mm,p[1].mm,opts[:base].mm)}
           high=low.map{|p|Geom::Point3d.new(p.x,p.y,p.z+opts[:height].mm)}
-          quads=low+high.reverse
-          4.times{|i|j=(i+1)%4;quads.concat([low[i],low[j],high[j],high[i]])}
+          quads=[]
+          low.length.times{|i|j=(i+1)%low.length;quads.concat([low[i],low[j],high[j],high[i]])}
           view.drawing_color=Sketchup::Color.new(245,182,112,85);view.draw(GL_QUADS,quads)
           view.drawing_color=Sketchup::Color.new(173,101,37);view.line_width=1
           view.draw(GL_LINE_LOOP,low);view.draw(GL_LINE_LOOP,high)
-          view.draw(GL_LINES,4.times.flat_map{|i|[low[i],high[i]]})
+          view.draw(GL_LINES,low.length.times.flat_map{|i|[low[i],high[i]]})
         end
       end
       def getExtents
