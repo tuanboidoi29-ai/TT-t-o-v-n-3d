@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.225",
+  "version": "1.9.226",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Chia ván: chỉ lấy vùng lọt lòng chứa điểm click sau khi trừ các mặt tiếp xúc đồng phẳng; bỏ các khoang khác và từ chối điểm nằm trên vùng bị che.",
+  "notes": "Chia ván lọt lòng: Instance copy 1, copy 2... đánh số tiếp trong model; Tag copy van cho các ván mới.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "0a04671610cafbd5c3f2b3e008addc1928cd47a66c280da3fad5eecfda67d6d2"
+      "sha256": "636699cbc9921a300122dc262dc1c133238f1596b04d93e4364517f53191914d"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -314,7 +314,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "0b03665f4e2ed3c8867d2679614a16ae2719f9692ea7f5e915b74aede4a9e5f0"
+      "sha256": "0109a5868f4079cfb1991db1a81e6792805cf5d50dfc3780d030c5e0b8362a80"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -344,7 +344,7 @@
     {
       "path": "tran_tuan_noi_that/divide_boards.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/divide_boards.rb",
-      "sha256": "1986a654c3d9f41a22015360dfaae5463a1ae151ac741c3d7402b0d502b4ba99"
+      "sha256": "ea196c580e19ed82487e30874bfa534abacf440e7da4f74751dba3267a162d47"
     },
     {
       "path": "tran_tuan_noi_that/icons/divide_boards.svg",

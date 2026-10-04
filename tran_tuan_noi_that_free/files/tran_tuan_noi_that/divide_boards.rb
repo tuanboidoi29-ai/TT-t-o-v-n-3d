@@ -412,6 +412,11 @@ module TranTuanNoiThat
         @model.start_operation('TRẦN TUẤN - Chia ván lọt lòng',true)
         started=true
         created=[]
+        copy_tag=@model.layers['copy van'] || @model.layers.add('copy van')
+        used_numbers=@model.definitions.flat_map do |definition|
+          definition.instances.map { |instance| instance.name.to_s[/\Acopy (\d+)\z/i,1].to_i }
+        end
+        next_number=[used_numbers.max.to_i,@model.get_attribute('TT_DIVIDE_BOARDS','copy_serial',0).to_i].max+1
         @deltas.each do |distance|
           vec=@direction.clone;vec.length=distance.abs;vec.reverse! if distance<0
           transform=@edit.inverse*Geom::Transformation.translation(vec)
@@ -445,8 +450,9 @@ module TranTuanNoiThat
           if copy.respond_to?(:volume) && copy.volume < 0
             copy.entities.grep(Sketchup::Face).each(&:reverse!)
           end
-          copy.name=@source.name
-          copy.layer=@source.layer
+          copy.name="copy #{next_number}"
+          next_number+=1
+          copy.layer=copy_tag
           copy.material=@source.material
           if @source.attribute_dictionaries
             @source.attribute_dictionaries.each do |dict|
@@ -455,6 +461,7 @@ module TranTuanNoiThat
           end
           created << copy
         end
+        @model.set_attribute('TT_DIVIDE_BOARDS','copy_serial',next_number-1)
         @model.commit_operation;started=false
         @count=nil;@distance=nil;@deltas=[];@typing=false
         Sketchup.set_status_text("Đã tạo #{created.size} tấm. Tấm mẫu giữ nguyên. Rê chuột đặt tiếp hoặc ESC chọn mẫu khác.",SB_PROMPT)
