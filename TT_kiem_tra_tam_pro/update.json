@@ -2,6 +2,6 @@
   "version": "3.0.0",
   "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_kiem_tra_tam_pro/releases/TRAN_TUAN_NESTING_PRO_v3.0.0.rbz.b64",
   "encoding": "base64",
-  "sha256": "174e7c532b9e281090de7110e7b66d7fbe2c84fc8391a53f6f9e0eb1f71dd031",
-  "notes": "REBRAND + PERFORMANCE ENGINE: TRAN TUẤN NESTING PRO; icon mới; spatial hash; cache hình học/contact/dán cạnh; preview model lớn nhẹ hơn; giảm redraw; giảm lag/đơ SketchUp."
+  "sha256": "637c4ef3da081fef4b618a9e951e9458bbbc1750975446d58f2f8ef7e2c32d00",
+  "notes": "TRAN TUẤN NESTING PRO v3.0.0: Performance Engine; spatial hash contact; cache geometry/topology/banding; O(1) board index; Fast MaxRects; lightweight large-model preview; requestAnimationFrame redraw; giảm scan lặp và cloud/QR work."
 }
