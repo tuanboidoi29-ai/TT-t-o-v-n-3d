@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.236",
+  "version": "1.9.237",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Thêm Dọn DIM / Line thừa: DIM native và DIM cứng theo tên/tag trong Group/Component; nét rời tùy chọn; giữ cạnh tạo mặt, bỏ qua khóa, tách bản sao trước chỉnh sửa; một Undo.",
+  "notes": "Sửa quét tường 180mm và đoạn ngắn từ 50mm. Tự bổ sung độ dày lớp Tường khi có cặp nét lặp lại và nét đầu tường cùng độ dài. Kiểm tra file đường bao: khớp vùng tường, giữ khoảng cửa.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "078fcf5fcee1c511affb3df215adb63f854c3a5165f629e9009f366e5fafafdf"
+      "sha256": "20ad429c5b776f5e979ab03b77f27648acbe05b924860fc4ee310623627e7f10"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -314,7 +314,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "6eccdcfcb0ffc8d0b76b70ea3e28329578f6ec1e1067e1149e89bcd8365f18f2"
+      "sha256": "bdf05a4981c213853fbbdb70198978d07ec4217c13b7aa9012d85e2b976492bf"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -389,7 +389,7 @@
     {
       "path": "tran_tuan_noi_that/cad_walls.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/cad_walls.rb",
-      "sha256": "d6f94ed8940fca4b974bc69c6323d39b2cb2b57fccd31e3c3578591646f00757"
+      "sha256": "8194cdcd379823540288d2be2760d9d45b05e01395f1fd2adc1fcd48b346847c"
     },
     {
       "path": "tran_tuan_noi_that/icons/cad_walls.svg",
@@ -399,7 +399,7 @@
     {
       "path": "tran_tuan_noi_that/cad_walls_ui.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/cad_walls_ui.rb",
-      "sha256": "0bfa8e12252f8a6f1655bdb70d94ddc6590eaa1e5bb8c367bb1c74aa6ceecd4c"
+      "sha256": "0f0a61804b0e4da69564ea0af58d1060debb5baf1fe4e54d2f449c1af9a784f4"
     },
     {
       "path": "tran_tuan_noi_that/wall_junctions.rb",

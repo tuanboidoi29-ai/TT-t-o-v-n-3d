@@ -195,6 +195,7 @@ module TranTuanNoiThat
       run_job do |y|
         message('Đang kiểm tra khoảng cách cặp nét…');y<<nil
         @evidence=CadWallEngine.width_evidence(edges){y<<nil}
+        @options[:widths]=(@options[:widths]+@evidence.select{|v|v[:count]>=2 && edges.count{|e|(CadWallEngine.distance(e[:a],e[:b])-v[:width]).abs<=@options[:tolerance]}>=2}.map{|v|v[:width]}).uniq
         message('Đang ghép cặp nét tường…');y<<nil
         outlines,used=CadWallEngine.closed_outlines(all_edges,role_map,@options){y<<nil}
         pairs=CadWallEngine.recognize(edges,@options){|p|message("Nhận diện #{(p*100).round}%…");y<<nil}
