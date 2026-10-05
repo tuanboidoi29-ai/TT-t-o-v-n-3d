@@ -1,7 +1,7 @@
 {
-  "version": "2.0.3",
-  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_kiem_tra_tam_pro/releases/TT_Kiem_Tra_Tam_PRO_v2.0.3.rbz.b64",
+  "version": "3.0.0",
+  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_kiem_tra_tam_pro/releases/TRAN_TUAN_NESTING_PRO_v3.0.0.rbz.b64",
   "encoding": "base64",
-  "sha256": "dc73a323a32d4cb436d8318cdbd65135646e903bc730a13c10aff5b3dcb269a2",
-  "notes": "FIX AUTO UPDATE: sửa so sánh version Ruby; chống cache mạnh hơn; tự kiểm tra GitHub mỗi 60 giây; cài đè + xác minh version + LOAD NGAY."
+  "sha256": "174e7c532b9e281090de7110e7b66d7fbe2c84fc8391a53f6f9e0eb1f71dd031",
+  "notes": "REBRAND + PERFORMANCE ENGINE: TRAN TUẤN NESTING PRO; icon mới; spatial hash; cache hình học/contact/dán cạnh; preview model lớn nhẹ hơn; giảm redraw; giảm lag/đơ SketchUp."
 }
