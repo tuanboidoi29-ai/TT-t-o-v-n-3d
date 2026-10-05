@@ -13,13 +13,36 @@
       <div class="logo">TT</div>
       <div>
         <h1>TT - KIỂM TRA TẤM</h1>
-        <div class="sub">Thông tin Model & tấm — xem trực tiếp trên điện thoại</div>
+        <div class="sub">Dữ liệu Model & tấm — xem trực tiếp trên điện thoại</div>
       </div>
     </div>
-    <div id="status" class="status">Đang tải…</div>
+    <div class="topActions">
+      <button id="logoutBtn" class="logout hidden">ĐĂNG XUẤT</button>
+      <div id="status" class="status">Sẵn sàng</div>
+    </div>
   </header>
 
   <main class="wrap">
+    <section id="loginCard" class="panel loginCard">
+      <div class="loginMark">TT</div>
+      <div class="eyebrow">ĐĂNG NHẬP DỰ ÁN</div>
+      <h2 id="loginTitle">Xem dữ liệu thi công</h2>
+      <p id="loginHint" class="loginHint">Nhập Tên dự án và Mật khẩu đã thiết lập trong SketchUp.</p>
+
+      <label class="fieldLabel" for="projectLogin">Tên dự án</label>
+      <input id="projectLogin" autocomplete="username" placeholder="Ví dụ: TU BEP ANH TUAN">
+
+      <label class="fieldLabel" for="projectPassword">Mật khẩu</label>
+      <div class="passwordRow">
+        <input id="projectPassword" type="password" autocomplete="current-password" placeholder="Nhập mật khẩu dự án">
+        <button id="togglePassword" class="eyeBtn" type="button">HIỆN</button>
+      </div>
+
+      <button id="loginBtn" class="loginBtn">ĐĂNG NHẬP</button>
+      <div id="loginMessage" class="loginMessage"></div>
+      <div id="qrModeHint" class="qrModeHint hidden">QR CHÍNH đã xác định đúng Model. Bạn chỉ cần nhập Tên dự án + Mật khẩu.</div>
+    </section>
+
     <section id="modelCard" class="panel hero hidden">
       <div>
         <div class="eyebrow">MODEL</div>
@@ -47,7 +70,6 @@
     </section>
 
     <section id="summary" class="panel summary hidden"></section>
-
     <section id="list" class="cards"></section>
 
     <section id="errorBox" class="panel error hidden">
