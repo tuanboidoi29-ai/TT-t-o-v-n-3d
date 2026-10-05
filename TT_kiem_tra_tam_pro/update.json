@@ -1,7 +1,7 @@
 {
-  "version": "1.9.9",
-  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_kiem_tra_tam_pro/releases/TT_Kiem_Tra_Tam_PRO_v1.9.9.rbz.b64",
+  "version": "2.0.0",
+  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_kiem_tra_tam_pro/releases/TT_Kiem_Tra_Tam_PRO_v2.0.0.rbz.b64",
   "encoding": "base64",
-  "sha256": "85d617a0a23592ac3518a736470eaad4ce4d30e59d1a00e10e65aa34e5f08602",
-  "notes": "QR v2: UID tấm ổn định, quét QR nhận đúng tấm; thêm QR CHÍNH + CSDL toàn Model, xuất HTML/JSON và click zoom vị trí tấm."
+  "sha256": "49baf48893363e94fe8ed6519f50d90ce1b70ea410de1837560394a3da61d892",
+  "notes": "QR CHÍNH WEB: quét bằng điện thoại mở trực tiếp trang Model; tự đồng bộ toàn bộ dữ liệu tấm lên web; tìm kiếm/lọc/xem chi tiết trên mobile."
 }
