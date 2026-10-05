@@ -1,7 +1,7 @@
 {
-  "version": "2.0.2",
-  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_kiem_tra_tam_pro/releases/TT_Kiem_Tra_Tam_PRO_v2.0.2.rbz.b64",
+  "version": "2.0.3",
+  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_kiem_tra_tam_pro/releases/TT_Kiem_Tra_Tam_PRO_v2.0.3.rbz.b64",
   "encoding": "base64",
-  "sha256": "10ae7b14d7c6dcc8618181070a18d281e66aab6b8f53ee284a88ba5d42ba85d9",
-  "notes": "WEB LOGIN: tự đặt Tên dự án + Mật khẩu trong SketchUp; quét QR CHÍNH hoặc mở Web đều phải đăng nhập. Mật khẩu PBKDF2, không lưu plaintext trong Model."
+  "sha256": "dc73a323a32d4cb436d8318cdbd65135646e903bc730a13c10aff5b3dcb269a2",
+  "notes": "FIX AUTO UPDATE: sửa so sánh version Ruby; chống cache mạnh hơn; tự kiểm tra GitHub mỗi 60 giây; cài đè + xác minh version + LOAD NGAY."
 }
