@@ -9,19 +9,19 @@ function shareId(){
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function num(v){const n=Number(v);return Number.isFinite(n)?n:0}
 function dim(p){
-  const d=p.kt_cat||p.cut_size||p.dimensions||p.size||'';
+  if(Array.isArray(p.cut)&&p.cut.length)return p.cut.join(' × ')+' mm';\n  const d=p.kt_cat||p.cut_size||p.dimensions||p.size||'';
   if(typeof d==='string'&&d.trim())return d;
   const a=[p.length||p.dai,p.width||p.rong,p.thickness||p.do_day].filter(v=>v!==undefined&&v!==null&&v!=='');
   return a.length?a.join(' × ')+' mm':'—';
 }
 function edgeMap(p){
-  const src=p.dan_canh||p.edge_banding||p.edges||{};
+  const src=p.dan_canh||p.edge_banding||p.banding||p.edges||{};
   const get=(...keys)=>{for(const k of keys){const v=src?.[k]??p?.[k];if(v!==undefined&&v!==null&&v!==false&&v!==0&&v!=='0'&&v!=='')return v}return null};
   return {top:get('tren','top'),right:get('phai','right'),bottom:get('duoi','bottom'),left:get('trai','left')};
 }
 function edgeCount(p){return Object.values(edgeMap(p)).filter(Boolean).length}
 function thickness(p){
-  const v=p.do_day??p.thickness??p.t??'';
+  const v=p.do_day??p.thickness??p.t??(Array.isArray(p.cut)?p.cut[2]:'')??'';
   if(v!==''&&v!=null)return String(v);
   const s=dim(p);const m=s.match(/(?:x|×)\s*([\d.]+)\s*mm?\s*$/i);return m?m[1]:'';
 }
@@ -79,7 +79,7 @@ async function boot(){
     if(!res.ok||!j.ok)throw new Error(j.error==='not_found'?'Chưa có dữ liệu Model trên máy chủ. Hãy mở plugin và bấm đồng bộ QR chính.':(j.detail||j.error||'Không tải được dữ liệu'));
     state.model=j.model;
     const p=j.model.payload||{};
-    state.panels=Array.isArray(p.panels)?p.panels:(Array.isArray(p.tam)?p.tam:[]);
+    state.panels=Array.isArray(p.panels)?p.panels:(Array.isArray(p.boards)?p.boards:(Array.isArray(p.tam)?p.tam:[]));
     $('#modelName').textContent=j.model.model_name||p.model_name||'SketchUp Model';
     $('#modelId').textContent='Mã: '+id;
     $('#updatedAt').textContent='Cập nhật: '+new Date(j.model.updated_at).toLocaleString('vi-VN');
