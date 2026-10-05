@@ -1,7 +1,7 @@
 {
-  "version": "3.0.0",
-  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_kiem_tra_tam_pro/releases/TRAN_TUAN_NESTING_PRO_v3.0.0.rbz.b64",
+  "version": "3.0.1",
+  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_kiem_tra_tam_pro/releases/TRAN_TUAN_NESTING_PRO_v3.0.1_SAFE.rbz.b64",
   "encoding": "base64",
-  "sha256": "6ed148f2d5aab8fb86aac2d3e0c8c63ed09bd8bc98452d3eab450293a7242b02",
-  "notes": "TRAN TUẤN NESTING PRO v3.0.0: đổi thương hiệu/icon; Performance Engine; spatial hash tiếp xúc; cache geometry/topology/banding; O(1) board index; Fast MaxRects; scan nội bộ bỏ preview nặng; preview model lớn giảm polygon; redraw 3D theo requestAnimationFrame; Web mới tran-tuan-nesting-pro.vercel.app."
+  "sha256": "94f9c4262706ef68a4f27580bd00f7a2ce2cb90bef8306f3386978ce4f8e1dad",
+  "notes": "SAFE HOTFIX chống treo: gỡ Performance Engine thử nghiệm v3.0.0; quay về lõi ổn định; model >100 tấm tự giảm preview 2D/3D; cloud sync debounce; auto-update nền tối đa 5 phút."
 }
