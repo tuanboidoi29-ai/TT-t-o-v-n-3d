@@ -1,7 +1,7 @@
 {
-  "version": "2.0.0",
-  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_kiem_tra_tam_pro/releases/TT_Kiem_Tra_Tam_PRO_v2.0.0.rbz.b64",
+  "version": "2.0.1",
+  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_kiem_tra_tam_pro/releases/TT_Kiem_Tra_Tam_PRO_v2.0.1.rbz.b64",
   "encoding": "base64",
-  "sha256": "49baf48893363e94fe8ed6519f50d90ce1b70ea410de1837560394a3da61d892",
-  "notes": "QR CHÍNH WEB: quét bằng điện thoại mở trực tiếp trang Model; tự đồng bộ toàn bộ dữ liệu tấm lên web; tìm kiếm/lọc/xem chi tiết trên mobile."
+  "sha256": "c09f6e460d5ba69cc3e09edaaa18f6f068d0e7f6d07514d5a4bbd3d307257b91",
+  "notes": "QR CHÍNH WEB mobile: quét camera mở thẳng trang Model bằng URL ổn định ?id=; tự đồng bộ toàn bộ tấm lên Cloud và xem trên điện thoại."
 }
