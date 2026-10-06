@@ -1,7 +1,7 @@
 {
-  "version": "3.1.3",
-  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_kiem_tra_tam_pro/releases/TRAN_TUAN_NESTING_PRO_v3.1.3_SAFE_ENGINE.rbz.b64",
+  "version": "3.1.4",
+  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_kiem_tra_tam_pro/releases/TRAN_TUAN_NESTING_PRO_v3.1.4_REAL.rbz.b64",
   "encoding": "base64",
-  "sha256": "f727e6204207e93ffe014876e2022aeb7b9e07ef59c39e460bf1a4b1d23e8de6",
-  "notes": "SAFE ENGINE CLEAN: main.rb viết lại độc lập, không load chuỗi upgrade cũ; quét model chia nhỏ có DỪNG; chọn/zoom; kiểm tra topology từng tấm; đổi tên; Nesting preview 2D; không network/QR/Web khi mở."
+  "sha256": "3f90cb72bdf16714260de2668ec1398f795c98fa443518999a9b1ddb5110f1d0",
+  "notes": "REAL MODULES: quét an toàn; đổi tên thật; dán cạnh vật lý + khôi phục; Nesting preview + tạo 2D thật; Tem/QR offline; Web dự án đồng bộ thủ công; GitHub kiểm tra/cài thủ công. Không chạy network khi mở."
 }
