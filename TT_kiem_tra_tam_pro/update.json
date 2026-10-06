@@ -1,7 +1,7 @@
 {
-  "version": "3.1.2",
-  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_kiem_tra_tam_pro/releases/TRAN_TUAN_NESTING_PRO_v3.1.2_RECOVERY.rbz.b64",
+  "version": "3.1.3",
+  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_kiem_tra_tam_pro/releases/TRAN_TUAN_NESTING_PRO_v3.1.3_SAFE_ENGINE.rbz.b64",
   "encoding": "base64",
-  "sha256": "a1290e86c773f9eb95de8c738b60cf6bd50f8d16d6f5b76bf189f526bf2b2b04",
-  "notes": "RECOVERY: bấm icon chỉ mở giao diện siêu nhẹ; không quét model, không preview, không QR/Web, không network, không auto-update/timer nền. Dùng để cô lập lỗi làm SketchUp sập khi mở hệ thống."
+  "sha256": "f727e6204207e93ffe014876e2022aeb7b9e07ef59c39e460bf1a4b1d23e8de6",
+  "notes": "SAFE ENGINE CLEAN: main.rb viết lại độc lập, không load chuỗi upgrade cũ; quét model chia nhỏ có DỪNG; chọn/zoom; kiểm tra topology từng tấm; đổi tên; Nesting preview 2D; không network/QR/Web khi mở."
 }
