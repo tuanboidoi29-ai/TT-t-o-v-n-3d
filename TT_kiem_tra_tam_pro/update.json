@@ -1,7 +1,7 @@
 {
-  "version": "3.2.0",
-  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_kiem_tra_tam_pro/releases/TRAN_TUAN_NESTING_PRO_v3.2.0_INTERACTIVE.rbz.b64",
+  "version": "3.3.0",
+  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_kiem_tra_tam_pro/releases/TRAN_TUAN_NESTING_PRO_v3.3.0_PRODUCTION_PREVIEW.rbz.b64",
   "encoding": "base64",
-  "sha256": "9eb2c1e4b4d38b6a6593f0154124a6d70b75491291cbb2b44f74e975c54c8388",
-  "notes": "INTERACTIVE: MaxRects theo đúng khổ mặc định; tự động chiều vân; chống bay ván tấm nhỏ cắt trước; click/kéo/xoay/chuyển phôi; dán cạnh robust + preview tương tác; Tem/QR preview và in ngay trong hệ thống; bỏ toàn bộ chữ THẬT."
+  "sha256": "3eeca67ab79413d40095230f4f05256d5ca4fd35c0d0b906b97d060b69e65738",
+  "notes": "Dán cạnh chỉ cạnh hở không tiếp diện + preview 3D quay/zoom; gán nhãn trực tiếp + preview 3D; trải tấm 2D; Nesting tất cả tấm đã gán nhãn theo khổ; zoom Nesting; mô phỏng đường dao CNC từ biên dạng thực."
 }
