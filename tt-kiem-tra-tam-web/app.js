@@ -1,181 +1,132 @@
 const API='https://vnvkmxqgbnmirsgdgfzm.supabase.co/functions/v1/tt-model-api';
 const $=s=>document.querySelector(s);
-const state={panels:[],model:null,shareId:'',requestedBoard:''};
-function requestedBoardUid314(){return String(new URLSearchParams(location.search).get('board')||'').trim()}
+const state={shareId:'',pendingBoard:'',model:null,panels:[],labels:[],model3d:[],view:{yaw:-.65,pitch:-.45,zoom:1,drag:false,x:0,y:0},stream:null,scanLoop:0,detector:null};
 
-function urlShareId(){return String(new URLSearchParams(location.search).get('id')||'').trim()}
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function num(v){const n=Number(v);return Number.isFinite(n)?n:0}
-function dim(p){if(Array.isArray(p.cut)&&p.cut.length)return p.cut.join(' × ')+' mm';const d=p.kt_cat||p.cut_size||p.dimensions||p.size||'';if(typeof d==='string'&&d.trim())return d;const a=[p.length||p.dai,p.width||p.rong,p.thickness||p.do_day].filter(v=>v!==undefined&&v!==null&&v!=='');return a.length?a.join(' × ')+' mm':'—'}
-function edgeMap(p){const src=p.dan_canh||p.edge_banding||p.banding||p.edges||{};const get=(...keys)=>{for(const k of keys){const v=src?.[k]??p?.[k];if(v!==undefined&&v!==null&&v!==false&&v!==0&&v!=='0'&&v!=='')return v}return null};return {top:get('tren','top'),right:get('phai','right'),bottom:get('duoi','bottom'),left:get('trai','left')}}
-function edgeCount(p){return Object.values(edgeMap(p)).filter(Boolean).length}
-function thickness(p){const v=p.do_day??p.thickness??p.t??(Array.isArray(p.cut)?p.cut[2]:'')??'';if(v!==''&&v!=null)return String(v);const s=dim(p);const m=s.match(/(?:x|×)\s*([\d.]+)\s*mm?\s*$/i);return m?m[1]:''}
-function panelCode(p){return p.ma_tam||p.code||p.uid||p.panel_uid||p.id||'—'}
-function panelName(p){return p.ten||p.name||p.panel_name||'Tấm chưa đặt tên'}
-function panelPath(p){return p.path||p.vi_tri||p.location||p.parent_path||'Chưa có vị trí'}
+function shareIdFromUrl(){return String(new URLSearchParams(location.search).get('id')||'').trim()}
+function boardFromUrl(){return String(new URLSearchParams(location.search).get('board')||'').trim()}
+function setStatus(t,cls=''){const e=$('#status');e.textContent=t;e.className='status '+cls}
+function setMsg(t,cls=''){const e=$('#loginMessage');e.textContent=t;e.className='loginMessage '+cls}
+function codeOf(p){return p.code||p.ma_tam||p.uid||p.panel_uid||p.id||'—'}
+function nameOf(p){return p.name||p.ten||p.panel_name||'Tấm chưa đặt tên'}
+function pathOf(p){return p.path||p.vi_tri||p.location||'—'}
+function labelInfo(p){return p.label||{assigned:!!p.label_assigned,code:p.label_code||codeOf(p),name:p.label_name||nameOf(p)}}
+function thickness(p){const v=p.thickness??p.do_day??(Array.isArray(p.cut)?p.cut[2]:'');return v==null?'':String(v)}
+function dim(p){if(Array.isArray(p.cut)&&p.cut.length>=2)return p.cut.map(x=>Number(x).toFixed(x%1?1:0)).join(' × ')+' mm';return p.dimensions||p.size||'—'}
+function bandsOf(p){return p.banding||p.bands||p.dan_canh||{}}
+function bandCount(p){return Object.values(bandsOf(p)).filter(v=>v!==null&&v!==false&&v!==0&&v!=='').length}
 
-function setStatus(text,type=''){const e=$('#status');e.textContent=text;e.className='status '+type}
-function setLoginMessage(text,type=''){const e=$('#loginMessage');e.textContent=text;e.className='loginMessage '+type}
-function showApp(){
-  $('#loginCard').classList.add('hidden');$('#logoutBtn').classList.remove('hidden');
-  $('#modelCard').classList.remove('hidden');$('#controls').classList.remove('hidden');$('#summary').classList.remove('hidden');
-}
-function hideApp(){
-  $('#loginCard').classList.remove('hidden');$('#logoutBtn').classList.add('hidden');
-  ['#modelCard','#controls','#summary'].forEach(s=>$(s).classList.add('hidden'));$('#list').innerHTML='';
-}
-function loadModel(model){
-  state.model=model;state.requestedBoard=requestedBoardUid314();const p=model.payload||{};
-  state.panels=Array.isArray(p.panels)?p.panels:(Array.isArray(p.boards)?p.boards:(Array.isArray(p.tam)?p.tam:[]));
-  $('#modelName').textContent=model.model_name||p.model_name||'SketchUp Model';
-  $('#modelId').textContent='Mã: '+(model.share_id||state.shareId||'—');
-  $('#updatedAt').textContent='Cập nhật: '+new Date(model.updated_at).toLocaleString('vi-VN');
-  $('#panelCount').textContent=state.panels.length;
-  $('#edgeCount').textContent=state.panels.reduce((a,x)=>a+edgeCount(x),0);
-  const th=[...new Set(state.panels.map(thickness).filter(Boolean))].sort((a,b)=>num(a)-num(b));
-  $('#thicknessCount').textContent=th.length;
-  $('#thicknessFilter').innerHTML='<option value="">Tất cả độ dày</option>'+th.map(v=>`<option value="${esc(v)}">${esc(v)} mm</option>`).join('');
-  showApp();setStatus('ĐÃ ĐĂNG NHẬP','ok');render();if(state.requestedBoard){const hit=state.panels.find(x=>String(x.uid||x.panel_uid||x.code||x.ma_tam||'')===state.requestedBoard);if(hit)setTimeout(()=>openDetail(hit),120);}
-}
+function showApp(){ $('#loginCard').classList.add('hidden'); ['#projectCard','#modelPanel','#controls','#summary'].forEach(s=>$(s).classList.remove('hidden')); $('#logoutBtn').classList.remove('hidden'); }
+function hideApp(){ $('#loginCard').classList.remove('hidden'); ['#projectCard','#modelPanel','#controls','#summary'].forEach(s=>$(s).classList.add('hidden')); $('#logoutBtn').classList.add('hidden'); $('#list').innerHTML=''; }
+
 async function login(){
-  const projectLogin=$('#projectLogin').value.trim();
+  const login=$('#projectLogin').value.trim();
   const password=$('#projectPassword').value;
-  if(!projectLogin||!password){setLoginMessage('Nhập đủ Tên dự án và Mật khẩu.');return}
-  $('#loginBtn').disabled=true;setLoginMessage('Đang xác thực…');setStatus('ĐANG ĐĂNG NHẬP');
+  if(!login||!password){setMsg('Nhập đủ Tên dự án và Mật khẩu.');return}
+  $('#loginBtn').disabled=true;setMsg('Đang xác thực…');setStatus('ĐANG ĐĂNG NHẬP');
   try{
-    const res=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'login',share_id:state.shareId,project_login:projectLogin,password})});
+    const res=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'login',share_id:state.shareId,project_login:login,password})});
     const j=await res.json().catch(()=>({}));
     if(!res.ok||!j.ok){
-      const map={invalid_credentials:'Tên dự án hoặc mật khẩu không đúng.',missing_credentials:'Thiếu thông tin đăng nhập.',not_found:'Không tìm thấy dự án.',database_error:'Máy chủ dữ liệu đang lỗi.'};
+      const map={invalid_credentials:'Tên dự án hoặc mật khẩu không đúng.',missing_credentials:'Thiếu thông tin đăng nhập.',project_login_too_short:'Tên dự án quá ngắn.',password_too_short:'Mật khẩu quá ngắn.',password_required:'Dự án chưa có mật khẩu.'};
       throw new Error(map[j.error]||j.detail||j.error||'Đăng nhập thất bại');
     }
-    $('#projectPassword').value='';setLoginMessage('Đăng nhập thành công.','ok');loadModel(j.model);
-  }catch(e){setStatus('ĐĂNG NHẬP LỖI','bad');setLoginMessage(e.message||String(e))}
+    localStorage.setItem('tt_project_login',login);
+    $('#projectPassword').value='';
+    loadModel(j.model);
+    setMsg('Đăng nhập thành công.','ok');
+  }catch(e){setStatus('ĐĂNG NHẬP LỖI','bad');setMsg(e.message||String(e))}
   finally{$('#loginBtn').disabled=false}
 }
-function logout(){
-  state.model=null;state.panels=[];$('#projectPassword').value='';setLoginMessage('');hideApp();setStatus('Sẵn sàng');$('#projectLogin').focus();
+
+function loadModel(model){
+  state.model=model||{};const p=state.model.payload||{};
+  state.shareId=state.model.share_id||state.shareId;
+  state.panels=Array.isArray(p.panels)?p.panels:(Array.isArray(p.boards)?p.boards:[]);
+  state.labels=Array.isArray(p.labels)?p.labels:state.panels.filter(x=>labelInfo(x).assigned);
+  state.model3d=Array.isArray(p.model3d)?p.model3d:[];
+  $('#modelName').textContent=state.model.model_name||p.model_name||'SketchUp Model';
+  $('#modelId').textContent='Mã: '+state.shareId;
+  $('#savedAt').textContent='Lưu: '+new Date(state.model.last_saved_at||state.model.updated_at||Date.now()).toLocaleString('vi-VN');
+  $('#revision').textContent='Revision: '+String(state.model.revision||1);
+  $('#panelCount').textContent=state.panels.length;
+  $('#labelCount').textContent=state.labels.length;
+  $('#bandCount').textContent=state.panels.reduce((a,p)=>a+bandCount(p),0);
+  const th=[...new Set(state.panels.map(thickness).filter(Boolean))].sort((a,b)=>num(a)-num(b));
+  $('#thicknessFilter').innerHTML='<option value="">Tất cả độ dày</option>'+th.map(v=>'<option value="'+esc(v)+'">'+esc(v)+' mm</option>').join('');
+  showApp();render();drawModel();setStatus('DỮ LIỆU ĐÃ LƯU','ok');
+  if(state.pendingBoard){const hit=findBoard(state.pendingBoard);if(hit)setTimeout(()=>openDetail(hit),100);}
 }
+
+function findBoard(token){const t=String(token||'').trim();return state.panels.find(p=>[p.uid,p.panel_uid,p.code,p.ma_tam,p.id].map(String).includes(t))||null}
 function render(){
-  const q=$('#search').value.trim().toLowerCase();const tf=$('#thicknessFilter').value;const ef=$('#edgeFilter').value;
-  const rows=state.panels.filter(p=>{const text=[panelName(p),panelCode(p),panelPath(p),dim(p)].join(' ').toLowerCase();const passQ=!q||text.includes(q);const passT=!tf||thickness(p)===tf;const ec=edgeCount(p);const passE=!ef||(ef==='has'?ec>0:ec===0);return passQ&&passT&&passE});
-  $('#summary').textContent=`Đang hiển thị ${rows.length}/${state.panels.length} tấm.`;
-  $('#list').innerHTML=rows.map(p=>{const e=edgeMap(p);return `<article class="card" data-idx="${state.panels.indexOf(p)}">
-    <div class="cardTop"><div><div class="name">${esc(panelName(p))}</div><div class="code">${esc(panelCode(p))}</div></div><span class="badge thk">${esc(thickness(p)||'?')} mm</span></div>
-    <div class="dim">${esc(dim(p))}</div><div class="path">${esc(panelPath(p))}</div>
-    <div class="badges">${edgeCount(p)?`<span class="badge edge">${edgeCount(p)} cạnh dán</span>`:''}</div>
-    <div class="edgebox"><div class="edgeTitle">DÁN CẠNH</div><div class="edgeRow">
-      <div class="edge ${e.left?'on':''}">TRÁI${e.left?' '+esc(e.left):''}</div><div class="edge ${e.top?'on':''}">TRÊN${e.top?' '+esc(e.top):''}</div>
-      <div class="edge ${e.right?'on':''}">PHẢI${e.right?' '+esc(e.right):''}</div><div class="edge ${e.bottom?'on':''}">DƯỚI${e.bottom?' '+esc(e.bottom):''}</div>
-    </div></div></article>`}).join('');
-  document.querySelectorAll('.card').forEach(el=>el.addEventListener('click',()=>openDetail(state.panels[Number(el.dataset.idx)])));
+  const q=$('#search').value.trim().toLowerCase(),tf=$('#thicknessFilter').value,lf=$('#labelFilter').value;
+  const rows=state.panels.filter(p=>{const li=labelInfo(p);const txt=[nameOf(p),codeOf(p),li.code,li.name,p.tag,p.material,pathOf(p),dim(p)].join(' ').toLowerCase();return(!q||txt.includes(q))&&(!tf||thickness(p)===tf)&&(!lf||(lf==='yes'?li.assigned:!li.assigned))});
+  $('#summary').textContent='Đang hiển thị '+rows.length+'/'+state.panels.length+' tấm • '+state.labels.length+' tem đã lưu.';
+  $('#list').innerHTML=rows.map(p=>{const li=labelInfo(p),b=bandsOf(p);return '<article class="card" data-code="'+esc(codeOf(p))+'"><div class="cardTop"><div><div class="name">'+esc(li.assigned?li.name:nameOf(p))+'</div><div class="code">'+esc(li.code||codeOf(p))+'</div></div><span class="badge thk">'+esc(thickness(p)||'?')+' mm</span></div><div class="dim">'+esc(dim(p))+'</div><div class="path">'+esc(pathOf(p))+'</div><div class="badges">'+(li.assigned?'<span class="badge label">ĐÃ GÁN TEM</span>':'')+(bandCount(p)?'<span class="badge band">'+bandCount(p)+' CẠNH DÁN</span>':'')+'</div><div class="edgeRow">'+['U-','V+','U+','V-'].map((k,i)=>'<div class="edge '+(b[k]?'on':'')+'">'+['TRÁI','TRÊN','PHẢI','DƯỚI'][i]+(b[k]?' '+esc(b[k]):'')+'</div>').join('')+'</div></article>'}).join('');
+  document.querySelectorAll('.card').forEach(el=>el.onclick=()=>{const hit=state.panels.find(p=>codeOf(p)===el.dataset.code);if(hit)openDetail(hit)});
 }
 function openDetail(p){
-  $('#dName').textContent=panelName(p);const e=edgeMap(p);
-  const items=[['Mã tấm',panelCode(p)],['Kích thước cắt',dim(p)],['Độ dày',thickness(p)?thickness(p)+' mm':'—'],['Vị trí trong Model',panelPath(p)],['Tag / Layer',p.tag||p.layer||'—'],['Vật liệu',p.vat_lieu||p.material||'—'],['Cạnh TRÁI',e.left||'Không dán'],['Cạnh TRÊN',e.top||'Không dán'],['Cạnh PHẢI',e.right||'Không dán'],['Cạnh DƯỚI',e.bottom||'Không dán'],['UID',p.uid||p.panel_uid||'—']];
-  $('#detailBody').innerHTML='<div class="detailGrid">'+items.map((x,i)=>`<div class="detailItem ${i===3?'detailWide':''}"><span>${esc(x[0])}</span><b>${esc(x[1])}</b></div>`).join('')+'</div>';$('#detailDialog').showModal();
+  const li=labelInfo(p),b=bandsOf(p);$('#dName').textContent=li.assigned?li.name:nameOf(p);
+  const items=[['Mã tem',li.code||codeOf(p)],['Tên tấm',nameOf(p)],['Kích thước',dim(p)],['Độ dày',thickness(p)+' mm'],['Tag / Layer',p.tag||'—'],['Vật liệu',p.material||'—'],['Vị trí trong Model',pathOf(p)],['Cạnh trái',b['U-']||'Không dán'],['Cạnh trên',b['V+']||'Không dán'],['Cạnh phải',b['U+']||'Không dán'],['Cạnh dưới',b['V-']||'Không dán'],['UID',p.uid||p.panel_uid||'—']];
+  $('#detailBody').innerHTML='<div class="detailGrid">'+items.map((x,i)=>'<div class="detailItem '+(i===6?'wide':'')+'"><span>'+esc(x[0])+'</span><b>'+esc(x[1])+'</b></div>').join('')+'</div>';
+  $('#detailDialog').showModal();
 }
 
-async function downloadPackage316(){
-  const title=document.querySelector('#loginTitle');
-  const hint=document.querySelector('#loginHint');
-  const btn=document.querySelector('#loginBtn');
-  const user=document.querySelector('#projectLogin');
-  const pass=document.querySelector('#projectPassword');
-  const toggle=document.querySelector('#togglePassword');
-  document.querySelectorAll('.fieldLabel').forEach(x=>x.classList.add('hidden'));
-  if(user) user.classList.add('hidden');
-  if(pass) pass.classList.add('hidden');
-  if(toggle) toggle.classList.add('hidden');
-  if(title) title.textContent='TẢI TRẦN TUẤN NESTING PRO v3.1.6';
-  if(hint) hint.textContent='Bản BRIDGE FIX: sửa toàn bộ cầu nối HtmlDialog ↔ Ruby. Bấm nút bên dưới để tải file RBZ.';
-  if(btn){btn.disabled=true;btn.textContent='ĐANG CHUẨN BỊ FILE...';}
-  try{
-    const url='https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_kiem_tra_tam_pro/releases/TRAN_TUAN_NESTING_PRO_v3.1.6_BRIDGE_FIX.rbz.b64?ts='+Date.now();
-    const res=await fetch(url,{cache:'no-store'});
-    if(!res.ok) throw new Error('Không tải được dữ liệu RBZ từ GitHub.');
-    const b64=(await res.text()).replace(/\s+/g,'');
-    const bin=atob(b64);
-    const bytes=new Uint8Array(bin.length);
-    for(let i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i);
-    const blob=new Blob([bytes],{type:'application/zip'});
-    const href=URL.createObjectURL(blob);
-    const a=document.createElement('a');
-    a.href=href;
-    a.download='TT_NESTING_316.rbz';
-    document.body.appendChild(a);
-    if(btn){btn.disabled=false;btn.textContent='TẢI TT_NESTING_316.RBZ';btn.onclick=()=>a.click();}
-    a.click();
-    setLoginMessage('File v3.1.6 đã sẵn sàng. Nếu chưa tự tải, bấm nút TẢI.','ok');
-    setStatus('FILE SẴN SÀNG','ok');
-    setTimeout(()=>URL.revokeObjectURL(href),600000);
-  }catch(e){
-    if(btn){btn.disabled=false;btn.textContent='THỬ TẢI LẠI';btn.onclick=downloadPackage316;}
-    setLoginMessage(e.message||String(e));
-    setStatus('TẢI FILE LỖI','bad');
-  }
+function project3d(pt,c,v,scale,W,H){let x=pt[0]-c[0],y=pt[1]-c[1],z=pt[2]-c[2];let cy=Math.cos(v.yaw),sy=Math.sin(v.yaw),cp=Math.cos(v.pitch),sp=Math.sin(v.pitch);let x1=x*cy-y*sy,y1=x*sy+y*cy,z1=z;let y2=y1*cp-z1*sp,z2=y1*sp+z1*cp;return[W/2+x1*scale*v.zoom,H/2-z2*scale*v.zoom]}
+function drawModel(){
+  const cv=$('#modelCanvas'),boxes=state.model3d;if(!cv)return;const dpr=window.devicePixelRatio||1,W=cv.clientWidth||800,H=cv.clientHeight||360;cv.width=W*dpr;cv.height=H*dpr;const ctx=cv.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,W,H);
+  if(!boxes.length){ctx.fillStyle='#7f96b3';ctx.font='14px Arial';ctx.fillText('Model chưa có dữ liệu 3D. Hãy Đồng bộ Web lại từ SketchUp.',20,40);return}
+  const pts=[];boxes.forEach(b=>(b.corners||[]).forEach(p=>pts.push(p)));const c=[0,0,0];pts.forEach(p=>{c[0]+=p[0];c[1]+=p[1];c[2]+=p[2]});c[0]/=pts.length;c[1]/=pts.length;c[2]/=pts.length;let span=100;pts.forEach(p=>{span=Math.max(span,Math.abs(p[0]-c[0])*2,Math.abs(p[1]-c[1])*2,Math.abs(p[2]-c[2])*2)});const scale=Math.min(W,H)*.72/span,edges=[[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]];boxes.forEach(b=>{ctx.strokeStyle=b.label&&b.label.assigned?'#60a5fa':'#475569';ctx.lineWidth=b.label&&b.label.assigned?1.8:1;ctx.beginPath();edges.forEach(e=>{const a=project3d(b.corners[e[0]],c,state.view,scale,W,H),q=project3d(b.corners[e[1]],c,state.view,scale,W,H);ctx.moveTo(a[0],a[1]);ctx.lineTo(q[0],q[1])});ctx.stroke()});
 }
-\nasync function downloadPackage315(){
-  const title=document.querySelector('#loginTitle');
-  const hint=document.querySelector('#loginHint');
-  const btn=document.querySelector('#loginBtn');
-  const user=document.querySelector('#projectLogin');
-  const pass=document.querySelector('#projectPassword');
-  const toggle=document.querySelector('#togglePassword');
-  document.querySelectorAll('.fieldLabel').forEach(x=>x.classList.add('hidden'));
-  if(user) user.classList.add('hidden');
-  if(pass) pass.classList.add('hidden');
-  if(toggle) toggle.classList.add('hidden');
-  if(title) title.textContent='TẢI TRẦN TUẤN NESTING PRO v3.1.5';
-  if(hint) hint.textContent='Bấm nút bên dưới để tải trực tiếp file cài RBZ. Không dùng bộ tải tệp của ChatGPT.';
-  if(btn){
-    btn.disabled=true;
-    btn.textContent='ĐANG CHUẨN BỊ FILE...';
-  }
-  try{
-    const url='https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_kiem_tra_tam_pro/releases/TT_NESTING_315.rbz.b64?ts='+Date.now();
-    const res=await fetch(url,{cache:'no-store'});
-    if(!res.ok) throw new Error('Không tải được dữ liệu RBZ từ GitHub.');
-    const b64=(await res.text()).replace(/\s+/g,'');
-    const bin=atob(b64);
-    const bytes=new Uint8Array(bin.length);
-    for(let i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i);
-    const blob=new Blob([bytes],{type:'application/zip'});
-    const href=URL.createObjectURL(blob);
-    const a=document.createElement('a');
-    a.href=href;
-    a.download='TT_NESTING_315.rbz';
-    document.body.appendChild(a);
-    if(btn){
-      btn.disabled=false;
-      btn.textContent='TẢI TT_NESTING_315.RBZ';
-      btn.onclick=()=>a.click();
-    }
-    a.click();
-    setLoginMessage('Đã tạo file cài RBZ. Nếu trình duyệt chưa tải, bấm nút TẢI bên trên.','ok');
-    setStatus('FILE SẴN SÀNG','ok');
-    setTimeout(()=>URL.revokeObjectURL(href),600000);
-  }catch(e){
-    if(btn){
-      btn.disabled=false;
-      btn.textContent='THỬ TẢI LẠI';
-      btn.onclick=downloadPackage315;
-    }
-    setLoginMessage(e.message||String(e));
-    setStatus('TẢI FILE LỖI','bad');
-  }
+
+function bindModel(){const cv=$('#modelCanvas');cv.onmousedown=e=>{state.view.drag=true;state.view.x=e.clientX;state.view.y=e.clientY};window.addEventListener('mouseup',()=>state.view.drag=false);window.addEventListener('mousemove',e=>{if(!state.view.drag)return;state.view.yaw+=(e.clientX-state.view.x)*.008;state.view.pitch+=(e.clientY-state.view.y)*.008;state.view.pitch=Math.max(-1.45,Math.min(1.45,state.view.pitch));state.view.x=e.clientX;state.view.y=e.clientY;drawModel()});cv.onwheel=e=>{e.preventDefault();state.view.zoom*=e.deltaY<0?1.12:.89;state.view.zoom=Math.max(.2,Math.min(7,state.view.zoom));drawModel()};cv.ondblclick=()=>{state.view={yaw:-.65,pitch:-.45,zoom:1,drag:false,x:0,y:0};drawModel()}}
+function logout(){stopScanner();state.model=null;state.panels=[];state.labels=[];state.model3d=[];hideApp();setStatus('Sẵn sàng');setMsg('');}
+
+function parseQr(raw){
+  const s=String(raw||'').trim();if(!s)return false;
+  try{const u=new URL(s);const id=u.searchParams.get('id')||'';const board=u.searchParams.get('board')||'';if(id)state.shareId=id;if(board)state.pendingBoard=board;handleQrResult();return true}catch(e){}
+  const hit=findBoard(s);if(hit){stopScanner();$('#scanDialog').close();openDetail(hit);return true}
+  if(/^TTB[-_]/i.test(s)){state.pendingBoard=s;handleQrResult();return true}
+  return false;
 }
+function handleQrResult(){
+  stopScanner();if($('#scanDialog').open)$('#scanDialog').close();
+  if(state.model&&state.shareId===state.model.share_id){const hit=findBoard(state.pendingBoard);if(hit){openDetail(hit);return}}
+  $('#qrModeHint').classList.remove('hidden');$('#qrModeHint').textContent='Đã đọc QR. Mã dự án: '+(state.shareId||'—')+(state.pendingBoard?' • Tấm: '+state.pendingBoard:'')+'. Hãy đăng nhập để xem dữ liệu.';hideApp();$('#projectLogin').focus();
+}
+
+async function startScanner(){
+  const st=$('#scanStatus');st.textContent='Đang mở camera…';
+  try{
+    state.stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});
+    const v=$('#qrVideo');v.srcObject=state.stream;await v.play();
+    if('BarcodeDetector' in window){try{state.detector=new BarcodeDetector({formats:['qr_code']})}catch(e){state.detector=null}}
+    st.textContent='Đưa QR tem vào giữa khung xanh.';
+    scanFrame();
+  }catch(e){st.textContent='Không mở được camera: '+(e.message||e)}
+}
+function stopScanner(){if(state.scanLoop)cancelAnimationFrame(state.scanLoop);state.scanLoop=0;if(state.stream){state.stream.getTracks().forEach(t=>t.stop());state.stream=null}const v=$('#qrVideo');if(v)v.srcObject=null}
+async function scanFrame(){
+  const v=$('#qrVideo'),st=$('#scanStatus');if(!state.stream||!v)return;
+  try{
+    if(state.detector){const codes=await state.detector.detect(v);if(codes&&codes.length&&parseQr(codes[0].rawValue)){st.textContent='Đã nhận QR.';return}}
+    else if(window.jsQR&&v.videoWidth>0){const c=$('#qrCanvas'),ctx=c.getContext('2d');c.width=v.videoWidth;c.height=v.videoHeight;ctx.drawImage(v,0,0,c.width,c.height);const img=ctx.getImageData(0,0,c.width,c.height);const code=window.jsQR(img.data,img.width,img.height,{inversionAttempts:'dontInvert'});if(code&&parseQr(code.data)){st.textContent='Đã nhận QR.';return}}
+  }catch(e){}
+  state.scanLoop=requestAnimationFrame(scanFrame);
+}
+function openScanner(){if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){alert('Trình duyệt không hỗ trợ Camera.');return}$('#scanDialog').showModal();$('#scanStatus').textContent='Bấm BẬT CAMERA để quét.';}
 
 function boot(){
-  const params=new URLSearchParams(location.search);
-  if(params.get('download')==='316'){downloadPackage316();return}\n  if(params.get('download')==='315'){downloadPackage315();return}
-  state.shareId=urlShareId();
-  if(state.shareId){$('#qrModeHint').classList.remove('hidden');$('#loginHint').textContent='QR CHÍNH đã xác định Model. Nhập Tên dự án và Mật khẩu để xem dữ liệu.'}
-  else{$('#loginHint').textContent='Bạn có thể đăng nhập trực tiếp bằng Tên dự án + Mật khẩu, không cần quét QR.'}
-  setStatus('CHỜ ĐĂNG NHẬP');setTimeout(()=>$('#projectLogin').focus(),120);
+  state.shareId=shareIdFromUrl();state.pendingBoard=boardFromUrl();
+  $('#projectLogin').value=localStorage.getItem('tt_project_login')||'';
+  if(state.shareId){$('#qrModeHint').classList.remove('hidden');$('#qrModeHint').textContent='QR đã xác định dự án'+(state.pendingBoard?' và tấm '+state.pendingBoard:'')+'. Nhập thông tin đăng nhập.'}
+  bindModel();setStatus('CHỜ ĐĂNG NHẬP');
 }
-$('#loginBtn').addEventListener('click',login);$('#projectPassword').addEventListener('keydown',e=>{if(e.key==='Enter')login()});$('#projectLogin').addEventListener('keydown',e=>{if(e.key==='Enter')$('#projectPassword').focus()});
-$('#togglePassword').addEventListener('click',()=>{const p=$('#projectPassword');const show=p.type==='password';p.type=show?'text':'password';$('#togglePassword').textContent=show?'ẨN':'HIỆN'});
-$('#logoutBtn').addEventListener('click',logout);$('#closeDialog').addEventListener('click',()=>$('#detailDialog').close());
-['search','thicknessFilter','edgeFilter'].forEach(id=>$('#'+id).addEventListener(id==='search'?'input':'change',render));
+
+$('#loginBtn').onclick=login;$('#projectPassword').onkeydown=e=>{if(e.key==='Enter')login()};$('#togglePassword').onclick=()=>{const p=$('#projectPassword'),show=p.type==='password';p.type=show?'text':'password';$('#togglePassword').textContent=show?'ẨN':'HIỆN'};
+$('#logoutBtn').onclick=logout;$('#closeDetail').onclick=()=>$('#detailDialog').close();
+['#scanTopBtn','#scanLoginBtn','#scanProjectBtn'].forEach(s=>$(s).onclick=openScanner);$('#closeScanner').onclick=()=>{stopScanner();$('#scanDialog').close()};$('#startScanner').onclick=startScanner;$('#stopScanner').onclick=stopScanner;$('#manualQrBtn').onclick=()=>{if(!parseQr($('#manualQrText').value))$('#scanStatus').textContent='Không nhận được mã QR hợp lệ.'};
+['search','thicknessFilter','labelFilter'].forEach(id=>$('#'+id).addEventListener(id==='search'?'input':'change',render));
 boot();
