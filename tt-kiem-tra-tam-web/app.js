@@ -75,7 +75,47 @@ function openDetail(p){
   const items=[['Mã tấm',panelCode(p)],['Kích thước cắt',dim(p)],['Độ dày',thickness(p)?thickness(p)+' mm':'—'],['Vị trí trong Model',panelPath(p)],['Tag / Layer',p.tag||p.layer||'—'],['Vật liệu',p.vat_lieu||p.material||'—'],['Cạnh TRÁI',e.left||'Không dán'],['Cạnh TRÊN',e.top||'Không dán'],['Cạnh PHẢI',e.right||'Không dán'],['Cạnh DƯỚI',e.bottom||'Không dán'],['UID',p.uid||p.panel_uid||'—']];
   $('#detailBody').innerHTML='<div class="detailGrid">'+items.map((x,i)=>`<div class="detailItem ${i===3?'detailWide':''}"><span>${esc(x[0])}</span><b>${esc(x[1])}</b></div>`).join('')+'</div>';$('#detailDialog').showModal();
 }
-async function downloadPackage315(){
+
+async function downloadPackage316(){
+  const title=document.querySelector('#loginTitle');
+  const hint=document.querySelector('#loginHint');
+  const btn=document.querySelector('#loginBtn');
+  const user=document.querySelector('#projectLogin');
+  const pass=document.querySelector('#projectPassword');
+  const toggle=document.querySelector('#togglePassword');
+  document.querySelectorAll('.fieldLabel').forEach(x=>x.classList.add('hidden'));
+  if(user) user.classList.add('hidden');
+  if(pass) pass.classList.add('hidden');
+  if(toggle) toggle.classList.add('hidden');
+  if(title) title.textContent='TẢI TRẦN TUẤN NESTING PRO v3.1.6';
+  if(hint) hint.textContent='Bản BRIDGE FIX: sửa toàn bộ cầu nối HtmlDialog ↔ Ruby. Bấm nút bên dưới để tải file RBZ.';
+  if(btn){btn.disabled=true;btn.textContent='ĐANG CHUẨN BỊ FILE...';}
+  try{
+    const url='https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_kiem_tra_tam_pro/releases/TRAN_TUAN_NESTING_PRO_v3.1.6_BRIDGE_FIX.rbz.b64?ts='+Date.now();
+    const res=await fetch(url,{cache:'no-store'});
+    if(!res.ok) throw new Error('Không tải được dữ liệu RBZ từ GitHub.');
+    const b64=(await res.text()).replace(/\s+/g,'');
+    const bin=atob(b64);
+    const bytes=new Uint8Array(bin.length);
+    for(let i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i);
+    const blob=new Blob([bytes],{type:'application/zip'});
+    const href=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=href;
+    a.download='TT_NESTING_316.rbz';
+    document.body.appendChild(a);
+    if(btn){btn.disabled=false;btn.textContent='TẢI TT_NESTING_316.RBZ';btn.onclick=()=>a.click();}
+    a.click();
+    setLoginMessage('File v3.1.6 đã sẵn sàng. Nếu chưa tự tải, bấm nút TẢI.','ok');
+    setStatus('FILE SẴN SÀNG','ok');
+    setTimeout(()=>URL.revokeObjectURL(href),600000);
+  }catch(e){
+    if(btn){btn.disabled=false;btn.textContent='THỬ TẢI LẠI';btn.onclick=downloadPackage316;}
+    setLoginMessage(e.message||String(e));
+    setStatus('TẢI FILE LỖI','bad');
+  }
+}
+\nasync function downloadPackage315(){
   const title=document.querySelector('#loginTitle');
   const hint=document.querySelector('#loginHint');
   const btn=document.querySelector('#loginBtn');
@@ -128,7 +168,7 @@ async function downloadPackage315(){
 
 function boot(){
   const params=new URLSearchParams(location.search);
-  if(params.get('download')==='315'){downloadPackage315();return}
+  if(params.get('download')==='316'){downloadPackage316();return}\n  if(params.get('download')==='315'){downloadPackage315();return}
   state.shareId=urlShareId();
   if(state.shareId){$('#qrModeHint').classList.remove('hidden');$('#loginHint').textContent='QR CHÍNH đã xác định Model. Nhập Tên dự án và Mật khẩu để xem dữ liệu.'}
   else{$('#loginHint').textContent='Bạn có thể đăng nhập trực tiếp bằng Tên dự án + Mật khẩu, không cần quét QR.'}
