@@ -1,7 +1,7 @@
 {
-  "version": "3.1.4",
-  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_kiem_tra_tam_pro/releases/TRAN_TUAN_NESTING_PRO_v3.1.4_REAL.rbz.b64",
+  "version": "3.1.6",
+  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_kiem_tra_tam_pro/releases/TRAN_TUAN_NESTING_PRO_v3.1.6_BRIDGE_FIX.rbz.b64",
   "encoding": "base64",
-  "sha256": "3f90cb72bdf16714260de2668ec1398f795c98fa443518999a9b1ddb5110f1d0",
-  "notes": "REAL MODULES: quét an toàn; đổi tên thật; dán cạnh vật lý + khôi phục; Nesting preview + tạo 2D thật; Tem/QR offline; Web dự án đồng bộ thủ công; GitHub kiểm tra/cài thủ công. Không chạy network khi mở."
+  "sha256": "4ddbe56244aebc939a121388c98234ece5c81a6671f246a55001c95562db5e84",
+  "notes": "BRIDGE FIX: viết lại cầu nối HtmlDialog-Ruby bằng callback trực tiếp; tự handshake/retry; hiện RUBY BRIDGE OK; sửa transform quét toàn model; giữ quét, đổi tên, dán cạnh, nesting, tem/QR, Web và update thủ công."
 }
