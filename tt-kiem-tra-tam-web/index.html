@@ -3,92 +3,126 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#0b1220">
+  <meta name="theme-color" content="#07111f">
   <title>TRẦN TUẤN NESTING PRO</title>
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
-  <header class="topbar">
-    <div class="brand">
-      <div class="logo">TT</div>
-      <div>
-        <h1>TRẦN TUẤN NESTING PRO</h1>
-        <div class="sub">Nesting • Tem QR • Dữ liệu Model — xem trực tiếp trên điện thoại</div>
-      </div>
+<header class="topbar">
+  <div class="brand">
+    <div class="logo">TT</div>
+    <div>
+      <h1>TRẦN TUẤN NESTING PRO</h1>
+      <div class="sub">Web dự án • Model • Tem nhãn • Quét QR bằng camera</div>
     </div>
-    <div class="topActions">
-      <button id="logoutBtn" class="logout hidden">ĐĂNG XUẤT</button>
-      <div id="status" class="status">Sẵn sàng</div>
+  </div>
+  <div class="topActions">
+    <button id="scanTopBtn" class="ghost">QUÉT QR</button>
+    <button id="logoutBtn" class="ghost hidden">ĐĂNG XUẤT</button>
+    <div id="status" class="status">Sẵn sàng</div>
+  </div>
+</header>
+
+<main class="wrap">
+  <section id="loginCard" class="panel loginCard">
+    <div class="loginMark">TT</div>
+    <div class="eyebrow">ĐĂNG NHẬP DỰ ÁN</div>
+    <h2>TRẦN TUẤN NESTING PRO</h2>
+    <p id="loginHint" class="loginHint">Nhập Tên dự án và Mật khẩu đã thiết lập trong SketchUp, hoặc quét QR tem bằng camera.</p>
+
+    <label class="fieldLabel">Tên dự án</label>
+    <input id="projectLogin" autocomplete="username" placeholder="VD: tuan1233">
+
+    <label class="fieldLabel">Mật khẩu</label>
+    <div class="passwordRow">
+      <input id="projectPassword" type="password" autocomplete="current-password" placeholder="Tối thiểu 4 ký tự">
+      <button id="togglePassword" class="eyeBtn" type="button">HIỆN</button>
     </div>
-  </header>
 
-  <main class="wrap">
-    <section id="loginCard" class="panel loginCard">
-      <div class="loginMark">TT</div>
-      <div class="eyebrow">ĐĂNG NHẬP DỰ ÁN</div>
-      <h2 id="loginTitle">Xem dữ liệu thi công</h2>
-      <p id="loginHint" class="loginHint">Nhập Tên dự án và Mật khẩu đã thiết lập trong SketchUp.</p>
+    <div class="loginActions">
+      <button id="loginBtn" class="primary">ĐĂNG NHẬP</button>
+      <button id="scanLoginBtn" class="secondary">QUÉT QR TEM</button>
+    </div>
+    <div id="loginMessage" class="loginMessage"></div>
+    <div id="qrModeHint" class="qrModeHint hidden"></div>
+  </section>
 
-      <label class="fieldLabel" for="projectLogin">Tên dự án</label>
-      <input id="projectLogin" autocomplete="username" placeholder="Ví dụ: TU BEP ANH TUAN">
-
-      <label class="fieldLabel" for="projectPassword">Mật khẩu</label>
-      <div class="passwordRow">
-        <input id="projectPassword" type="password" autocomplete="current-password" placeholder="Nhập mật khẩu dự án">
-        <button id="togglePassword" class="eyeBtn" type="button">HIỆN</button>
-      </div>
-
-      <button id="loginBtn" class="loginBtn">ĐĂNG NHẬP</button>
-      <div id="loginMessage" class="loginMessage"></div>
-      <div id="qrModeHint" class="qrModeHint hidden">QR CHÍNH đã xác định đúng Model. Bạn chỉ cần nhập Tên dự án + Mật khẩu.</div>
-    </section>
-
-    <section id="modelCard" class="panel hero hidden">
+  <section id="projectCard" class="panel hidden">
+    <div class="hero">
       <div>
-        <div class="eyebrow">MODEL</div>
+        <div class="eyebrow">DỰ ÁN ĐÃ LƯU TRÊN HỆ THỐNG</div>
         <h2 id="modelName">—</h2>
         <div class="meta">
           <span id="modelId">—</span>
-          <span id="updatedAt">—</span>
+          <span id="savedAt">—</span>
+          <span id="revision">—</span>
         </div>
       </div>
       <div class="stats">
         <div><b id="panelCount">0</b><span>Tấm</span></div>
-        <div><b id="edgeCount">0</b><span>Cạnh dán</span></div>
-        <div><b id="thicknessCount">0</b><span>Độ dày</span></div>
+        <div><b id="labelCount">0</b><span>Tem</span></div>
+        <div><b id="bandCount">0</b><span>Cạnh dán</span></div>
       </div>
-    </section>
-
-    <section id="controls" class="panel controls hidden">
-      <input id="search" type="search" placeholder="Tìm tên tấm / mã tấm / vị trí…">
-      <select id="thicknessFilter"><option value="">Tất cả độ dày</option></select>
-      <select id="edgeFilter">
-        <option value="">Tất cả cạnh</option>
-        <option value="has">Có dán cạnh</option>
-        <option value="none">Không dán cạnh</option>
-      </select>
-    </section>
-
-    <section id="summary" class="panel summary hidden"></section>
-    <section id="list" class="cards"></section>
-
-    <section id="errorBox" class="panel error hidden">
-      <h3>Không tải được dữ liệu</h3>
-      <p id="errorText"></p>
-    </section>
-  </main>
-
-  <dialog id="detailDialog">
-    <div class="dialogHead">
-      <div>
-        <div class="eyebrow">CHI TIẾT TẤM</div>
-        <h3 id="dName">—</h3>
-      </div>
-      <button id="closeDialog" aria-label="Đóng">×</button>
     </div>
-    <div id="detailBody"></div>
-  </dialog>
+  </section>
 
-  <script src="/app.js"></script>
+  <section id="modelPanel" class="panel hidden">
+    <div class="panelHead">
+      <div><div class="eyebrow">MODEL 3D</div><h3>Xem nhanh Model đã đồng bộ</h3></div>
+      <div class="smallHint">Kéo: xoay • Wheel: zoom • Double click: FIT</div>
+    </div>
+    <canvas id="modelCanvas"></canvas>
+  </section>
+
+  <section id="controls" class="panel controls hidden">
+    <input id="search" type="search" placeholder="Tìm tên tấm / mã tem / Tag / vị trí…">
+    <select id="thicknessFilter"><option value="">Tất cả độ dày</option></select>
+    <select id="labelFilter">
+      <option value="">Tất cả</option>
+      <option value="yes">Đã gán tem</option>
+      <option value="no">Chưa gán tem</option>
+    </select>
+    <button id="scanProjectBtn" class="secondary">QUÉT QR TEM</button>
+  </section>
+
+  <section id="summary" class="panel summary hidden"></section>
+  <section id="list" class="cards"></section>
+
+  <section id="errorBox" class="panel error hidden">
+    <h3>Không tải được dữ liệu</h3>
+    <p id="errorText"></p>
+  </section>
+</main>
+
+<dialog id="detailDialog">
+  <div class="dialogHead">
+    <div><div class="eyebrow">CHI TIẾT TẤM / TEM</div><h3 id="dName">—</h3></div>
+    <button id="closeDetail">×</button>
+  </div>
+  <div id="detailBody"></div>
+</dialog>
+
+<dialog id="scanDialog">
+  <div class="dialogHead">
+    <div><div class="eyebrow">CAMERA QR</div><h3>Quét mã tem / QR dự án</h3></div>
+    <button id="closeScanner">×</button>
+  </div>
+  <div class="scannerBody">
+    <div class="cameraBox"><video id="qrVideo" playsinline muted></video><div class="scanFrame"></div></div>
+    <canvas id="qrCanvas" class="hidden"></canvas>
+    <div id="scanStatus" class="scanStatus">Bấm BẬT CAMERA để quét.</div>
+    <div class="scannerActions">
+      <button id="startScanner" class="primary">BẬT CAMERA</button>
+      <button id="stopScanner" class="secondary">DỪNG CAMERA</button>
+    </div>
+    <div class="manualQr">
+      <input id="manualQrText" placeholder="Hoặc dán nội dung QR / mã tấm vào đây">
+      <button id="manualQrBtn" class="secondary">ĐỌC MÃ</button>
+    </div>
+  </div>
+</dialog>
+
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<script src="/app.js"></script>
 </body>
 </html>
