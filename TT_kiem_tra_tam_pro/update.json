@@ -1,7 +1,7 @@
 {
-  "version": "3.1.1",
-  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_kiem_tra_tam_pro/releases/TRAN_TUAN_NESTING_PRO_v3.1.1_NO_FREEZE.rbz.b64",
+  "version": "3.1.2",
+  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_kiem_tra_tam_pro/releases/TRAN_TUAN_NESTING_PRO_v3.1.2_RECOVERY.rbz.b64",
   "encoding": "base64",
-  "sha256": "c3c9d1ed8b8602f07a57548b4a418396bf8e5495eadd8b0e730dbf26776d1c3e",
-  "notes": "NO-FREEZE: bỏ GitHub legacy Net::HTTP khi mở bảng; không auto-check lúc bấm icon; quét an toàn 1 pass; model >80 tấm hoãn contact/banding sâu; chặn auto-band toàn model >180 tấm; update nền sau 45 giây và mỗi 15 phút."
+  "sha256": "a1290e86c773f9eb95de8c738b60cf6bd50f8d16d6f5b76bf189f526bf2b2b04",
+  "notes": "RECOVERY: bấm icon chỉ mở giao diện siêu nhẹ; không quét model, không preview, không QR/Web, không network, không auto-update/timer nền. Dùng để cô lập lỗi làm SketchUp sập khi mở hệ thống."
 }
