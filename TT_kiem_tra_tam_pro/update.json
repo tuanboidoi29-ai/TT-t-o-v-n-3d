@@ -1,7 +1,7 @@
 {
-  "version": "3.1.6",
-  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_kiem_tra_tam_pro/releases/TRAN_TUAN_NESTING_PRO_v3.1.6_BRIDGE_FIX.rbz.b64",
+  "version": "3.1.7",
+  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_kiem_tra_tam_pro/releases/TRAN_TUAN_NESTING_PRO_v3.1.7_BRIDGE_V3.rbz.b64",
   "encoding": "base64",
-  "sha256": "4ddbe56244aebc939a121388c98234ece5c81a6671f246a55001c95562db5e84",
-  "notes": "BRIDGE FIX: viết lại cầu nối HtmlDialog-Ruby bằng callback trực tiếp; tự handshake/retry; hiện RUBY BRIDGE OK; sửa transform quét toàn model; giữ quét, đổi tên, dán cạnh, nesting, tem/QR, Web và update thủ công."
+  "sha256": "e8b45073bb4abff9aff81d9dc38c21a33c26f8ce4873fef9e7dd1025681e6838",
+  "notes": "BRIDGE V3: dùng set_file + ui.html + ui.js riêng; JavaScript ES5 tương thích SketchUp 2022; báo JS READY/RUBY BRIDGE OK riêng; giữ quét, đổi tên, dán cạnh, nesting, tem/QR, Web và update thủ công."
 }
