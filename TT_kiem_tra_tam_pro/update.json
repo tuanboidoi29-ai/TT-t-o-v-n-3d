@@ -1,7 +1,7 @@
 {
-  "version": "3.5.3",
-  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_kiem_tra_tam_pro/releases/TRAN_TUAN_NESTING_PRO_v3.5.3_GEOMETRY_FIX.rbz.b64",
+  "version": "3.5.4",
+  "rbz_url": "https://raw.githubusercontent.com/tuanboidoai29-ai/TT-t-o-v-n-3d/main/TT_kiem_tra_tam_pro/releases/TRAN_TUAN_NESTING_PRO_v3.5.4_2D_PROFILE.rbz.b64",
   "encoding": "base64",
-  "sha256": "2f4d97deeb54f4a8c21576929aa36d8c70fee5a91754442d421ccf9332777b03",
-  "notes": "GEOMETRY FIX: dán cạnh chui đúng Group/Component, trừ cốt trước rồi tạo nẹp trong phần đã trừ và cập nhật kích thước; tem vật lý gắn đúng tấm/mặt Top; sửa Nesting trắng do thiếu profilePath340/colorFor; tạo Nesting 2D theo biên dạng trải thật outer+holes."
+  "sha256": "6420f01e2054e78ce803785dd593ffcc6471b1f0282aee75e837b30129bdc2fd",
+  "notes": "2D PROFILE: Trải tấm chỉ lấy 1 biên dạng 2D/tấm, outer contour + holes/loops; không tách mặt trên/mặt dưới; dùng trực tiếp cho Nesting/CNC."
 }
