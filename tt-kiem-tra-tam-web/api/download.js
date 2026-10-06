@@ -1,6 +1,6 @@
 export default async function handler(req, res) {
   try {
-    const url = 'https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_kiem_tra_tam_pro/releases/TRAN_TUAN_NESTING_PRO_v3.1.6_BRIDGE_FIX.rbz.b64?ts=' + Date.now();
+    const url = 'https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_kiem_tra_tam_pro/releases/TRAN_TUAN_NESTING_PRO_v3.1.7_BRIDGE_V3.rbz.b64?ts=' + Date.now();
     const r = await fetch(url, { cache: 'no-store' });
     if (!r.ok) {
       res.statusCode = 502;
@@ -13,7 +13,7 @@ export default async function handler(req, res) {
       return res.end('Invalid RBZ payload');
     }
     res.setHeader('Content-Type', 'application/zip');
-    res.setHeader('Content-Disposition', 'attachment; filename="TT_NESTING_316.rbz"');
+    res.setHeader('Content-Disposition', 'attachment; filename="TT_NESTING_317.rbz"');
     res.setHeader('Content-Length', String(buf.length));
     res.setHeader('Cache-Control', 'no-store, max-age=0');
     return res.status(200).send(buf);
