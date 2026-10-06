@@ -1,7 +1,7 @@
 {
-  "version": "3.4.0",
-  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_kiem_tra_tam_pro/releases/TRAN_TUAN_NESTING_PRO_v3.4.0_DEEP_PRODUCTION.rbz.b64",
+  "version": "3.5.0",
+  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_kiem_tra_tam_pro/releases/TRAN_TUAN_NESTING_PRO_v3.5.0_ABF.rbz.b64",
   "encoding": "base64",
-  "sha256": "6acee74a19345e051030dc0e67f977761c9f7efa45dbdcd327e204242d790b36",
-  "notes": "DEEP PRODUCTION: quét sâu mọi tầng Group/Component; dán cạnh chỉ cạnh hở thật và preview đúng nẹp đã dán; gán nhãn + tem thật vào đúng tấm; trải tấm world-profile; Nesting biên dạng thật; CNC preview 3D có feed/time từng chi tiết; cập nhật cài + LOAD NGAY không restart SketchUp."
+  "sha256": "43b04a8cbaa24b412bc34d19e1ceae1e22c4abc0c80b2606f04d9f8df9519fac",
+  "notes": "ABF NESTING: tự quét/dán cạnh hở không tiếp diện; trải phẳng Top/Bottom; Nesting nguồn tấm có tem + dán cạnh, tự tách theo độ dày/vật liệu và nhiều phôi; thống kê số phôi; nhận Instance/Tag/ABF_ten van; giao diện cài đặt Nesting kiểu ABF."
 }
