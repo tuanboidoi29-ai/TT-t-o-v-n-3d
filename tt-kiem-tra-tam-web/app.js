@@ -121,7 +121,7 @@ function openScanner(){if(!navigator.mediaDevices||!navigator.mediaDevices.getUs
 function boot(){
   state.shareId=shareIdFromUrl();state.pendingBoard=boardFromUrl();
   $('#projectLogin').value=localStorage.getItem('tt_project_login')||'';
-  if(state.shareId){$('#qrModeHint').classList.remove('hidden');$('#qrModeHint').textContent='QR đã xác định dự án'+(state.pendingBoard?' và tấm '+state.pendingBoard:'')+'. Nhập thông tin đăng nhập.'}
+  if(state.shareId){$('#qrModeHint').classList.remove('hidden');$('#qrModeHint').textContent='QR đã xác định dự án'+(state.pendingBoard?' và tấm '+state.pendingBoard:'')+'. Nhập thông tin đăng nhập.'} if(new URLSearchParams(location.search).get('scanner')==='1'){setTimeout(openScanner,250)}
   bindModel();setStatus('CHỜ ĐĂNG NHẬP');
 }
 
