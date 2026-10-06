@@ -1,6 +1,7 @@
 const API='https://vnvkmxqgbnmirsgdgfzm.supabase.co/functions/v1/tt-model-api';
 const $=s=>document.querySelector(s);
-const state={panels:[],model:null,shareId:''};
+const state={panels:[],model:null,shareId:'',requestedBoard:''};
+function requestedBoardUid314(){return String(new URLSearchParams(location.search).get('board')||'').trim()}
 
 function urlShareId(){return String(new URLSearchParams(location.search).get('id')||'').trim()}
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
@@ -24,7 +25,7 @@ function hideApp(){
   ['#modelCard','#controls','#summary'].forEach(s=>$(s).classList.add('hidden'));$('#list').innerHTML='';
 }
 function loadModel(model){
-  state.model=model;const p=model.payload||{};
+  state.model=model;state.requestedBoard=requestedBoardUid314();const p=model.payload||{};
   state.panels=Array.isArray(p.panels)?p.panels:(Array.isArray(p.boards)?p.boards:(Array.isArray(p.tam)?p.tam:[]));
   $('#modelName').textContent=model.model_name||p.model_name||'SketchUp Model';
   $('#modelId').textContent='Mã: '+(model.share_id||state.shareId||'—');
@@ -34,7 +35,7 @@ function loadModel(model){
   const th=[...new Set(state.panels.map(thickness).filter(Boolean))].sort((a,b)=>num(a)-num(b));
   $('#thicknessCount').textContent=th.length;
   $('#thicknessFilter').innerHTML='<option value="">Tất cả độ dày</option>'+th.map(v=>`<option value="${esc(v)}">${esc(v)} mm</option>`).join('');
-  showApp();setStatus('ĐÃ ĐĂNG NHẬP','ok');render();
+  showApp();setStatus('ĐÃ ĐĂNG NHẬP','ok');render();if(state.requestedBoard){const hit=state.panels.find(x=>String(x.uid||x.panel_uid||x.code||x.ma_tam||'')===state.requestedBoard);if(hit)setTimeout(()=>openDetail(hit),120);}
 }
 async function login(){
   const projectLogin=$('#projectLogin').value.trim();
