@@ -1,7 +1,7 @@
 {
-  "version": "3.1.0",
-  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_kiem_tra_tam_pro/releases/TRAN_TUAN_NESTING_PRO_v3.1.0_CLEAN.rbz.b64",
+  "version": "3.1.1",
+  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_kiem_tra_tam_pro/releases/TRAN_TUAN_NESTING_PRO_v3.1.1_NO_FREEZE.rbz.b64",
   "encoding": "base64",
-  "sha256": "450ac9239d022419383660d99431bdcd390893408b06400443630276b9327fb9",
-  "notes": "CLEAN STABLE: bỏ Performance Engine thử nghiệm; quét model tách khỏi QR/Web/Cloud; preview model lớn giảm tải; chống timer trùng; update chỉ cài khi Model rảnh; giữ Dán cạnh, Tem QR, Web dự án, đăng nhập và Nesting."
+  "sha256": "c3c9d1ed8b8602f07a57548b4a418396bf8e5495eadd8b0e730dbf26776d1c3e",
+  "notes": "NO-FREEZE: bỏ GitHub legacy Net::HTTP khi mở bảng; không auto-check lúc bấm icon; quét an toàn 1 pass; model >80 tấm hoãn contact/banding sâu; chặn auto-band toàn model >180 tấm; update nền sau 45 giây và mỗi 15 phút."
 }
