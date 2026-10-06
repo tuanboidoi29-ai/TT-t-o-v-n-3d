@@ -1,7 +1,7 @@
 {
-  "version": "3.3.0",
-  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_kiem_tra_tam_pro/releases/TRAN_TUAN_NESTING_PRO_v3.3.0_PRODUCTION_PREVIEW.rbz.b64",
+  "version": "3.4.0",
+  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_kiem_tra_tam_pro/releases/TRAN_TUAN_NESTING_PRO_v3.4.0_DEEP_PRODUCTION.rbz.b64",
   "encoding": "base64",
-  "sha256": "3eeca67ab79413d40095230f4f05256d5ca4fd35c0d0b906b97d060b69e65738",
-  "notes": "Dán cạnh chỉ cạnh hở không tiếp diện + preview 3D quay/zoom; gán nhãn trực tiếp + preview 3D; trải tấm 2D; Nesting tất cả tấm đã gán nhãn theo khổ; zoom Nesting; mô phỏng đường dao CNC từ biên dạng thực."
+  "sha256": "6acee74a19345e051030dc0e67f977761c9f7efa45dbdcd327e204242d790b36",
+  "notes": "DEEP PRODUCTION: quét sâu mọi tầng Group/Component; dán cạnh chỉ cạnh hở thật và preview đúng nẹp đã dán; gán nhãn + tem thật vào đúng tấm; trải tấm world-profile; Nesting biên dạng thật; CNC preview 3D có feed/time từng chi tiết; cập nhật cài + LOAD NGAY không restart SketchUp."
 }
