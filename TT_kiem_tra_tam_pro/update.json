@@ -1,7 +1,7 @@
 {
-  "version": "3.5.2",
-  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_kiem_tra_tam_pro/releases/TRAN_TUAN_NESTING_PRO_v3.5.2_UI_FIX.rbz.b64",
+  "version": "3.5.3",
+  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_kiem_tra_tam_pro/releases/TRAN_TUAN_NESTING_PRO_v3.5.3_GEOMETRY_FIX.rbz.b64",
   "encoding": "base64",
-  "sha256": "8ea3ed2642b39fe82e4ccb10f982387fdc4aa3d575e620388b6885155d5e5302",
-  "notes": "UI FIX: Cài đặt Nesting chỉ giữ các thông số kỹ thuật tham khảo từ ABF, không bê giao diện ABF; sửa lỗi JavaScript playCnc is not defined; bổ sung CNC preview/play/stop hoạt động lại."
+  "sha256": "2f4d97deeb54f4a8c21576929aa36d8c70fee5a91754442d421ccf9332777b03",
+  "notes": "GEOMETRY FIX: dán cạnh chui đúng Group/Component, trừ cốt trước rồi tạo nẹp trong phần đã trừ và cập nhật kích thước; tem vật lý gắn đúng tấm/mặt Top; sửa Nesting trắng do thiếu profilePath340/colorFor; tạo Nesting 2D theo biên dạng trải thật outer+holes."
 }
