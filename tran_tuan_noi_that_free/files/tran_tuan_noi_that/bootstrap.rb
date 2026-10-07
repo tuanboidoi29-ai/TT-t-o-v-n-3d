@@ -18,7 +18,7 @@ module TranTuanNoiThat
   }.freeze unless const_defined?(:LOCKED_FEATURE_BASELINES, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.256'.freeze
+  VERSION = '1.9.257'.freeze
 
   class << self
     def setting(key, default = nil)
@@ -112,6 +112,7 @@ module TranTuanNoiThat
       %w[
         board_tool
         chatgpt_connect
+        chatgpt_signin
         wine_rack
         door_standard_tool
         rename_ui
