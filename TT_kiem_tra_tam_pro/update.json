@@ -1,7 +1,7 @@
 {
-  "version": "3.5.5",
-  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_kiem_tra_tam_pro/releases/TRAN_TUAN_NESTING_PRO_v3.5.5_DXF.rbz.b64",
+  "version": "3.5.6",
+  "rbz_url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/TT_kiem_tra_tam_pro/releases/TRAN_TUAN_NESTING_PRO_v3.5.6_BAND_SIMULATION.rbz.b64",
   "encoding": "base64",
-  "sha256": "ab8d0cc03ef1beec808116c48f3b7a515be9a537f24d8682976e2c38d7928a4f",
-  "notes": "DXF EXPORT: Trải tấm 2D xuất outer contour + holes đúng mm; Nesting xuất đúng từng phôi; chọn tách từng file hoặc gộp 1 DXF; layer TT_SHEET/TT_OUTER/TT_HOLE/TT_LABEL."
+  "sha256": "787b35786568c7213b8269e5b3785a0edfe553318b2f185e5c97e39d9f5cd052",
+  "notes": "BAND SIMULATION: dán cạnh chỉ lưu metadata + Preview trên đúng cạnh hở; không tạo Group nẹp, không Push/Pull, không trừ cốt và không thay đổi hình học/kích thước tấm. Nesting/Tem/Web vẫn đọc trạng thái cạnh dán."
 }
