@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.247",
+  "version": "1.9.248",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Tạo Cánh: P1 tăng vùng bắt điểm từ 24 lên 34px; bỏ quét mặt trùng trong cùng instance và tính lặp, giữ cơ chế P2/chia cánh.",
+  "notes": "Tạo Cánh: P1 ưu tiên bắt điểm/cạnh native, lấy Face từ InputPoint, hiển thị inference và sửa marker; sửa transform trong ngữ cảnh Group đang mở.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "d50bd0b68e32d8d38af27fa8f7bc1cc62e939fb7589266654f32878ed38fae47"
+      "sha256": "7a9fffebd37bcbd88cf0cf64711a1e8bf474a167ca20b16e8a4fe0a5d7ae4194"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -34,7 +34,7 @@
     {
       "path": "tran_tuan_noi_that/door_standard_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/door_standard_tool.rb",
-      "sha256": "2f1482d005e27a167a6954cc0c81447a15bd1d4aae767094c1d30e33e070a54e"
+      "sha256": "1bd9f6e30a5ffacb8f9c9e4638b11ae4944d549fbd977749dcccfd51b73e2c0d"
     },
     {
       "path": "tran_tuan_noi_that/drawer_tool.rb",
@@ -314,7 +314,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "d0bac5eeeebb6e1058b581e8ef77bf5dde1b5f99da6bf98a3c60d4e6a3bef908"
+      "sha256": "9b0713778fe5f991c34c6204455b127c801d7f0f05a06ba9c56971e3695a77a1"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",

@@ -1047,6 +1047,7 @@ module TranTuanNoiThat
 
       def draw(view)
         if @state == :pick_p1
+          @ip.draw(view) if @ip.valid? && @ip.display?
           draw_hover_point(view) if @hover_point
           return
         end
@@ -1182,7 +1183,7 @@ module TranTuanNoiThat
           leaf = path.last
           faces = path.reverse.select { |entity| entity.is_a?(Sketchup::Face) }
           faces += leaf.faces.to_a if leaf.respond_to?(:faces)
-          tr = helper.transformation_at(index) || Geom::Transformation.new
+          tr = Sketchup.active_model.edit_transform * (helper.transformation_at(index) || Geom::Transformation.new)
           faces.uniq.each do |face|
             key = [face.entityID, tr.to_a]
             next if seen[key]
@@ -1247,19 +1248,33 @@ module TranTuanNoiThat
       end
 
       def pick_first_point(view, x, y)
+        @snap_label = nil
         @ip.pick(view,x,y)
         hits = nearby_face_hits(view,x,y,34.0)
-        snap = nearest_board_snap(view,x,y,hits,false,34.0)
+        if @ip.valid?
+          native_faces = []
+          native_faces << @ip.face if @ip.face
+          native_faces.concat(@ip.edge.faces.to_a) if @ip.edge
+          native_faces.concat(@ip.vertex.faces.to_a) if @ip.vertex
+          native_faces.uniq.each { |f| hits.unshift([f,@ip.transformation]) if f.valid? }
+        end
+        return nil if hits.empty?
+        # Native endpoint/edge inference wins; custom rails remain available nearby.
+        native = @ip.valid? && (@ip.vertex || @ip.edge)
+        snap = native ? nil : nearest_board_snap(view,x,y,hits,false,34.0)
         if snap
           _,point,face,tr = snap
         else
-          return nil unless @ip.valid? && !hits.empty?
-          face,tr = hits.min_by { |f,t| -f.normal.transform(t).normalize.dot(view.camera.direction).abs }
+          return nil unless @ip.valid?
+          face,tr = hits.first
           point = @ip.position
+          @snap_label = @ip.tooltip
         end
         setup_plane(face,tr,point,view)
         point
-      rescue StandardError
+      rescue StandardError => error
+        @snap_label = nil
+        puts "[TT Door P1] #{error.class}: #{error.message}"
         nil
       end
 
@@ -1943,7 +1958,7 @@ module TranTuanNoiThat
 
       def draw_hover_point(view)
         view.draw_points(
-          @hover_point,
+          [@hover_point],
           12,
           2,
           Sketchup::Color.new(37, 99, 235)
