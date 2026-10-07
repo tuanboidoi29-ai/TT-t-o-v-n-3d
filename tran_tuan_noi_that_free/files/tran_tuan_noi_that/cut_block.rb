@@ -51,6 +51,32 @@ module TranTuanNoiThat
       raise 'Bản sao hình học không kín.' unless g.manifold?
       g
     end
+    # Dissolve only new boolean seams between coplanar faces.
+    # Original edges, material boundaries and non-coplanar edges remain.
+    def cleanup_cut_seams(entities, original_segments)
+      tolerance=0.001.mm
+      entities.grep(Sketchup::Edge).each do |edge|
+        next unless edge.valid? && edge.faces.length==2
+        next if edge.attribute_dictionaries && edge.attribute_dictionaries.length>0
+        a,b=edge.faces
+        next unless a.valid? && b.valid?
+        next unless a.material==b.material && a.back_material==b.back_material
+        next unless a.normal.parallel?(b.normal)
+        next unless b.vertices.all? { |v| v.position.distance_to_plane(a.plane).abs<=tolerance }
+        ends=[edge.start.position,edge.end.position]
+        original=original_segments.any? do |p,q|
+          axis=q-p;len=axis.length
+          next false if len<=tolerance
+          axis.normalize!
+          ends.all? do |v|
+            delta=v-p;distance=delta.dot(axis)
+            delta.cross(axis).length<=tolerance && distance>=-tolerance && distance<=len+tolerance
+          end
+        end
+        edge.erase! unless original
+      end
+    end
+
     def perform(model,target,point,normal,mode,operation=true,context_override=nil,parent_world=nil)
       raise 'Cắt khối cần SketchUp Pro có Solid Tools.' if Sketchup.respond_to?(:is_pro?) && !Sketchup.is_pro?
       context=context_override || model.active_entities
@@ -64,6 +90,7 @@ module TranTuanNoiThat
       if operation
         model.start_operation('TRẦN TUẤN - Cắt khối',true);started=true
       end
+      original_segments=target.definition.entities.grep(Sketchup::Edge).map { |e| [e.start.position,e.end.position] }
       work=context.add_group;es=work.entities
       results=[true,false].map do |positive|
         source=copy_solid(es,target)
@@ -81,6 +108,7 @@ module TranTuanNoiThat
         result=results[index]
         group=context.add_group
         group.entities.add_instance(result.definition,result.transformation).explode
+        cleanup_cut_seams(group.entities,original_segments)
         group.transformation=target.transformation
         group.material=target.material
         group.layer=target.layer
