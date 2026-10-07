@@ -18,7 +18,7 @@ module TranTuanNoiThat
   }.freeze unless const_defined?(:LOCKED_FEATURE_BASELINES, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.248'.freeze
+  VERSION = '1.9.249'.freeze
 
   class << self
     def setting(key, default = nil)
@@ -509,8 +509,8 @@ module TranTuanNoiThat
       # Existing sessions cannot remove toolbar/menu entries through SketchUp's API.
       # Disable the retired command until the next SketchUp restart.
       @dim_points_cmd.set_validation_proc { MF_GRAYED } if @dim_points_cmd
-      @dim_auto_cmd ||= command('DIM tự động mặt trước', 'dim_auto.svg', 'DIM ngang, cao, tổng ba chiều và lọt lòng. Tab mở cài đặt.') { DetailDimensions.launch }
-      @dim_auto_cmd.tooltip = 'DIM tự động mặt trước'
+      @dim_auto_cmd ||= command('DIM 2 điểm', 'dim_auto.svg', 'Chọn P1, P2 rồi kéo chuột để đặt đường DIM.') { DetailDimensions.launch }
+      @dim_auto_cmd.tooltip = 'DIM 2 điểm'
       add_feature_command_once(@dim_auto_cmd, :dim_auto_menu_installed)
     end
 

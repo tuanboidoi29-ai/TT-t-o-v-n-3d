@@ -37,6 +37,24 @@ module TranTuanNoiThat
       Sketchup.active_model.select_tool(Tool.new)
     end
 
+    # A virtual selection frame; does not group or alter model hierarchy.
+    class SelectionFrame
+      attr_reader :transformation, :definition
+      def initialize(items)
+        @items=items
+        bounds=Geom::BoundingBox.new
+        items.each { |e| 8.times { |i| bounds.add(e.definition.bounds.corner(i).transform(e.transformation)) } }
+        @definition=Struct.new(:bounds).new(bounds)
+        @transformation=Geom::Transformation.new
+      end
+      def valid?;@items.all? { |e| e.valid? && !e.locked? };end
+      def transformation=(value)
+        delta=value*@transformation.inverse
+        @items.each { |e| e.transformation=delta*e.transformation }
+        @transformation=value
+      end
+    end
+
     class Tool
       def initialize
         @model = Sketchup.active_model
@@ -86,6 +104,7 @@ module TranTuanNoiThat
       end
 
       def onCancel(_reason, view)
+        @selection_start=nil;@selection_end=nil
         case @state
         when :scale
           reset_scale
@@ -105,6 +124,9 @@ module TranTuanNoiThat
       end
 
       def onMouseMove(_flags, x, y, view)
+        if @selection_start
+          @selection_end=[x,y];view.invalidate;return
+        end
         case @state
         when :pick_entity
           @hover_entity = pick_container(view, x, y)
@@ -123,15 +145,7 @@ module TranTuanNoiThat
       def onLButtonDown(_flags, x, y, view)
         case @state
         when :pick_entity
-          entity = pick_container(view, x, y)
-          unless entity
-            UI.beep
-            return
-          end
-          set_entity(entity)
-          refresh_view_plane
-          @state = :pick_edge
-
+          @selection_start=[x,y];@selection_end=[x,y]
         when :pick_edge
           refresh_view_plane
           edge = nearest_midpoint_key(view, x, y)
@@ -156,6 +170,23 @@ module TranTuanNoiThat
       end
 
       def onLButtonUp(_flags, x, y, view)
+        if @selection_start
+          start=@selection_start;@selection_start=nil;@selection_end=nil
+          if Math.hypot(x-start[0],y-start[1])>=5
+            ph=view.pick_helper
+            kind=x>=start[0] ? Sketchup::PickHelper::PICK_INSIDE : Sketchup::PickHelper::PICK_CROSSING
+            ph.window_pick(Geom::Point3d.new(start[0],start[1],0),Geom::Point3d.new(x,y,0),kind)
+            items=ph.all_picked.select { |e| valid_container?(e) && active_entities.include?(e) }.uniq
+          else
+            items=[pick_container(view,x,y)].compact
+          end
+          unless items.empty?
+            set_entity(items.length==1 ? items.first : SelectionFrame.new(items))
+            refresh_view_plane;@state=:pick_edge
+            @model.selection.clear;items.each { |e| @model.selection.add(e) }
+          end
+          view.invalidate;return
+        end
         return unless @state == :scale && @dragging
 
         update_scale_preview(view, x, y)
@@ -190,6 +221,17 @@ module TranTuanNoiThat
       end
 
       def draw(view)
+        if @selection_start && @selection_end
+          a,b=@selection_start,@selection_end
+          pts=[[a[0],a[1]],[b[0],a[1]],[b[0],b[1]],[a[0],b[1]]].map { |x,y| Geom::Point3d.new(x,y,0) }
+          view.drawing_color=Sketchup::Color.new(30,140,210)
+          view.draw2d(GL_LINE_LOOP,pts)
+        end
+        if @entity && @bbox
+          center=@bbox.center.transform(entity_to_world(@entity,@preview_transform_context))
+          view.draw_points([center],10,3,Sketchup::Color.new(240,125,30))
+        end
+
         if @state == :pick_entity && @hover_entity
           draw_entity_box(view, @hover_entity, Sketchup::Color.new(120, 120, 120), 1)
           return
@@ -230,9 +272,9 @@ module TranTuanNoiThat
         selected = @model.selection.to_a.select do |entity|
           valid_container?(entity) && active_entities.include?(entity)
         end
-        return unless selected.length == 1
+        return if selected.empty?
 
-        set_entity(selected.first)
+        set_entity(selected.length==1 ? selected.first : SelectionFrame.new(selected))
         refresh_view_plane
         @state = :pick_edge
       end
@@ -244,7 +286,7 @@ module TranTuanNoiThat
       def valid_container?(entity)
         entity &&
           entity.valid? &&
-          (entity.is_a?(Sketchup::Group) || entity.is_a?(Sketchup::ComponentInstance))
+          (entity.is_a?(SelectionFrame) || ((entity.is_a?(Sketchup::Group) || entity.is_a?(Sketchup::ComponentInstance)) && !entity.locked?))
       end
 
       def set_entity(entity)

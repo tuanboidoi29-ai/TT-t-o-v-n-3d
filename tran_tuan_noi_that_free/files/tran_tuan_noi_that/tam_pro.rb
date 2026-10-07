@@ -77,14 +77,17 @@ module TranTuanNoiThat
         next if edges.length < 2
         edge = edges.max_by { |e| e.start.position.transform(world).distance(e.end.position.transform(world)) }
         u = edge.start.position.transform(world).vector_to(edge.end.position.transform(world))
-        next if u.length < 1.0e-9
+        next unless u.valid? && u.length > 0.001.mm
         u.normalize!
         origin = edge.start.position.transform(world)
         other = face.vertices.map { |v| origin.vector_to(v.position.transform(world)) }.max_by { |v| u.cross(v).length }
+        next unless other && other.valid?
         n = u.cross(other)
-        next if n.length < 1.0e-9
+        next unless n.valid? && n.length > 0.001.mm
         n.normalize!
-        v = n.cross(u).normalize
+        v = n.cross(u)
+        next unless v.valid? && v.length > 1.0e-6
+        v.normalize!
         basis = Geom::Transformation.axes(origin, u, v, n)
         inverse = basis.inverse
         box = Geom::BoundingBox.new
@@ -92,12 +95,16 @@ module TranTuanNoiThat
         dims = [box.width, box.height, box.depth].map { |x| x.to_f * 25.4 }
         next unless dims.all? { |x| x.finite? && x > EPS }
         frames << [dims.inject(:*), dims, basis, box]
+      rescue ArgumentError, ZeroDivisionError
+        next
       end
       best = frames.min_by(&:first)
       return nil unless best
       _, dims, basis, box = best
       axis = (0..2).min_by { |i| dims[i] }
       { axis: axis, thickness: dims[axis], dims: dims, basis: basis, box: box, world: world }
+    rescue ArgumentError, ZeroDivisionError
+      nil
     end
 
     # Keep every instance path: a shared definition can have different scales.
@@ -304,10 +311,11 @@ module TranTuanNoiThat
       raise
     end
 
-    def send_thickness_scan
+    def send_thickness_scan(scope='model')
       return unless dialog_visible?(@dialog_thickness)
-      values = thickness_values
-      @dialog_thickness.execute_script("TT.setThicknesses(#{JSON.generate(values)});")
+      rows = thickness_rows(scope)
+      summary = rows.group_by { |r| r[:thickness].round(2) }.sort.map { |t, rs| {thickness: t, count: rs.length} }
+      @dialog_thickness.execute_script("TT.setThicknesses(#{JSON.generate(summary)});")
       selection_changed
     rescue StandardError => error
       notify(@dialog_thickness, "Quét độ dày lỗi: #{error.message}", 'error')
@@ -362,7 +370,7 @@ module TranTuanNoiThat
       )
       @dialog_thickness.set_html(thickness_html)
       @dialog_thickness.add_action_callback('ready') { |_ctx| send_thickness_scan }
-      @dialog_thickness.add_action_callback('scan') { |_ctx| send_thickness_scan }
+      @dialog_thickness.add_action_callback('scan') { |_ctx,scope| send_thickness_scan(scope) }
       @dialog_thickness.add_action_callback('find') do |_ctx, scope, target, tolerance|
         find_thickness_action(scope, target, tolerance)
       end
@@ -408,6 +416,7 @@ module TranTuanNoiThat
     end
 
     def rename_objects
+      return TranTuanNoiThat::RenameTool.show if defined?(TranTuanNoiThat::RenameTool)
       ensure_selection_observer
       if dialog_visible?(@dialog_rename)
         @dialog_rename.bring_to_front
@@ -695,7 +704,7 @@ module TranTuanNoiThat
             <div class="card">
               <div class="row"><label>Phạm vi</label>
                 <select id="scope"><option value="model">Toàn model</option><option value="selection">Các tấm đang chọn</option></select>
-                <button class="gray" onclick="sketchup.scan()">Quét lại</button>
+                <button class="gray" onclick="sketchup.scan(document.getElementById('scope').value)">Quét lại</button>
               </div>
               <div class="row"><label>Độ dày cần tìm</label><input id="target" type="number" list="thicknessList" value="17.5" min="0.01" step="0.1"><datalist id="thicknessList"></datalist><span>mm</span></div>
               <div class="hint">Nhập độ dày bất kỳ. Đo chiều ngắn nhất của tấm, có tính xoay và scale group cha. Bỏ qua cụm chứa nhiều tấm.</div><div class="row"><label>Sai số</label><input id="tol" type="number" value="0.15" step="0.05" min="0.01"><span>mm</span></div>
@@ -706,13 +715,15 @@ module TranTuanNoiThat
               <button class="orange" onclick="applyNow()">ĐỔI ĐỘ DÀY HÀNG LOẠT</button>
               <div class="hint">Bạn có thể để bảng mở, Ctrl chọn/bỏ chọn các tấm trực tiếp trong SketchUp rồi chọn phạm vi “Các tấm đang chọn”.</div>
             </div>
+            <div class="card"><b>Độ dày trong phạm vi quét · số lượng tấm</b><div id="thicknessSummary"></div></div>
             <div id="notice" class="notice"></div>
           </div>
           <script>#{js}
-            TT.setThicknesses=function(values){
-              const sel=document.getElementById('thicknessList');
-              sel.innerHTML=(values||[]).map(v=>'<option value="'+v+'">'+v+'</option>').join('');
-
+            TT.setThicknesses=function(rows){
+              document.getElementById('thicknessList').innerHTML=rows.map(r=>'<option value="'+r.thickness+'"></option>').join('');
+              const box=document.getElementById('thicknessSummary');box.innerHTML='';
+              rows.forEach(r=>{const b=document.createElement('button');b.textContent=r.thickness+' mm — '+r.count+' tấm';b.style.margin='5px';b.onclick=()=>{document.getElementById('target').value=r.thickness;findNow();};box.appendChild(b);});
+              if(!rows.length)box.textContent='Không tìm thấy tấm có hình học đo được.';
             };
             function vals(){return [document.getElementById('scope').value,document.getElementById('target').value,document.getElementById('tol').value];}
             function findNow(){const v=vals();sketchup.find(v[0],v[1],v[2]);}

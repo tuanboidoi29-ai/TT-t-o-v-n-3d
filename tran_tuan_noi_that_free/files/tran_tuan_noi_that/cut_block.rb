@@ -123,7 +123,7 @@ module TranTuanNoiThat
       end
       def status(message=nil)
         prompt=@targets.empty? ? 'Click hoặc kéo khung quét chọn khối' : 'Rê preview mặt cắt, CLICK CẮT NGAY — giữ cả hai phần'
-        Sketchup.set_status_text(message || "CẮT KHỐI · #{prompt} · ↑ Z / → X / ← Y · TAB đổi trục · Nhập mm từ tâm · ESC chọn lại",SB_PROMPT)
+        Sketchup.set_status_text(message || "CẮT KHỐI · #{prompt} · ↑ Z / → X / ← Y · TAB đổi trục · Nhập /N chia đều hoặc mm từ tâm · ESC chọn lại",SB_PROMPT)
       end
       def select_targets(targets)
         raise 'Chưa chọn được khối kín.' if targets.empty?
@@ -132,7 +132,7 @@ module TranTuanNoiThat
         @targets=targets
         @points=targets.flat_map { |t| CutBlock.corners(t,@model.edit_transform*t.transformation) }
         @center=Geom::Point3d.new(*3.times.map { |i| values=@points.map { |p| p.to_a[i] };(values.min+values.max)/2.0 })
-        @point=@center;@placed=false
+        @point=@center;@placed=false;@division_count=nil
         @model.selection.clear;targets.each { |t| @model.selection.add(t) }
       end
       def pick(view,x,y)
@@ -179,21 +179,34 @@ module TranTuanNoiThat
       rescue StandardError=>e
         status(e.message);view.invalidate
       end
+      def cut_planes
+        return [@point] unless @division_count
+        values=@points.map { |p| (p-@center).dot(@normal) }
+        low,high=values.minmax
+        (1...@division_count).map { |i| @center.offset(@normal,low+(high-low)*i/@division_count) }
+      end
       def cut_now(view)
         raise 'Cấp chỉnh sửa đã đổi. Thoát công cụ và chọn lại khối.' unless @context==@model.active_entities
         @targets.each { |t| CutBlock.validate!(t,@context) }
-        crossing=@targets.select do |t|
-          data=CutBlock.plane_data(CutBlock.corners(t,@model.edit_transform*t.transformation),@point,@normal)
-          data[:min]<-0.001/25.4 && data[:max]>0.001/25.4
+        started=false;changed=false
+        @model.start_operation('TRẦN TUẤN - Cắt khối',true);started=true
+        pieces=@targets.dup
+        cut_planes.each do |plane|
+          pieces=pieces.flat_map do |target|
+            data=CutBlock.plane_data(CutBlock.corners(target,@model.edit_transform*target.transformation),plane,@normal)
+            if data[:min]<-0.001/25.4 && data[:max]>0.001/25.4
+              changed=true
+              CutBlock.perform(@model,target,plane,@normal,:both,false)
+            else
+              [target]
+            end
+          end
         end
-        raise 'Mặt cắt chưa đi qua bên trong khối nào.' if crossing.empty?
-        started=false
-        @model.start_operation('TRẦN TUẤN - Cắt khối giữ hai phần',true);started=true
-        made=crossing.flat_map { |t| CutBlock.perform(@model,t,@point,@normal,:both,false) }
-        @model.selection.clear;made.each { |g| @model.selection.add(g) }
+        raise 'Mặt cắt chưa đi qua bên trong khối nào.' unless changed
+        @model.selection.clear;pieces.each { |g| @model.selection.add(g) }
         @model.commit_operation;started=false
-        @targets=[];@placed=false
-        UI.beep;status('Đã cắt và giữ cả hai phần. Quét chọn khối khác để tiếp tục.');view.invalidate
+        @targets=[];@placed=false;@division_count=nil
+        UI.beep;status('Đã cắt và giữ các phần. Quét chọn khối khác để tiếp tục.');view.invalidate
       rescue StandardError
         @model.abort_operation if started
         raise
@@ -201,6 +214,15 @@ module TranTuanNoiThat
       def enableVCB?;true;end
       def onUserText(text,view)
         raise 'Chọn khối trước khi nhập vị trí cắt.' if @targets.empty?
+        raw=text.strip
+        if raw.start_with?('/')
+          raise 'Nhập /2 đến /50.' unless raw.match?(/\A\/\s*\d+\z/)
+          count=raw.delete('/').strip.to_i
+          raise 'Nhập /2 đến /50.' unless count.between?(2,50)
+          @division_count=count;@placed=true
+          status("Chia #{count} phần đều theo trục đang chọn · click cắt");view.invalidate;return
+        end
+        @division_count=nil
         value=Float(text.strip.tr(',','.'))
         raise 'Khoảng cách không hợp lệ.' unless value.finite?
         @point=@center.offset(@normal,value/25.4);@placed=true
@@ -231,7 +253,7 @@ module TranTuanNoiThat
         if @drag_start
           @drag_start=nil;@drag_end=nil
         elsif @placed
-          @placed=false
+          @placed=false;@division_count=nil
         elsif !@targets.empty?
           @targets=[]
         else
@@ -251,10 +273,12 @@ module TranTuanNoiThat
           return
         end
         return if @targets.empty? || @targets.any? { |t| !t.valid? }
-        data=CutBlock.plane_data(@points,@point,@normal);polygon=CutBlock.quad(data)
+        cut_planes.each do |plane|
+        data=CutBlock.plane_data(@points,plane,@normal);polygon=CutBlock.quad(data)
         view.drawing_color=Sketchup::Color.new(255,160,70,65);view.draw(GL_QUADS,polygon)
         view.drawing_color=Sketchup::Color.new(240,120,20);view.line_width=2;view.line_stipple='-'
         view.draw(GL_LINE_LOOP,polygon);view.line_stipple=''
+        end
         @ip.draw(view) if @ip.valid? && !@placed
       end
     end

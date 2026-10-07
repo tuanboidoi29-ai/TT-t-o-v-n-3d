@@ -440,3 +440,74 @@ module TranTuanNoiThat
     end
   end
 end
+
+module TranTuanNoiThat
+  module DetailDimensions
+    def self.launch
+      Sketchup.active_model.select_tool(TwoPointTool.new)
+    end
+    class TwoPointTool
+      def activate
+        @model=Sketchup.active_model;@context=@model.active_entities;@edit=@model.edit_transform
+        @ip=Sketchup::InputPoint.new;@first=Sketchup::InputPoint.new
+        reset
+      end
+      def reset
+        @p1=@p2=@hover=@offset=nil
+        Sketchup.status_text='DIM: Chọn P1 → P2 → kéo vị trí DIM → click đặt. ESC hủy.'
+      end
+      def onMouseMove(flags,x,y,view)
+        @ip.pick(view,x,y)
+        @hover=@ip.valid? ? @ip.position : nil
+        if @p2
+          middle=Geom::Point3d.linear_combination(0.5,@p1,0.5,@p2)
+          point=@hover || Geom.intersect_line_plane(view.pickray(x,y),[middle,view.camera.direction])
+          if point
+            axis=(@p2-@p1).normalize
+            raw=point-middle
+            @offset=Geom::Vector3d.new(raw.x-axis.x*raw.dot(axis),raw.y-axis.y*raw.dot(axis),raw.z-axis.z*raw.dot(axis))
+          else
+            @offset=nil
+          end
+        end
+        view.invalidate
+      end
+      def onLButtonDown(flags,x,y,view)
+        raise 'Cấp chỉnh sửa đã đổi; mở lại DIM.' unless @model.active_entities==@context
+        onMouseMove(flags,x,y,view)
+        if !@p1
+          @p1=@hover.clone if @hover
+        elsif !@p2
+          @p2=@hover.clone if @hover && @hover.distance(@p1)>0.1.mm
+        elsif @offset && @offset.length>0.1.mm
+          @model.start_operation('TT - DIM 2 điểm',true)
+          inv=@edit.inverse
+          @context.add_dimension_linear(@p1.transform(inv),@p2.transform(inv),@offset.transform(inv))
+          @model.commit_operation
+          reset
+        end
+        view.invalidate
+      rescue StandardError=>e
+        @model.abort_operation rescue nil
+        UI.messagebox(e.message)
+      end
+      def draw(view)
+        @ip.draw(view) if @ip.valid? && @ip.display?
+        return unless @p1
+        view.drawing_color=Sketchup::Color.new(30,120,210);view.line_width=2
+        other=@p2 || @hover
+        return unless other
+        view.draw(GL_LINES,[@p1,other])
+        if @p2 && @offset && @offset.length>0.1.mm
+          a=@p1.offset(@offset);b=@p2.offset(@offset)
+          view.draw(GL_LINES,[@p1,a,a,b,b,@p2])
+          view.draw_text(view.screen_coords(Geom::Point3d.linear_combination(0.5,a,0.5,b)),format('%.1f mm',@p1.distance(@p2).to_mm))
+        end
+      end
+      def onCancel(reason,view)
+        @p1 ? reset : @model.select_tool(nil);view.invalidate
+      end
+      def deactivate(view);view.invalidate;end
+    end
+  end
+end
