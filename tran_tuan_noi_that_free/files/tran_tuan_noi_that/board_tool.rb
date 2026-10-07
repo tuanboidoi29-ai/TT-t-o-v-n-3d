@@ -216,7 +216,7 @@ module TranTuanNoiThat
         @auto_axes
       end
       def rectangle_preview(view,x,y,hit)
-        @loops=[];@triangles=[];@normal=nil
+        @loops=[];@triangles=[];@normal=nil;@preview_point=nil
         delta=@point ? @point-@p1 : Geom::Vector3d.new(0,0,0)
         u,v=axes_at_p2(hit,delta,view);@preview_axes=[u,v];n=u.cross(v).normalize
         point=@point || Geom.intersect_line_plane(view.pickray(x,y),[@p1,n]);return unless point
@@ -240,6 +240,17 @@ module TranTuanNoiThat
         @ip.draw(view) if @mode==:rectangle && @ip.display?
         if @mode==:rectangle && @point
           view.draw_points([@point],9,2,Sketchup::Color.new(32,151,204))
+        end
+        if @mode==:rectangle && @shift_direction && @preview_point && @p1
+          view.drawing_color=Sketchup::Color.new(185,40,180)
+          view.line_width=2
+          view.draw(GL_LINES,[@p1,@preview_point])
+          view.draw_points([@preview_point],11,2,Sketchup::Color.new(185,40,180))
+          if @point && @point.distance(@preview_point)>0.1.mm
+            view.line_stipple='.'
+            view.draw(GL_LINES,[@point,@preview_point])
+            view.line_stipple=''
+          end
         end
         return unless valid?
         view.drawing_color=Sketchup::Color.new(255,179,200,100)
@@ -290,7 +301,7 @@ module TranTuanNoiThat
       end
       def status_text
         mode=@mode==:face ? 'THEO FACE: Rê mặt → click tạo' : (@p1 ? 'P2: Rê chọn hướng → click tạo' : 'P1: Click điểm đầu')
-        "#{mode} | Dày #{@thickness.to_mm.round(2)} mm | Tự bắt mép/tâm/mép | Giữ SHIFT khóa hướng kéo P1–P2 | TAB đổi chế độ | Nhập số + Enter đổi dày | CTRL: #{@direction > 0 ? 'VÁN NGOÀI' : 'VÁN TRONG'}"
+        "#{mode} | Dày #{@thickness.to_mm.round(2)} mm | Tự bắt mép/tâm/mép | #{@shift_direction ? 'ĐANG KHÓA HƯỚNG KÉO' : 'Giữ SHIFT khóa hướng kéo P1–P2'} | TAB đổi chế độ | Nhập số + Enter đổi dày | CTRL: #{@direction > 0 ? 'VÁN NGOÀI' : 'VÁN TRONG'}"
       end
       def status
         Sketchup.status_text=status_text;Sketchup.vcb_label='Độ dày (mm)';Sketchup.vcb_value=@thickness.to_mm.round(2).to_s
