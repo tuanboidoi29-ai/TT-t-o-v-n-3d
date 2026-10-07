@@ -18,7 +18,7 @@ module TranTuanNoiThat
   }.freeze unless const_defined?(:LOCKED_FEATURE_BASELINES, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.255'.freeze
+  VERSION = '1.9.256'.freeze
 
   class << self
     def setting(key, default = nil)
@@ -100,6 +100,7 @@ module TranTuanNoiThat
     end
 
     def reload_runtime
+      ChatGPTConnect.close if const_defined?(:ChatGPTConnect, false) && ChatGPTConnect.respond_to?(:close)
       CadWalls.close if const_defined?(:CadWalls, false) && CadWalls.respond_to?(:close)
       cleanup_retired_led_contact
       if const_defined?(:TamPro, false)
@@ -110,6 +111,7 @@ module TranTuanNoiThat
       reset_layout_runtime
       %w[
         board_tool
+        chatgpt_connect
         wine_rack
         door_standard_tool
         rename_ui
@@ -286,6 +288,7 @@ module TranTuanNoiThat
       end
 
       install_box_ui
+      install_chatgpt_ui
       install_drawer_ui
       install_door_standard_ui
       install_rename_ui
@@ -310,6 +313,20 @@ module TranTuanNoiThat
       @toolbar.restore if @toolbar
       @toolbar.show if @toolbar
       true
+    end
+
+    def install_chatgpt_ui
+      return false unless defined?(TranTuanNoiThat::ChatGPTConnect)
+      @chatgpt_cmd ||= command(
+        'TT – ChatGPT Connect',
+        'chatgpt.svg',
+        'Kết nối ChatGPT với model SketchUp hiện tại · gửi selection/viewport · mở nhanh công cụ TRẦN TUẤN'
+      ) { ChatGPTConnect.show }
+      add_feature_command_once(@chatgpt_cmd, :chatgpt_menu_installed)
+      true
+    rescue StandardError => error
+      puts "[TT UI ChatGPT] #{error.class}: #{error.message}"
+      false
     end
 
     def install_box_ui
