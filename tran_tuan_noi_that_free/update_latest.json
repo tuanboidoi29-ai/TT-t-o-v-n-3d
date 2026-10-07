@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.238",
+  "version": "1.9.239",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Áp dụng bộ 28 icon SVG nền trong suốt, khối nổi và màu vật liệu theo mẫu 3D đã duyệt, tối giản cho toolbar. Không đổi chức năng. Mở lại SketchUp nếu icon cũ còn lưu đệm.",
+  "notes": "Vẽ Ván: P1 không khóa hướng, P2 xác định hướng và click tạo. TAB P1/P2 ↔ theo Face; SHIFT mép/tâm/mép; bàn phím nhập độ dày, preview dày thật; F đảo phía. Giữ biên/lỗ Face và tọa độ Group xoay/co giãn.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -14,12 +14,12 @@
     {
       "path": "tran_tuan_noi_that/board_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/board_tool.rb",
-      "sha256": "6f797a8ab26ff815d73e8b6e6e853c0edc2a40517d2a68e0e7eb1af4cce073c1"
+      "sha256": "755d2a9471290849386eede174c59f303c9c8df4f23a346bfe4f63a002bfc966"
     },
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "8c87662eb1a42462e91f3a0b8734a2735c8e83c0f71c92333e9f62f7c2eee54c"
+      "sha256": "463a2d24dcebbb28f5d45737c7f2b5f87427205870099d3fb10228bc01fee78c"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -314,7 +314,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "03373da2669f3c4d745ed7b04239b2b346c657b468c4a818c130af3f90777afc"
+      "sha256": "167dcffc4e5e4683850c0c43b277b173b8ebb994fd74f2d3e5f934eb646f48b8"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",

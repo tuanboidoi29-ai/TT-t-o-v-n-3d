@@ -18,7 +18,7 @@ module TranTuanNoiThat
   }.freeze unless const_defined?(:LOCKED_FEATURE_BASELINES, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.238'.freeze
+  VERSION = '1.9.239'.freeze
 
   class << self
     def setting(key, default = nil)
@@ -275,7 +275,7 @@ module TranTuanNoiThat
         @main_menu = UI.menu('Extensions').add_submenu(NAME)
         @toolbar = UI::Toolbar.new(NAME)
         [
-          command('Vẽ Ván', 've_van.svg', 'Vẽ ván 3D theo P1/P2', :board) { Board.activate },
+          command('Vẽ Ván', 've_van.svg', 'P1/P2 xác định hướng tại P2; TAB theo Face; SHIFT mép/tâm/mép; nhập độ dày; click tạo', :board) { Board.activate },
           command('Cài Đặt Chung', 'settings.svg', 'Mở cài đặt toàn hệ thống') { Settings.show },
           command('Kiểm Tra Cập Nhật', 'update.svg', 'Kiểm tra và nạp phiên bản mới') { Updater.check(true) }
         ].each do |cmd|

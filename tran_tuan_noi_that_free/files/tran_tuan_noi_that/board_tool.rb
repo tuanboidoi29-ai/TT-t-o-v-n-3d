@@ -3,319 +3,259 @@ module TranTuanNoiThat
   module Board
     extend self
     def activate
-      value = UI.inputbox(['Độ dày ván (mm):'], [TranTuanNoiThat.setting('thickness', 18.0)], 'TRẦN TUẤN - VẼ VÁN')
-      return unless value
-      mm = value[0].to_f
-      return UI.messagebox('Độ dày phải lớn hơn 0 mm.') unless mm > 0
-      TranTuanNoiThat.save_setting('thickness', mm)
+      mm=Float(TranTuanNoiThat.setting('thickness',17.5)) rescue 17.5
+      mm=17.5 unless mm.finite? && mm>0 && mm<=1000
       Sketchup.active_model.select_tool(Tool.new(mm.mm))
     end
-
+    def parse_thickness(text)
+      s=text.to_s.strip.downcase.tr(',','.').sub(/\s*mm\z/,'')
+      raise 'Nhập độ dày từ 0.1 đến 1000 mm.' unless s.match?(/\A\d+(?:\.\d*)?\z/)
+      n=Float(s)
+      raise 'Nhập độ dày từ 0.1 đến 1000 mm.' unless n.finite? && n.between?(0.1,1000)
+      n
+    end
     class Tool
-      TAB = 9
-      KEY_LEFT = 37
-      KEY_UP = 38
-      KEY_RIGHT = 39
-      KEY_DOWN = 40
-      SNAP_RADIUS = 14
-      SNAP_OFFSETS = [
-        [0, 0],
-        [-6, 0], [6, 0], [0, -6], [0, 6],
-        [-10, -10], [10, -10], [-10, 10], [10, 10],
-        [-SNAP_RADIUS, 0], [SNAP_RADIUS, 0],
-        [0, -SNAP_RADIUS], [0, SNAP_RADIUS]
-      ].freeze
-      FACE = Sketchup::Color.new(255, 164, 70, 105)
-      SIDE = Sketchup::Color.new(255, 125, 25, 72)
-      EDGE = Sketchup::Color.new(235, 92, 0, 255)
-
       def initialize(thickness)
-        @thickness = thickness
-        @ip = Sketchup::InputPoint.new
-        @ip1 = Sketchup::InputPoint.new
-        @snap_probes = SNAP_OFFSETS.map { Sketchup::InputPoint.new }
-        reset
+        @thickness=thickness;@mode=:rectangle;@snap=0;@direction=1;@typed='';@held={};@input_invalid=false
+        @ip=Sketchup::InputPoint.new;@ip1=Sketchup::InputPoint.new
+        @model=Sketchup.active_model;@context=@model.active_entities;@edit=@model.edit_transform
+        clear_shape
       end
-
-      def activate; status; end
-      def deactivate(view); view.invalidate; end
-      def resume(view); status; view.invalidate; end
-
-      def reset
-        @state = 0
-        @direction = 1
-        @base = @normal = @axes = @face_axes = nil
-        @plane_mode = :auto
-        @auto_axes = nil
-        @plane_label = 'TỰ ĐỘNG'
-        @sx = @sy = nil
-        @ip.clear
-        @ip1.clear
-        status
+      def enableVCB?;true;end
+      def activate;status;end
+      def resume(view);status;view.invalidate;end
+      def deactivate(view);view.invalidate;end
+      def clear_shape
+        @p1=nil;@loops=[];@triangles=[];@normal=nil;@point=nil;@lock=nil;@auto_axes=nil;@source=nil
+        @ip.clear;@ip1.clear
       end
-
-      def onCancel(reason, view)
-        @state.zero? ? Sketchup.active_model.select_tool(nil) : reset
-        view.invalidate
+      def same_context?
+        Sketchup.active_model==@model && @model.active_entities==@context && @model.edit_transform.to_a==@edit.to_a
       end
-
-      def onMouseMove(flags, x, y, view)
-        if @state.zero?
-          pick_nearest(view, x, y, @ip)
-          view.tooltip = @ip.tooltip if @ip.valid?
-        elsif @state == 1
-          pick_nearest(view, x, y, @ip, @ip1)
-          rectangle(view, x, y)
-          view.tooltip = size_text if valid?
-        end
-        view.invalidate
+      def onCancel(reason,view)
+        if @p1;clear_shape;else;@model.select_tool(nil);end
+        @typed='';@input_invalid=false;status;view.invalidate
       end
-
-      def onLButtonDown(flags, x, y, view)
-        if @state.zero?
-          pick_nearest(view, x, y, @ip)
-          return unless @ip.valid?
-          @ip1.copy!(@ip)
-          @face_axes = axes_from_face(@ip)
-          if @face_axes
-            @axes = @face_axes
-            @plane_mode = :face
-            @plane_label = plane_name(@axes)
-          end
-          @sx, @sy = x, y
-          @state = 1
-        elsif @state == 1
-          rectangle(view, x, y)
-          return UI.beep unless valid?
-          @state = 2
+      def onMouseMove(flags,x,y,view)
+        return unless same_context?
+        @mouse=[x,y];update(view,x,y);view.invalidate
+      rescue StandardError=>e
+        @loops=[];@triangles=[];view.tooltip=e.message;view.invalidate
+      end
+      def update(view,x,y)
+        @p1 ? @ip.pick(view,x,y,@ip1) : @ip.pick(view,x,y)
+        hit=pick_face(view,x,y)
+        if @mode==:face
+          face_preview(hit,view,x,y)
         else
-          create_board
-          reset
+          @point=@ip.valid? ? snap_point(@ip.position,hit) : nil
+          rectangle_preview(view,x,y,hit) if @p1
         end
-        status
-        view.invalidate
+        view.tooltip=status_text
       end
-
-      def onKeyDown(key, repeat, flags, view)
-        if @state == 1
+      def onLButtonDown(flags,x,y,view)
+        return unless same_context?
+        if @input_invalid;UI.beep;return;end
+        update(view,x,y)
+        if @mode==:rectangle && !@p1
+          return unless @point
+          @p1=@point.clone;@ip1.copy!(@ip);@typed=''
+        elsif valid?
+          if create_board
+            clear_shape;@typed=''
+          end
+        else
+          UI.beep
+        end
+        status;view.invalidate
+      rescue StandardError=>e
+        UI.messagebox("Không tạo được ván: #{e.message}")
+      end
+      def onKeyDown(key,repeat,flags,view)
+        if [9,16,70,37,38,39,40].include?(key)
+          return true if @held[key]
+          @held[key]=true
           case key
-          when KEY_UP
-            lock_plane([X_AXIS, Y_AXIS], 'NGANG XY')
-          when KEY_LEFT
-            lock_plane([X_AXIS, Z_AXIS], 'ĐỨNG XZ')
-          when KEY_RIGHT
-            lock_plane([Y_AXIS, Z_AXIS], 'ĐỨNG YZ')
-          when KEY_DOWN
-            @axes = nil
-            @face_axes = nil
-            @plane_mode = :auto
-            @auto_axes = nil
-            @plane_label = 'TỰ ĐỘNG'
-          else
-            return
+          when 9
+            @mode=@mode==:rectangle ? :face : :rectangle;clear_shape;@typed='';@input_invalid=false
+          when 16 then @snap=(@snap+1)%3
+          when 70 then @direction*=-1
+          when 38 then @lock=[X_AXIS,Y_AXIS] if @p1
+          when 37 then @lock=[X_AXIS,Z_AXIS] if @p1
+          when 39 then @lock=[Y_AXIS,Z_AXIS] if @p1
+          when 40 then @lock=nil;@auto_axes=nil
           end
-        elsif key == TAB && @state == 2
-          @direction *= -1
-        else
-          return
+          update(view,*@mouse) if @mouse
+          status;view.invalidate;return true
         end
-        status
-        view.invalidate
-      end
-
-      def draw(view)
-        @ip.draw(view) if @state.zero? && @ip.display?
-        @ip.draw(view) if @state == 1 && @ip.display?
-        @ip1.draw(view) if @state > 0 && @ip1.display?
-        return unless valid?
-        view.line_width = 2
-        view.drawing_color = FACE
-        view.draw(GL_QUADS, @base)
-        if @state == 2
-          top = offset_points
-          view.drawing_color = SIDE
-          4.times { |i| view.draw(GL_QUADS, [@base[i], @base[(i + 1) % 4], top[(i + 1) % 4], top[i]]) }
-          view.draw(GL_QUADS, top)
-          view.drawing_color = EDGE
-          view.draw(GL_LINE_LOOP, @base)
-          view.draw(GL_LINE_LOOP, top)
-          lines = []
-          4.times { |i| lines.concat([@base[i], top[i]]) }
-          view.draw(GL_LINES, lines)
-        else
-          view.drawing_color = EDGE
-          view.draw(GL_LINE_LOOP, @base)
-        end
-      end
-
-      def getExtents
-        box = Geom::BoundingBox.new
-        (@base || []).each { |p| box.add(p) }
-        offset_points.each { |p| box.add(p) } if valid?
-        box
-      end
-
-      private
-
-      # InputPoint.pick đã hỗ trợ inference của SketchUp. Các điểm dò xung quanh
-      # giúp chọn đúng inference gần con trỏ nhất khi người dùng không đặt chuột
-      # chính xác lên đỉnh/cạnh, kể cả hình học trong Group/Component lồng nhau.
-      def pick_nearest(view, x, y, target, reference = nil)
-        best = nil
-        best_score = nil
-
-        SNAP_OFFSETS.each_with_index do |offset, index|
-          probe = @snap_probes[index]
-          reference ? probe.pick(view, x + offset[0], y + offset[1], reference) : probe.pick(view, x + offset[0], y + offset[1])
-          next unless probe.valid?
-
-          screen = view.screen_coords(probe.position)
-          distance = Math.hypot(screen.x - x, screen.y - y)
-          next if distance > SNAP_RADIUS + 2
-
-          # Ưu tiên đỉnh thật, sau đó điểm trên cạnh/face, rồi mới tới điểm tự do.
-          priority = probe.vertex ? 0 : (probe.edge ? 1 : (probe.face ? 2 : 3))
-          score = [distance.round(4), priority, index]
-          if best_score.nil? || (score <=> best_score) == -1
-            best = probe
-            best_score = score
+        # Live numeric preview; onUserText remains the authoritative VCB commit.
+        char=if key.between?(48,57);(key-48).to_s;elsif key.between?(96,105);(key-96).to_s;elsif [110,188,190].include?(key);'.';end
+        if char || key==8
+          @typed=key==8 ? @typed[0...-1] : @typed+char
+          begin
+            @thickness=Board.parse_thickness(@typed).mm;@input_invalid=false
+            update(view,*@mouse) if @mouse
+          rescue ArgumentError,RuntimeError
+            @input_invalid=!@typed.empty?
           end
+          view.invalidate
         end
-
-        best ? target.copy!(best) : target.clear
-        target.valid?
-      rescue StandardError
-        reference ? target.pick(view, x, y, reference) : target.pick(view, x, y)
-        target.valid?
+        false
       end
-
-      def rectangle(view, x, y)
-        origin = @ip1.position
-        delta = @ip.valid? ? origin.vector_to(@ip.position) : nil
-        candidate_axes = choose_axes(delta, view)
-        axes = (@plane_mode == :auto ? candidate_axes : @axes) || candidate_axes
-        @plane_label = "TỰ ĐỘNG - #{plane_name(axes)}" if @plane_mode == :auto
-        normal = axes[0].cross(axes[1])
-        point = nil
-        if @ip.valid?
-          picked = @ip.position
-          distance = origin.vector_to(picked).dot(normal)
-          point = picked.offset(normal, -distance)
-        end
-        point ||= Geom.intersect_line_plane(view.pickray(x, y), [origin, normal])
-        return unless point
-        vector = origin.vector_to(point)
-        a = vector.dot(axes[0]); b = vector.dot(axes[1])
-        pa = origin.offset(axes[0], a); pb = origin.offset(axes[1], b)
-        @base = [origin, pa, pa.offset(axes[1], b), pb]
-        @normal = normal.normalize
-      rescue ArgumentError
-        @base = @normal = nil
+      def onKeyUp(key,repeat,flags,view);@held.delete(key);false;end
+      def onUserText(text,view)
+        mm=Board.parse_thickness(text);@thickness=mm.mm;@typed='';@input_invalid=false
+        TranTuanNoiThat.save_setting('thickness',mm)
+        update(view,*@mouse) if @mouse
+        status;view.invalidate
+      rescue StandardError=>e
+        @typed='';@input_invalid=true;UI.beep;Sketchup.status_text=e.message
       end
-
-      def choose_axes(delta, view)
-        return @axes if @plane_mode != :auto && @axes
-
-        # Khi P2 đang bắt trên Face, chính Face đó là chỉ dẫn hướng đáng tin cậy nhất.
-        point_face_axes = axes_from_face(@ip) if @ip && @ip.valid?
-        if point_face_axes && delta && delta.length > 2.mm
-          @auto_axes = point_face_axes
-          return @auto_axes
+      def pick_face(view,x,y)
+        ph=view.pick_helper;ph.do_pick(x,y)
+        ph.count.times do |i|
+          path=ph.path_at(i);next unless path && path.last.is_a?(Sketchup::Face)
+          return {face:path.last,path:path,tr:@edit*ph.transformation_at(i)}
         end
-
-        list = [X_AXIS, Y_AXIS, Z_AXIS]
-        if delta && delta.length > 0.1.mm
-          values = list.map { |axis| delta.dot(axis).abs }
-          candidates = [
-            [[X_AXIS, Y_AXIS], values[0] + values[1]],
-            [[X_AXIS, Z_AXIS], values[0] + values[2]],
-            [[Y_AXIS, Z_AXIS], values[1] + values[2]]
-          ].sort_by { |item| -item[1] }
-
-          best_axes, best_score = candidates[0]
-          if @auto_axes
-            current = candidates.find { |item| plane_name(item[0]) == plane_name(@auto_axes) }
-            # Giữ hướng hiện tại nếu chênh lệch dưới 15% để chống đảo hướng/rung.
-            return @auto_axes if current && current[1] >= best_score * 0.85
-          end
-          @auto_axes = best_axes
-          return @auto_axes
-        end
-        n = list.max_by { |axis| view.camera.direction.dot(axis).abs }
-        @auto_axes = list.reject { |axis| axis.parallel?(n) }
-      end
-
-      def axes_from_face(input_point)
-        face = input_point.face
-        return nil unless face
-        normal = face.normal.transform(input_point.transformation)
-        return nil unless normal && normal.length > 0
-        normal.normalize!
-        axes = [X_AXIS, Y_AXIS, Z_AXIS]
-        index = axes.each_index.max_by { |i| normal.dot(axes[i]).abs }
-        case index
-        when 0 then [Y_AXIS, Z_AXIS]
-        when 1 then [X_AXIS, Z_AXIS]
-        else [X_AXIS, Y_AXIS]
-        end
-      rescue StandardError
         nil
       end
-
-      def lock_plane(axes, label)
-        @axes = axes
-        @face_axes = axes
-        @plane_mode = :manual
-        @plane_label = label
+      def face_points(hit)
+        hit[:face].outer_loop.vertices.map{|v|v.position.transform(hit[:tr])}
       end
-
-      def plane_name(axes)
-        return 'NGANG XY' if axes.include?(X_AXIS) && axes.include?(Y_AXIS)
-        return 'ĐỨNG XZ' if axes.include?(X_AXIS) && axes.include?(Z_AXIS)
-        'ĐỨNG YZ'
-      end
-
-      def valid?
-        @base && @normal && @base[0].distance(@base[1]) > 0.1.mm && @base[0].distance(@base[3]) > 0.1.mm
-      end
-
-      def vector
-        v = @normal.clone
-        v.reverse! if @direction < 0
-        v.length = @thickness
-        v
-      end
-
-      def offset_points; valid? ? @base.map { |p| p.offset(vector) } : []; end
-      def size_text
-        format('%.1f × %.1f × %.1f mm', @base[0].distance(@base[1]).to_mm, @base[0].distance(@base[3]).to_mm, @thickness.to_mm)
-      end
-
-      def create_board
-        model = Sketchup.active_model
-        model.start_operation('TRẦN TUẤN - Vẽ Ván', true)
-        group = model.active_entities.add_group
-        face = group.entities.add_face(@base)
-        raise 'Không tạo được mặt ván.' unless face && face.valid?
-        wanted = @normal.clone; wanted.reverse! if @direction < 0
-        face.reverse! if face.normal.dot(wanted) < 0
-        face.pushpull(@thickness)
-        group.name = 'TT_VAN'
-        group.set_attribute('TRẦN TUẤN NỘI THẤT', 'loai', 'VAN')
-        group.set_attribute('TRẦN TUẤN NỘI THẤT', 'do_day_mm', @thickness.to_mm)
-        model.commit_operation
-        model.selection.clear; model.selection.add(group)
-      rescue StandardError => error
-        model.abort_operation if model
-        UI.messagebox("Lỗi tạo ván:\n#{error.message}")
-      end
-
-      def status
-        Sketchup.status_text = case @state
-        when 0 then 'VẼ VÁN: Click P1. ESC để thoát.'
-        when 1 then "P2 tự bắt điểm | #{@plane_label} | ↑ XY, ← XZ, → YZ, ↓ Tự động"
-        else "#{@direction > 0 ? 'NGOÀI' : 'TRONG'} | TAB đổi hướng | Click tạo ván"
+      def polygon_normal(points)
+        a=points.first
+        (1...points.length-1).each do |i|
+          n=(points[i]-a).cross(points[i+1]-a)
+          return n.normalize if n.length>1e-9
         end
+        nil
+      end
+      def snap_point(point,hit)
+        return point unless hit
+        container=hit[:path].reverse.find{|e|e.is_a?(Sketchup::Group)||e.is_a?(Sketchup::ComponentInstance)}
+        return point unless container
+        ents=container.definition.entities
+        return point if ents.any?{|e|e.is_a?(Sketchup::Group)||e.is_a?(Sketchup::ComponentInstance)}
+        bounds=container.definition.bounds;lo=bounds.min.to_a;hi=bounds.max.to_a
+        sizes=3.times.map do |i|
+          a=lo.dup;b=lo.dup;b[i]=hi[i]
+          Geom::Point3d.new(a).transform(hit[:tr]).distance(Geom::Point3d.new(b).transform(hit[:tr]))
+        end
+        axis=(0..2).min_by{|i|sizes[i]}
+        return point unless sizes[axis]>0 && sizes[axis]<=100.mm && sizes[axis]<sizes.max*0.4
+        p=point.transform(hit[:tr].inverse).to_a
+        p[axis]=[lo[axis],(lo[axis]+hi[axis])/2,hi[axis]][@snap]
+        Geom::Point3d.new(p).transform(hit[:tr])
+      end
+      def face_preview(hit,view,x,y)
+        @loops=[];@triangles=[];@normal=nil
+        return unless hit
+        @source=hit[:face]
+        raise 'Face quá nhiều cạnh; chọn mặt đơn giản hơn.' if @source.edges.length>5000
+        @loops=[@source.outer_loop]+@source.loops.reject{|l|l==@source.outer_loop}
+        @loops=@loops.map{|loop|loop.vertices.map{|v|v.position.transform(hit[:tr])}}
+        @normal=polygon_normal(@loops.first);return unless @normal
+        @normal.reverse! if @normal.dot(view.pickray(x,y)[1])>0
+        mesh=@source.mesh
+        @triangles=mesh.polygons.flat_map do |poly|
+          p=poly.map{|i|mesh.point_at(i.abs).transform(hit[:tr])}
+          (1...p.length-1).flat_map{|i|[p[0],p[i],p[i+1]]}
+        end
+      end
+      def axes_at_p2(hit,delta,view)
+        return @lock if @lock
+        if hit
+          normal=polygon_normal(face_points(hit))
+          if normal
+            edge=face_points(hit).each_cons(2).map{|a,b|b-a}.max_by(&:length)
+            if edge && edge.length>1e-8
+              u=edge.normalize;return [u,normal.cross(u).normalize]
+            end
+          end
+        end
+        axes=[X_AXIS,Y_AXIS,Z_AXIS]
+        scores=[[X_AXIS,Y_AXIS],[X_AXIS,Z_AXIS],[Y_AXIS,Z_AXIS]].map{|pair|[pair,pair.sum{|a|delta.dot(a).abs}]}
+        best=scores.max_by(&:last)
+        if best[1]>0.1.mm
+          old=scores.find{|p,s|p==@auto_axes}
+          @auto_axes=old && old[1]>=best[1]*0.85 ? old[0] : best[0]
+        else
+          n=axes.max_by{|a|view.camera.direction.dot(a).abs};@auto_axes=axes.reject{|a|a==n}
+        end
+        @auto_axes
+      end
+      def rectangle_preview(view,x,y,hit)
+        @loops=[];@triangles=[];@normal=nil
+        delta=@point ? @point-@p1 : Geom::Vector3d.new(0,0,0)
+        u,v=axes_at_p2(hit,delta,view);n=u.cross(v).normalize
+        point=@point || Geom.intersect_line_plane(view.pickray(x,y),[@p1,n]);return unless point
+        d=point-@p1;a=d.dot(u);b=d.dot(v);return if a.abs<0.1.mm || b.abs<0.1.mm
+        p=@p1.offset(u,a);q=p.offset(v,b);r=@p1.offset(v,b)
+        @loops=[[@p1,p,q,r]];@normal=n
+        @triangles=[@p1,p,q,@p1,q,r]
+      end
+      def valid?;@normal && !@loops.empty? && @loops.first.length>=3;end
+      def displacement;@normal.clone.tap{|v|v.reverse! if @direction<0};end
+      def base_shift;@mode==:face ? -@thickness*(@snap/2.0) : 0.0;end
+      def shifted(p,top=false);p.offset(displacement,base_shift+(top ? @thickness : 0));end
+      def draw(view)
+        @ip.draw(view) if @mode==:rectangle && @ip.display?
+        if @mode==:rectangle && @point
+          view.draw_points([@point],9,2,Sketchup::Color.new(32,151,204))
+        end
+        return unless valid?
+        view.drawing_color=Sketchup::Color.new(255,179,200,100)
+        [false,true].each{|top|view.draw(GL_TRIANGLES,@triangles.map{|p|shifted(p,top)})} unless @triangles.empty?
+        @loops.each do |loop|
+          low=loop.map{|p|shifted(p)};high=loop.map{|p|shifted(p,true)}
+          view.drawing_color=Sketchup::Color.new(245,132,164,80)
+          view.draw(GL_QUADS,low.each_index.flat_map{|i|j=(i+1)%low.length;[low[i],low[j],high[j],high[i]]})
+          view.drawing_color=Sketchup::Color.new(193,67,109);view.line_width=2
+          view.draw(GL_LINE_LOOP,low);view.draw(GL_LINE_LOOP,high)
+          view.draw(GL_LINES,low.each_index.flat_map{|i|[low[i],high[i]]})
+        end
+      end
+      def getExtents
+        box=Geom::BoundingBox.new
+        @loops.flatten.each{|p|box.add(shifted(p),shifted(p,true))} if valid?
+        box
+      end
+      def create_board
+        return false unless same_context? && valid?
+        @model.start_operation('TRẦN TUẤN - Vẽ Ván',true)
+        begin
+          group=@context.add_group
+          # World-space shell first: thickness stays physical under scaled edit contexts.
+          cap=group.entities.add_face(@loops.first.map{|p|shifted(p)})
+          raise 'Không tạo được mặt ván.' unless cap && cap.valid?
+          @loops.drop(1).each do |hole|
+            inner=group.entities.add_face(hole.map{|p|shifted(p)})
+            raise 'Không tạo được lỗ trên mặt ván.' unless inner && inner.valid?
+            inner.erase!
+          end
+          cap=group.entities.grep(Sketchup::Face).max_by(&:area) unless cap.valid?
+          raise 'Không còn mặt ván hợp lệ.' unless cap && cap.valid?
+          cap.reverse! if cap.normal.dot(displacement)<0
+          cap.pushpull(@thickness)
+          raise 'Ván chưa kín; đã hủy lượt tạo.' unless group.manifold?
+          group.transformation=@edit.inverse
+          group.name='TT_VAN'
+          group.set_attribute('TRẦN TUẤN NỘI THẤT','loai','VAN')
+          group.set_attribute('TRẦN TUẤN NỘI THẤT','do_day_mm',@thickness.to_mm)
+          @model.commit_operation
+          @model.selection.clear;@model.selection.add(group)
+          TranTuanNoiThat.save_setting('thickness',@thickness.to_mm)
+          true
+        rescue StandardError=>e
+          @model.abort_operation;UI.messagebox("Lỗi tạo ván: #{e.message}");false
+        end
+      end
+      def status_text
+        mode=@mode==:face ? 'THEO FACE: Rê mặt → click tạo' : (@p1 ? 'P2: Rê chọn hướng → click tạo' : 'P1: Click điểm đầu')
+        "#{mode} | Dày #{@thickness.to_mm.round(2)} mm | SHIFT: #{['MÉP 1','TÂM','MÉP 2'][@snap]} | TAB đổi chế độ | Nhập số + Enter đổi dày | F đảo phía"
+      end
+      def status
+        Sketchup.status_text=status_text;Sketchup.vcb_label='Độ dày (mm)';Sketchup.vcb_value=@thickness.to_mm.round(2).to_s
       end
     end
   end
