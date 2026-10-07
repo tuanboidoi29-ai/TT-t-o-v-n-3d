@@ -164,12 +164,8 @@ module TranTuanNoiThat
         elsif @state == 1
           @ip.pick(view, x, y, @ip1)
           if @ip.valid?
-            if @manual_mode
-              @p2 = @ip.position
-            else
-              update_second_point(@ip.position)
-              analyze_depth(view) if valid_front?
-            end
+            prepare_second_point(@ip)
+            analyze_depth(view) if valid_front?
           end
         elsif @state == 2 && @manual_mode
           @ip.pick(view, x, y, @ip2)
@@ -189,16 +185,14 @@ module TranTuanNoiThat
           return UI.beep unless @ip.valid?
           @ip1.copy!(@ip)
           @p1 = @ip.position
-          if setup_face_axes(@ip)
-            @manual_mode = false
-          else
-            @manual_mode = true
-            clear_axes
-          end
+          # P1 is only an anchor. Orientation is determined at P2.
+          @manual_mode = true
+          clear_axes
           @state = 1
         elsif @state == 1
           @ip.pick(view, x, y, @ip1)
           return UI.beep unless @ip.valid?
+          prepare_second_point(@ip)
           if @manual_mode
             @p2 = @ip.position
             return UI.beep unless @p1.distance(@p2) > 1.mm
@@ -289,6 +283,13 @@ module TranTuanNoiThat
           @span_u.abs > 1.mm && @span_v.abs > 1.mm
       end
 
+      def prepare_second_point(input_point)
+        clear_axes
+        @p2 = input_point.position
+        @manual_mode = !setup_face_axes(input_point)
+        update_second_point(@p2) unless @manual_mode
+      end
+
       def setup_face_axes(input_point)
         face = input_point.face
         return false unless face
@@ -306,7 +307,7 @@ module TranTuanNoiThat
         return false if horizontal.length < 0.01
         horizontal.normalize!
 
-        @origin = input_point.position
+        @origin = @p1
         @surface_normal = normal
         @axis_v = vertical
         @axis_u = horizontal

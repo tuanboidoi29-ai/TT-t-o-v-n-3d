@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.239",
+  "version": "1.9.240",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Vẽ Ván: P1 không khóa hướng, P2 xác định hướng và click tạo. TAB P1/P2 ↔ theo Face; SHIFT mép/tâm/mép; bàn phím nhập độ dày, preview dày thật; F đảo phía. Giữ biên/lỗ Face và tọa độ Group xoay/co giãn.",
+  "notes": "Vẽ Ngăn Kéo: P1 chỉ đặt điểm gốc; mặt tại P2 xác định hướng. Giữ chế độ 3 điểm khi P2 không có Face, thông số và kết cấu hiện tại.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "463a2d24dcebbb28f5d45737c7f2b5f87427205870099d3fb10228bc01fee78c"
+      "sha256": "b13c165d627b62eafc56deaa37c9d28de8a62925e309e9d073ec4948ed77f5ad"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -39,7 +39,7 @@
     {
       "path": "tran_tuan_noi_that/drawer_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/drawer_tool.rb",
-      "sha256": "8b68601a08cdbe24c5fd3893d29188e265e143271ecfd3bf7cbab91846a47d50"
+      "sha256": "78efd229fa1490ee88659317451eab97952069cd5714fd78618e5eabd34cc2d8"
     },
     {
       "path": "tran_tuan_noi_that/grain_align_fix.rb",
@@ -314,7 +314,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "167dcffc4e5e4683850c0c43b277b173b8ebb994fd74f2d3e5f934eb646f48b8"
+      "sha256": "9663a18527f1183c494739417feb058a2ec89f6cea5f92f507a05ebb3dff467a"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
