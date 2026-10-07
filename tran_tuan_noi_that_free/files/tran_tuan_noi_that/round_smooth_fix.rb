@@ -10,7 +10,7 @@
 module TranTuanNoiThat
   module Round
     remove_const(:VERSION) if const_defined?(:VERSION, false)
-    VERSION = '2.2.7'.freeze
+    VERSION = '2.2.8'.freeze
 
     BOUNDARY_DICT = 'TRẦN TUẤN BO CONG'.freeze unless const_defined?(:BOUNDARY_DICT, false)
     BOUNDARY_KEY  = 'duong_bien_cung'.freeze unless const_defined?(:BOUNDARY_KEY, false)
@@ -51,14 +51,12 @@ module TranTuanNoiThat
         candidates = vertex.faces.select { |f| f.valid? && f.loops.length == 1 }
         return nil if candidates.empty?
 
-        if direct_face && direct_face.valid? &&
-           direct_face.outer_loop.vertices.include?(vertex) &&
-           prism_depth(direct_face, vertex)
-          return direct_face
-        end
-
         viable = candidates.select { |face| prism_depth(face, vertex) }
         return nil if viable.empty?
+        fitting = viable.select { |face| corner_fits_radius?(face, vertex) }
+        viable = fitting unless fitting.empty?
+        return direct_face if viable.include?(direct_face)
+        return viable.first if viable.length == 1
 
         camera = Sketchup.active_model.active_view.camera.direction
         viable.max_by do |face|
@@ -68,6 +66,19 @@ module TranTuanNoiThat
         end
       rescue StandardError
         nil
+      end
+
+      def corner_fits_radius?(face, vertex)
+        vertices = face.outer_loop.vertices
+        index = vertices.index(vertex)
+        return false unless index
+        a = vertices[(index-1) % vertices.length].position - vertex.position
+        b = vertices[(index+1) % vertices.length].position - vertex.position
+        return false if a.length < 0.001 || b.length < 0.001
+        angle = a.angle_between(b)
+        return false if angle <= 0.02 || angle >= Math::PI-0.02
+        tangent = @mode == :convex ? @radius / Math.tan(angle/2.0) : @radius
+        tangent.finite? && tangent > 0 && tangent < [a.length,b.length].min-0.01.mm
       end
 
       # Cho phép bo liên tiếp trên khối đã có nhiều segment cong.

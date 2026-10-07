@@ -6,7 +6,7 @@ module TranTuanNoiThat
     VERSION = '2.2.0'.freeze
     ORANGE = Sketchup::Color.new(244, 123, 32, 220)
     RED = Sketchup::Color.new(230, 55, 55, 230)
-    SNAP = 28
+    SNAP = 40
     MIN_SEG = 4
     MAX_SEG = 96
 

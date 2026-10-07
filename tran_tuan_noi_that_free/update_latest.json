@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.245",
+  "version": "1.9.246",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Ngăn kéo: chia số lượng hoặc kích thước khoang tối đa; chia ngang có vách bằng độ dày thành; chặn giữa/chặn trên với cách trên/dưới, preview và hình thật dùng chung hình học.",
+  "notes": "Bo Cong Khối: tăng vùng bắt đỉnh 40px; khi mặt hông tấm mỏng không đủ bán kính, chọn mặt lăng trụ khác đủ chiều dài. Giữ kiểm tra khối kín và bán kính.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "79be9b536ae76d28bfa79a1b81d98b835933f58d862fce50755b99e9da87d5ce"
+      "sha256": "ef69779409da035533bac945197dda3b1caba2db10fa2422280cb42bbdbec35b"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -249,12 +249,12 @@
     {
       "path": "tran_tuan_noi_that/round_smooth_fix.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/round_smooth_fix.rb",
-      "sha256": "ba5a4d165c4a300aa80e7f91a4cd9f86416179b3410ae64901f0589418793699"
+      "sha256": "1622513af50e842fa3ee602185958de37d3e701cf5cd69366bac0f75eef73626"
     },
     {
       "path": "tran_tuan_noi_that/round_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/round_tool.rb",
-      "sha256": "f7e453b54dad779cfad8f84a4c52e78a377bd090baaab07c637f3ec3aeb80f9a"
+      "sha256": "bbbbc30a3d009a9602ec7a0566774fa3f4eb795f4ef343fbd034c72108686e7d"
     },
     {
       "path": "tran_tuan_noi_that/scale_corner_lock.rb",
@@ -314,7 +314,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "f811dca79bb3a3861dd30b327b665aa3d691edd3ff90e9b37a80d358ccdab05d"
+      "sha256": "18e9c6f1c14850543a3ed629ea198492296faac47059ad44949d2b6796338b87"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
