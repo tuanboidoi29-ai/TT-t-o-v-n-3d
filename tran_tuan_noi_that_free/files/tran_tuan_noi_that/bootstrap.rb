@@ -18,7 +18,7 @@ module TranTuanNoiThat
   }.freeze unless const_defined?(:LOCKED_FEATURE_BASELINES, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.253'.freeze
+  VERSION = '1.9.254'.freeze
 
   class << self
     def setting(key, default = nil)
@@ -110,6 +110,7 @@ module TranTuanNoiThat
       reset_layout_runtime
       %w[
         board_tool
+        wine_rack
         door_standard_tool
         rename_ui
         rename_tool
@@ -297,6 +298,7 @@ module TranTuanNoiThat
       install_grain_ui
       install_door_open_mark_ui
       install_notch_ui
+      install_wine_rack_ui
       install_cut_block_ui
       install_wall_block_ui
       install_cad_walls_ui
@@ -467,6 +469,11 @@ module TranTuanNoiThat
       @merge_groups_cmd ||= command('Gộp Group thành 1 khối', 'merge_groups.svg', 'Chọn từ 2 Group; ưu tiên hợp nhất Solid, nếu không được thì gom thành một Group.') { VeTuongKhoi.merge_selected_groups }
       add_feature_command_once(@wall_block_cmd, :wall_block_menu_installed)
       add_feature_command_once(@merge_groups_cmd, :merge_groups_menu_installed)
+    end
+
+    def install_wine_rack_ui
+      @wine_rack_cmd ||= command('Vẽ Ô Rượu', 'wine_rack.svg', 'P1–P2 · Vuông/chéo · SHIFT khóa hướng · TAB thông số') { WineRack.activate }
+      add_feature_command_once(@wine_rack_cmd, :wine_rack_menu_installed)
     end
 
     def install_cut_block_ui
