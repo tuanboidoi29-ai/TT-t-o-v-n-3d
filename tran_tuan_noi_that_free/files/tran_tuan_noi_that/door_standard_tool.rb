@@ -1171,10 +1171,11 @@ module TranTuanNoiThat
       end
 
       # Pick only geometry near the cursor, across all instance paths.
-      def nearby_face_hits(view, x, y)
+      def nearby_face_hits(view, x, y, radius = SNAP_RADIUS)
         helper = view.pick_helper
-        helper.do_pick(x, y, SNAP_RADIUS)
+        helper.do_pick(x, y, radius)
         hits = []
+        seen = {}
         helper.count.times do |index|
           path = helper.path_at(index)
           next unless path && !path.empty?
@@ -1182,7 +1183,12 @@ module TranTuanNoiThat
           faces = path.reverse.select { |entity| entity.is_a?(Sketchup::Face) }
           faces += leaf.faces.to_a if leaf.respond_to?(:faces)
           tr = helper.transformation_at(index) || Geom::Transformation.new
-          faces.uniq.each { |face| hits << [face, tr] }
+          faces.uniq.each do |face|
+            key = [face.entityID, tr.to_a]
+            next if seen[key]
+            seen[key] = true
+            hits << [face, tr]
+          end
         end
         hits
       end
@@ -1214,24 +1220,24 @@ module TranTuanNoiThat
         end
       end
 
-      def nearest_board_snap(view, x, y, hits, constrain_plane = false)
+      def nearest_board_snap(view, x, y, hits, constrain_plane = false, radius = SNAP_RADIUS)
         best = nil
         hits.each do |face,tr|
-          candidates = face.outer_loop.vertices.map { |v| ['Mép',v.position.transform(tr)] }
+          points = face.outer_loop.vertices.map { |v| v.position.transform(tr) }
+          candidates = points.map { |point| ['Mép',point] }
           face.outer_loop.edges.each do |edge|
             a = edge.start.position.transform(tr)
             b = edge.end.position.transform(tr)
             candidates << ['Tâm cạnh',Geom::Point3d.linear_combination(0.5,a,0.5,b)]
           end
-          points = face.outer_loop.vertices.map { |v| v.position.transform(tr) }
+          facing = face.normal.transform(tr).normalize.dot(view.camera.direction).abs
           candidates << ['Tâm mặt hồi',average_point(points)] unless points.empty?
           candidates.concat(board_rail_candidates(view,x,y,points))
           candidates.each do |label,point|
             next if constrain_plane && point_plane_distance(point,@origin,@normal).abs > 5.mm
             screen = view.screen_coords(point)
             distance = Math.hypot(screen.x-x,screen.y-y)
-            next if distance > SNAP_RADIUS
-            facing = face.normal.transform(tr).normalize.dot(view.camera.direction).abs
+            next if distance > radius
             score = [distance,-facing]
             best = [score,point,face,tr,label] if !best || (score <=> best[0]) < 0
           end
@@ -1242,8 +1248,8 @@ module TranTuanNoiThat
 
       def pick_first_point(view, x, y)
         @ip.pick(view,x,y)
-        hits = nearby_face_hits(view,x,y)
-        snap = nearest_board_snap(view,x,y,hits)
+        hits = nearby_face_hits(view,x,y,34.0)
+        snap = nearest_board_snap(view,x,y,hits,false,34.0)
         if snap
           _,point,face,tr = snap
         else

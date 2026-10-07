@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.246",
+  "version": "1.9.247",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Bo Cong Khối: tăng vùng bắt đỉnh 40px; khi mặt hông tấm mỏng không đủ bán kính, chọn mặt lăng trụ khác đủ chiều dài. Giữ kiểm tra khối kín và bán kính.",
+  "notes": "Tạo Cánh: P1 tăng vùng bắt điểm từ 24 lên 34px; bỏ quét mặt trùng trong cùng instance và tính lặp, giữ cơ chế P2/chia cánh.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "ef69779409da035533bac945197dda3b1caba2db10fa2422280cb42bbdbec35b"
+      "sha256": "d50bd0b68e32d8d38af27fa8f7bc1cc62e939fb7589266654f32878ed38fae47"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -34,7 +34,7 @@
     {
       "path": "tran_tuan_noi_that/door_standard_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/door_standard_tool.rb",
-      "sha256": "c7a6626cc5956b55491bb096a241f75d3ff85e37c27feea4af5e3d98d3ee9d2f"
+      "sha256": "2f1482d005e27a167a6954cc0c81447a15bd1d4aae767094c1d30e33e070a54e"
     },
     {
       "path": "tran_tuan_noi_that/drawer_tool.rb",
@@ -314,7 +314,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "18e9c6f1c14850543a3ed629ea198492296faac47059ad44949d2b6796338b87"
+      "sha256": "d0bac5eeeebb6e1058b581e8ef77bf5dde1b5f99da6bf98a3c60d4e6a3bef908"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
