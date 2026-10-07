@@ -51,11 +51,11 @@ module TranTuanNoiThat
       raise 'Bản sao hình học không kín.' unless g.manifold?
       g
     end
-    def perform(model,target,point,normal,mode,operation=true)
+    def perform(model,target,point,normal,mode,operation=true,context_override=nil,parent_world=nil)
       raise 'Cắt khối cần SketchUp Pro có Solid Tools.' if Sketchup.respond_to?(:is_pro?) && !Sketchup.is_pro?
-      context=model.active_entities
+      context=context_override || model.active_entities
       validate!(target,context)
-      world=model.edit_transform*target.transformation
+      world=(parent_world || model.edit_transform)*target.transformation
       data=plane_data(corners(target,world),point,normal)
       tolerance=0.001/25.4
       raise 'Mặt phẳng phải nằm bên trong khối, không nằm ngoài hoặc trùng mép.' unless data[:min]<-tolerance && data[:max]>tolerance
@@ -98,8 +98,10 @@ module TranTuanNoiThat
       end
       work.erase!
       target.erase!
-      model.selection.clear
-      made.each { |g| model.selection.add(g) }
+      if operation
+        model.selection.clear
+        made.each { |g| model.selection.add(g) }
+      end
       model.commit_operation if operation
       started=false
       made
@@ -107,6 +109,41 @@ module TranTuanNoiThat
       model.abort_operation if started
       raise RuntimeError, 'Phiên bản SketchUp này không hỗ trợ cắt khối Solid Tools.' if error.is_a?(NotImplementedError)
       raise
+    end
+    def leaves(target,parent_world,result=[])
+      raise 'Có Group/Component đang khóa; mở khóa trước khi cắt.' if target.locked?
+      world=parent_world*target.transformation
+      children=target.definition.entities.select { |e| container?(e) && e.valid? }
+      if children.empty?
+        raise 'Có tấm chưa kín; sửa mặt hở trước khi cắt.' unless target.manifold?
+        result << [target,world]
+      else
+        children.each { |e| leaves(e,world,result) }
+      end
+      result
+    end
+    def cut_tree(model,target,context,parent_world,planes)
+      children=target.definition.entities.select { |e| container?(e) && e.valid? }
+      unless children.empty?
+        target.make_unique
+        world=parent_world*target.transformation
+        target.definition.entities.to_a.select { |e| container?(e) && e.valid? }.each do |child|
+          cut_tree(model,child,target.definition.entities,world,planes)
+        end
+        return [target]
+      end
+      pieces=[target]
+      planes.each do |plane,normal|
+        pieces=pieces.flat_map do |part|
+          data=plane_data(corners(part,parent_world*part.transformation),plane,normal)
+          if data[:min]<-0.001.mm && data[:max]>0.001.mm
+            perform(model,part,plane,normal,:both,false,context,parent_world)
+          else
+            [part]
+          end
+        end
+      end
+      pieces
     end
     def activate; Sketchup.active_model.select_tool(Tool.new); end
 
@@ -128,9 +165,9 @@ module TranTuanNoiThat
       def select_targets(targets)
         raise 'Chưa chọn được khối kín.' if targets.empty?
         targets=targets.uniq
-        targets.each { |t| CutBlock.validate!(t,@context) }
+        targets.each { |t| raise 'Chọn khối trong cấp đang mở.' unless @context.include?(t) }
         @targets=targets
-        @points=targets.flat_map { |t| CutBlock.corners(t,@model.edit_transform*t.transformation) }
+        @points=targets.flat_map { |t| CutBlock.leaves(t,@model.edit_transform).flat_map { |part,world| CutBlock.corners(part,world) } }
         @center=Geom::Point3d.new(*3.times.map { |i| values=@points.map { |p| p.to_a[i] };(values.min+values.max)/2.0 })
         @point=@center;@placed=false;@division_count=nil
         @model.selection.clear;targets.each { |t| @model.selection.add(t) }
@@ -187,22 +224,18 @@ module TranTuanNoiThat
       end
       def cut_now(view)
         raise 'Cấp chỉnh sửa đã đổi. Thoát công cụ và chọn lại khối.' unless @context==@model.active_entities
-        @targets.each { |t| CutBlock.validate!(t,@context) }
-        started=false;changed=false
-        @model.start_operation('TRẦN TUẤN - Cắt khối',true);started=true
-        pieces=@targets.dup
-        cut_planes.each do |plane|
-          pieces=pieces.flat_map do |target|
-            data=CutBlock.plane_data(CutBlock.corners(target,@model.edit_transform*target.transformation),plane,@normal)
-            if data[:min]<-0.001/25.4 && data[:max]>0.001/25.4
-              changed=true
-              CutBlock.perform(@model,target,plane,@normal,:both,false)
-            else
-              [target]
-            end
+        all=@targets.flat_map { |t| CutBlock.leaves(t,@model.edit_transform) }
+        planes=cut_planes.map { |p| [p,@normal] }
+        crossing=all.any? do |part,world|
+          planes.any? do |point,normal|
+            data=CutBlock.plane_data(CutBlock.corners(part,world),point,normal)
+            data[:min]<-0.001.mm && data[:max]>0.001.mm
           end
         end
-        raise 'Mặt cắt chưa đi qua bên trong khối nào.' unless changed
+        raise 'Mặt cắt chưa đi qua tấm nào.' unless crossing
+        started=false
+        @model.start_operation('TRẦN TUẤN - Cắt tấm trong cụm',true);started=true
+        pieces=@targets.flat_map { |t| CutBlock.cut_tree(@model,t,@context,@model.edit_transform,planes) }
         @model.selection.clear;pieces.each { |g| @model.selection.add(g) }
         @model.commit_operation;started=false
         @targets=[];@placed=false;@division_count=nil
