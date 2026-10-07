@@ -150,6 +150,7 @@ module TranTuanNoiThat
     class Tool
       def activate
         @model=Sketchup.active_model;@context=@model.active_entities
+        @face_mode=false;@face_valid=false;@axis_index=2
         @targets=[];@normal=Geom::Vector3d.new(0,0,1);@down={};@placed=false
         @ip=Sketchup::InputPoint.new
         selected=@model.selection.to_a.select { |e| CutBlock.container?(e) }
@@ -165,7 +166,7 @@ module TranTuanNoiThat
       end
       def status(message=nil)
         prompt=@targets.empty? ? 'Click hoặc kéo khung quét chọn khối' : 'Rê preview mặt cắt, CLICK CẮT NGAY — giữ cả hai phần'
-        Sketchup.set_status_text(message || "CẮT KHỐI · #{prompt} · ↑ Z / → X / ← Y · TAB đổi trục · Nhập /N chia đều hoặc mm từ tâm · ESC chọn lại",SB_PROMPT)
+        Sketchup.set_status_text(message || "CẮT KHỐI · #{prompt} · ↑ Z / → X / ← Y · SHIFT: #{@face_mode ? 'RÊ FACE' : 'THEO TRỤC'} · TAB đổi trục · Nhập /N chia đều hoặc mm từ tâm · ESC chọn lại",SB_PROMPT)
       end
       def select_targets(targets)
         raise 'Chưa chọn được khối kín.' if targets.empty?
@@ -191,7 +192,29 @@ module TranTuanNoiThat
           @drag_end=[x,y]
         elsif !@targets.empty? && !@placed
           @ip.pick(view,x,y)
-          @point=@ip.position if @ip.valid?
+          if @face_mode
+            @face_valid=false
+            ph=view.pick_helper;ph.do_pick(x,y)
+            ph.count.times do |i|
+              path=ph.path_at(i)
+              face=path && path.last
+              next unless face.is_a?(Sketchup::Face)
+              tr=@model.edit_transform*ph.transformation_at(i)
+              pts=face.outer_loop.vertices.map { |v| v.position.transform(tr) }
+              n=nil
+              (1...pts.length-1).each do |j|
+                candidate=(pts[j]-pts[0]).cross(pts[j+1]-pts[0])
+                if candidate.length>1e-9;n=candidate.normalize;break;end
+              end
+              next unless n
+              hit=Geom.intersect_line_plane(view.pickray(x,y),[pts[0],n])
+              next unless hit
+              @normal=n;@point=hit;@face_valid=true
+              break
+            end
+          else
+            @point=@ip.position if @ip.valid?
+          end
         end
         view.invalidate
       end
@@ -228,6 +251,7 @@ module TranTuanNoiThat
         (1...@division_count).map { |i| @center.offset(@normal,low+(high-low)*i/@division_count) }
       end
       def cut_now(view)
+        raise 'Rê vào Face để nhận mặt cắt trước.' if @face_mode && !@face_valid
         raise 'Cấp chỉnh sửa đã đổi. Thoát công cụ và chọn lại khối.' unless @context==@model.active_entities
         all=@targets.flat_map { |t| CutBlock.leaves(t,@model.edit_transform) }
         planes=cut_planes.map { |p| [p,@normal] }
@@ -270,6 +294,13 @@ module TranTuanNoiThat
         status(e.message)
       end
       def onKeyDown(key,_repeat,_flags,view)
+        if key==16
+          return true if @down[key]
+          @down[key]=true
+          @face_mode=!@face_mode;@face_valid=false;@placed=false;@division_count=nil
+          @normal=Geom::Vector3d.new(*3.times.map { |i| i==@axis_index ? 1 : 0 }) unless @face_mode
+          status;view.invalidate;return true
+        end
         if [191,111].include?(key) && !@targets.empty?
           @division_count=2;@placed=true
           status('Chia đôi · nhập thêm N để chia N phần · click cắt')
@@ -284,10 +315,11 @@ module TranTuanNoiThat
           cut_now(view) unless @targets.empty?
         else
           axis=if key==9
-                 (@normal.to_a.index(1)+1)%3
+                 (@axis_index+1)%3
                else
                  [39,88].include?(key) ? 0 : ([37,89].include?(key) ? 1 : 2)
                end
+          @axis_index=axis;@face_mode=false;@face_valid=false
           @normal=Geom::Vector3d.new(*3.times.map { |i| i==axis ? 1 : 0 });status
         end
         view.invalidate;true
@@ -319,6 +351,7 @@ module TranTuanNoiThat
           return
         end
         return if @targets.empty? || @targets.any? { |t| !t.valid? }
+        return if @face_mode && !@face_valid
         cut_planes.each do |plane|
         data=CutBlock.plane_data(@points,plane,@normal);polygon=CutBlock.quad(data)
         view.drawing_color=Sketchup::Color.new(255,160,70,65);view.draw(GL_QUADS,polygon)
