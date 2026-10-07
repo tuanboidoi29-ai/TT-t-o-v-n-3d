@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.242",
+  "version": "1.9.243",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Vẽ Ván: tự bắt mép/tâm/mép theo chuột; giữ SHIFT cố định hướng mặt phẳng đang vẽ để bắt điểm tham chiếu, thả để tự do. CTRL trong/ngoài; TAB đổi chế độ.",
+  "notes": "Vẽ Ván: giữ SHIFT khóa vector kéo P1-P2, chiếu điểm tham chiếu lên hướng khóa; thả SHIFT trở lại tự do.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -14,12 +14,12 @@
     {
       "path": "tran_tuan_noi_that/board_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/board_tool.rb",
-      "sha256": "fe87ad99f9c43ab050a35de6c7a2b94e7659e42d51225f2fa347c7d8283124a9"
+      "sha256": "3a73dce7011a78a900a731021adeabf92bc83a6bc25b2801a817dbd7aa956c60"
     },
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "e70535dc545fb57505de66e5be3dc67823759220633c595c44d5ee57d69ef1af"
+      "sha256": "39444bb503dbde122487bf3937cceecdb78cd31f97ffa4a90287cc1d9f73089f"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -314,7 +314,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "bba6e7b858079afd96dd77542d981aecfe9975f1453732ff0028c7dff68df130"
+      "sha256": "cf4e68d1a41b1803ffacb79e927af756d7a0ba45125531e41ec3e742e82cafcc"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",

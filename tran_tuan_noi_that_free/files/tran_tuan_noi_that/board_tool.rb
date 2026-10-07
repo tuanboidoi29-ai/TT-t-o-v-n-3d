@@ -26,7 +26,7 @@ module TranTuanNoiThat
       def resume(view);status;view.invalidate;end
       def deactivate(view);view.invalidate;end
       def clear_shape
-        @p1=nil;@loops=[];@triangles=[];@normal=nil;@point=nil;@lock=nil;@auto_axes=nil;@source=nil;@shift_axes=nil;@preview_axes=nil
+        @p1=nil;@loops=[];@triangles=[];@normal=nil;@point=nil;@lock=nil;@auto_axes=nil;@source=nil;@shift_axes=nil;@shift_direction=nil;@preview_axes=nil;@preview_point=nil
         @ip.clear;@ip1.clear
       end
       def same_context?
@@ -78,7 +78,14 @@ module TranTuanNoiThat
           case key
           when 9
             @mode=@mode==:rectangle ? :face : :rectangle;clear_shape;@typed='';@input_invalid=false
-          when 16 then @shift_axes=@preview_axes.map(&:clone) if @p1 && @preview_axes
+          when 16
+            if @p1 && @preview_axes && @preview_point
+              delta=@preview_point-@p1
+              if delta.length>0.1.mm
+                @shift_axes=@preview_axes.map(&:clone)
+                @shift_direction=delta.normalize
+              end
+            end
           when 17,70 then @direction*=-1
           when 38 then @lock=[X_AXIS,Y_AXIS] if @p1
           when 37 then @lock=[X_AXIS,Z_AXIS] if @p1
@@ -105,7 +112,7 @@ module TranTuanNoiThat
       def onKeyUp(key,repeat,flags,view)
         @held.delete(key)
         if key==16
-          @shift_axes=nil
+          @shift_axes=nil;@shift_direction=nil
           update(view,*@mouse) if @mouse
           status;view.invalidate
           return true
@@ -213,10 +220,17 @@ module TranTuanNoiThat
         delta=@point ? @point-@p1 : Geom::Vector3d.new(0,0,0)
         u,v=axes_at_p2(hit,delta,view);@preview_axes=[u,v];n=u.cross(v).normalize
         point=@point || Geom.intersect_line_plane(view.pickray(x,y),[@p1,n]);return unless point
-        d=point-@p1;a=d.dot(u);b=d.dot(v);return if a.abs<0.1.mm || b.abs<0.1.mm
+        point=constrained_point(point)
+        d=point-@p1;a=d.dot(u);b=d.dot(v)
+        @preview_point=@p1.offset(u,a).offset(v,b)
+        return if a.abs<0.1.mm || b.abs<0.1.mm
         p=@p1.offset(u,a);q=p.offset(v,b);r=@p1.offset(v,b)
         @loops=[[@p1,p,q,r]];@normal=n
         @triangles=[@p1,p,q,@p1,q,r]
+      end
+      def constrained_point(point)
+        return point unless @shift_direction && @p1
+        @p1.offset(@shift_direction,(point-@p1).dot(@shift_direction))
       end
       def valid?;@normal && !@loops.empty? && @loops.first.length>=3;end
       def displacement;@normal.clone.tap{|v|v.reverse! if @direction<0};end
@@ -276,7 +290,7 @@ module TranTuanNoiThat
       end
       def status_text
         mode=@mode==:face ? 'THEO FACE: Rê mặt → click tạo' : (@p1 ? 'P2: Rê chọn hướng → click tạo' : 'P1: Click điểm đầu')
-        "#{mode} | Dày #{@thickness.to_mm.round(2)} mm | Tự bắt mép/tâm/mép | Giữ SHIFT khóa hướng | TAB đổi chế độ | Nhập số + Enter đổi dày | CTRL: #{@direction > 0 ? 'VÁN NGOÀI' : 'VÁN TRONG'}"
+        "#{mode} | Dày #{@thickness.to_mm.round(2)} mm | Tự bắt mép/tâm/mép | Giữ SHIFT khóa hướng kéo P1–P2 | TAB đổi chế độ | Nhập số + Enter đổi dày | CTRL: #{@direction > 0 ? 'VÁN NGOÀI' : 'VÁN TRONG'}"
       end
       def status
         Sketchup.status_text=status_text;Sketchup.vcb_label='Độ dày (mm)';Sketchup.vcb_value=@thickness.to_mm.round(2).to_s
