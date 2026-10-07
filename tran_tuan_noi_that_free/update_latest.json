@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.244",
+  "version": "1.9.245",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Vẽ Ván: hoàn thiện giữ SHIFT khóa hướng kéo, dấu tím tại điểm tạo và đường chiếu nét đứt từ điểm tham chiếu; bỏ điểm preview cũ khi mất điểm bắt.",
+  "notes": "Ngăn kéo: chia số lượng hoặc kích thước khoang tối đa; chia ngang có vách bằng độ dày thành; chặn giữa/chặn trên với cách trên/dưới, preview và hình thật dùng chung hình học.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "ac6c00f0e6aa9eb80fc54ddcba21d66f1a0b09689d0f385c32222f6148ae0bff"
+      "sha256": "79be9b536ae76d28bfa79a1b81d98b835933f58d862fce50755b99e9da87d5ce"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -39,7 +39,7 @@
     {
       "path": "tran_tuan_noi_that/drawer_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/drawer_tool.rb",
-      "sha256": "78efd229fa1490ee88659317451eab97952069cd5714fd78618e5eabd34cc2d8"
+      "sha256": "cbcc515b70e26f8ac33c2d11fc258235ae007d63b9d4939bb3181a42604d12fc"
     },
     {
       "path": "tran_tuan_noi_that/grain_align_fix.rb",
@@ -314,7 +314,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "878c9cb04473395e3a55f47ec37546db7efa9ba298c912e1d80fedb02f2fc449"
+      "sha256": "f811dca79bb3a3861dd30b327b665aa3d691edd3ff90e9b37a80d358ccdab05d"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",

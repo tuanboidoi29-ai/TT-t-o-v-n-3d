@@ -6,6 +6,9 @@ module TranTuanNoiThat
     DEFAULTS = {
       'side_height' => 150.0, 'rail_gap' => 13.0,
       'bottom_clearance' => 10.0, 'back_clearance' => 30.0,
+      'division_mode' => 'count', 'max_size' => 300.0,
+      'middle_stop' => false, 'top_stop' => false,
+      'stop_top_gap' => 2.0, 'stop_bottom_gap' => 2.0,
       'quantity' => 3, 'orientation' => 'vertical',
       'front_gap' => 10.0, 'bottom_mode' => 'cover',
       'bottom_offset' => 5.0, 'bottom_thickness' => 9.0,
@@ -53,6 +56,7 @@ module TranTuanNoiThat
     end
 
     def normalize(raw)
+      raw = DEFAULTS.merge(raw)
       data = {}
       DEFAULTS.each do |key, default|
         data[key] = if default == true || default == false
@@ -66,8 +70,10 @@ module TranTuanNoiThat
       data['quantity'] = [[raw['quantity'].to_i, 1].max, 50].min
       data['orientation'] = raw['orientation'].to_s == 'horizontal' ? 'horizontal' : 'vertical'
       data['bottom_mode'] = raw['bottom_mode'].to_s == 'custom' ? 'custom' : 'cover'
-      numeric = DEFAULTS.keys - %w[quantity orientation bottom_mode mark_contact reverse_depth]
-      raise 'Các thông số kích thước không được âm.' if numeric.any? { |key| data[key].to_f < 0 }
+      data['division_mode'] = raw['division_mode'] == 'maximum' ? 'maximum' : 'count'
+      raise 'Kích thước tối đa phải lớn hơn 0.' unless data['max_size'].finite? && data['max_size'] > 0
+      numeric = DEFAULTS.select { |key, value| value.is_a?(Numeric) }.keys
+      raise 'Các thông số kích thước không được âm.' if numeric.any? { |key| !data[key].finite? || data[key] < 0 }
       raise 'Độ dày tấm phải lớn hơn 0.' unless data['bottom_thickness'] > 0 && data['side_thickness'] > 0
       raise 'Chiều cao thanh phải lớn hơn 0.' unless data['side_height'] > 0
       data
@@ -83,6 +89,13 @@ module TranTuanNoiThat
         <div class="field"><label>Hở ray mỗi bên (mm)</label><input id="rail_gap" type="number" step="0.1"></div>
         <div class="field"><label>Cách đáy view (mm)</label><input id="bottom_clearance" type="number" step="0.1"></div>
         <div class="field"><label>Cách hậu (mm)</label><input id="back_clearance" type="number" step="0.1"></div>
+        <div class="field"><label>Cách chia</label><select id="division_mode"><option value="count">Số lượng cố định</option><option value="maximum">Kích thước tối đa mỗi khoang</option></select></div>
+        <div class="field"><label>Kích thước khoang tối đa (mm)</label><input id="max_size" type="number" min="1" step="0.1"></div>
+        <div class="field"><label><input id="middle_stop" type="checkbox"> Thêm chặn giữa các tầng</label></div>
+        <div class="field"><label><input id="top_stop" type="checkbox"> Thêm chặn trên</label></div>
+        <div class="field"><label>Chặn cách trên (mm)</label><input id="stop_top_gap" type="number" min="0" step="0.1"></div>
+        <div class="field"><label>Chặn cách dưới (mm)</label><input id="stop_bottom_gap" type="number" min="0" step="0.1"></div>
+        <div class="note wide">Ngang: chia các ngăn cạnh nhau, thêm vách dày bằng thành. Dọc: chia các tầng. Chặn đặt phía trước trong khoảng trống; cao = khoảng trống − cách trên − cách dưới.</div>
         <div class="field"><label>Số lượng ngăn kéo</label><input id="quantity" type="number" min="1" max="50" step="1"></div>
         <div class="field"><label>Hở thanh trước (mm)</label><input id="front_gap" type="number" step="0.1"></div>
         <div class="field"><label>Dày tấm đáy (mm)</label><input id="bottom_thickness" type="number" step="0.1"></div>
@@ -97,13 +110,13 @@ module TranTuanNoiThat
         </div><button onclick="applyNow()">ÁP DỤNG - CẬP NHẬT PREVIEW</button><div id="msg"></div><div class="note">Tịnh tiến chỉ nâng tấm đáy; 4 thanh giữ nguyên. Click trong model sau khi chỉnh xong để tạo thật.</div>
         <script>
         const initial=#{json};
-        Object.keys(initial).forEach(k=>{const el=document.getElementById(k);if(el)el.value=initial[k]});
+        Object.keys(initial).forEach(k=>{const el=document.getElementById(k);if(el){if(el.type==='checkbox')el.checked=initial[k]===true;else el.value=initial[k]}});
         document.querySelector(`input[name=orientation][value="${initial.orientation}"]`).checked=true;
         document.querySelector(`input[name=bottom_mode][value="${initial.bottom_mode}"]`).checked=true;
         document.getElementById('mark_contact').checked=initial.mark_contact===true||initial.mark_contact==='true';
         document.getElementById('reverse_depth').checked=initial.reverse_depth===true||initial.reverse_depth==='true';
         function value(id){return document.getElementById(id).value}
-        function applyNow(){const data={};['side_height','rail_gap','bottom_clearance','back_clearance','quantity','front_gap','bottom_thickness','side_thickness','bottom_offset','bottom_shift','fallback_depth'].forEach(k=>data[k]=value(k));data.orientation=document.querySelector('input[name=orientation]:checked').value;data.bottom_mode=document.querySelector('input[name=bottom_mode]:checked').value;data.mark_contact=document.getElementById('mark_contact').checked;data.reverse_depth=document.getElementById('reverse_depth').checked;sketchup.apply(JSON.stringify(data))}
+        function applyNow(){const data={};['division_mode','max_size','stop_top_gap','stop_bottom_gap','side_height','rail_gap','bottom_clearance','back_clearance','quantity','front_gap','bottom_thickness','side_thickness','bottom_offset','bottom_shift','fallback_depth'].forEach(k=>data[k]=value(k));['middle_stop','top_stop'].forEach(k=>data[k]=document.getElementById(k).checked);data.orientation=document.querySelector('input[name=orientation]:checked').value;data.bottom_mode=document.querySelector('input[name=bottom_mode]:checked').value;data.mark_contact=document.getElementById('mark_contact').checked;data.reverse_depth=document.getElementById('reverse_depth').checked;sketchup.apply(JSON.stringify(data))}
         function syncContact(){const custom=document.querySelector('input[name=bottom_mode]:checked').value==='custom';const mark=document.getElementById('mark_contact');mark.disabled=!custom;if(!custom)mark.checked=false;applyNow()}
         document.querySelectorAll('input[name=bottom_mode]').forEach(el=>el.addEventListener('change',syncContact));
         document.getElementById('mark_contact').addEventListener('change',applyNow);
@@ -397,30 +410,59 @@ module TranTuanNoiThat
 
       def preview_parts
         return [] unless valid_front?
-        quantity = @options['quantity'].to_i
         x_min, x_max = [0, @span_u].minmax
         z_min, z_max = [0, @span_v].minmax
+        horizontal = @options['orientation'] == 'horizontal'
+        thick = @options['side_thickness'].mm
+        length = horizontal ? x_max-x_min : z_max-z_min
+        divider = horizontal ? thick : 0.0
+        quantity = if @options['division_mode'] == 'maximum'
+                     [( (length+divider) / (@options['max_size'].mm+divider) ).ceil, 1].max
+                   else
+                     @options['quantity'].to_i
+                   end
+        return [] if quantity > 50 || quantity < 1
+        slot = (length-divider*(quantity-1))/quantity
+        return [] if slot <= 0
+        @actual_quantity = quantity
         y_min = 0
-        y_max = [@depth_length - @options['back_clearance'].mm, 1.mm].max
+        y_max = @depth_length - @options['back_clearance'].mm
+        return [] if y_max <= thick*2
         parts = []
-
         quantity.times do |index|
-          if @options['orientation'] == 'horizontal'
-            slot = (x_max - x_min) / quantity
-            sx0 = x_min + slot * index
-            sx1 = x_min + slot * (index + 1)
+          if horizontal
+            sx0 = x_min + (slot+divider)*index
+            sx1 = sx0+slot
             sz0, sz1 = z_min, z_max
           else
-            slot = (z_max - z_min) / quantity
             sx0, sx1 = x_min, x_max
-            sz0 = z_min + slot * index
-            sz1 = z_min + slot * (index + 1)
+            sz0 = z_min+slot*index
+            sz1 = sz0+slot
           end
-          parts.concat(parts_for_drawer(index, sx0, sx1, y_min, y_max, sz0, sz1))
+          drawer = parts_for_drawer(index,sx0,sx1,y_min,y_max,sz0,sz1)
+          return [] if drawer.empty?
+          parts.concat(drawer)
+          if horizontal && index < quantity-1
+            parts << {name: format('VACH_CHIA_%02d',index+1), box: [sx1,y_min,z_min,thick,y_max,z_max-z_min]}
+          end
+          last = index == quantity-1
+          add_stop = horizontal ? @options['top_stop'] : (last ? @options['top_stop'] : @options['middle_stop'])
+          if add_stop
+            top = drawer.reject{|part|part[:bottom]}.map{|part|part[:box][2]+part[:box][5]}.max
+            limit = if horizontal || last
+                      sz1
+                    else
+                      sz1 + @options['bottom_clearance'].mm
+                    end
+            low = top + @options['stop_bottom_gap'].mm
+            high = limit - @options['stop_top_gap'].mm
+            if high-low > 0.1.mm
+              name = horizontal || last ? 'CHAN_TREN' : 'CHAN_GIUA'
+              parts << {name: format('%s_%02d',name,index+1), box: [sx0,y_min,low,sx1-sx0,thick,high-low]}
+            end
+          end
         end
         parts
-      rescue StandardError
-        []
       end
 
       def parts_for_drawer(index, sx0, sx1, y0, y1, z0, z1)
@@ -435,7 +477,7 @@ module TranTuanNoiThat
         x0, x1 = sx0 + gap, sx1 - gap
         return [] if x1 - x0 <= thick * 2 || y1 - y0 <= thick * 2
 
-        tag = @options['quantity'].to_i == 1 ? '' : format('_%02d', index + 1)
+        tag = (@actual_quantity || @options['quantity'].to_i) == 1 ? '' : format('_%02d', index + 1)
         parts = [
           { name: "THANH_TRAI#{tag}", box: [x0, y0, rail_z, thick, y1-y0, side_h] },
           { name: "THANH_PHAI#{tag}", box: [x1-thick, y0, rail_z, thick, y1-y0, side_h] },
@@ -577,7 +619,8 @@ module TranTuanNoiThat
         model = Sketchup.active_model
         model.start_operation('TRẦN TUẤN - Vẽ Ngăn Kéo', true)
         parts = preview_parts
-        quantity = @options['quantity'].to_i
+        raise 'Khoang quá nhỏ hoặc cần hơn 50 ngăn; hãy chỉnh thông số.' if parts.empty?
+        quantity = @actual_quantity
         quantity.times do |index|
           parent = model.active_entities.add_group
           suffix = quantity == 1 ? '' : format('_%02d', index + 1)
