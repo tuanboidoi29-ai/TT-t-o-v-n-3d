@@ -26,7 +26,7 @@ module TranTuanNoiThat
       def resume(view);status;view.invalidate;end
       def deactivate(view);view.invalidate;end
       def clear_shape
-        @p1=nil;@loops=[];@triangles=[];@normal=nil;@point=nil;@lock=nil;@auto_axes=nil;@source=nil
+        @p1=nil;@loops=[];@triangles=[];@normal=nil;@point=nil;@lock=nil;@auto_axes=nil;@source=nil;@shift_axes=nil;@preview_axes=nil
         @ip.clear;@ip1.clear
       end
       def same_context?
@@ -48,7 +48,7 @@ module TranTuanNoiThat
         if @mode==:face
           face_preview(hit,view,x,y)
         else
-          @point=@ip.valid? ? snap_point(@ip.position,hit) : nil
+          @point=@ip.valid? ? snap_point(@ip.position,hit,view,x,y) : nil
           rectangle_preview(view,x,y,hit) if @p1
         end
         view.tooltip=status_text
@@ -78,7 +78,7 @@ module TranTuanNoiThat
           case key
           when 9
             @mode=@mode==:rectangle ? :face : :rectangle;clear_shape;@typed='';@input_invalid=false
-          when 16 then @snap=(@snap+1)%3
+          when 16 then @shift_axes=@preview_axes.map(&:clone) if @p1 && @preview_axes
           when 17,70 then @direction*=-1
           when 38 then @lock=[X_AXIS,Y_AXIS] if @p1
           when 37 then @lock=[X_AXIS,Z_AXIS] if @p1
@@ -102,7 +102,16 @@ module TranTuanNoiThat
         end
         false
       end
-      def onKeyUp(key,repeat,flags,view);@held.delete(key);false;end
+      def onKeyUp(key,repeat,flags,view)
+        @held.delete(key)
+        if key==16
+          @shift_axes=nil
+          update(view,*@mouse) if @mouse
+          status;view.invalidate
+          return true
+        end
+        false
+      end
       def onUserText(text,view)
         mm=Board.parse_thickness(text);@thickness=mm.mm;@typed='';@input_invalid=false
         TranTuanNoiThat.save_setting('thickness',mm)
@@ -130,7 +139,7 @@ module TranTuanNoiThat
         end
         nil
       end
-      def snap_point(point,hit)
+      def snap_point(point,hit,view=nil,x=nil,y=nil)
         return point unless hit
         container=hit[:path].reverse.find{|e|e.is_a?(Sketchup::Group)||e.is_a?(Sketchup::ComponentInstance)}
         return point unless container
@@ -144,8 +153,22 @@ module TranTuanNoiThat
         axis=(0..2).min_by{|i|sizes[i]}
         return point unless sizes[axis]>0 && sizes[axis]<=100.mm && sizes[axis]<sizes.max*0.4
         p=point.transform(hit[:tr].inverse).to_a
-        p[axis]=[lo[axis],(lo[axis]+hi[axis])/2,hi[axis]][@snap]
-        Geom::Point3d.new(p).transform(hit[:tr])
+        candidates=[lo[axis],(lo[axis]+hi[axis])/2,hi[axis]].map do |value|
+          q=p.dup;q[axis]=value
+          Geom::Point3d.new(q).transform(hit[:tr])
+        end
+        distances=candidates.map do |q|
+          if view && x && y
+            screen=view.screen_coords(q)
+            Math.sqrt((screen.x-x)**2+(screen.y-y)**2)
+          else
+            q.distance(point)
+          end
+        end
+        index=(0..2).min_by{|i|distances[i]}
+        return point if view && distances[index]>14
+        @snap=index
+        candidates[index]
       end
       def face_preview(hit,view,x,y)
         @loops=[];@triangles=[];@normal=nil
@@ -163,6 +186,7 @@ module TranTuanNoiThat
         end
       end
       def axes_at_p2(hit,delta,view)
+        return @shift_axes if @shift_axes
         return @lock if @lock
         if hit
           normal=polygon_normal(face_points(hit))
@@ -187,7 +211,7 @@ module TranTuanNoiThat
       def rectangle_preview(view,x,y,hit)
         @loops=[];@triangles=[];@normal=nil
         delta=@point ? @point-@p1 : Geom::Vector3d.new(0,0,0)
-        u,v=axes_at_p2(hit,delta,view);n=u.cross(v).normalize
+        u,v=axes_at_p2(hit,delta,view);@preview_axes=[u,v];n=u.cross(v).normalize
         point=@point || Geom.intersect_line_plane(view.pickray(x,y),[@p1,n]);return unless point
         d=point-@p1;a=d.dot(u);b=d.dot(v);return if a.abs<0.1.mm || b.abs<0.1.mm
         p=@p1.offset(u,a);q=p.offset(v,b);r=@p1.offset(v,b)
@@ -196,7 +220,7 @@ module TranTuanNoiThat
       end
       def valid?;@normal && !@loops.empty? && @loops.first.length>=3;end
       def displacement;@normal.clone.tap{|v|v.reverse! if @direction<0};end
-      def base_shift;@mode==:face ? -@thickness*(@snap/2.0) : 0.0;end
+      def base_shift;0.0;end
       def shifted(p,top=false);p.offset(displacement,base_shift+(top ? @thickness : 0));end
       def draw(view)
         @ip.draw(view) if @mode==:rectangle && @ip.display?
@@ -252,7 +276,7 @@ module TranTuanNoiThat
       end
       def status_text
         mode=@mode==:face ? 'THEO FACE: Rê mặt → click tạo' : (@p1 ? 'P2: Rê chọn hướng → click tạo' : 'P1: Click điểm đầu')
-        "#{mode} | Dày #{@thickness.to_mm.round(2)} mm | SHIFT: #{['MÉP 1','TÂM','MÉP 2'][@snap]} | TAB đổi chế độ | Nhập số + Enter đổi dày | CTRL: #{@direction > 0 ? 'VÁN NGOÀI' : 'VÁN TRONG'}"
+        "#{mode} | Dày #{@thickness.to_mm.round(2)} mm | Tự bắt mép/tâm/mép | Giữ SHIFT khóa hướng | TAB đổi chế độ | Nhập số + Enter đổi dày | CTRL: #{@direction > 0 ? 'VÁN NGOÀI' : 'VÁN TRONG'}"
       end
       def status
         Sketchup.status_text=status_text;Sketchup.vcb_label='Độ dày (mm)';Sketchup.vcb_value=@thickness.to_mm.round(2).to_s
