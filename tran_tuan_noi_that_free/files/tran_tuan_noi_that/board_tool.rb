@@ -72,14 +72,14 @@ module TranTuanNoiThat
         UI.messagebox("Không tạo được ván: #{e.message}")
       end
       def onKeyDown(key,repeat,flags,view)
-        if [9,16,70,37,38,39,40].include?(key)
+        if [9,16,17,70,37,38,39,40].include?(key)
           return true if @held[key]
           @held[key]=true
           case key
           when 9
             @mode=@mode==:rectangle ? :face : :rectangle;clear_shape;@typed='';@input_invalid=false
           when 16 then @snap=(@snap+1)%3
-          when 70 then @direction*=-1
+          when 17,70 then @direction*=-1
           when 38 then @lock=[X_AXIS,Y_AXIS] if @p1
           when 37 then @lock=[X_AXIS,Z_AXIS] if @p1
           when 39 then @lock=[Y_AXIS,Z_AXIS] if @p1
@@ -252,7 +252,7 @@ module TranTuanNoiThat
       end
       def status_text
         mode=@mode==:face ? 'THEO FACE: Rê mặt → click tạo' : (@p1 ? 'P2: Rê chọn hướng → click tạo' : 'P1: Click điểm đầu')
-        "#{mode} | Dày #{@thickness.to_mm.round(2)} mm | SHIFT: #{['MÉP 1','TÂM','MÉP 2'][@snap]} | TAB đổi chế độ | Nhập số + Enter đổi dày | F đảo phía"
+        "#{mode} | Dày #{@thickness.to_mm.round(2)} mm | SHIFT: #{['MÉP 1','TÂM','MÉP 2'][@snap]} | TAB đổi chế độ | Nhập số + Enter đổi dày | CTRL: #{@direction > 0 ? 'VÁN NGOÀI' : 'VÁN TRONG'}"
       end
       def status
         Sketchup.status_text=status_text;Sketchup.vcb_label='Độ dày (mm)';Sketchup.vcb_value=@thickness.to_mm.round(2).to_s
