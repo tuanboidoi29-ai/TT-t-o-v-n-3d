@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.255",
+  "version": "1.9.256",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Scale 4 Cạnh: kéo từ tâm mặt tấm chọn hướng hoặc kéo bốn nút quanh tâm; giữ cạnh đối diện. Đã kiểm tra tĩnh, chưa kiểm thử SketchUp trực tiếp.",
+  "notes": "TT – ChatGPT Connect: chat trực tiếp trong SketchUp bằng OpenAI Responses API; gửi model/selection, tùy chọn ảnh Viewport; nút mở nhanh công cụ TRẦN TUẤN. API key chỉ giữ trong phiên hoặc biến môi trường, không nhúng trong plugin.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "b898d28eabdfda77e616fc013bd4fa3bcb32cd8b4a7a6a250314865dafb25c9a"
+      "sha256": "8ec95efd33c4ea31738762a470833841b53cb6eaf44f082f5605ab38da2ea9a6"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -314,7 +314,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "24ee432337f07a0621b55aca890f9009939abc718386a1e4f8b0cdd78889f64d"
+      "sha256": "01f6eb7bcb17aec29c6baf5eaf283bf6666135667bd8560aa6e78d4dfd8dce69"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -425,6 +425,16 @@
       "path": "tran_tuan_noi_that/icons/wine_rack.svg",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/icons/wine_rack.svg",
       "sha256": "55844ab0a38ada0a135baba9837f61eb654780be8216fdffa8041ee436659155"
+    },
+    {
+      "path": "tran_tuan_noi_that/chatgpt_connect.rb",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/chatgpt_connect.rb",
+      "sha256": "18140079717eca58c20015f3cec87a633375e3fdd7b6a6a3b20858789abe37d1"
+    },
+    {
+      "path": "tran_tuan_noi_that/icons/chatgpt.svg",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/icons/chatgpt.svg",
+      "sha256": "3ba3c47a592b1a57f0d03e46b66c895f9446732420b0ac06c9f207b4dec34364"
     }
   ],
   "stretch_mode_version": "1.0.1",
