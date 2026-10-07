@@ -153,6 +153,11 @@ module TranTuanNoiThat
         @targets=[];@normal=Geom::Vector3d.new(0,0,1);@down={};@placed=false
         @ip=Sketchup::InputPoint.new
         selected=@model.selection.to_a.select { |e| CutBlock.container?(e) }
+        if selected.empty?
+          @model.active_path=nil if @model.active_path
+          @context=@model.active_entities
+          selected=@context.select { |e| CutBlock.container?(e) && e.valid? }
+        end
         select_targets(selected) unless selected.empty?
         status
       rescue StandardError=>e
@@ -248,6 +253,7 @@ module TranTuanNoiThat
       def onUserText(text,view)
         raise 'Chọn khối trước khi nhập vị trí cắt.' if @targets.empty?
         raw=text.strip
+        raw='/2' if raw=='/'
         if raw.start_with?('/')
           raise 'Nhập /2 đến /50.' unless raw.match?(/\A\/\s*\d+\z/)
           count=raw.delete('/').strip.to_i
@@ -264,7 +270,14 @@ module TranTuanNoiThat
         status(e.message)
       end
       def onKeyDown(key,_repeat,_flags,view)
-        return false unless [9,13,37,38,39,88,89,90].include?(key)
+        if [191,111].include?(key) && !@targets.empty?
+          @division_count=2;@placed=true
+          status('Chia đôi · nhập thêm N để chia N phần · click cắt')
+          view.invalidate
+          return false
+        end
+        return false if key==13
+        return false unless [9,37,38,39,88,89,90].include?(key)
         return true if @down[key]
         @down[key]=true
         if key==13

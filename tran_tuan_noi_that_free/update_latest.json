@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.250",
+  "version": "1.9.251",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Cắt khối: chọn tấm cắt tấm, chọn cụm cắt các tấm con giao mặt phẳng; giữ cấu trúc cha, make unique trước khi sửa cụm, hỗ trợ tọa độ Group xoay và cấp đang mở.",
+  "notes": "Cắt khối: không chọn trước thì tự quét Group/Component toàn model; / preview chia đôi, /N chia N phần; Enter nhập số, click mới cắt.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "fd40dc367bb71fc290753d8ff569812aa45b94c5d4b0cf20d515df494231ca40"
+      "sha256": "104a832cba77a2fb88dc77f25c79f8f43341098709fa1cd422de32af8f36217a"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -314,7 +314,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "317e676cb1f88eb292377f7e363631349f76b8e1840cbaa6243a86fc6dfa74b1"
+      "sha256": "27acf5b7a833e664133f7b37a8d998455c73b9b6ac675a7f03486f6cebb83e14"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -359,7 +359,7 @@
     {
       "path": "tran_tuan_noi_that/cut_block.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/cut_block.rb",
-      "sha256": "ea4e230c1e1cf38ec9fbe78c80b64342bc2bf1bc1c169dfd6e6870d5ff1f8d03"
+      "sha256": "d6a51173b8dd5b3c0aeeaafd80ef2b25fd4caf47fc86e2dcdecc7d20e62111da"
     },
     {
       "path": "tran_tuan_noi_that/icons/cut_block.svg",
