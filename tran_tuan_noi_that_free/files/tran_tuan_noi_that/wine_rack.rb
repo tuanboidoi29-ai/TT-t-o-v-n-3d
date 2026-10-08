@@ -131,20 +131,24 @@ module TranTuanNoiThat
       end
     end
 
-    # Chọn bước nan gần kích thước ô người dùng nhất nhưng ưu tiên
-    # để các hàng đỉnh V rơi đúng lên biên trên/dưới của khung.
-    # Đồng thời chọn nghiệm làm biên trái/phải gần hàng đỉnh V nhất.
+    # Với đầu nan vuông, hai họ ±45° được lệch pha t/2 để
+    # hai góc đầu vuông gặp nhau thành một đỉnh V trên biên khung.
+    # Chọn pitch sao cho V trên/dưới khớp chính xác; trái/phải fit gần nhất.
     def fitted_diagonal_pitch(iw, ih, t, target)
       desired = target + t
-      ideal_steps = ih * Math.sqrt(2) / desired
+      usable_y = ih * Math.sqrt(2) - 2.0 * t
+      usable_x = iw * Math.sqrt(2) - 2.0 * t
+      raise 'Vùng quá nhỏ để tạo đầu vuông chữ V.' unless usable_y > desired
+
+      ideal_steps = usable_y / desired
       center = [ideal_steps.round, 1].max
-      candidates = (([center - 8, 1].max)..(center + 8)).to_a
+      candidates = (([center - 10, 1].max)..(center + 10)).to_a
 
       best = candidates.map do |steps_y|
-        pitch = ih * Math.sqrt(2) / steps_y.to_f
+        pitch = usable_y / steps_y.to_f
         next if pitch <= t + 1.0
 
-        steps_x = iw * Math.sqrt(2) / pitch
+        steps_x = usable_x / pitch
         size_error = ((pitch - t) - target).abs / [target, 1.0].max
         side_error = (steps_x - steps_x.round).abs
 
@@ -152,7 +156,7 @@ module TranTuanNoiThat
           pitch: pitch,
           steps_y: steps_y,
           steps_x: steps_x,
-          score: size_error + side_error * 0.35
+          score: size_error + side_error * 0.40
         }
       end.compact.min_by { |item| item[:score] }
 
@@ -196,46 +200,41 @@ module TranTuanNoiThat
       end
     end
 
-    # Thanh chéo đầu nhọn: centerline chạm biên tại một điểm.
-    # Hai họ nan được cùng pha nên hai đầu nhọn dùng chung điểm -> thành góc V.
-    def pointed_strip(base, normal, c, thickness)
-      endpoints = line_rect_intersections(base, normal, c)
-      return [] unless endpoints && endpoints.length == 2
-
-      p0, p1 = endpoints
-      dx = p1[0] - p0[0]
-      dy = p1[1] - p0[1]
-      length = Math.hypot(dx, dy)
-      return [] if length <= thickness + 1.0e-6
-
-      ux = dx / length
-      uy = dy / length
-      half = thickness / 2.0
-      cap = [thickness * 0.75, length * 0.24].min
-
-      q0 = [p0[0] + ux * cap, p0[1] + uy * cap]
-      q1 = [p1[0] - ux * cap, p1[1] - uy * cap]
-
-      nx, ny = normal
-      poly = [
-        p0,
-        [q0[0] + nx * half, q0[1] + ny * half],
-        [q1[0] + nx * half, q1[1] + ny * half],
-        p1,
-        [q1[0] - nx * half, q1[1] - ny * half],
-        [q0[0] - nx * half, q0[1] - ny * half]
-      ]
-
+    # Thanh chéo đầu vuông 90°.
+    # Centerline được cắt trong hình chữ nhật đã co theo nửa bề rộng nan,
+    # vì vậy end-face vuông nằm hoàn toàn trong khung.
+    # Pha của hai họ được lệch t/2 để một góc đầu vuông của mỗi họ
+    # trùng nhau thành đỉnh V đúng trên biên khung.
+    def square_strip(base, normal, c, thickness)
       xs = base.map { |p| p[0] }
       ys = base.map { |p| p[1] }
       x0, x1 = xs.minmax
       y0, y1 = ys.minmax
 
-      poly = clip(poly, [ 1.0,  0.0], x1)
-      poly = clip(poly, [-1.0,  0.0], -x0)
-      poly = clip(poly, [ 0.0,  1.0], y1)
-      poly = clip(poly, [ 0.0, -1.0], -y0)
-      poly
+      half = thickness / 2.0
+      nx, ny = normal
+      margin_x = half * nx.abs
+      margin_y = half * ny.abs
+
+      center_base = rect(
+        x0 + margin_x,
+        y0 + margin_y,
+        (x1 - x0) - 2.0 * margin_x,
+        (y1 - y0) - 2.0 * margin_y
+      )
+
+      endpoints = line_rect_intersections(center_base, normal, c)
+      return [] unless endpoints && endpoints.length == 2
+
+      p0, p1 = endpoints
+      poly = [
+        [p0[0] + nx * half, p0[1] + ny * half],
+        [p1[0] + nx * half, p1[1] + ny * half],
+        [p1[0] - nx * half, p1[1] - ny * half],
+        [p0[0] - nx * half, p0[1] - ny * half]
+      ]
+
+      signed_area(poly) >= 0 ? poly : poly.reverse
     end
 
     def rect(x, y, w, h)
@@ -356,11 +355,12 @@ module TranTuanNoiThat
         pitch = fit[:pitch]
         raise 'Ô quá nhỏ.' unless pitch > t + 1.0
 
-        # Pha hai họ nan từ chính giữa biên trên.
-        # Hai centerline ±45° cùng đi qua một điểm -> tạo đỉnh V chạm khung.
+        # Hai centerline không đi qua cùng một điểm.
+        # Mỗi họ lệch +t/2 theo pháp tuyến: góc ngoài của hai đầu vuông
+        # mới trùng nhau thành đỉnh V đúng tại giữa biên trên.
         phases = [
-          (cx + y0) * inv,
-          (-cx + y0) * inv
+          (cx + y0) * inv + t / 2.0,
+          (-cx + y0) * inv + t / 2.0
         ]
 
         families = [[], []]
@@ -378,7 +378,7 @@ module TranTuanNoiThat
           (k_min..k_max).each do |k|
             c_line = phase + k * pitch
 
-            poly = pointed_strip(base, normal, c_line, t)
+            poly = square_strip(base, normal, c_line, t)
 
             next unless area(poly) > 0.01
             families[family_index] << poly
@@ -418,7 +418,7 @@ module TranTuanNoiThat
         clear_diamond = [pitch - t, 1.0].max
         frame_note = frame ? 'KHUNG BẬT' : 'KHUNG TẮT'
         side_fit = (fit[:steps_x] - fit[:steps_x].round).abs < 0.08 ? 'V chạm đủ 4 biên' : 'V ưu tiên biên trên/dưới'
-        note = "Ô chéo 45° · V tiếp khung · ô nhập #{target.round(1)} mm / thực ≈ #{clear_diamond.round(1)} mm · #{meta[:intersections].length} khấu 1/2 · #{side_fit} · #{frame_note}"
+        note = "Ô chéo 45° · đầu vuông + V tiếp khung · ô nhập #{target.round(1)} mm / thực ≈ #{clear_diamond.round(1)} mm · #{meta[:intersections].length} khấu 1/2 · #{side_fit} · #{frame_note}"
       end
 
       # Chuẩn hóa nhưng giữ nguyên thứ tự/index để metadata giao điểm
