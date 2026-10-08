@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.266",
+  "version": "1.9.267",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Vẽ Ô Rượu chéo: đầu nan đổi thành dạng nhọn để hai họ ±45° gặp nhau thành đỉnh V tiếp giáp trực tiếp khung/viền; hệ nan được căn pha theo biên khung và ưu tiên hàng V trên/dưới. TAB đổi thành chia theo Kích thước ô rượu lọt lòng (mm), tự tính bước nan gần kích thước nhập và cập nhật preview ngay. Giữ khấu âm dương 1/2 và SHIFT bật/tắt khung.",
+  "notes": "Vẽ Ô Rượu chéo: đổi đầu nan về đầu vuông 90°, không đầu nhọn. Hai họ +45°/-45° được lệch pha theo nửa bề dày để hai góc đầu vuông gặp nhau thành đỉnh V tiếp xúc khung; hàng V trên/dưới khớp chính xác, trái/phải fit gần nhất theo kích thước khung. Giữ khấu âm dương 1/2 chiều sâu, SHIFT khung và TAB chia theo kích thước ô lọt lòng.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "c617e6f59ab804f24787847e6198eafddb85667eab4c80c002dd431a7c5bebcf"
+      "sha256": "964ac2feca39c802e51b046b564d763d3b24f5f59f568634927ea4bc8c2abbf0"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -314,7 +314,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "3868068743a85bedbfc8ee943d7a28d1ec545ac0fd0dbe66f5830de585811f1f"
+      "sha256": "22137f3b735d460e107dfc899d7d11a869217fd34534628d558cc21390e44a48"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -419,7 +419,7 @@
     {
       "path": "tran_tuan_noi_that/wine_rack.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/wine_rack.rb",
-      "sha256": "ee84a32d30ff5bceea1a54389210aabb3f5eb6aa9dd4f34896524721049f267a"
+      "sha256": "1d245ac00af5795e35eb4a33b3d93853128a96fda5fa6045f3c58fde93917cff"
     },
     {
       "path": "tran_tuan_noi_that/icons/wine_rack.svg",
