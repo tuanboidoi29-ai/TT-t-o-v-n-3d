@@ -3,47 +3,128 @@ module TranTuanNoiThat
   module RenameUI
     def self.html
       <<~'TT_RENAME_HTML'
-<!doctype html><html lang="vi"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>TT – Đổi Tên</title>
-<style>*{box-sizing:border-box}body{font:14px Arial,sans-serif;background:#f3f5f8;color:#203345;margin:18px}h1{font-size:22px;margin:0 0 5px}p{line-height:1.5;margin:8px 0}button,input,select{font:inherit}button{padding:9px 12px;border:1px solid #b8c6d4;border-radius:5px;background:white;cursor:pointer}button.primary{background:#1769a9;color:white;border-color:#1769a9}button:disabled{opacity:.5;cursor:wait}input[type=text],select{width:100%;padding:9px;border:1px solid #b8c6d4;border-radius:5px;background:white}label{display:block;margin:9px 0}input[type=checkbox]{accent-color:#1769a9}.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.bar label{margin:0}.layout{display:grid;grid-template-columns:minmax(520px,1.2fr) minmax(330px,1fr);gap:15px;margin-top:14px}.panel{background:white;border:1px solid #d9e1e8;border-radius:8px;padding:14px}.table-wrap{height:460px;overflow:auto}table{border-collapse:collapse;width:100%;font-size:13px}th{position:sticky;top:0;background:#eaf0f6;text-align:left}th,td{padding:9px 7px;border-bottom:1px solid #e4e9ef}tr{cursor:pointer}tr.active{background:#fff0dc}tr:hover{background:#edf5fc}.stats{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}.stats span{padding:8px 12px;background:#e6eef6;border-radius:5px}.muted{color:#647587;font-size:12px}#shape{height:300px;background:#fff9f0;border:1px solid #f1dfc8;border-radius:6px;display:flex;align-items:center;justify-content:center}#shape svg{width:100%;height:100%}#error{color:#b22d28;min-height:20px;margin:10px 0}#message{color:#276b35}details{margin-top:14px;border-top:1px solid #dbe2e9;padding-top:10px}summary{cursor:pointer;font-weight:bold}.thickness button{margin:3px}#detail-name{font-weight:bold;margin:10px 0;overflow-wrap:anywhere}@media(max-width:900px){.layout{grid-template-columns:1fr}.table-wrap{height:330px}}</style>
-<h1>ĐỔI TÊN · THỐNG KÊ CHI TIẾT</h1><p class="muted">Chọn Group/Component ngoài model: tự liệt kê toàn bộ Group/Component con các cấp của đối tượng đó. Bấm một dòng để chọn đối tượng và xem biên dạng 3D.</p>
-<div class="bar"><button id="scan" class="primary" onclick="scan(false)">Quét vùng đang chọn</button><button id="scan-all" onclick="scan(true)">Quét toàn model</button><label><input id="only-leaf" type="checkbox" onchange="render()"> Chỉ hiện chi tiết cuối</label><button onclick="checkAll()">Chọn tất cả đang hiện</button><button onclick="checked.clear();render()">Bỏ chọn</button></div>
-<div id="message">Chưa quét.</div><div id="error" role="alert"></div><div id="stats" class="stats"></div>
-<div class="layout"><section class="panel"><input id="filter" type="text" placeholder="Tìm tên, Tag hoặc độ dày…" oninput="render()"><div class="table-wrap"><table><thead><tr><th>Chọn</th><th>Tên đối tượng</th><th>Loại</th><th>Tag</th><th>Dày ≈ mm</th><th>Tìm tấm</th></tr></thead><tbody id="rows"></tbody></table></div><p id="selected-count"></p><div class="bar"><button onclick="page=Math.max(0,page-1);render()">Trang trước</button><span id="page-info"></span><button onclick="page++;render()">Trang sau</button></div><div id="thickness" class="thickness"></div><p class="muted">Độ dày ước tính = cạnh nhỏ nhất của hộp bao theo trục cục bộ, có tính scale; thống kê làm tròn 0,1 mm. Khối xoay hình học trong Group hoặc không phải tấm có thể cần kiểm tra lại.</p></section>
-<section class="panel"><div class="bar"><b>Biên dạng 3D</b><button class="primary" onclick="findPart()">Tìm tấm · Zoom</button><button onclick="resetView()">Góc nhìn ban đầu</button></div><div id="detail-name">Chọn một đối tượng</div><div id="shape"><canvas id="view3d" width="700" height="420" style="width:100%;height:100%;touch-action:none;cursor:grab"></canvas></div><p id="shape-note" class="muted"></p><p id="dimensions"></p>
-<label>Tên mới<input id="new-name" type="text" maxlength="120" placeholder="Ví dụ: Hậu phủ"></label><label><input id="change-tag" type="checkbox"> Đổi Tag cùng lượt lưu</label><label>Tên Tag mới (trống = Untagged)<input id="new-tag" type="text" maxlength="120"></label><div class="bar"><button class="primary action" onclick="save(false)">Lưu tên</button><button class="action" onclick="save(true)">Lưu & chi tiết tiếp</button></div>
-<details><summary>Xóa tên + Tag/Layer / đặt lại hàng loạt</summary><p>Xóa tên và gỡ Tag/Layer cũ của tất cả dòng đã đánh dấu. Có tên/Tag mới thì thay bằng giá trị mới; để trống = không tên/Untagged. Nhóm cha chỉ được chọn khi bỏ “Chỉ hiện chi tiết cuối”.</p><label>Tên thay thế sau khi xóa (trống = không tên)<input id="reset-name" type="text" maxlength="120"></label><label>Tag mặc định sau khi xóa (trống = Untagged)<input id="reset-tag" type="text" maxlength="120"></label><button class="action" onclick="clearNames()">Xóa tên + Tag / áp dụng tên mới</button></details><p class="muted">Đổi tên Component là đổi tên instance, giữ tên definition. Mỗi lượt lưu hoặc xóa có một lần Undo. Bấm dòng lồng nhau sẽ mở nhóm cha để chọn đúng chi tiết.</p></section></div>
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TT – Đổi Tên</title>
+<style>
+*{box-sizing:border-box}body{font:14px Arial,sans-serif;background:#0f172a;color:#e5e7eb;margin:0}
+.top{background:#f97316;color:#fff;padding:16px 18px}.top h1{font-size:21px;margin:0 0 4px}.top p{margin:0;opacity:.95}
+.wrap{padding:14px}.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+button,input{font:inherit}button{padding:9px 12px;border:0;border-radius:6px;background:#334155;color:#fff;cursor:pointer}
+button.primary{background:#ea580c}button.danger{background:#991b1b}button:disabled{opacity:.45;cursor:wait}
+input[type=text]{width:100%;padding:9px;border:1px solid #475569;border-radius:6px;background:#111827;color:#fff}
+.grid{display:grid;grid-template-columns:minmax(520px,1.3fr) minmax(300px,.7fr);gap:12px}
+.panel{background:#172033;border:1px solid #334155;border-radius:9px;padding:12px}
+.table-wrap{height:500px;overflow:auto;border:1px solid #334155;border-radius:7px}
+table{border-collapse:collapse;width:100%;font-size:13px}th{position:sticky;top:0;background:#1e293b;z-index:1}
+th,td{padding:8px 7px;border-bottom:1px solid #334155;text-align:left}tr{cursor:pointer}tr:hover{background:#1e293b}tr.active{background:#7c2d12}
+.muted{color:#94a3b8;font-size:12px}.ok{color:#86efac}.err{color:#fca5a5;min-height:20px}
+label{display:block;margin:10px 0}.tagline{padding:8px 10px;background:#0b1220;border-radius:6px;margin:8px 0}
+.name{font-weight:bold;font-size:16px;color:#fdba74;word-break:break-word}.dims{font-size:16px;margin:8px 0}
+.actions{display:flex;gap:8px;flex-wrap:wrap}.count{color:#cbd5e1;margin-top:8px}
+@media(max-width:900px){.grid{grid-template-columns:1fr}.table-wrap{height:360px}}
+</style>
+</head>
+<body>
+<div class="top">
+  <h1>ĐỔI TÊN TẤM / GROUP / COMPONENT</h1>
+  <p>Chức năng riêng để đổi Tên và Tag/Layer. Không chứa thống kê ván.</p>
+</div>
+<div class="wrap">
+  <div class="bar">
+    <button id="scan" class="primary" onclick="scan(false)">QUÉT VÙNG ĐANG CHỌN</button>
+    <button id="scan-all" onclick="scan(true)">QUÉT TOÀN MODEL</button>
+    <button onclick="checkAll()">CHỌN TẤT CẢ ĐANG HIỆN</button>
+    <button onclick="checked.clear();render()">BỎ CHỌN</button>
+  </div>
+  <div id="message" class="ok">Chưa quét.</div>
+  <div id="error" class="err"></div>
+
+  <div class="grid">
+    <section class="panel">
+      <input id="filter" type="text" placeholder="Tìm theo tên hoặc Tag/Layer…" oninput="render()">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Chọn</th><th>Tên hiện tại</th><th>Loại</th><th>Tag/Layer</th><th>Kích thước mm</th><th>Tìm</th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+      <div id="selected-count" class="count"></div>
+    </section>
+
+    <section class="panel">
+      <div class="muted">ĐỐI TƯỢNG ĐANG XEM</div>
+      <div id="detail-name" class="name">Chưa chọn đối tượng</div>
+      <div id="dimensions" class="dims">—</div>
+      <div id="detail-tag" class="tagline">Tag: —</div>
+
+      <label>Tên mới
+        <input id="new-name" type="text" maxlength="120" placeholder="Ví dụ: Hậu phủ">
+      </label>
+
+      <label><input id="change-tag" type="checkbox"> Đổi Tag/Layer cùng lượt</label>
+      <label>Tag/Layer mới
+        <input id="new-tag" type="text" maxlength="120" placeholder="Để trống = Untagged">
+      </label>
+
+      <div class="actions">
+        <button class="primary action" onclick="saveRename()">LƯU ĐỔI TÊN</button>
+        <button class="action" onclick="findPart()">TÌM + ZOOM</button>
+      </div>
+
+      <hr style="border:0;border-top:1px solid #334155;margin:16px 0">
+      <div class="muted">XÓA / ĐẶT LẠI HÀNG LOẠT</div>
+      <label>Tên sau khi xóa
+        <input id="reset-name" type="text" maxlength="120" placeholder="Trống = không tên">
+      </label>
+      <label>Tag sau khi xóa
+        <input id="reset-tag" type="text" maxlength="120" placeholder="Trống = Untagged">
+      </label>
+      <button class="danger action" onclick="clearNames()">XÓA TÊN + TAG / ĐẶT LẠI</button>
+
+      <p class="muted">Ctrl chọn nhiều Group/Component trong SketchUp hoặc tích nhiều dòng trong bảng. Mỗi lượt đổi tên là một Undo.</p>
+    </section>
+  </div>
+</div>
+
 <script>
-let page=0;let rows=[],checked=new Set(),active=null,nextAfter=false,busy=false;
+let rows=[],checked=new Set(),active=null,busy=false;
 const el=id=>document.getElementById(id);
-function showError(s){el('error').textContent=s;}
-function resetScope(){checked.clear();active=null;page=0;el('filter').value='';el('only-leaf').checked=false;geometry={lines:[],faces:[]};draw3d();el('detail-name').textContent='Chọn một đối tượng con';el('dimensions').textContent='';el('new-name').value='';el('new-tag').value='';showError('');}
-function scan(all){checked.clear();active=null;sketchup.scan(all);}
-function scanState(s){busy=s.busy;el('message').textContent=s.message;document.querySelectorAll('.action,#scan,#scan-all').forEach(b=>b.disabled=busy);}
-function visible(){let q=el('filter').value.toLocaleLowerCase();return rows.filter(r=>(!el('only-leaf').checked||r.leaf)&&(!q||[r.name,r.tag,r.thickness].join(' ').toLocaleLowerCase().includes(q)));}
-function render(){let list=visible();page=Math.min(page,Math.max(0,Math.ceil(list.length/200)-1));el('page-info').textContent='Trang '+(page+1)+' / '+Math.max(1,Math.ceil(list.length/200));let body=el('rows');body.innerHTML='';list.slice(page*200,page*200+200).forEach(r=>{let tr=document.createElement('tr');tr.className=r.id===active?'active':'';let td=document.createElement('td'),c=document.createElement('input');c.type='checkbox';c.checked=checked.has(r.id);c.onclick=e=>{e.stopPropagation();c.checked?checked.add(r.id):checked.delete(r.id);el('selected-count').textContent='Đã chọn '+checked.size+' đối tượng';};td.appendChild(c);tr.appendChild(td);[r.name||'(Không tên)',r.type+(r.leaf?'':' · Cụm'),r.tag,r.thickness===null?'—':r.thickness].forEach(v=>{let t=document.createElement('td');t.textContent=v;tr.appendChild(t);});let action=document.createElement('td'),find=document.createElement('button');find.textContent='Tìm tấm';find.title='Chọn và zoom tới đối tượng của dòng này';find.onclick=e=>{e.stopPropagation();checked=new Set([r.id]);active=r.id;render();sketchup.find_part(r.id);};action.appendChild(find);tr.appendChild(action);tr.onclick=()=>{checked=new Set([r.id]);active=r.id;render();sketchup.choose(r.id);};body.appendChild(tr);});el('selected-count').textContent='Đã chọn '+checked.size+' / '+visible().length+' dòng đang hiện';}
-function setRows(data){rows=data.rows;checked=new Set([...checked].filter(id=>rows.some(r=>r.id===id)));scanState({busy:false,message:'Quét xong. Chọn đối tượng để đổi tên.'});let s=data.summary;el('stats').innerHTML='';['Tổng đối tượng: '+s.total,'Chi tiết cuối: '+s.details,'Cụm / khác: '+s.assemblies,'Số độ dày: '+s.thickness.length].forEach(t=>{let n=document.createElement('span');n.textContent=t;el('stats').appendChild(n);});el('thickness').innerHTML='';s.thickness.forEach(t=>{let b=document.createElement('button');b.textContent=t.value+' mm: '+t.count+' chi tiết';b.onclick=()=>{checked=new Set(rows.filter(r=>r.leaf&&Math.round(r.thickness*10)/10===t.value).map(r=>r.id));el('filter').value='';el('only-leaf').checked=true;render();};el('thickness').appendChild(b);});render();}
-function selectRows(ids){checked=new Set(ids);if(ids[0]){active=ids[0];let r=rows.find(x=>x.id===active);if(r&&!r.leaf)el('only-leaf').checked=false;el('filter').value='';page=Math.max(0,Math.floor(visible().findIndex(x=>x.id===active)/200));}render();}
-function showDetail(r){active=r.id;el('detail-name').textContent=(r.name||'(Không tên)')+(r.locked?' · ĐANG KHÓA':'')+(r.shared?' · Nhóm cha có bản sao':'');setGeometry(r);el('shape-note').textContent=r.note;el('dimensions').textContent='Kích thước X × Y × Z: '+r.dims.join(' × ')+' mm';el('new-name').value=r.name;el('new-tag').value=r.tag;render();}
-
-function checkAll(){visible().forEach(r=>checked.add(r.id));render();}
-function findPart(){let id=checked.size===1?[...checked][0]:active;if(!id){showError('Chọn tấm cần tìm trước.');return;}sketchup.find_part(id);}
-function save(next){if(!checked.size){showError('Chọn đối tượng trước khi lưu.');return;}let list=visible(),index=list.findIndex(r=>r.id===active);nextAfter=next&&list[index+1]?list[index+1].id:false;showError('');sketchup.save(JSON.stringify({ids:[...checked],name:el('new-name').value,tag:el('new-tag').value,change_tag:el('change-tag').checked}));}
-function clearNames(){if(!checked.size){showError('Chọn các dòng cần xóa tên.');return;}nextAfter=false;showError('');sketchup.clear_names(JSON.stringify({ids:[...checked],name:el('reset-name').value,tag:el('reset-tag').value}));}
-function saved(s){showError('');el('message').textContent=s.message;if(nextAfter){let id=nextAfter;nextAfter=false;if(rows.some(r=>r.id===id)){checked=new Set([id]);active=id;render();sketchup.choose(id);}}}
-let geometry={lines:[],faces:[]},yaw=-0.6,pitch=0.45,zoom=1,drag=null;
-const cv=el('view3d'),cx=cv.getContext('2d');
-function resetView(){yaw=-0.6;pitch=0.45;zoom=1;draw3d();}
-function setGeometry(r){let changed=geometry.id!==r.id;geometry=r;if(changed)resetView();else draw3d();}
-function draw3d(){cx.clearRect(0,0,700,420);let points=[].concat(...geometry.lines,...geometry.faces);if(!points.length){cx.fillStyle='#647587';cx.font='18px Arial';cx.fillText('Chọn đối tượng để xem 3D',200,210);return;}
-let low=[Infinity,Infinity,Infinity],high=[-Infinity,-Infinity,-Infinity];points.forEach(p=>p.forEach((v,i)=>{low[i]=Math.min(low[i],v);high[i]=Math.max(high[i],v);}));let mid=low.map((v,i)=>(v+high[i])/2),scale=zoom*330/Math.max(1,Math.hypot(...high.map((v,i)=>v-low[i])));
-function project(p){let x=p[0]-mid[0],y=p[1]-mid[1],z=p[2]-mid[2],a=x*Math.cos(yaw)-y*Math.sin(yaw),b=x*Math.sin(yaw)+y*Math.cos(yaw);return [350+a*scale,210-(z*Math.cos(pitch)-b*Math.sin(pitch))*scale,z*Math.sin(pitch)+b*Math.cos(pitch)];}
-let triangles=geometry.faces.map(f=>f.map(project));triangles.sort((a,b)=>a.reduce((s,p)=>s+p[2],0)-b.reduce((s,p)=>s+p[2],0));triangles.forEach(f=>{let a=f[1].map((v,i)=>v-f[0][i]),b=f[2].map((v,i)=>v-f[0][i]),n=[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]],len=Math.hypot(...n)||1,shade=0.7+0.3*Math.abs(n[2])/len;cx.beginPath();f.forEach((p,i)=>i?cx.lineTo(p[0],p[1]):cx.moveTo(p[0],p[1]));cx.closePath();cx.fillStyle='rgb('+[255,199,139].map(v=>Math.round(v*shade)).join(',')+')';cx.fill();});
-cx.strokeStyle='rgba(119,77,36,0.65)';cx.lineWidth=0.8;cx.beginPath();geometry.lines.forEach(line=>{let a=project(line[0]),b=project(line[1]);cx.moveTo(a[0],a[1]);cx.lineTo(b[0],b[1]);});cx.stroke();}
-cv.onpointerdown=e=>{drag=[e.clientX,e.clientY];cv.setPointerCapture(e.pointerId);};cv.onpointermove=e=>{if(!drag)return;yaw+=(e.clientX-drag[0])*0.01;pitch+=(e.clientY-drag[1])*0.01;drag=[e.clientX,e.clientY];draw3d();};cv.onpointerup=cv.onpointercancel=()=>drag=null;cv.onwheel=e=>{e.preventDefault();zoom=Math.max(0.2,Math.min(5,zoom*(e.deltaY>0?0.9:1.1)));draw3d();};
-window.addEventListener('load',()=>sketchup.ready());
-</script></html>
-
-TT_RENAME_HTML
+function showError(s){el('error').textContent=s||''}
+function resetScope(){checked.clear();active=null;rows=[];el('filter').value='';el('new-name').value='';el('new-tag').value='';el('detail-name').textContent='Chưa chọn đối tượng';el('detail-tag').textContent='Tag: —';el('dimensions').textContent='—';showError('');render()}
+function scan(all){checked.clear();active=null;sketchup.scan(all)}
+function scanState(s){busy=!!s.busy;el('message').textContent=s.message||'';document.querySelectorAll('.action,#scan,#scan-all').forEach(b=>b.disabled=busy)}
+function visible(){let q=el('filter').value.trim().toLocaleLowerCase();return rows.filter(r=>!q||[r.name,r.tag,r.type].join(' ').toLocaleLowerCase().includes(q))}
+function render(){
+  let body=el('rows');body.innerHTML='';
+  visible().forEach(r=>{
+    let tr=document.createElement('tr');if(r.id===active)tr.className='active';
+    let tc=document.createElement('td'),cb=document.createElement('input');cb.type='checkbox';cb.checked=checked.has(r.id);
+    cb.onclick=e=>{e.stopPropagation();cb.checked?checked.add(r.id):checked.delete(r.id);updateCount()};tc.appendChild(cb);tr.appendChild(tc);
+    [r.name||'(Không tên)',r.type,r.tag||'Untagged',(r.dims||[]).map(x=>Number(x).toFixed(1)).join(' × ')].forEach(v=>{let td=document.createElement('td');td.textContent=v;tr.appendChild(td)});
+    let ta=document.createElement('td'),b=document.createElement('button');b.textContent='Tìm';b.onclick=e=>{e.stopPropagation();selectRow(r,true)};ta.appendChild(b);tr.appendChild(ta);
+    tr.onclick=()=>selectRow(r,false);body.appendChild(tr)
+  });updateCount()
+}
+function updateCount(){el('selected-count').textContent='Đã chọn '+checked.size+' / '+visible().length+' đối tượng đang hiện'}
+function selectRow(r,zoom){active=r.id;if(!checked.has(r.id))checked=new Set([r.id]);render();zoom?sketchup.find_part(r.id):sketchup.choose(r.id)}
+function checkAll(){visible().forEach(r=>checked.add(r.id));render()}
+function setRows(data){rows=data.rows||[];checked=new Set([...checked].filter(id=>rows.some(r=>r.id===id)));scanState({busy:false,message:'Đã quét '+rows.length+' Group/Component.'});render()}
+function showDetail(r){active=r.id;el('detail-name').textContent=r.name||'(Không tên)';el('detail-tag').textContent='Tag: '+(r.tag||'Untagged');el('dimensions').textContent=(r.dims||[]).map(x=>Number(x).toFixed(1)).join(' × ')+' mm';if(!el('new-name').value)el('new-name').value=r.name||'';if(!el('new-tag').value)el('new-tag').value=r.tag||'';render()}
+function ids(){let a=[...checked];if(!a.length&&active)a=[active];return a}
+function saveRename(){let a=ids();if(!a.length)return showError('Chọn ít nhất một đối tượng.');showError('');sketchup.save(JSON.stringify({ids:a,name:el('new-name').value,tag:el('new-tag').value,change_tag:el('change-tag').checked}))}
+function clearNames(){let a=ids();if(!a.length)return showError('Chọn ít nhất một đối tượng.');showError('');sketchup.clear_names(JSON.stringify({ids:a,name:el('reset-name').value,tag:el('reset-tag').value,change_tag:true}))}
+function findPart(){if(!active)return showError('Chọn một đối tượng trước.');sketchup.find_part(active)}
+function saved(data){el('message').textContent=data.message||('Đã đổi tên '+data.count+' đối tượng.');showError('')}
+function selectRows(ids){checked=new Set(ids||[]);active=(ids||[])[0]||null;render()}
+window.addEventListener('load',()=>sketchup.ready())
+</script>
+</body>
+</html>
+      TT_RENAME_HTML
     end
   end
 end
