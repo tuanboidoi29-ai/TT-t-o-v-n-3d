@@ -13,12 +13,12 @@ module TranTuanNoiThat
   LOCKED_FEATURE_BASELINES = {
     'slat_wall_tool.rb' => {
       version: '1.9.215',
-      sha256: '4cc0754cc1b42c12673063e27050f0c006572ac6747d801aa85056fe8f2b5be3'
+      sha256: '874eb8507efbf8e298e727cd7943908857895a873a434bbe4ed3b22c76be2081'
     }
   }.freeze unless const_defined?(:LOCKED_FEATURE_BASELINES, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.276'.freeze
+  VERSION = '1.9.277'.freeze
 
   class << self
     def setting(key, default = nil)
