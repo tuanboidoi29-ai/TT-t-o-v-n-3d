@@ -18,7 +18,7 @@ module TranTuanNoiThat
   }.freeze unless const_defined?(:LOCKED_FEATURE_BASELINES, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.273'.freeze
+  VERSION = '1.9.274'.freeze
 
   class << self
     def setting(key, default = nil)
@@ -561,7 +561,7 @@ module TranTuanNoiThat
 
       @wine_rack_cmd ||= command(
         'KHẤU ÂM DƯƠNG',
-        'notch.svg',
+        'khau_am_duong.svg',
         'Chọn 2 Solid giao nhau · tự nhận giao thật · A khấu 1/2 trước, B khấu 1/2 sau · TAB cài đặt'
       ) { WineRack.activate }
 
@@ -570,7 +570,7 @@ module TranTuanNoiThat
       @wine_rack_cmd.status_bar_text = 'Preview: tự nhận Dài/Rộng/Dày; A xanh khấu đúng 1/2 CHIỀU RỘNG từ mặt trước, B hồng khấu đúng 1/2 CHIỀU RỘNG từ mặt sau · TAB cài đặt · SHIFT đảo A/B.'
       @wine_rack_cmd.menu_text = 'KHẤU ÂM DƯƠNG' if @wine_rack_cmd.respond_to?(:menu_text=)
 
-      icon = File.join(ROOT, 'icons', 'notch.svg')
+      icon = File.join(ROOT, 'icons', 'khau_am_duong.svg')
       if File.file?(icon)
         @wine_rack_cmd.small_icon = icon
         @wine_rack_cmd.large_icon = icon
@@ -592,7 +592,7 @@ module TranTuanNoiThat
 
     def install_notch_ui
       return false unless defined?(TranTuanNoiThat::NotchTool)
-      @notch_cmd ||= command('Khấu ván AUTO', 'notch.svg', 'Click khấu ngay; SHIFT đổi khuôn/tấm bị khấu; TAB lưu mở rộng biên và dao; hoàn tất chỉ beep.') { NotchTool.activate }
+      @notch_cmd ||= command('Khấu ván AUTO', 'khau_am_duong.svg', 'Click khấu ngay; SHIFT đổi khuôn/tấm bị khấu; TAB lưu mở rộng biên và dao; hoàn tất chỉ beep.') { NotchTool.activate }
       add_feature_command_once(@notch_cmd, :notch_menu_installed)
     end
 
