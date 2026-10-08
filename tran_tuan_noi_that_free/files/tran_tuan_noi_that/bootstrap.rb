@@ -18,7 +18,7 @@ module TranTuanNoiThat
   }.freeze unless const_defined?(:LOCKED_FEATURE_BASELINES, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.258'.freeze
+  VERSION = '1.9.259'.freeze
 
   class << self
     def setting(key, default = nil)
@@ -100,7 +100,7 @@ module TranTuanNoiThat
     end
 
     def reload_runtime
-      ChatGPTConnect.close if const_defined?(:ChatGPTConnect, false) && ChatGPTConnect.respond_to?(:close)
+      cleanup_retired_chatgpt
       CadWalls.close if const_defined?(:CadWalls, false) && CadWalls.respond_to?(:close)
       cleanup_retired_led_contact
       if const_defined?(:TamPro, false)
@@ -111,8 +111,6 @@ module TranTuanNoiThat
       reset_layout_runtime
       %w[
         board_tool
-        chatgpt_connect
-        chatgpt_signin
         wine_rack
         door_standard_tool
         rename_ui
@@ -188,6 +186,37 @@ module TranTuanNoiThat
       end
       %w[led_tool contact_tool].each do |folder|
         FileUtils.rm_rf(File.join(ROOT, 'data', folder))
+      end
+      true
+    end
+
+    def cleanup_retired_chatgpt
+      begin
+        if const_defined?(:ChatGPTConnect, false)
+          runtime = const_get(:ChatGPTConnect)
+          runtime.close if runtime.respond_to?(:close)
+          remove_const(:ChatGPTConnect)
+        end
+
+        %w[
+          chatgpt_connect.rb
+          chatgpt_signin.rb
+          icons/chatgpt.svg
+        ].each { |relative| FileUtils.rm_f(File.join(ROOT, relative)) }
+
+        auth_root = ENV['LOCALAPPDATA'].to_s
+        unless auth_root.empty?
+          FileUtils.rm_f(File.join(auth_root, 'TranTuanNoiThat', 'chatgpt_auth.json'))
+        end
+        Sketchup.write_default(NAME, 'chatgpt_host_id', '')
+
+        if instance_variable_defined?(:@chatgpt_cmd) && @chatgpt_cmd
+          @chatgpt_cmd.tooltip = 'ChatGPT Connect (ĐÃ GỠ)'
+          @chatgpt_cmd.status_bar_text = 'Chức năng ChatGPT Connect đã được xóa. Mở lại SketchUp để toolbar làm sạch.'
+          @chatgpt_cmd.set_validation_proc { MF_GRAYED }
+        end
+      rescue StandardError => error
+        puts "[TT cleanup ChatGPT] #{error.class}: #{error.message}"
       end
       true
     end
@@ -271,6 +300,7 @@ module TranTuanNoiThat
     end
 
     def install_ui
+      cleanup_retired_chatgpt
       cleanup_retired_library
       cleanup_retired_cabinet_door
       cleanup_retired_vector_image_cnc
@@ -289,7 +319,6 @@ module TranTuanNoiThat
       end
 
       install_box_ui
-      install_chatgpt_ui
       install_drawer_ui
       install_door_standard_ui
       install_rename_ui
@@ -314,20 +343,6 @@ module TranTuanNoiThat
       @toolbar.restore if @toolbar
       @toolbar.show if @toolbar
       true
-    end
-
-    def install_chatgpt_ui
-      return false unless defined?(TranTuanNoiThat::ChatGPTConnect)
-      @chatgpt_cmd ||= command(
-        'TT – ChatGPT Connect',
-        'chatgpt.svg',
-        'Kết nối ChatGPT với model SketchUp hiện tại · gửi selection/viewport · mở nhanh công cụ TRẦN TUẤN'
-      ) { ChatGPTConnect.show }
-      add_feature_command_once(@chatgpt_cmd, :chatgpt_menu_installed)
-      true
-    rescue StandardError => error
-      puts "[TT UI ChatGPT] #{error.class}: #{error.message}"
-      false
     end
 
     def install_box_ui
@@ -426,7 +441,7 @@ module TranTuanNoiThat
       @scale_corner_lock_cmd ||= command(
         'Scale 4 Cạnh',
         'scale_corner_lock.svg',
-        'Kéo từ tâm mặt tấm hoặc nút quanh tâm · cạnh đối diện giữ cố định'
+        'Rê trực tiếp vào cạnh · kéo cạnh có bắt Endpoint/Edge/Inference · cạnh đối diện giữ cố định'
       ) { ScaleCornerLock.activate }
       add_feature_command_once(@scale_corner_lock_cmd, :scale_corner_lock_menu_installed)
       true
