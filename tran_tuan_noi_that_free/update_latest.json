@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.260",
+  "version": "1.9.261",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Tách riêng ĐỔI TÊN và THỐNG KÊ VÁN thành hai công cụ/2 giao diện độc lập. Đổi Tên chỉ sửa Name + Tag/Layer; Thống Kê Ván chỉ quét Dài/Rộng/Dày, số lượng, diện tích và tìm tấm. Đổi Scale 4 Cạnh thành KÉO MẶT FACE: rà Face preview + kích thước, click khóa mặt, rê kéo bắt Endpoint/Edge/Face/Inference, click tạo hoặc nhập mm.",
+  "notes": "KÉO MẶT FACE chuyển sang thao tác 1 click: rà Face sáng cam và hiện kích thước chính mặt đang rà; Face tự khóa hướng kéo theo pháp tuyến/trục local; đưa chuột kéo ra/vào có bắt Endpoint/Edge/Face/Inference; click duy nhất để tạo. Không còn click khóa Face rồi click lần hai.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "468df76680783e1443c7d7682cd0e20b05daf39971fcc29683067f2d6864909f"
+      "sha256": "495784f910d11823ac7ac8764d9cbc203bdbacdfd19be6ab0e1498b5547cc517"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -259,7 +259,7 @@
     {
       "path": "tran_tuan_noi_that/scale_corner_lock.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/scale_corner_lock.rb",
-      "sha256": "be028a9681ca116d588a63cab46d263f976c6a4837d9c38a71ae70da5771c71c"
+      "sha256": "95df11aae3c231e885cea9aaa705608619fc1d5617e5a854d860d7fe1b760c67"
     },
     {
       "path": "tran_tuan_noi_that/settings.rb",
@@ -314,7 +314,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "217fab8238fc8014c3c724c9dd17f8fe004b10f6794d28e006a11194f6d8f7f0"
+      "sha256": "9cd47c7779326efbacc0305d7a2fb522a307553074bd6bceec78b5de9020d40e"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
