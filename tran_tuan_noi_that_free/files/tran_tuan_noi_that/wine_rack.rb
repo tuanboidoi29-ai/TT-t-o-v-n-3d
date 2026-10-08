@@ -237,7 +237,7 @@ module TranTuanNoiThat
       signed_area(poly) >= 0 ? poly : poly.reverse
     end
 
-    def polygon_touches_rect_boundary?(poly, rect_poly, tolerance = 1.0e-4)
+    def polygon_near_rect_boundary?(poly, rect_poly, max_distance)
       return false if poly.empty? || rect_poly.empty?
 
       xs = rect_poly.map { |p| p[0] }
@@ -246,18 +246,27 @@ module TranTuanNoiThat
       y0, y1 = ys.minmax
 
       poly.any? do |p|
-        (p[0] - x0).abs <= tolerance ||
-          (p[0] - x1).abs <= tolerance ||
-          (p[1] - y0).abs <= tolerance ||
-          (p[1] - y1).abs <= tolerance
+        distance = [
+          (p[0] - x0).abs,
+          (p[0] - x1).abs,
+          (p[1] - y0).abs,
+          (p[1] - y1).abs
+        ].min
+
+        distance <= max_distance
       end
     end
 
-    # Tại biên khung, họ A là thanh chạy tới đỉnh V.
-    # Họ B vẫn giữ đầu vuông nhưng bị cắt lùi đúng đến cạnh bên họ A.
-    # Kết quả là mối V kiểu butt-joint như hình mẫu, không còn chồng khối ở đầu.
+    # Mối V sát khung:
+    # - Họ A chạy nguyên tới khung.
+    # - Họ B đầu vuông 90° và kết thúc đúng tại một cạnh bên của A.
+    # - Không cho B chồng qua A, cũng không chừa khe.
+    #
+    # Overlap ở đầu V thường nằm hơi lọt vào trong biên do bề rộng nan,
+    # vì vậy phải nhận theo "vùng gần biên", không chỉ điểm đúng trên biên.
     def trim_boundary_v_joints(family_a, family_b, base, thickness)
       half = thickness / 2.0
+      boundary_zone = thickness * 1.65
       joint_count = 0
 
       family_b.each do |b_entry|
@@ -266,27 +275,42 @@ module TranTuanNoiThat
         family_a.each do |a_entry|
           overlap = convex_intersection(a_entry[:poly], poly_b)
           next unless area(overlap) > 0.01
-          next unless polygon_touches_rect_boundary?(overlap, base)
+          next unless polygon_near_rect_boundary?(
+            overlap,
+            base,
+            boundary_zone
+          )
 
           normal = a_entry[:normal]
           center_c = a_entry[:c]
-          center_b = polygon_center(poly_b)
-          signed = center_b[0] * normal[0] + center_b[1] * normal[1] - center_c
 
-          trimmed =
-            if signed >= 0.0
-              # Giữ phần nằm ngoài cạnh +t/2 của thanh A.
-              clip(
-                poly_b,
-                normal.map { |value| -value },
-                -(center_c + half)
-              )
-            else
-              # Giữ phần nằm ngoài cạnh -t/2 của thanh A.
-              clip(poly_b, normal, center_c - half)
-            end
+          # Hai nghiệm tỳ cạnh:
+          # 1) giữ B phía + của cạnh +half của A
+          # 2) giữ B phía - của cạnh -half của A
+          #
+          # Ở giao sát khung, một nghiệm là đoạn rất ngắn ngoài đầu,
+          # nghiệm còn lại là toàn bộ phần nan đi vào bên trong tủ.
+          # Chọn polygon có diện tích lớn hơn -> luôn giữ đúng thân nan.
+          keep_plus = clip(
+            poly_b,
+            normal.map { |value| -value },
+            -(center_c + half)
+          )
+          keep_minus = clip(
+            poly_b,
+            normal,
+            center_c - half
+          )
 
-          if area(trimmed) > 0.01
+          candidates = [keep_plus, keep_minus].select do |poly|
+            area(poly) > 0.01
+          end
+          next if candidates.empty?
+
+          trimmed = candidates.max_by { |poly| area(poly) }
+
+          # Chỉ nhận là mối V khi thực sự cắt bỏ phần chồng.
+          if area(poly_b) - area(trimmed) > 0.001
             poly_b = trimmed
             joint_count += 1
           end
@@ -494,7 +518,7 @@ module TranTuanNoiThat
         clear_diamond = [pitch - t, 1.0].max
         frame_note = frame ? 'KHUNG BẬT' : 'KHUNG TẮT'
         side_fit = (fit[:steps_x] - fit[:steps_x].round).abs < 0.08 ? 'V chạm đủ 4 biên' : 'V ưu tiên biên trên/dưới'
-        note = "Ô chéo 45° · #{boundary_v_count} mối V đầu vuông tỳ cạnh · ô nhập #{target.round(1)} mm / thực ≈ #{clear_diamond.round(1)} mm · #{meta[:intersections].length} khấu 1/2 bên trong · #{side_fit} · #{frame_note}"
+        note = "Ô chéo 45° · #{boundary_v_count} mối V TỲ CẠNH thật · ô nhập #{target.round(1)} mm / thực ≈ #{clear_diamond.round(1)} mm · #{meta[:intersections].length} khấu 1/2 bên trong · #{side_fit} · #{frame_note}"
       end
 
       # Chuẩn hóa nhưng giữ nguyên thứ tự/index để metadata giao điểm
