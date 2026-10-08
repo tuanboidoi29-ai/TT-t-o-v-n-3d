@@ -70,10 +70,23 @@ module TranTuanNoiThat
       if cid=='dynamic_agent_client'; params['agent_name_hint']='TRẦN TUẤN NỘI THẤT'; else params['id_token_hint']=p['id_token'].to_s unless p['id_token'].to_s.empty?; params['login_hint']=p['email'].to_s unless p['email'].to_s.empty?; end
       UI.openURL(SIWC_AUTH+'?'+URI.encode_www_form(params)); oauth_notice('Trình duyệt đã mở. Hãy đăng nhập ChatGPT và cấp quyền.',true)
       async(proc do
-        cb=siwc_callback(server,state,cid); td=siwc_form({'grant_type'=>'authorization_code','client_id'=>cb['client_id'],'code'=>cb['code'],'code_verifier'=>verifier,'redirect_uri'=>redirect,'resource'=>SIWC_RESOURCE}); id=siwc_verify(td.fetch('id_token'),cb['client_id'],nonce); scopes=(td['scope']||cb['scope']).to_s.split(/s+/); raise 'Bạn chưa cấp quyền dùng ChatGPT plan.' unless scopes.include?(SIWC_DIRECT)
-        np={'email'=>id['email'].to_s,'sub'=>id['sub'].to_s,'client_id'=>cb['client_id'],'id_token'=>td['id_token'].to_s,'access_token'=>td['access_token'].to_s,'refresh_token'=>td['refresh_token'].to_s,'expires_in'=>td['expires_in'].to_i,'scope'=>scopes,'saved_at'=>Time.now.utc.iso8601}; raise 'OpenAI không trả access token/refresh token.' if np['access_token'].empty?||np['refresh_token'].empty?; siwc_save(np); @siwc_model=siwc_model(np['access_token']); np
+        cb=siwc_callback(server,state,cid); td=siwc_form({'grant_type'=>'authorization_code','client_id'=>cb['client_id'],'code'=>cb['code'],'code_verifier'=>verifier,'redirect_uri'=>redirect,'resource'=>SIWC_RESOURCE}); id=siwc_verify(td.fetch('id_token'),cb['client_id'],nonce); scopes=(td['scope']||cb['scope']).to_s.split; raise 'Bạn chưa cấp quyền dùng ChatGPT plan.' unless scopes.include?(SIWC_DIRECT)
+        np={'email'=>id['email'].to_s,'sub'=>id['sub'].to_s,'client_id'=>cb['client_id'],'id_token'=>td['id_token'].to_s,'access_token'=>td['access_token'].to_s,'refresh_token'=>td['refresh_token'].to_s,'expires_in'=>td['expires_in'].to_i,'scope'=>scopes,'saved_at'=>Time.now.utc.iso8601}; raise 'OpenAI không trả access token/refresh token.' if np['access_token'].empty?||np['refresh_token'].empty?; siwc_save(np); @siwc_model=siwc_model(np['access_token']); [JSON.generate(np), true]
       end) do |result,ok|
-        @siwc_busy=false; sync; ok ? oauth_notice("Đã kết nối ChatGPT #{result['email']}. Không cần API key.",true) : oauth_notice(result.to_s,false)
+        @siwc_busy=false
+        if ok
+          info=JSON.parse(result.to_s) rescue {}
+          sync
+          oauth_notice("Đã kết nối ChatGPT #{info['email']}. Không cần API key.",true)
+          if @pending_signin
+            pending=@pending_signin
+            @pending_signin=nil
+            UI.start_timer(0.2,false){ request(pending[0],pending[1]) }
+          end
+        else
+          @pending_signin=nil
+          oauth_notice(result.to_s,false)
+        end
       end
     rescue => e
       @siwc_busy=false; begin server.close if server&&!server.closed? rescue nil end; oauth_notice(e.message,false)
@@ -111,11 +124,20 @@ Connection: close
     end
 
     def request(raw,test=false)
-      p=siwc_load; return tt_api_key_request(raw,test) unless siwc_connected?(p)
+      p=siwc_load
+      unless siwc_connected?(p)
+        d0=JSON.parse(raw.to_s) rescue {}
+        has_key=!d0['api_key'].to_s.strip.empty? || !ENV['OPENAI_API_KEY'].to_s.strip.empty?
+        return tt_api_key_request(raw,test) if has_key
+        @pending_signin=[raw.to_s,test]
+        oauth_notice('Chưa kết nối ChatGPT. Đang mở trang đăng nhập...',true)
+        siwc_sign_in(false)
+        return
+      end
       d=JSON.parse(raw.to_s) rescue {}; msg=test ? 'Chỉ trả lời: Kết nối TT – ChatGPT thành công.' : d['message'].to_s.strip; return reply('Nội dung đang trống.',false) if msg.empty?
       ctx=(!test&&d['context']) ? context : nil; img=(!test&&d['viewport']) ? viewport : nil; hist=(@history||[]).last(10); prompt=build_prompt(hist,msg,ctx); wanted=d['model'].to_s.strip
       async(proc do
-        profile=siwc_access_profile; model=wanted.empty? ? (@siwc_model||=siwc_model(profile['access_token'])) : wanted; siwc_stream(profile['access_token'],model,prompt,img,test)
+        profile=siwc_access_profile; model=wanted.empty? ? (@siwc_model||=siwc_model(profile['access_token'])) : wanted; [siwc_stream(profile['access_token'],model,prompt,img,test), true]
       end) do |text,ok|
         if ok&&!test; @history||=[]; @history<<['user',msg]<<['assistant',text]; @history=@history.last(10); end
         reply(ok ? "#{text}
@@ -127,12 +149,12 @@ Connection: close
     def siwc_stream(token,model,prompt,img,test)
       u=URI('https://api.openai.com/v1/responses'); content=[{'type'=>'input_text','text'=>prompt}]; content<<{'type'=>'input_image','image_url'=>img,'detail'=>'auto'} if img; b={'model'=>model,'input'=>[{'role'=>'user','content'=>content}],'store'=>false,'stream'=>true}; b['instructions']=instructions unless test
       r=Net::HTTP::Post.new(u.request_uri); r['Authorization']="Bearer #{token}"; r['Content-Type']='application/json'; r['Accept']='text/event-stream'; r.body=JSON.generate(b); x=Net::HTTP.start(u.host,u.port,use_ssl:true,open_timeout:8,read_timeout:120){|h|h.request(r)}; raise siwc_error(x) unless x.is_a?(Net::HTTPSuccess)
-      out=''; done=false; x.body.to_s.each_line{|line|next unless line.start_with?('data:'); s=line.sub(/Adata:s*/,'').strip; next if s.empty?||s=='[DONE]'; e=JSON.parse(s) rescue {}; out<<e['delta'].to_s if e['type']=='response.output_text.delta'; done=true if e['type']=='response.completed'; raise(e.dig('response','error','message')||'OpenAI response.failed') if e['type']=='response.failed'}; raise 'Luồng OpenAI chưa hoàn tất.' unless done; raise 'OpenAI không trả nội dung.' if out.strip.empty?; out.strip
+      out=''; done=false; x.body.to_s.each_line{|line|next unless line.start_with?('data:'); s=line[5..-1].to_s.strip; next if s.empty?||s=='[DONE]'; e=JSON.parse(s) rescue {}; out<<e['delta'].to_s if e['type']=='response.output_text.delta'; done=true if e['type']=='response.completed'; raise(e.dig('response','error','message')||'OpenAI response.failed') if e['type']=='response.failed'}; raise 'Luồng OpenAI chưa hoàn tất.' unless done; raise 'OpenAI không trả nội dung.' if out.strip.empty?; out.strip
     end
 
     def siwc_access_profile
       p=siwc_load; raise 'Chưa đăng nhập ChatGPT.' unless siwc_connected?(p); saved=Time.parse(p['saved_at'].to_s) rescue Time.at(0); return p if p['expires_in'].to_i<=0||Time.now<(saved+p['expires_in'].to_i-90)
-      d=siwc_form({'grant_type'=>'refresh_token','client_id'=>p['client_id'],'refresh_token'=>p['refresh_token'],'resource'=>SIWC_RESOURCE}); p['access_token']=d['access_token'].to_s; p['refresh_token']=d['refresh_token'].to_s unless d['refresh_token'].to_s.empty?; p['id_token']=d['id_token'].to_s unless d['id_token'].to_s.empty?; p['expires_in']=d['expires_in'].to_i; p['scope']=d['scope'].to_s.split(/s+/) unless d['scope'].to_s.empty?; p['saved_at']=Time.now.utc.iso8601; raise 'Không refresh được phiên ChatGPT.' if p['access_token'].empty?; siwc_save(p); p
+      d=siwc_form({'grant_type'=>'refresh_token','client_id'=>p['client_id'],'refresh_token'=>p['refresh_token'],'resource'=>SIWC_RESOURCE}); p['access_token']=d['access_token'].to_s; p['refresh_token']=d['refresh_token'].to_s unless d['refresh_token'].to_s.empty?; p['id_token']=d['id_token'].to_s unless d['id_token'].to_s.empty?; p['expires_in']=d['expires_in'].to_i; p['scope']=d['scope'].to_s.split unless d['scope'].to_s.empty?; p['saved_at']=Time.now.utc.iso8601; raise 'Không refresh được phiên ChatGPT.' if p['access_token'].empty?; siwc_save(p); p
     end
 
     def siwc_model(token)
