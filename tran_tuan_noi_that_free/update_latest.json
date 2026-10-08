@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.258",
+  "version": "1.9.259",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Sửa TT – ChatGPT Connect: sửa tách OAuth scope, sửa nhận kết quả luồng nền khi đăng nhập/gửi tin, sửa parser SSE; nếu chưa đăng nhập và không có API key thì tự mở Continue with ChatGPT thay vì báo thiếu API key.",
+  "notes": "Xóa toàn bộ TT – ChatGPT Connect/OAuth/API và dữ liệu đăng nhập cục bộ. Scale 4 Cạnh đổi sang Scale Kéo Cạnh: rê trực tiếp cạnh thật của mặt tấm, kéo cạnh có bắt Endpoint/Edge/Face/Inference bằng InputPoint, khóa cạnh đối diện; nhập kích thước mm hoặc hệ số x.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "d056f8218ad2ec260520ca302b7c0198aeee952bd12be7ebf9b229804eb9f1f9"
+      "sha256": "4b318021547a1ec74d959df591a88214e28d1d93279dcc66337a06d17a3d0b23"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -259,7 +259,7 @@
     {
       "path": "tran_tuan_noi_that/scale_corner_lock.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/scale_corner_lock.rb",
-      "sha256": "0822d215d67eb418835e08b627086f1eba6fd827a1c13cca9cdd70b6e80e033e"
+      "sha256": "3a9672f8c98f153b187e5f882ba028db0d7e8734bd1dee16c2cede4a91ef6279"
     },
     {
       "path": "tran_tuan_noi_that/settings.rb",
@@ -314,7 +314,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "c38c3c70cb527f26bf2be7b6c60359b78b9b77ef663d2836086d1a2f93822b88"
+      "sha256": "c66bf8da707db08a198255e13658c5415128178effa844efcf13e68124a3d3db"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -425,21 +425,6 @@
       "path": "tran_tuan_noi_that/icons/wine_rack.svg",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/icons/wine_rack.svg",
       "sha256": "55844ab0a38ada0a135baba9837f61eb654780be8216fdffa8041ee436659155"
-    },
-    {
-      "path": "tran_tuan_noi_that/chatgpt_connect.rb",
-      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/chatgpt_connect.rb",
-      "sha256": "18140079717eca58c20015f3cec87a633375e3fdd7b6a6a3b20858789abe37d1"
-    },
-    {
-      "path": "tran_tuan_noi_that/icons/chatgpt.svg",
-      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/icons/chatgpt.svg",
-      "sha256": "3ba3c47a592b1a57f0d03e46b66c895f9446732420b0ac06c9f207b4dec34364"
-    },
-    {
-      "path": "tran_tuan_noi_that/chatgpt_signin.rb",
-      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/chatgpt_signin.rb",
-      "sha256": "675dca66b4af3b8c26b1b9f5226c4906c8c36ca458528d33649a7b38754421f8"
     }
   ],
   "stretch_mode_version": "1.0.1",
@@ -447,6 +432,9 @@
     "tran_tuan_noi_that/led_tool.rb",
     "tran_tuan_noi_that/contact_tool.rb",
     "tran_tuan_noi_that/icons/led.svg",
-    "tran_tuan_noi_that/icons/contact.svg"
+    "tran_tuan_noi_that/icons/contact.svg",
+    "tran_tuan_noi_that/chatgpt_connect.rb",
+    "tran_tuan_noi_that/chatgpt_signin.rb",
+    "tran_tuan_noi_that/icons/chatgpt.svg"
   ]
 }
