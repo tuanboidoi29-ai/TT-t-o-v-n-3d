@@ -321,18 +321,18 @@ module TranTuanNoiThat
 <title>TT – Thống Kê Ván</title>
 <style>
 *{box-sizing:border-box}body{margin:0;background:#0f172a;color:#e5e7eb;font:14px Arial,sans-serif}
-.top{padding:16px 18px;background:#f97316;color:#fff}.top h1{margin:0 0 4px;font-size:22px}.top p{margin:0}
+.top{padding:16px 18px;background:#1677e8;color:#fff}.top h1{margin:0 0 4px;font-size:22px}.top p{margin:0}
 .wrap{padding:14px}.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
-button,input{font:inherit}button{border:0;border-radius:6px;background:#334155;color:#fff;padding:9px 12px;cursor:pointer}.primary{background:#ea580c}button:disabled{opacity:.45}
+button,input{font:inherit}button{border:0;border-radius:6px;background:#334155;color:#fff;padding:9px 12px;cursor:pointer}.primary{background:#0c63be}button:disabled{opacity:.45}
 input{padding:9px;border:1px solid #475569;border-radius:6px;background:#111827;color:#fff;min-width:280px}
 .stats{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}.stats span{padding:9px 12px;border-radius:7px;background:#172033;border:1px solid #334155}
 .panel{background:#172033;border:1px solid #334155;border-radius:9px;padding:12px}.table-wrap{height:500px;overflow:auto;border:1px solid #334155;border-radius:7px}
 table{border-collapse:collapse;width:100%;font-size:13px}th{position:sticky;top:0;background:#1e293b;z-index:1}th,td{padding:8px 7px;border-bottom:1px solid #334155;text-align:left}
 tr:hover{background:#1e293b}.muted{color:#94a3b8;font-size:12px}.err{color:#fca5a5;min-height:20px}.ok{color:#86efac}
 .thick{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}.pill{padding:6px 9px;background:#0b1220;border-radius:999px;border:1px solid #334155}
-.num{text-align:right}.name{font-weight:bold;color:#fdba74}
+.num{text-align:right}.name{font-weight:bold;color:#8dccff}
 </style>
-</head>
+<style id="tt-blue-white-theme">/*TT_BLUE_WHITE_THEME_v1*/:root{--bg:#06182d;--panel:#0b2748;--blue:#1677e8;--white:#f7fbff;--muted:#b9d8f5;--border:#2d6ea7}html,body{background:var(--bg)!important;color:var(--white)!important}body{font-family:Arial,"Segoe UI",sans-serif!important}h1,h2,h3,h4,h5,h6,label,legend,strong,b,.title,.name{color:#fff!important}p,.muted,.hint,.sub,.note,.help,.desc,.description,.small{color:var(--muted)!important}a{color:#8dccff!important}.top,.header,.head,.titlebar,.page-header,.app-header,.hero,.banner,.brand,.header-bar{background:linear-gradient(135deg,#0a4f9b,#147ce5)!important;color:#fff!important;border-color:#51a9ff!important}.panel,.card,.box,.section,.group,.pane,.sidebar,.content,.settings-card,.toolbar,.controls,.form-section,.block,.item,.row-card{background:var(--panel)!important;color:#fff!important;border-color:var(--border)!important}button,.btn,input[type=button],input[type=submit]{background:linear-gradient(180deg,#2188f3,#0c63be)!important;color:#fff!important;border:1px solid #53aaff!important;border-radius:7px!important}.primary,.go,.active,.selected,.danger,.warning,.secondary{background:#0f75dc!important;color:#fff!important;border-color:#68b8ff!important}input,select,textarea{background:#071d35!important;color:#fff!important;border:1px solid #3f7fb5!important;border-radius:6px!important}table{background:#09223f!important;color:#fff!important;border-color:#2c6595!important}th{background:#0e4f8d!important;color:#fff!important;border-color:#397caf!important}td{border-color:#244f74!important;color:#eaf5ff!important}tr:nth-child(even){background:#0a294a!important}tr:hover{background:#123d68!important}.badge,.pill,.tag,.chip{background:#0d5fae!important;color:#fff!important;border-color:#61b3ff!important}.ok,.success{color:#a9d9ff!important}.err,.error{color:#ffd9eb!important}hr{border-color:#2c628f!important}</style></head>
 <body>
 <div class="top">
   <h1>THỐNG KÊ VÁN</h1>
