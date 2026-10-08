@@ -131,6 +131,35 @@ module TranTuanNoiThat
       end
     end
 
+    # Chọn bước nan gần kích thước ô người dùng nhất nhưng ưu tiên
+    # để các hàng đỉnh V rơi đúng lên biên trên/dưới của khung.
+    # Đồng thời chọn nghiệm làm biên trái/phải gần hàng đỉnh V nhất.
+    def fitted_diagonal_pitch(iw, ih, t, target)
+      desired = target + t
+      ideal_steps = ih * Math.sqrt(2) / desired
+      center = [ideal_steps.round, 1].max
+      candidates = (([center - 8, 1].max)..(center + 8)).to_a
+
+      best = candidates.map do |steps_y|
+        pitch = ih * Math.sqrt(2) / steps_y.to_f
+        next if pitch <= t + 1.0
+
+        steps_x = iw * Math.sqrt(2) / pitch
+        size_error = ((pitch - t) - target).abs / [target, 1.0].max
+        side_error = (steps_x - steps_x.round).abs
+
+        {
+          pitch: pitch,
+          steps_y: steps_y,
+          steps_x: steps_x,
+          score: size_error + side_error * 0.35
+        }
+      end.compact.min_by { |item| item[:score] }
+
+      raise 'Không chia được ô chéo theo kích thước đã nhập.' unless best
+      best
+    end
+
     def rect(x, y, w, h)
       [[x, y], [x + w, y], [x + w, y + h], [x, y + h]]
     end
@@ -244,23 +273,32 @@ module TranTuanNoiThat
 
         cx = x0 + iw / 2.0
         cy = y0 + ih / 2.0
-        pitch = target + t
+
+        fit = fitted_diagonal_pitch(iw, ih, t, target)
+        pitch = fit[:pitch]
         raise 'Ô quá nhỏ.' unless pitch > t + 1.0
+
+        # Pha hai họ nan từ chính giữa biên trên.
+        # Hai centerline ±45° cùng đi qua một điểm -> tạo đỉnh V chạm khung.
+        phases = [
+          (cx + y0) * inv,
+          (-cx + y0) * inv
+        ]
 
         families = [[], []]
 
         normals.each_with_index do |normal, family_index|
-          center_c = cx * normal[0] + cy * normal[1]
-          offsets = base.map do |point|
-            point[0] * normal[0] + point[1] * normal[1] - center_c
+          phase = phases[family_index]
+          vals = base.map do |point|
+            point[0] * normal[0] + point[1] * normal[1]
           end
 
-          lo, hi = offsets.minmax
-          k_min = (lo / pitch).floor - 1
-          k_max = (hi / pitch).ceil + 1
+          lo, hi = vals.minmax
+          k_min = ((lo - phase) / pitch).floor - 1
+          k_max = ((hi - phase) / pitch).ceil + 1
 
           (k_min..k_max).each do |k|
-            c_line = center_c + k * pitch
+            c_line = phase + k * pitch
 
             poly = clip(
               clip(base, normal, c_line + t / 2.0),
@@ -305,7 +343,8 @@ module TranTuanNoiThat
 
         clear_diamond = [pitch - t, 1.0].max
         frame_note = frame ? 'KHUNG BẬT' : 'KHUNG TẮT'
-        note = "Ô chéo 45° · #{families[0].length} + #{families[1].length} nan · #{meta[:intersections].length} giao điểm khấu 1/2 · lọt lòng ≈ #{clear_diamond.round(1)} mm · #{frame_note}"
+        side_fit = (fit[:steps_x] - fit[:steps_x].round).abs < 0.08 ? 'V chạm đủ 4 biên' : 'V ưu tiên biên trên/dưới'
+        note = "Ô chéo 45° · V tiếp khung · ô nhập #{target.round(1)} mm / thực ≈ #{clear_diamond.round(1)} mm · #{meta[:intersections].length} khấu 1/2 · #{side_fit} · #{frame_note}"
       end
 
       # Chuẩn hóa nhưng giữ nguyên thứ tự/index để metadata giao điểm
@@ -417,7 +456,7 @@ module TranTuanNoiThat
               'Kiểu ô',
               'Dày ván (mm)',
               'Chiều sâu (mm)',
-              'Lọt lòng ô tối đa mong muốn (mm)'
+              'Kích thước ô rượu lọt lòng (mm)'
             ],
             [
               @wine_kind,
@@ -431,7 +470,7 @@ module TranTuanNoiThat
               '',
               ''
             ],
-            'Vẽ Ô Rượu'
+            'Vẽ Ô Rượu · TAB CHIA THEO KÍCH THƯỚC Ô'
           )
 
           if values
@@ -443,7 +482,7 @@ module TranTuanNoiThat
             unless [t, d, c].all? { |value| value.finite? && value > 0 } &&
                    t >= 1 &&
                    c > t
-              raise 'Độ dày, chiều sâu và kích thước ô phải dương.'
+              raise 'Độ dày, chiều sâu và kích thước ô rượu phải dương.'
             end
 
             @wine_kind = kind
@@ -711,7 +750,8 @@ module TranTuanNoiThat
       def status_text
         frame_text = @wine_frame ? 'KHUNG: BẬT' : 'KHUNG: TẮT'
 
-        "VẼ Ô RƯỢU #{@wine_kind} · P1 → P2 → click tạo · "         "SHIFT #{frame_text} · TAB cài đặt · CTRL đảo sâu · #{@wine_note}"
+        "VẼ Ô RƯỢU #{@wine_kind} · P1 → P2 → click tạo · " \
+        "SHIFT #{frame_text} · TAB chia theo kích thước ô · CTRL đảo sâu · #{@wine_note}"
       end
     end
   end
