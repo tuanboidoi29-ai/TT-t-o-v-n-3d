@@ -816,15 +816,18 @@ module TranTuanNoiThat
     end
 
     def commands
+      if @commands && @commands[:rename]
+        old = @commands[:rename]
+        old.tooltip = 'Đổi Tên (nút cũ)'
+        old.status_bar_text = 'Đổi Tên đã chuyển thành chức năng riêng trong toolbar chính. Mở lại SketchUp để xóa nút cũ.'
+        old.set_validation_proc { MF_GRAYED }
+        @commands = @commands.reject { |key, _value| key == :rename }
+      end
       return @commands if @commands
 
       find_cmd = UI::Command.new('Tìm tấm / Sửa độ dày') { find_and_edit_thickness }
       find_cmd.tooltip = 'Tìm tấm / Sửa độ dày'
       find_cmd.status_bar_text = 'Quét Group/Component, tìm theo độ dày và đổi độ dày hàng loạt.'
-
-      rename_cmd = UI::Command.new('Đổi tên tấm / Group') { rename_objects }
-      rename_cmd.tooltip = 'Đổi tên tấm / Group'
-      rename_cmd.status_bar_text = 'Để bảng mở và Ctrl chọn nhiều Group/Component trực tiếp trong model.'
 
       convert_cmd = UI::Command.new('Chuyển đổi Group / Component') { convert_objects }
       convert_cmd.tooltip = 'Chuyển đổi Group / Component'
@@ -832,7 +835,6 @@ module TranTuanNoiThat
 
       {
         find: ['tam_find', find_cmd],
-        rename: ['tam_rename', rename_cmd],
         convert: ['tam_convert', convert_cmd]
       }.each_value do |icon_name, command|
         icon = icon_path(icon_name)
@@ -842,7 +844,7 @@ module TranTuanNoiThat
         end
       end
 
-      @commands = { find: find_cmd, rename: rename_cmd, convert: convert_cmd }
+      @commands = { find: find_cmd, convert: convert_cmd }
     end
 
     def add_menu_items(menu)
