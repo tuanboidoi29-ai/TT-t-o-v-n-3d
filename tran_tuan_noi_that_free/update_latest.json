@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.257",
+  "version": "1.9.258",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "TT – ChatGPT Connect: thêm Continue with ChatGPT chính thức cho app local/open-source bằng OAuth PKCE. Người dùng đủ điều kiện có thể dùng gói ChatGPT cho Responses API mà không cần API key. Có xác minh ID token, refresh token, model theo tài khoản; API key vẫn là phương án dự phòng.",
+  "notes": "Sửa TT – ChatGPT Connect: sửa tách OAuth scope, sửa nhận kết quả luồng nền khi đăng nhập/gửi tin, sửa parser SSE; nếu chưa đăng nhập và không có API key thì tự mở Continue with ChatGPT thay vì báo thiếu API key.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "42d680203483d1e035953315c12e624333f276b24aa22d552f6e186d28a5f92c"
+      "sha256": "d056f8218ad2ec260520ca302b7c0198aeee952bd12be7ebf9b229804eb9f1f9"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -314,7 +314,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "426305657327c978427d1b344bdced1c89c8e6617a8b62fbfea6488d2c3bd5be"
+      "sha256": "c38c3c70cb527f26bf2be7b6c60359b78b9b77ef663d2836086d1a2f93822b88"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -439,7 +439,7 @@
     {
       "path": "tran_tuan_noi_that/chatgpt_signin.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/chatgpt_signin.rb",
-      "sha256": "6d6926569a4948dad53c2c63370a794d847b6aad307b6af26851e3dd74aec414"
+      "sha256": "675dca66b4af3b8c26b1b9f5226c4906c8c36ca458528d33649a7b38754421f8"
     }
   ],
   "stretch_mode_version": "1.0.1",
