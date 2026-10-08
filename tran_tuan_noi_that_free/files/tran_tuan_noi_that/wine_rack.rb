@@ -204,8 +204,8 @@ module TranTuanNoiThat
           end
 
           if @preview_center
-            a_half = half_thickness_mm(@a).round(2)
-            b_half = half_thickness_mm(@b).round(2)
+            a_half = half_width_mm(@a).round(2)
+            b_half = half_width_mm(@b).round(2)
 
             text =
               if @swap_roles
@@ -216,7 +216,7 @@ module TranTuanNoiThat
 
             view.draw_text(
               @preview_center,
-              "#{text}\n= đúng 1/2 ĐỘ DÀY từng tấm · GIAO THẬT: #{format_volume(@preview_volume_mm3)}",
+              "#{text}\n= đúng 1/2 CHIỀU RỘNG từng tấm · GIAO THẬT: #{format_volume(@preview_volume_mm3)}",
               size: 13,
               bold: true,
               color: Sketchup::Color.new(35, 35, 35)
@@ -320,9 +320,9 @@ module TranTuanNoiThat
             'KHẤU ÂM DƯƠNG · A đã chọn · click TẤM B giao với A.'
           else
             if @swap_roles
-              'PREVIEW · A khấu MẶT SAU đúng 1/2 ĐỘ DÀY A · B khấu MẶT TRƯỚC đúng 1/2 ĐỘ DÀY B · click tạo · TAB cài đặt · SHIFT đảo A/B.'
+              'PREVIEW · A khấu MẶT SAU đúng 1/2 CHIỀU RỘNG A · B khấu MẶT TRƯỚC đúng 1/2 CHIỀU RỘNG B · click tạo · TAB cài đặt · SHIFT đảo A/B.'
             else
-              'PREVIEW · A khấu MẶT TRƯỚC đúng 1/2 ĐỘ DÀY A · B khấu MẶT SAU đúng 1/2 ĐỘ DÀY B · click tạo · TAB cài đặt · SHIFT đảo A/B.'
+              'PREVIEW · A khấu MẶT TRƯỚC đúng 1/2 CHIỀU RỘNG A · B khấu MẶT SAU đúng 1/2 CHIỀU RỘNG B · click tạo · TAB cài đặt · SHIFT đảo A/B.'
             end
           end
 
@@ -549,41 +549,52 @@ module TranTuanNoiThat
         [transform.xaxis, transform.yaxis, transform.zaxis]
       end
 
-      def thickness_axis(entity)
+      def dimension_axes(entity)
         tr = world_transform(entity)
         bounds = entity.definition.bounds
         local_sizes = [bounds.width, bounds.height, bounds.depth]
         axes = axis_vectors(tr)
 
         world_sizes = local_sizes.each_with_index.map do |size, index|
-          size * axes[index].length
+          [size * axes[index].length, index]
         end
 
-        world_sizes.each_with_index.min_by(&:first)[1]
+        sorted = world_sizes.sort_by { |pair| pair[0] }
+        {
+          thickness: sorted[0][1],
+          width: sorted[1][1],
+          length: sorted[2][1],
+          thickness_value: sorted[0][0],
+          width_value: sorted[1][0],
+          length_value: sorted[2][0]
+        }
+      end
+
+      def thickness_axis(entity)
+        dimension_axes(entity)[:thickness]
+      end
+
+      def width_axis(entity)
+        dimension_axes(entity)[:width]
       end
 
       def board_thickness_mm(entity)
-        tr = world_transform(entity)
-        bounds = entity.definition.bounds
-        local_sizes = [bounds.width, bounds.height, bounds.depth]
-        axes = axis_vectors(tr)
-
-        world_sizes = local_sizes.each_with_index.map do |size, index|
-          size * axes[index].length
-        end
-
-        world_sizes.min.to_mm.abs
+        dimension_axes(entity)[:thickness_value].to_mm.abs
       end
 
-      def half_thickness_mm(entity)
-        board_thickness_mm(entity) / 2.0
+      def board_width_mm(entity)
+        dimension_axes(entity)[:width_value].to_mm.abs
+      end
+
+      def half_width_mm(entity)
+        board_width_mm(entity) / 2.0
       end
 
       def toward_camera_side(entity)
         tr = world_transform(entity)
-        axis_index = thickness_axis(entity)
+        axis_index = width_axis(entity)
         axis = axis_vectors(tr)[axis_index].clone
-        raise 'Không xác định được trục độ dày.' if axis.length < 1.0e-9
+        raise 'Không xác định được trục chiều rộng.' if axis.length < 1.0e-9
         axis.normalize!
 
         center_world = entity.definition.bounds.center.transform(tr)
@@ -612,18 +623,18 @@ module TranTuanNoiThat
       def build_half_slab(work, entity, side)
         tr = world_transform(entity)
         bounds = entity.definition.bounds
-        thin = thickness_axis(entity)
+        split_axis = width_axis(entity)
 
         min_values = [bounds.min.x, bounds.min.y, bounds.min.z]
         max_values = [bounds.max.x, bounds.max.y, bounds.max.z]
-        mid = (min_values[thin] + max_values[thin]) / 2.0
+        mid = (min_values[split_axis] + max_values[split_axis]) / 2.0
 
         3.times do |axis|
           scale = local_axis_scale(tr, axis)
           raise 'Scale đối tượng không hợp lệ.' if scale < 1.0e-9
           epsilon_local = 0.05.mm / scale
 
-          if axis == thin
+          if axis == split_axis
             if side == :max
               min_values[axis] = mid
               max_values[axis] += epsilon_local
@@ -675,14 +686,14 @@ module TranTuanNoiThat
 
         faces.each do |indices|
           face = group.entities.add_face(indices.map { |i| points[i] })
-          raise 'Không dựng được nửa độ dày.' unless face
+          raise 'Không dựng được nửa chiều rộng.' unless face
 
           face_center = face.bounds.center
           outward = face_center - center
           face.reverse! if face.normal.dot(outward) < 0.0
         end
 
-        raise 'Khối nửa độ dày chưa kín.' unless group.manifold?
+        raise 'Khối nửa chiều rộng chưa kín.' unless group.manifold?
         group
       end
 
@@ -694,7 +705,7 @@ module TranTuanNoiThat
                cutter.valid? &&
                cutter.manifold? &&
                cutter.volume > EPS_VOL
-          raise 'Không dựng được dao khấu 1/2 độ dày.'
+          raise 'Không dựng được dao khấu 1/2 chiều rộng.'
         end
 
         # Không tự erase operands. Solid Tools có thể đã xóa/tái dùng operand;
@@ -708,7 +719,7 @@ module TranTuanNoiThat
 
         target_tr = world_transform(entity)
         inverse = target_tr.inverse
-        thin = thickness_axis(entity)
+        split_axis = width_axis(entity)
 
         vertices = cutter.definition.entities
           .grep(Sketchup::Face)
@@ -732,7 +743,7 @@ module TranTuanNoiThat
         factors = [1.0, 1.0, 1.0]
 
         3.times do |axis|
-          next if axis == thin
+          next if axis == split_axis
 
           size = maxs[axis] - mins[axis]
           next if size < 1.0e-9
@@ -833,8 +844,10 @@ module TranTuanNoiThat
         @b.set_attribute(PREF, 'half_lap_role', b_role.to_s)
         @a.set_attribute(PREF, 'board_thickness_mm', board_thickness_mm(@a).round(4))
         @b.set_attribute(PREF, 'board_thickness_mm', board_thickness_mm(@b).round(4))
-        @a.set_attribute(PREF, 'notch_depth_mm', half_thickness_mm(@a).round(4))
-        @b.set_attribute(PREF, 'notch_depth_mm', half_thickness_mm(@b).round(4))
+        @a.set_attribute(PREF, 'board_width_mm', board_width_mm(@a).round(4))
+        @b.set_attribute(PREF, 'board_width_mm', board_width_mm(@b).round(4))
+        @a.set_attribute(PREF, 'notch_depth_mm', half_width_mm(@a).round(4))
+        @b.set_attribute(PREF, 'notch_depth_mm', half_width_mm(@b).round(4))
         @a.set_attribute(PREF, 'gap_mm', @gap_mm)
         @b.set_attribute(PREF, 'gap_mm', @gap_mm)
 
@@ -848,7 +861,7 @@ module TranTuanNoiThat
         @model.selection.add(@b)
 
         Sketchup.set_status_text(
-          'Đã KHẤU ÂM DƯƠNG 1/2 · hai rãnh gặp tại tâm độ dày · Ctrl+Z hoàn tác.',
+          'Đã KHẤU ÂM DƯƠNG 1/2 · hai rãnh gặp tại tâm chiều rộng · Ctrl+Z hoàn tác.',
           SB_PROMPT
         )
         UI.beep
