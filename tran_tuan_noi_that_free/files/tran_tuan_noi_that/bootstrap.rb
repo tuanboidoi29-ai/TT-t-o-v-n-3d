@@ -18,7 +18,7 @@ module TranTuanNoiThat
   }.freeze unless const_defined?(:LOCKED_FEATURE_BASELINES, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.277'.freeze
+  VERSION = '1.9.278'.freeze
 
   class << self
     def setting(key, default = nil)
@@ -43,14 +43,28 @@ module TranTuanNoiThat
     end
 
     # Load the included Ruby source explicitly, including when reloading.
+    # Ghi lại chính xác file/lỗi để updater không chỉ báo "nạp thất bại" chung chung.
     def runtime_load(stem)
       path = File.join(ROOT, stem.to_s + '.rb')
-      return false unless File.file?(path)
+      unless File.file?(path)
+        @last_runtime_error = "#{stem}: thiếu file #{path}"
+        return false
+      end
+
       load(path)
       true
-    rescue StandardError => error
+    rescue StandardError, ScriptError => error
+      @last_runtime_error = "#{stem}: #{error.class}: #{error.message}"
       puts "[TT runtime_load #{stem}] #{error.class}: #{error.message}"
       false
+    end
+
+    def last_runtime_error
+      @last_runtime_error.to_s
+    end
+
+    def restart_required?
+      !!@restart_required
     end
 
     def refresh_feature_commands
@@ -100,6 +114,7 @@ module TranTuanNoiThat
     end
 
     def reload_runtime
+      @last_runtime_error = nil
       cleanup_retired_chatgpt
       cleanup_retired_wine_rack_data
       CadWalls.close if const_defined?(:CadWalls, false) && CadWalls.respond_to?(:close)
@@ -149,7 +164,10 @@ module TranTuanNoiThat
         grain_board_auto
         updater
         don_dim_line
-      ].each { |stem| raise "Không nạp được #{stem}" unless runtime_load(stem) }
+      ].each do |stem|
+        next if runtime_load(stem)
+        raise(@last_runtime_error.to_s.empty? ? "Không nạp được #{stem}" : @last_runtime_error)
+      end
 
       verify_locked_features
 
@@ -159,10 +177,15 @@ module TranTuanNoiThat
         stretch_auto_scan_fix
         stretch_auto_scope_fix
         stretch_window_tool
-      ].each { |stem| raise "Không nạp được #{stem}" unless runtime_load(stem) }
+      ].each do |stem|
+        next if runtime_load(stem)
+        raise(@last_runtime_error.to_s.empty? ? "Không nạp được #{stem}" : @last_runtime_error)
+      end
+
       true
-    rescue StandardError => error
-      UI.messagebox("Không thể nạp lại hệ thống:\n#{error.message}")
+    rescue StandardError, ScriptError => error
+      @last_runtime_error = "#{error.class}: #{error.message}" if @last_runtime_error.to_s.empty?
+      puts "[TT reload_runtime] #{@last_runtime_error}"
       false
     end
 
@@ -690,14 +713,37 @@ module TranTuanNoiThat
     end
 
     def boot
-      raise "Nạp hệ thống không thành công." unless reload_runtime
-      install_ui
-      unless @startup_check_scheduled
-        @startup_check_scheduled = true
-        UI.start_timer(5.0, false) do
-          Updater.check(false) if setting('auto_update', true)
+      hot_reload = !!@booted_once
+
+      if reload_runtime
+        @restart_required = false
+        install_ui
+        @booted_once = true
+
+        unless @startup_check_scheduled
+          @startup_check_scheduled = true
+          UI.start_timer(5.0, false) do
+            Updater.check(false) if setting('auto_update', true)
+          end
         end
+        return true
       end
+
+      detail = last_runtime_error
+      if hot_reload
+        # Cập nhật file đã hoàn tất nhưng phiên SketchUp hiện tại còn object/dialog/
+        # constant cũ. Không buộc updater rollback; giữ bản mới và yêu cầu restart.
+        @restart_required = true
+        UI.messagebox(
+          "Đã cài tệp cập nhật nhưng phiên SketchUp hiện tại không nạp nóng được.\n" \
+          "Hãy ĐÓNG SketchUp và MỞ LẠI một lần.\n\n" \
+          "Chi tiết: #{detail}"
+        )
+        @booted_once = true
+        return true
+      end
+
+      raise "Nạp hệ thống không thành công.\n#{detail}"
     end
   end
 end
