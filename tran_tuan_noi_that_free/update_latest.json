@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.269",
+  "version": "1.9.270",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Vẽ Ô Rượu chéo: sửa đúng mối V tỳ cạnh. Trước đây giao gần khung vẫn có thể chồng nhau vì vùng overlap không nằm đúng trên biên. Nay nhận giao trong vùng sát khung theo bề dày nan, cắt nan phụ đúng tới một cạnh bên của nan chính và giữ phần thân lớn hơn; kết quả không chồng, không hở, không còn hình thoi nhỏ ở chân V. Khấu âm dương 1/2 chỉ áp dụng giao bên trong; SHIFT/TAB giữ nguyên.",
+  "notes": "Thay toàn bộ chức năng Vẽ Ô Rượu bằng KHẤU ÂM DƯƠNG. Chọn 2 Group/Component Solid giao nhau; hệ thống dùng giao khối thật để preview và tạo khấu. Tấm A khấu từ mặt trước đúng 1/2 chiều sâu, tấm B khấu từ mặt sau đúng 1/2; có SHIFT đảo vai A/B. Hai rãnh gặp nhau tại tâm chiều sâu, giữ nguyên từng Group/Component, tên/Tag/vị trí. TAB mở cài đặt độ hở mỗi bên 0–5 mm và đảo vai A/B. Xóa icon/thông số Ô Rượu cũ.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "c2cff0b9d20b73ae5e46039cf2152854f0b2eb8b8394a39381c05365093658f2"
+      "sha256": "e810b713d8d49f036e8f0f162e61f49fa6aa30ea47c636eab0555301217d12d4"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -314,7 +314,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "157cb2edc83abc318a0222c2d36f08fcc98f86137561eec44bae2973f1f16589"
+      "sha256": "3246a595d98a2e1a9ef777b9ab0a654b047ee74ccc91f37c4c67ec08be95a0b1"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -419,12 +419,7 @@
     {
       "path": "tran_tuan_noi_that/wine_rack.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/wine_rack.rb",
-      "sha256": "275f08d386c029c0430858e356f12250c0bb90c2ba74fab716e6fef25664fa32"
-    },
-    {
-      "path": "tran_tuan_noi_that/icons/wine_rack.svg",
-      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/icons/wine_rack.svg",
-      "sha256": "55844ab0a38ada0a135baba9837f61eb654780be8216fdffa8041ee436659155"
+      "sha256": "5b9bf0329e5aef2a724b22801d47b2594b7f1af93de8854a0b91ad800e7dfd46"
     },
     {
       "path": "tran_tuan_noi_that/board_stats_tool.rb",
@@ -440,6 +435,7 @@
     "tran_tuan_noi_that/icons/contact.svg",
     "tran_tuan_noi_that/chatgpt_connect.rb",
     "tran_tuan_noi_that/chatgpt_signin.rb",
-    "tran_tuan_noi_that/icons/chatgpt.svg"
+    "tran_tuan_noi_that/icons/chatgpt.svg",
+    "tran_tuan_noi_that/icons/wine_rack.svg"
   ]
 }
