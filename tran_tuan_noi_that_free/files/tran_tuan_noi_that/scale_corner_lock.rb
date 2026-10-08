@@ -19,7 +19,7 @@ module TranTuanNoiThat
     extend self
 
     remove_const(:VERSION) if const_defined?(:VERSION, false)
-    VERSION = '1.9.261'.freeze
+    VERSION = '1.9.262'.freeze
 
     MIN_FACTOR = 0.001
     AXIS_ALIGN_MIN = 0.70
@@ -566,12 +566,6 @@ module TranTuanNoiThat
           Sketchup::Color.new(230, 45, 45),
           4
         )
-
-        if @guide_point && @face_center_world
-          view.line_width = 2
-          view.drawing_color = Sketchup::Color.new(40, 130, 240)
-          view.draw(GL_LINES, [@face_center_world, @guide_point])
-        end
 
         if @snap_point
           view.draw_points(
