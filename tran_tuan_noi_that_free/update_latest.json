@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.275",
+  "version": "1.9.276",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Thiết kế lại toàn bộ giao diện TRẦN TUẤN NỘI THẤT theo theme xanh dương–trắng thống nhất: nền navy, panel xanh đậm, header/nút xanh dương, chữ trắng và viền xanh nhạt. Áp theme cho toàn bộ 20 HtmlDialog hiện có. Đồng bộ 29 icon toolbar sang bảng màu xanh–trắng, giữ nguyên hình dạng và vị trí công cụ. Không thay đổi logic chức năng; các màu preview kỹ thuật trong viewport được giữ nguyên để không mất ý nghĩa thao tác.",
+  "notes": "Sửa khẩn cấp hệ thống cập nhật: manifest 1.9.275 có ui/cad_walls.html nhưng updater cũ chỉ cho phép ui/settings.html nên cả RAW/API báo 'Đường dẫn cập nhật không hợp lệ'. Bản 1.9.276 loại đường dẫn HTML đó khỏi manifest để máy cũ cập nhật được ngay, đồng thời nâng updater để từ nay cho phép an toàn mọi ui/[a-z0-9_]+.html. Giữ toàn bộ theme xanh-trắng và icon xanh-trắng đã phát hành.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "c84d35e3b32df01cda2963f0296f9155b5d781f0835c893994d47ffff504f08d"
+      "sha256": "2612cc92daefb3c3abf344da0e0b86547e26e0120505696dd0b78824105593b2"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -309,12 +309,12 @@
     {
       "path": "tran_tuan_noi_that/updater.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/updater.rb",
-      "sha256": "b03ed86c7419a063bdfe7949db44ad5c875cdbd96e93ac43192c59d5bd44753f"
+      "sha256": "e1dd5da377f915168d9ab38584c479d5463a0645070f66ae7a55c4f4513ebd30"
     },
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "100bff03782c6b77f62812035833c0e82a769844d4e7c4016d577392ad45a835"
+      "sha256": "7fff842c690c74379f906777866cb1f0695c79206bdf09f4c303541f21cc1702"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -430,11 +430,6 @@
       "path": "tran_tuan_noi_that/icons/khau_am_duong.svg",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/icons/khau_am_duong.svg",
       "sha256": "c3cbd24278c2a630f33155b93776bd196bb0fc183bc810e02748c3efbd828340"
-    },
-    {
-      "path": "tran_tuan_noi_that/ui/cad_walls.html",
-      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/ui/cad_walls.html",
-      "sha256": "09b81981d585f86b2800a5cb4fa138ea432a16a6ef67f773a163794224907e06"
     }
   ],
   "stretch_mode_version": "1.0.1",
