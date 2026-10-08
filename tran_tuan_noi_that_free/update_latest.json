@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.259",
+  "version": "1.9.260",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Xóa toàn bộ TT – ChatGPT Connect/OAuth/API và dữ liệu đăng nhập cục bộ. Scale 4 Cạnh đổi sang Scale Kéo Cạnh: rê trực tiếp cạnh thật của mặt tấm, kéo cạnh có bắt Endpoint/Edge/Face/Inference bằng InputPoint, khóa cạnh đối diện; nhập kích thước mm hoặc hệ số x.",
+  "notes": "Tách riêng ĐỔI TÊN và THỐNG KÊ VÁN thành hai công cụ/2 giao diện độc lập. Đổi Tên chỉ sửa Name + Tag/Layer; Thống Kê Ván chỉ quét Dài/Rộng/Dày, số lượng, diện tích và tìm tấm. Đổi Scale 4 Cạnh thành KÉO MẶT FACE: rà Face preview + kích thước, click khóa mặt, rê kéo bắt Endpoint/Edge/Face/Inference, click tạo hoặc nhập mm.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "4b318021547a1ec74d959df591a88214e28d1d93279dcc66337a06d17a3d0b23"
+      "sha256": "468df76680783e1443c7d7682cd0e20b05daf39971fcc29683067f2d6864909f"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -244,7 +244,7 @@
     {
       "path": "tran_tuan_noi_that/rename_ui.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/rename_ui.rb",
-      "sha256": "fd71147bdadb84b2eb8c9464c9583052d69da73a195f4d65409a27edb5a8e469"
+      "sha256": "d9e67adc190603f551e36f889a51f628e42e367e6cbf2fd0af3d2843a9521855"
     },
     {
       "path": "tran_tuan_noi_that/round_smooth_fix.rb",
@@ -259,7 +259,7 @@
     {
       "path": "tran_tuan_noi_that/scale_corner_lock.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/scale_corner_lock.rb",
-      "sha256": "3a9672f8c98f153b187e5f882ba028db0d7e8734bd1dee16c2cede4a91ef6279"
+      "sha256": "be028a9681ca116d588a63cab46d263f976c6a4837d9c38a71ae70da5771c71c"
     },
     {
       "path": "tran_tuan_noi_that/settings.rb",
@@ -299,7 +299,7 @@
     {
       "path": "tran_tuan_noi_that/tam_pro.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/tam_pro.rb",
-      "sha256": "fbf8845a4b478a5e14b3fcb5156428277568e143a79b6751090fce72eba1cbbe"
+      "sha256": "a3999bc13c6e547476ac45f585cb2f41c48001359cb9aa98df368a70e08ba7ca"
     },
     {
       "path": "tran_tuan_noi_that/ui/settings.html",
@@ -314,7 +314,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "c66bf8da707db08a198255e13658c5415128178effa844efcf13e68124a3d3db"
+      "sha256": "217fab8238fc8014c3c724c9dd17f8fe004b10f6794d28e006a11194f6d8f7f0"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -425,6 +425,11 @@
       "path": "tran_tuan_noi_that/icons/wine_rack.svg",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/icons/wine_rack.svg",
       "sha256": "55844ab0a38ada0a135baba9837f61eb654780be8216fdffa8041ee436659155"
+    },
+    {
+      "path": "tran_tuan_noi_that/board_stats_tool.rb",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/board_stats_tool.rb",
+      "sha256": "ec09faf12fb6c89ef99127d7ff5da76832deceedb8d79698876d2deee149116a"
     }
   ],
   "stretch_mode_version": "1.0.1",
