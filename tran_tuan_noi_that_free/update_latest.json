@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.263",
+  "version": "1.9.264",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Vẽ Ô Rượu: chuẩn hóa giao điểm nan-nan và nan-khung để đầu nan chạm đúng biên tiếp xúc, không vượt/hở; SHIFT bật/tắt khung viền và preview cập nhật ngay; khi tắt khung, nan được cắt đúng tới biên P1/P2.",
+  "notes": "Vẽ Ô Rượu chéo dựng lại theo kết cấu SketchUp thủ công: lấy tâm khung làm chuẩn, tạo 2 họ nan liên tục ±45° đối xứng qua tâm, clip đúng tới biên trong khung; khung ngoài ghép góc 45°. SHIFT vẫn bật/tắt khung viền.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "41f032e999df417a668311f1e582429243c2b36cdb17f1beebd6f98535447a23"
+      "sha256": "f5fb478297946ae6316d248d9dad2aeef42e63783936d74c7999a7d3143387b3"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -314,7 +314,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "2607f5fc2f0289a757b0fc37acb2d39ccac61c83fbbbaa24eaa9624116fb77c3"
+      "sha256": "3edd0ca84d6e16bdfa368560e4b04afcc2c08d187449412c47611365cbbf5d44"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -419,7 +419,7 @@
     {
       "path": "tran_tuan_noi_that/wine_rack.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/wine_rack.rb",
-      "sha256": "34d6acd584562552d45370d6e4991025fd4c6dc51b1e5019581807f8ce72ffdb"
+      "sha256": "b7e42abe9a461e86faa86d32b41281d68da778105ef4421901f50612c261aa65"
     },
     {
       "path": "tran_tuan_noi_that/icons/wine_rack.svg",
