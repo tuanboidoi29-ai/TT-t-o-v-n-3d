@@ -1,0 +1,34 @@
+name: TT Plugin Ruby Syntax Check
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'tran_tuan_noi_that_free/files/**/*.rb'
+      - '.github/workflows/tt_plugin_syntax_check.yml'
+  workflow_dispatch:
+
+jobs:
+  ruby-syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Ruby version
+        run: ruby --version
+
+      - name: Check all plugin Ruby files
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="tran_tuan_noi_that_free/files"
+          fail=0
+          while IFS= read -r -d '' file; do
+            echo "::group::ruby -c $file"
+            if ! ruby -c "$file"; then
+              fail=1
+            fi
+            echo "::endgroup::"
+          done < <(find "$root" -type f -name '*.rb' -print0 | sort -z)
+          exit "$fail"
