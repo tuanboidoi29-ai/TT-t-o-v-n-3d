@@ -258,6 +258,7 @@ module TranTuanNoiThat
     # Kết quả là mối V kiểu butt-joint như hình mẫu, không còn chồng khối ở đầu.
     def trim_boundary_v_joints(family_a, family_b, base, thickness)
       half = thickness / 2.0
+      joint_count = 0
 
       family_b.each do |b_entry|
         poly_b = b_entry[:poly]
@@ -285,13 +286,16 @@ module TranTuanNoiThat
               clip(poly_b, normal, center_c - half)
             end
 
-          poly_b = trimmed if area(trimmed) > 0.01
+          if area(trimmed) > 0.01
+            poly_b = trimmed
+            joint_count += 1
+          end
         end
 
         b_entry[:poly] = poly_b
       end
 
-      family_b
+      joint_count
     end
 
     def rect(x, y, w, h)
@@ -452,7 +456,13 @@ module TranTuanNoiThat
 
         # Xử lý riêng các giao nhau sát khung:
         # A đi tới V, B đầu vuông tỳ vào cạnh A.
-        trim_boundary_v_joints(families[0], families[1], base, t)
+        boundary_v_count = trim_boundary_v_joints(
+          families[0],
+          families[1],
+          base,
+          t
+        )
+        meta[:boundary_v_joints] = boundary_v_count
 
         frame_count = polys.length
         meta[:family_a] = (frame_count...(frame_count + families[0].length)).to_a
@@ -484,7 +494,7 @@ module TranTuanNoiThat
         clear_diamond = [pitch - t, 1.0].max
         frame_note = frame ? 'KHUNG BẬT' : 'KHUNG TẮT'
         side_fit = (fit[:steps_x] - fit[:steps_x].round).abs < 0.08 ? 'V chạm đủ 4 biên' : 'V ưu tiên biên trên/dưới'
-        note = "Ô chéo 45° · đầu vuông tỳ cạnh tạo V · ô nhập #{target.round(1)} mm / thực ≈ #{clear_diamond.round(1)} mm · #{meta[:intersections].length} khấu 1/2 · #{side_fit} · #{frame_note}"
+        note = "Ô chéo 45° · #{boundary_v_count} mối V đầu vuông tỳ cạnh · ô nhập #{target.round(1)} mm / thực ≈ #{clear_diamond.round(1)} mm · #{meta[:intersections].length} khấu 1/2 bên trong · #{side_fit} · #{frame_note}"
       end
 
       # Chuẩn hóa nhưng giữ nguyên thứ tự/index để metadata giao điểm
