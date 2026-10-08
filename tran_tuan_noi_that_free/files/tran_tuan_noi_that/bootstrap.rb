@@ -18,7 +18,7 @@ module TranTuanNoiThat
   }.freeze unless const_defined?(:LOCKED_FEATURE_BASELINES, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.268'.freeze
+  VERSION = '1.9.269'.freeze
 
   class << self
     def setting(key, default = nil)
@@ -536,7 +536,7 @@ module TranTuanNoiThat
     end
 
     def install_wine_rack_ui
-      @wine_rack_cmd ||= command('Vẽ Ô Rượu', 'wine_rack.svg', 'P1–P2 · mối V thật: thanh chính tới đỉnh, thanh kia đầu vuông tỳ cạnh · khấu 1/2 chỉ giao bên trong · SHIFT khung · TAB kích thước ô') { WineRack.activate }
+      @wine_rack_cmd ||= command('Vẽ Ô Rượu', 'wine_rack.svg', 'P1–P2 · mối V tỳ cạnh thật: không chồng, không hở · khấu 1/2 chỉ giao bên trong · SHIFT khung · TAB kích thước ô') { WineRack.activate }
       add_feature_command_once(@wine_rack_cmd, :wine_rack_menu_installed)
     end
 
