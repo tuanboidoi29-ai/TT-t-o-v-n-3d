@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.273",
+  "version": "1.9.274",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "KHẤU ÂM DƯƠNG: đổi quy tắc theo yêu cầu mới — khấu đúng 1/2 CHIỀU RỘNG của từng ván, không phải 1/2 độ dày. Tự nhận 3 kích thước thực sau scale: lớn nhất=Dài, nhỏ nhất=Dày, kích thước còn lại=Rộng. Tấm A khấu từ mặt trước đến tâm chiều rộng; Tấm B khấu từ mặt sau đến tâm chiều rộng. Preview A xanh/B hồng hiển thị chính xác số mm = 1/2 chiều rộng; lưu board_width_mm và notch_depth_mm.",
+  "notes": "Đổi icon riêng cho KHẤU ÂM DƯƠNG: icon mới thể hiện 2 tấm giao nhau A xanh/B hồng và ký hiệu 1/2 ở tâm. Chỉ nút KHẤU ÂM DƯƠNG dùng icon khau_am_duong.svg; Khấu ván AUTO vẫn giữ icon notch.svg riêng.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "f6677014f0002cb5859eaf8e5b658c5336f3fd354e9d4b4e5a9d5ca3ae6e6b74"
+      "sha256": "62068d44336e7bacb2f613708b6fa3a8896d7eeb8750f8c48336a8f6937a2352"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -314,7 +314,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "a058470108b2df856e56d171cb3fdace81cc5c1cedc77992b2d48d7b9eecdfcf"
+      "sha256": "7efff9e226d74ff03dfd144ea9b39210fba41efa08bc7a9fd74521249024bffb"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -425,6 +425,11 @@
       "path": "tran_tuan_noi_that/board_stats_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/board_stats_tool.rb",
       "sha256": "ec09faf12fb6c89ef99127d7ff5da76832deceedb8d79698876d2deee149116a"
+    },
+    {
+      "path": "tran_tuan_noi_that/icons/khau_am_duong.svg",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/icons/khau_am_duong.svg",
+      "sha256": "9a0b45237b95ff82f827d96690eca1ee6df564f186b8a98f327af7f7bd6aeac2"
     }
   ],
   "stretch_mode_version": "1.0.1",
