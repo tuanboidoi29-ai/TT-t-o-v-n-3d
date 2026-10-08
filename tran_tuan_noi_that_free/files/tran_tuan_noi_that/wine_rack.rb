@@ -102,11 +102,11 @@ module TranTuanNoiThat
       polys = []
 
       if frame
-        # Khung không chồng góc: các mặt tiếp xúc dùng cùng đúng tọa độ.
-        polys << rect(0, 0, w, t)
-        polys << rect(0, h - t, w, t)
-        polys << rect(0, t, t, h - 2 * t)
-        polys << rect(w - t, t, t, h - 2 * t)
+        # Khung ngoài ghép góc 45° như cách dựng thủ công.
+        polys << [[0, 0], [w, 0], [w - t, t], [t, t]]
+        polys << [[t, h - t], [w - t, h - t], [w, h], [0, h]]
+        polys << [[0, 0], [t, t], [t, h - t], [0, h]]
+        polys << [[w, 0], [w, h], [w - t, h - t], [w - t, t]]
       end
 
       base = rect(x0, y0, iw, ih)
@@ -139,60 +139,58 @@ module TranTuanNoiThat
         frame_note = frame ? 'KHUNG BẬT' : 'KHUNG TẮT'
         note = "#{cols} cột × #{rows} hàng · Lọt lòng #{cw.round(1)} × #{ch.round(1)} mm · #{frame_note}"
       else
-        a = [1.0 / Math.sqrt(2), 1.0 / Math.sqrt(2)]
-        b = [-a[0], a[1]]
-        bands = []
+        # Ô chéo dựng theo tâm khung:
+        # - 2 họ nan liên tục ±45°
+        # - đối xứng qua tâm
+        # - clip đúng theo biên trong khung
+        # Cách này tương đương vẽ thanh mẫu rồi rotate/mirror thủ công trong SketchUp.
+        inv = 1.0 / Math.sqrt(2)
+        normals = [
+          [ inv,  inv],   # thanh hướng -45°
+          [-inv,  inv]    # thanh hướng +45°
+        ]
 
-        [a, b].each do |normal|
-          vals = base.map { |point| point[0] * normal[0] + point[1] * normal[1] }
-          lo, hi = vals.minmax
-          count = [((hi - lo) / (target + t)).ceil, 1].max
-          raise 'Quá nhiều nan chéo; tăng kích thước ô.' if count > 20
+        cx = x0 + iw / 2.0
+        cy = y0 + ih / 2.0
+        pitch = target + t
+        raise 'Ô quá nhỏ.' unless pitch > t + 1.0
 
-          pitch = (hi - lo) / count
-          raise 'Ô quá nhỏ.' unless pitch > t + 1.0
+        family_counts = []
 
-          bands << [(1...count).map { |i| lo + pitch * i }, normal, pitch]
-        end
-
-        first, n, pitch = bands[0]
-
-        # Họ nan thứ nhất: clip đúng tới biên tiếp xúc với khung/base.
-        first.each do |c|
-          poly = clip(
-            clip(base, n, c + t / 2.0),
-            n.map { |value| -value },
-            -c + t / 2.0
-          )
-          polys << poly
-        end
-
-        # Họ nan thứ hai: cắt tại đúng hai biên của họ thứ nhất.
-        # Mọi đầu mút sinh ra từ cùng phương trình giao tuyến, không vượt/chừa khe.
-        second, m, = bands[1]
-        second.each do |c|
-          pieces = [
-            clip(
-              clip(base, m, c + t / 2.0),
-              m.map { |value| -value },
-              -c + t / 2.0
-            )
-          ]
-
-          first.each do |cut|
-            pieces = pieces.flat_map do |poly|
-              [
-                clip(poly, n, cut - t / 2.0),
-                clip(poly, n.map { |value| -value }, -cut - t / 2.0)
-              ]
-            end.select { |poly| area(poly) > 0.01 }
+        normals.each do |normal|
+          center_c = cx * normal[0] + cy * normal[1]
+          offsets = base.map do |point|
+            point[0] * normal[0] + point[1] * normal[1] - center_c
           end
 
-          polys.concat(pieces)
+          lo, hi = offsets.minmax
+          k_min = (lo / pitch).floor - 1
+          k_max = (hi / pitch).ceil + 1
+
+          count = 0
+          (k_min..k_max).each do |k|
+            c_line = center_c + k * pitch
+
+            poly = clip(
+              clip(base, normal, c_line + t / 2.0),
+              normal.map { |value| -value },
+              -c_line + t / 2.0
+            )
+
+            next unless area(poly) > 0.01
+
+            # Một nan = một polygon liên tục từ biên này tới biên kia.
+            polys << poly
+            count += 1
+          end
+
+          raise 'Quá nhiều nan chéo; tăng kích thước ô.' if count > 40
+          family_counts << count
         end
 
+        clear_diamond = [pitch - t, 1.0].max
         frame_note = frame ? 'KHUNG BẬT' : 'KHUNG TẮT'
-        note = "Ô chéo · cạnh lọt lòng #{(pitch - t).round(1)} mm · nan chạm biên đúng giao điểm · #{frame_note}"
+        note = "Ô chéo 45° tâm chuẩn · #{family_counts[0]} + #{family_counts[1]} nan · lọt lòng ≈ #{clear_diamond.round(1)} mm · #{frame_note}"
       end
 
       # Chuẩn hóa toàn bộ tọa độ giao nhau và tiếp xúc khung.
