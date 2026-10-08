@@ -308,10 +308,12 @@ module TranTuanNoiThat
         note = "Ô chéo 45° · #{families[0].length} + #{families[1].length} nan · #{meta[:intersections].length} giao điểm khấu 1/2 · lọt lòng ≈ #{clear_diamond.round(1)} mm · #{frame_note}"
       end
 
-      # Chuẩn hóa toàn bộ tọa độ giao nhau và tiếp xúc khung.
+      # Chuẩn hóa nhưng giữ nguyên thứ tự/index để metadata giao điểm
+      # luôn trỏ đúng thanh sau khi tạo hình.
       polys = polys.map do |poly|
         canonical_poly(poly, x0, y0, x1, y1)
-      end.select { |poly| area(poly) > 0.01 }
+      end
+      raise 'Có thanh bị suy biến sau khi cắt biên.' if polys.any? { |poly| area(poly) <= 0.01 }
 
       raise 'Quá nhiều chi tiết; tăng kích thước ô.' if polys.length > 250
 
@@ -341,6 +343,7 @@ module TranTuanNoiThat
         )
 
         @wine_polys = []
+        @wine_meta = nil
       end
 
       def update(view, x, y)
@@ -563,11 +566,12 @@ module TranTuanNoiThat
         if from_front
           start_depth = -epsilon_depth
           direction = displacement.clone
-          length = half_depth + epsilon_depth * 2.0
+          length = half_depth + epsilon_depth
         else
           start_depth = @wine_depth + epsilon_depth
-          direction = displacement.clone.reverse
-          length = half_depth + epsilon_depth * 2.0
+          direction = displacement.clone
+          direction.reverse!
+          length = half_depth + epsilon_depth
         end
 
         cutter_poly = WineRack.expand_from_center(footprint, 0.10)
