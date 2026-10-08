@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.272",
+  "version": "1.9.273",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "KHẤU ÂM DƯƠNG: chốt đúng quy tắc khấu theo ĐỘ DÀY TẤM, không theo chiều sâu/chiều dài. Mỗi tấm tự nhận cạnh nhỏ nhất làm độ dày thực sau scale; độ sâu rãnh = đúng 1/2 độ dày của chính tấm đó. Preview hiển thị số mm khấu của A xanh và B hồng; lưu board_thickness_mm và notch_depth_mm vào từng tấm sau khi khấu.",
+  "notes": "KHẤU ÂM DƯƠNG: đổi quy tắc theo yêu cầu mới — khấu đúng 1/2 CHIỀU RỘNG của từng ván, không phải 1/2 độ dày. Tự nhận 3 kích thước thực sau scale: lớn nhất=Dài, nhỏ nhất=Dày, kích thước còn lại=Rộng. Tấm A khấu từ mặt trước đến tâm chiều rộng; Tấm B khấu từ mặt sau đến tâm chiều rộng. Preview A xanh/B hồng hiển thị chính xác số mm = 1/2 chiều rộng; lưu board_width_mm và notch_depth_mm.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "e3c344323b65b5ee06cf1054d884a682887d432e645a47629bb679349075bdcb"
+      "sha256": "f6677014f0002cb5859eaf8e5b658c5336f3fd354e9d4b4e5a9d5ca3ae6e6b74"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -314,7 +314,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "a3ff6b793bcba0ddd37a9a47e6e7a04cd84cde4a3efa29b4d84475f6a0ed1cb3"
+      "sha256": "a058470108b2df856e56d171cb3fdace81cc5c1cedc77992b2d48d7b9eecdfcf"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -419,7 +419,7 @@
     {
       "path": "tran_tuan_noi_that/wine_rack.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/wine_rack.rb",
-      "sha256": "8e2203e9f7a852d6a7db0c8a77843ade96868465392c4b7657e361b76d22276e"
+      "sha256": "fa135d75c86b1806e7446035f0cff037a89b8778308039ddbd6f3c76a3359c4f"
     },
     {
       "path": "tran_tuan_noi_that/board_stats_tool.rb",
