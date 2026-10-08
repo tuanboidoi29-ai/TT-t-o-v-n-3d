@@ -160,6 +160,84 @@ module TranTuanNoiThat
       best
     end
 
+    def line_rect_intersections(base, normal, c)
+      xs = base.map { |p| p[0] }
+      ys = base.map { |p| p[1] }
+      x0, x1 = xs.minmax
+      y0, y1 = ys.minmax
+      nx, ny = normal
+      points = []
+
+      if ny.abs > 1.0e-9
+        [x0, x1].each do |x|
+          y = (c - nx * x) / ny
+          points << [x, y] if y >= y0 - 1.0e-7 && y <= y1 + 1.0e-7
+        end
+      end
+
+      if nx.abs > 1.0e-9
+        [y0, y1].each do |y|
+          x = (c - ny * y) / nx
+          points << [x, y] if x >= x0 - 1.0e-7 && x <= x1 + 1.0e-7
+        end
+      end
+
+      unique = []
+      points.each do |point|
+        unique << point unless unique.any? do |other|
+          Math.hypot(point[0] - other[0], point[1] - other[1]) < 1.0e-6
+        end
+      end
+
+      return [] if unique.length < 2
+
+      unique.combination(2).max_by do |a, b|
+        Math.hypot(a[0] - b[0], a[1] - b[1])
+      end
+    end
+
+    # Thanh chéo đầu nhọn: centerline chạm biên tại một điểm.
+    # Hai họ nan được cùng pha nên hai đầu nhọn dùng chung điểm -> thành góc V.
+    def pointed_strip(base, normal, c, thickness)
+      endpoints = line_rect_intersections(base, normal, c)
+      return [] unless endpoints && endpoints.length == 2
+
+      p0, p1 = endpoints
+      dx = p1[0] - p0[0]
+      dy = p1[1] - p0[1]
+      length = Math.hypot(dx, dy)
+      return [] if length <= thickness + 1.0e-6
+
+      ux = dx / length
+      uy = dy / length
+      half = thickness / 2.0
+      cap = [thickness * 0.75, length * 0.24].min
+
+      q0 = [p0[0] + ux * cap, p0[1] + uy * cap]
+      q1 = [p1[0] - ux * cap, p1[1] - uy * cap]
+
+      nx, ny = normal
+      poly = [
+        p0,
+        [q0[0] + nx * half, q0[1] + ny * half],
+        [q1[0] + nx * half, q1[1] + ny * half],
+        p1,
+        [q1[0] - nx * half, q1[1] - ny * half],
+        [q0[0] - nx * half, q0[1] - ny * half]
+      ]
+
+      xs = base.map { |p| p[0] }
+      ys = base.map { |p| p[1] }
+      x0, x1 = xs.minmax
+      y0, y1 = ys.minmax
+
+      poly = clip(poly, [ 1.0,  0.0], x1)
+      poly = clip(poly, [-1.0,  0.0], -x0)
+      poly = clip(poly, [ 0.0,  1.0], y1)
+      poly = clip(poly, [ 0.0, -1.0], -y0)
+      poly
+    end
+
     def rect(x, y, w, h)
       [[x, y], [x + w, y], [x + w, y + h], [x, y + h]]
     end
@@ -300,11 +378,7 @@ module TranTuanNoiThat
           (k_min..k_max).each do |k|
             c_line = phase + k * pitch
 
-            poly = clip(
-              clip(base, normal, c_line + t / 2.0),
-              normal.map { |value| -value },
-              -c_line + t / 2.0
-            )
+            poly = pointed_strip(base, normal, c_line, t)
 
             next unless area(poly) > 0.01
             families[family_index] << poly
