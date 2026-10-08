@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.270",
+  "version": "1.9.271",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Thay toàn bộ chức năng Vẽ Ô Rượu bằng KHẤU ÂM DƯƠNG. Chọn 2 Group/Component Solid giao nhau; hệ thống dùng giao khối thật để preview và tạo khấu. Tấm A khấu từ mặt trước đúng 1/2 chiều sâu, tấm B khấu từ mặt sau đúng 1/2; có SHIFT đảo vai A/B. Hai rãnh gặp nhau tại tâm chiều sâu, giữ nguyên từng Group/Component, tên/Tag/vị trí. TAB mở cài đặt độ hở mỗi bên 0–5 mm và đảo vai A/B. Xóa icon/thông số Ô Rượu cũ.",
+  "notes": "KHẤU ÂM DƯƠNG: sửa lỗi preview 'reference to deleted Group' bằng cách chỉ giữ snapshot tọa độ/mesh, không giữ Group tạm sau Solid Tools. Preview mới tô Tấm A màu xanh và Tấm B màu hồng; vùng dao 1/2 của A vẽ xanh đậm, vùng dao 1/2 của B vẽ hồng đậm. A mặc định khấu mặt trước 1/2, B khấu mặt sau 1/2; SHIFT đảo vai. Khi khấu thật dùng các bản sao/intersection độc lập để tránh tái sử dụng operand đã bị Solid Tools xóa.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "e810b713d8d49f036e8f0f162e61f49fa6aa30ea47c636eab0555301217d12d4"
+      "sha256": "618bf433a0714cc59f6d75420a23fdfbf660f3f98bf80a778d66d5033e4c229b"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -314,7 +314,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "3246a595d98a2e1a9ef777b9ab0a654b047ee74ccc91f37c4c67ec08be95a0b1"
+      "sha256": "7cdc55aa146e14b797b3f32fc6bca5a9dc8365abd6fe37279ee1eb287c2ce070"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -419,7 +419,7 @@
     {
       "path": "tran_tuan_noi_that/wine_rack.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/wine_rack.rb",
-      "sha256": "5b9bf0329e5aef2a724b22801d47b2594b7f1af93de8854a0b91ad800e7dfd46"
+      "sha256": "ff7def352f3ee7e0e45793b5cd5a2094fe11cc95cd2ac713b8dd0923ac12fc4c"
     },
     {
       "path": "tran_tuan_noi_that/board_stats_tool.rb",
