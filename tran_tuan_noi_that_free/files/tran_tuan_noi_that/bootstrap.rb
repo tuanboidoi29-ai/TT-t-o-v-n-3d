@@ -18,7 +18,7 @@ module TranTuanNoiThat
   }.freeze unless const_defined?(:LOCKED_FEATURE_BASELINES, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.259'.freeze
+  VERSION = '1.9.260'.freeze
 
   class << self
     def setting(key, default = nil)
@@ -115,6 +115,7 @@ module TranTuanNoiThat
         door_standard_tool
         rename_ui
         rename_tool
+        board_stats_tool
         tam_pro
         bao_gia_tool
         scale_corner_lock
@@ -389,31 +390,51 @@ module TranTuanNoiThat
 
     def install_rename_ui
       return false unless defined?(TranTuanNoiThat::RenameTool)
+      return false unless defined?(TranTuanNoiThat::BoardStatsTool)
 
+      # Nút cũ trước 1.9.260 đang trỏ RenameTool.show nhưng mang tên THỐNG KÊ VÁN.
+      # Giữ chính command đó và đổi đúng thành ĐỔI TÊN để hot-reload không tạo nút chết.
       @rename_cmd ||= command(
-        'THỐNG KÊ VÁN',
-        'board_stats.svg',
-        'Quét Group/Component · thống kê ván · kích thước · độ dày · biên dạng'
+        'ĐỔI TÊN',
+        'tam_rename.svg',
+        'Đổi tên Group/Component và Tag/Layer · chọn một hoặc nhiều đối tượng'
       ) { RenameTool.show }
 
-      @rename_cmd.tooltip = 'THỐNG KÊ VÁN'
-      @rename_cmd.status_bar_text = 'Quét Group/Component · thống kê ván · kích thước · độ dày · biên dạng.'
-      @rename_cmd.menu_text = 'THỐNG KÊ VÁN' if @rename_cmd.respond_to?(:menu_text=)
-      icon = File.join(ROOT, 'icons', 'board_stats.svg')
-      if File.file?(icon)
-        @rename_cmd.small_icon = icon
-        @rename_cmd.large_icon = icon
+      @rename_cmd.tooltip = 'ĐỔI TÊN'
+      @rename_cmd.status_bar_text = 'Đổi tên Group/Component và Tag/Layer · hỗ trợ chọn nhiều đối tượng.'
+      @rename_cmd.menu_text = 'ĐỔI TÊN' if @rename_cmd.respond_to?(:menu_text=)
+      rename_icon = File.join(ROOT, 'icons', 'tam_rename.svg')
+      if File.file?(rename_icon)
+        @rename_cmd.small_icon = rename_icon
+        @rename_cmd.large_icon = rename_icon
       end
-
       add_feature_command_once(@rename_cmd, :rename_menu_installed)
+
+      @board_stats_cmd ||= command(
+        'THỐNG KÊ VÁN',
+        'board_stats.svg',
+        'Quét ván · Dài/Rộng/Dày · số lượng · diện tích · tìm tấm'
+      ) { BoardStatsTool.show }
+
+      @board_stats_cmd.tooltip = 'THỐNG KÊ VÁN'
+      @board_stats_cmd.status_bar_text = 'Quét ván · Dài/Rộng/Dày · số lượng · diện tích · tìm tấm.'
+      @board_stats_cmd.menu_text = 'THỐNG KÊ VÁN' if @board_stats_cmd.respond_to?(:menu_text=)
+      stats_icon = File.join(ROOT, 'icons', 'board_stats.svg')
+      if File.file?(stats_icon)
+        @board_stats_cmd.small_icon = stats_icon
+        @board_stats_cmd.large_icon = stats_icon
+      end
+      add_feature_command_once(@board_stats_cmd, :board_stats_menu_installed)
       true
     rescue StandardError => error
-      puts "[TT UI BoardStats] #{error.class}: #{error.message}"
+      puts "[TT UI Rename/BoardStats] #{error.class}: #{error.message}"
       false
     end
 
     def install_tam_pro_ui
       return false unless defined?(TranTuanNoiThat::TamPro)
+      # Gọi commands một lần để vô hiệu nút Đổi Tên cũ của TamPro khi hot-reload.
+      TamPro.commands if TamPro.respond_to?(:commands)
       TamPro.add_menu_items(@main_menu)
       TamPro.add_toolbar_items(@toolbar)
       true
@@ -439,14 +460,24 @@ module TranTuanNoiThat
     def install_scale_corner_lock_ui
       return false unless defined?(TranTuanNoiThat::ScaleCornerLock)
       @scale_corner_lock_cmd ||= command(
-        'Scale 4 Cạnh',
+        'KÉO MẶT FACE',
         'scale_corner_lock.svg',
-        'Rê trực tiếp vào cạnh · kéo cạnh có bắt Endpoint/Edge/Inference · cạnh đối diện giữ cố định'
+        'Rà Face → preview + kích thước → click khóa mặt → rê kéo bắt điểm → click tạo'
       ) { ScaleCornerLock.activate }
+
+      @scale_corner_lock_cmd.tooltip = 'KÉO MẶT FACE'
+      @scale_corner_lock_cmd.status_bar_text = 'Rà Face → preview + kích thước → click khóa mặt → rê kéo Endpoint/Edge/Face/Inference → click tạo.'
+      @scale_corner_lock_cmd.menu_text = 'KÉO MẶT FACE' if @scale_corner_lock_cmd.respond_to?(:menu_text=)
+      icon = File.join(ROOT, 'icons', 'scale_corner_lock.svg')
+      if File.file?(icon)
+        @scale_corner_lock_cmd.small_icon = icon
+        @scale_corner_lock_cmd.large_icon = icon
+      end
+
       add_feature_command_once(@scale_corner_lock_cmd, :scale_corner_lock_menu_installed)
       true
     rescue StandardError => error
-      puts "[TT UI ScaleCornerLock] #{error.class}: #{error.message}"
+      puts "[TT UI KeoMatFace] #{error.class}: #{error.message}"
       false
     end
 
