@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.262",
+  "version": "1.9.263",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "KÉO MẶT FACE: bỏ hoàn toàn đường hướng màu xanh khi kéo. Giữ Face cam, mặt đối diện khóa đỏ và điểm bắt Endpoint/Edge/Face/Inference.",
+  "notes": "Vẽ Ô Rượu: chuẩn hóa giao điểm nan-nan và nan-khung để đầu nan chạm đúng biên tiếp xúc, không vượt/hở; SHIFT bật/tắt khung viền và preview cập nhật ngay; khi tắt khung, nan được cắt đúng tới biên P1/P2.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "e1c3aa1d7448582263247d0de11c801d4beac3061b73a1143f1666bc2eac86d6"
+      "sha256": "41f032e999df417a668311f1e582429243c2b36cdb17f1beebd6f98535447a23"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -314,7 +314,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "410bfb9fef6b53644320cdd43e33893ac122b197c7f1fd4ea8e6552dda72b8b2"
+      "sha256": "2607f5fc2f0289a757b0fc37acb2d39ccac61c83fbbbaa24eaa9624116fb77c3"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -419,7 +419,7 @@
     {
       "path": "tran_tuan_noi_that/wine_rack.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/wine_rack.rb",
-      "sha256": "924b1ca3203f915faa0e5b9aa6e8fca5302b7d2336af06a33461af3e087304c9"
+      "sha256": "34d6acd584562552d45370d6e4991025fd4c6dc51b1e5019581807f8ce72ffdb"
     },
     {
       "path": "tran_tuan_noi_that/icons/wine_rack.svg",
