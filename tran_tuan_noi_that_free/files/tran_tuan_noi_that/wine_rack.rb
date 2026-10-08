@@ -204,16 +204,19 @@ module TranTuanNoiThat
           end
 
           if @preview_center
+            a_half = half_thickness_mm(@a).round(2)
+            b_half = half_thickness_mm(@b).round(2)
+
             text =
               if @swap_roles
-                "A XANH: 1/2 MẶT SAU · B HỒNG: 1/2 MẶT TRƯỚC"
+                "A XANH: khấu MẶT SAU #{a_half} mm · B HỒNG: khấu MẶT TRƯỚC #{b_half} mm"
               else
-                "A XANH: 1/2 MẶT TRƯỚC · B HỒNG: 1/2 MẶT SAU"
+                "A XANH: khấu MẶT TRƯỚC #{a_half} mm · B HỒNG: khấu MẶT SAU #{b_half} mm"
               end
 
             view.draw_text(
               @preview_center,
-              "#{text}\nGIAO THẬT: #{format_volume(@preview_volume_mm3)}",
+              "#{text}\n= đúng 1/2 ĐỘ DÀY từng tấm · GIAO THẬT: #{format_volume(@preview_volume_mm3)}",
               size: 13,
               bold: true,
               color: Sketchup::Color.new(35, 35, 35)
@@ -317,9 +320,9 @@ module TranTuanNoiThat
             'KHẤU ÂM DƯƠNG · A đã chọn · click TẤM B giao với A.'
           else
             if @swap_roles
-              'PREVIEW GIAO THẬT · A khấu 1/2 MẶT SAU · B khấu 1/2 MẶT TRƯỚC · click để tạo · TAB cài đặt · SHIFT đảo A/B.'
+              'PREVIEW · A khấu MẶT SAU đúng 1/2 ĐỘ DÀY A · B khấu MẶT TRƯỚC đúng 1/2 ĐỘ DÀY B · click tạo · TAB cài đặt · SHIFT đảo A/B.'
             else
-              'PREVIEW GIAO THẬT · A khấu 1/2 MẶT TRƯỚC · B khấu 1/2 MẶT SAU · click để tạo · TAB cài đặt · SHIFT đảo A/B.'
+              'PREVIEW · A khấu MẶT TRƯỚC đúng 1/2 ĐỘ DÀY A · B khấu MẶT SAU đúng 1/2 ĐỘ DÀY B · click tạo · TAB cài đặt · SHIFT đảo A/B.'
             end
           end
 
@@ -559,6 +562,23 @@ module TranTuanNoiThat
         world_sizes.each_with_index.min_by(&:first)[1]
       end
 
+      def board_thickness_mm(entity)
+        tr = world_transform(entity)
+        bounds = entity.definition.bounds
+        local_sizes = [bounds.width, bounds.height, bounds.depth]
+        axes = axis_vectors(tr)
+
+        world_sizes = local_sizes.each_with_index.map do |size, index|
+          size * axes[index].length
+        end
+
+        world_sizes.min.to_mm.abs
+      end
+
+      def half_thickness_mm(entity)
+        board_thickness_mm(entity) / 2.0
+      end
+
       def toward_camera_side(entity)
         tr = world_transform(entity)
         axis_index = thickness_axis(entity)
@@ -655,14 +675,14 @@ module TranTuanNoiThat
 
         faces.each do |indices|
           face = group.entities.add_face(indices.map { |i| points[i] })
-          raise 'Không dựng được nửa chiều sâu.' unless face
+          raise 'Không dựng được nửa độ dày.' unless face
 
           face_center = face.bounds.center
           outward = face_center - center
           face.reverse! if face.normal.dot(outward) < 0.0
         end
 
-        raise 'Khối nửa chiều sâu chưa kín.' unless group.manifold?
+        raise 'Khối nửa độ dày chưa kín.' unless group.manifold?
         group
       end
 
@@ -674,7 +694,7 @@ module TranTuanNoiThat
                cutter.valid? &&
                cutter.manifold? &&
                cutter.volume > EPS_VOL
-          raise 'Không dựng được dao khấu 1/2 chiều sâu.'
+          raise 'Không dựng được dao khấu 1/2 độ dày.'
         end
 
         # Không tự erase operands. Solid Tools có thể đã xóa/tái dùng operand;
@@ -811,6 +831,10 @@ module TranTuanNoiThat
 
         @a.set_attribute(PREF, 'half_lap_role', a_role.to_s)
         @b.set_attribute(PREF, 'half_lap_role', b_role.to_s)
+        @a.set_attribute(PREF, 'board_thickness_mm', board_thickness_mm(@a).round(4))
+        @b.set_attribute(PREF, 'board_thickness_mm', board_thickness_mm(@b).round(4))
+        @a.set_attribute(PREF, 'notch_depth_mm', half_thickness_mm(@a).round(4))
+        @b.set_attribute(PREF, 'notch_depth_mm', half_thickness_mm(@b).round(4))
         @a.set_attribute(PREF, 'gap_mm', @gap_mm)
         @b.set_attribute(PREF, 'gap_mm', @gap_mm)
 
@@ -824,7 +848,7 @@ module TranTuanNoiThat
         @model.selection.add(@b)
 
         Sketchup.set_status_text(
-          'Đã KHẤU ÂM DƯƠNG 1/2 · hai rãnh gặp tại tâm chiều sâu · Ctrl+Z hoàn tác.',
+          'Đã KHẤU ÂM DƯƠNG 1/2 · hai rãnh gặp tại tâm độ dày · Ctrl+Z hoàn tác.',
           SB_PROMPT
         )
         UI.beep
