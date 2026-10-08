@@ -1,20 +1,17 @@
 # encoding: UTF-8
-# TRẦN TUẤN NỘI THẤT - KHÓA SCALE 4 CẠNH
+# TRẦN TUẤN NỘI THẤT - SCALE KÉO CẠNH BẮT ĐIỂM
 # SketchUp 2021+
 #
 # Quy trình:
-# - Chọn/hover 1 Group hoặc Component.
-# - Tool tự chọn mặt BoundingBox hướng về camera.
-# - Hiện cụm 4 tay nắm quanh tâm mặt tấm.
-# - Kéo từ TÂM chọn hướng hoặc kéo tay nắm quanh tâm.
-# - Cạnh đối diện tự KHÓA cố định.
-# - Thả chuột để áp dụng; hoặc gõ hệ số (vd 1.2).
-# - Một thao tác = một Undo.
+# 1) Chọn Group/Component hoặc click đối tượng.
+# 2) Rê trực tiếp vào 1 trong 4 cạnh của mặt tấm đang nhìn.
+# 3) Giữ chuột và kéo cạnh. Cạnh đối diện được khóa.
+# 4) Bắt Endpoint / Edge / Face / Inference bằng Sketchup::InputPoint.
+# 5) Thả chuột để áp dụng. Có thể nhập kích thước mới theo mm rồi Enter.
+#    Nhập 1.2x để scale theo hệ số.
 #
-# Lưu ý:
-# - Không sửa geometry bên trong.
-# - Chỉ thay Transformation của Group/Component.
-# - Không Scale âm/lật khối qua cạnh khóa.
+# Không sửa geometry bên trong; chỉ thay Transformation.
+# Một thao tác = một Undo.
 
 require 'sketchup.rb'
 
@@ -23,9 +20,11 @@ module TranTuanNoiThat
     extend self
 
     remove_const(:VERSION) if const_defined?(:VERSION, false)
-    VERSION = '1.9.255'.freeze
-    PICK_RADIUS = 20.0
+    VERSION = '1.9.259'.freeze
+
+    PICK_RADIUS = 14.0
     MIN_FACTOR = 0.001
+    MOVE_EPS_PX = 2.0
 
     EDGE_NAMES = {
       u_min: 'TRÁI',
@@ -38,21 +37,29 @@ module TranTuanNoiThat
       Sketchup.active_model.select_tool(Tool.new)
     end
 
-    # A virtual selection frame; does not group or alter model hierarchy.
     class SelectionFrame
       attr_reader :transformation, :definition
+
       def initialize(items)
-        @items=items
-        bounds=Geom::BoundingBox.new
-        items.each { |e| 8.times { |i| bounds.add(e.definition.bounds.corner(i).transform(e.transformation)) } }
-        @definition=Struct.new(:bounds).new(bounds)
-        @transformation=Geom::Transformation.new
+        @items = items
+        bounds = Geom::BoundingBox.new
+        items.each do |entity|
+          8.times do |index|
+            bounds.add(entity.definition.bounds.corner(index).transform(entity.transformation))
+          end
+        end
+        @definition = Struct.new(:bounds).new(bounds)
+        @transformation = Geom::Transformation.new
       end
-      def valid?;@items.all? { |e| e.valid? && !e.locked? };end
+
+      def valid?
+        @items.all? { |entity| entity.valid? && !entity.locked? }
+      end
+
       def transformation=(value)
-        delta=value*@transformation.inverse
-        @items.each { |e| e.transformation=delta*e.transformation }
-        @transformation=value
+        delta = value * @transformation.inverse
+        @items.each { |entity| entity.transformation = delta * entity.transformation }
+        @transformation = value
       end
     end
 
@@ -68,23 +75,32 @@ module TranTuanNoiThat
         @original_transform = nil
         @preview_transform_context = nil
 
-        @depth_axis = nil
-        @u_axis = nil
-        @v_axis = nil
-        @face_depth_coord = nil
+        @depth_axis = 2
+        @u_axis = 0
+        @v_axis = 1
+        @face_depth_coord = 0.0
 
         @hover_edge = nil
-        @locked_edge = nil
         @drag_edge = nil
+        @locked_edge = nil
         @scale_axis = nil
         @fixed_coord = nil
+        @drag_coord = nil
+        @original_size = 0.0
         @factor = 1.0
+        @current_size = 0.0
         @dragging = false
+        @moved = false
+
+        @input_point = Sketchup::InputPoint.new
+        @snap_point = nil
 
         @anchor_screen = nil
         @drag_screen = nil
         @screen_axis = nil
         @screen_axis_len2 = 1.0
+        @press_x = nil
+        @press_y = nil
 
         use_selection_if_valid
       end
@@ -105,14 +121,10 @@ module TranTuanNoiThat
       end
 
       def onCancel(_reason, view)
-        @center_press = nil
-        @selection_start=nil;@selection_end=nil
-        case @state
-        when :scale
+        if @state == :scale
           reset_scale
-          @dragging = false
           @state = :pick_edge
-        when :pick_edge
+        elsif @state == :pick_edge
           @entity = nil
           @bbox = nil
           @hover_edge = nil
@@ -126,106 +138,74 @@ module TranTuanNoiThat
       end
 
       def onMouseMove(_flags, x, y, view)
-        if @center_press && @state == :pick_edge
-          dx = x - @center_press[0]
-          dy = y - @center_press[1]
-          if Math.hypot(dx, dy) >= 5
-            center = view.screen_coords(face_center_world)
-            key = %i[u_min u_max v_min v_max].max_by do |candidate|
-              handle = center_handle_screen(candidate, view)
-              (handle.x - center.x) * dx + (handle.y - center.y) * dy
-            end
-            start = @center_press
-            @center_press = nil
-            begin_drag(key, view, start[0], start[1])
-            @dragging = true
-          end
-        end
-        if @selection_start
-          @selection_end=[x,y];view.invalidate;return
-        end
         case @state
         when :pick_entity
           @hover_entity = pick_container(view, x, y)
         when :pick_edge
           refresh_view_plane
-          @hover_edge = nearest_midpoint_key(view, x, y)
+          @hover_edge = nearest_edge_key(view, x, y)
         when :scale
+          @moved ||= Math.hypot(x.to_f - @press_x.to_f, y.to_f - @press_y.to_f) >= MOVE_EPS_PX
           update_scale_preview(view, x, y)
         end
+
         update_status
         view.invalidate
       rescue StandardError => error
-        puts "[TT Scale4Edges move] #{error.class}: #{error.message}"
+        puts "[TT Scale Edge move] #{error.class}: #{error.message}"
       end
 
       def onLButtonDown(_flags, x, y, view)
         case @state
         when :pick_entity
-          @selection_start=[x,y];@selection_end=[x,y]
-        when :pick_edge
-          refresh_view_plane
-          center = view.screen_coords(face_center_world)
-          if Math.hypot(x - center.x, y - center.y) <= 10
-            @center_press = [x, y]
+          entity = pick_container(view, x, y)
+          unless entity
+            UI.beep
             return
           end
-          edge = nearest_midpoint_key(view, x, y)
+          @model.selection.clear
+          @model.selection.add(entity)
+          set_entity(entity)
+          refresh_view_plane
+          @state = :pick_edge
+
+        when :pick_edge
+          refresh_view_plane
+          edge = nearest_edge_key(view, x, y)
           unless edge
             UI.beep
             return
           end
           begin_drag(edge, view, x, y)
-          @dragging = true
-          update_scale_preview(view, x, y)
 
         when :scale
-          # Đang kéo bằng chuột; không cần click lần hai.
           update_scale_preview(view, x, y)
         end
 
         update_status
         view.invalidate
       rescue StandardError => error
-        UI.messagebox("Scale 4 Cạnh:\n#{error.message}")
-        puts "[TT Scale4Edges click] #{error.class}: #{error.message}"
+        UI.messagebox("Scale Kéo Cạnh:\n#{error.message}")
       end
 
       def onLButtonUp(_flags, x, y, view)
-        @center_press = nil
-        if @selection_start
-          start=@selection_start;@selection_start=nil;@selection_end=nil
-          if Math.hypot(x-start[0],y-start[1])>=5
-            ph=view.pick_helper
-            kind=x>=start[0] ? Sketchup::PickHelper::PICK_INSIDE : Sketchup::PickHelper::PICK_CROSSING
-            ph.window_pick(Geom::Point3d.new(start[0],start[1],0),Geom::Point3d.new(x,y,0),kind)
-            items=ph.all_picked.select { |e| valid_container?(e) && active_entities.include?(e) }.uniq
-          else
-            items=[pick_container(view,x,y)].compact
-          end
-          unless items.empty?
-            set_entity(items.length==1 ? items.first : SelectionFrame.new(items))
-            refresh_view_plane;@state=:pick_edge
-            @model.selection.clear;items.each { |e| @model.selection.add(e) }
-          end
-          view.invalidate;return
-        end
         return unless @state == :scale && @dragging
 
         update_scale_preview(view, x, y)
         @dragging = false
 
-        if (@factor - 1.0).abs < 0.0001
+        if !@moved || (@factor - 1.0).abs < 0.000001
           reset_scale
           @state = :pick_edge
           update_status
         else
           commit_scale
         end
+
         view.invalidate
       rescue StandardError => error
         @dragging = false
-        UI.messagebox("Không hoàn tất Scale 4 Cạnh:\n#{error.message}")
+        UI.messagebox("Không hoàn tất Scale Kéo Cạnh:\n#{error.message}")
       end
 
       def onUserText(text, view)
@@ -234,27 +214,28 @@ module TranTuanNoiThat
         raw = text.to_s.strip.tr(',', '.')
         return UI.beep if raw.empty?
 
-        @factor = valid_factor(Float(raw))
+        if raw.downcase.end_with?('x')
+          factor_text = raw[0...-1].strip
+          @factor = valid_factor(Float(factor_text))
+        else
+          target = parse_target_length(raw)
+          raise 'Kích thước phải lớn hơn 0.' unless target > 0.0
+          @factor = valid_factor(target / @original_size)
+        end
+
+        @current_size = @original_size * @factor
         rebuild_preview_transform
+        @moved = true
         commit_scale
         view.invalidate
       rescue StandardError => error
         UI.beep
-        UI.messagebox("Không nhận được hệ số Scale:\n#{error.message}\nVí dụ: 1.2")
+        UI.messagebox(
+          "Không nhận được kích thước Scale:\n#{error.message}\n"           "Ví dụ: 500 hoặc 500mm. Hệ số: 1.2x"
+        )
       end
 
       def draw(view)
-        if @selection_start && @selection_end
-          a,b=@selection_start,@selection_end
-          pts=[[a[0],a[1]],[b[0],a[1]],[b[0],b[1]],[a[0],b[1]]].map { |x,y| Geom::Point3d.new(x,y,0) }
-          view.drawing_color=Sketchup::Color.new(30,140,210)
-          view.draw2d(GL_LINE_LOOP,pts)
-        end
-        if @entity && @bbox
-          center=face_center_world(@preview_transform_context)
-          view.draw_points([center],10,3,Sketchup::Color.new(240,125,30))
-        end
-
         if @state == :pick_entity && @hover_entity
           draw_entity_box(view, @hover_entity, Sketchup::Color.new(120, 120, 120), 1)
           return
@@ -262,19 +243,19 @@ module TranTuanNoiThat
 
         return unless @entity && @bbox
 
-        refresh_view_plane if @state == :pick_edge
-
         case @state
         when :pick_edge
           draw_entity_box(view, @entity, Sketchup::Color.new(241, 150, 170), 2)
-          draw_four_midpoints(view)
+          draw_face_edges(view)
+
         when :scale
           draw_preview_box(view)
-          draw_scale_edges(view)
-          draw_factor_text(view)
+          draw_drag_state(view)
+          @input_point.draw(view) if @input_point && @input_point.valid?
+          draw_dimension_text(view)
         end
       rescue StandardError => error
-        puts "[TT Scale4Edges draw] #{error.class}: #{error.message}"
+        puts "[TT Scale Edge draw] #{error.class}: #{error.message}"
       end
 
       def getExtents
@@ -297,7 +278,7 @@ module TranTuanNoiThat
         end
         return if selected.empty?
 
-        set_entity(selected.length==1 ? selected.first : SelectionFrame.new(selected))
+        set_entity(selected.length == 1 ? selected.first : SelectionFrame.new(selected))
         refresh_view_plane
         @state = :pick_edge
       end
@@ -307,9 +288,12 @@ module TranTuanNoiThat
       end
 
       def valid_container?(entity)
-        entity &&
-          entity.valid? &&
-          (entity.is_a?(SelectionFrame) || ((entity.is_a?(Sketchup::Group) || entity.is_a?(Sketchup::ComponentInstance)) && !entity.locked?))
+        return false unless entity
+        return entity.valid? if entity.is_a?(SelectionFrame)
+
+        entity.valid? &&
+          (entity.is_a?(Sketchup::Group) || entity.is_a?(Sketchup::ComponentInstance)) &&
+          !entity.locked?
       end
 
       def set_entity(entity)
@@ -339,8 +323,9 @@ module TranTuanNoiThat
         path = helper.path_at(0)
         return nil unless path
 
-        path.find { |entity| valid_container?(entity) && active_entities.include?(entity) } ||
-          path.reverse.find { |entity| valid_container?(entity) && active_entities.include?(entity) }
+        path.reverse.find do |entity|
+          valid_container?(entity) && active_entities.include?(entity)
+        end
       rescue StandardError
         nil
       end
@@ -357,11 +342,7 @@ module TranTuanNoiThat
       end
 
       def axis_value(point, axis)
-        case axis
-        when 0 then point.x
-        when 1 then point.y
-        else point.z
-        end
+        axis == 0 ? point.x : (axis == 1 ? point.y : point.z)
       end
 
       def axis_min(axis)
@@ -372,21 +353,20 @@ module TranTuanNoiThat
         axis_value(@bbox.max, axis)
       end
 
-      def point_local(a0, a1, a2)
+      def point_local(u, v, depth)
         values = [0.0, 0.0, 0.0]
-        values[@u_axis] = a0
-        values[@v_axis] = a1
-        values[@depth_axis] = a2
-        Geom::Point3d.new(values[0], values[1], values[2])
+        values[@u_axis] = u
+        values[@v_axis] = v
+        values[@depth_axis] = depth
+        Geom::Point3d.new(*values)
       end
 
       def refresh_view_plane
         return unless @entity && @bbox
 
         view = @model.active_view
-        camera_direction_world = view.camera.direction.clone
-        tr = entity_to_world
-        local_direction = camera_direction_world.transform(tr.inverse)
+        world_to_local = entity_to_world(@entity, @original_transform).inverse
+        local_direction = view.camera.direction.transform(world_to_local)
         local_direction.normalize! if local_direction.length > 0.000001
 
         values = [local_direction.x.abs, local_direction.y.abs, local_direction.z.abs]
@@ -412,21 +392,16 @@ module TranTuanNoiThat
         d = @face_depth_coord
 
         case key
-        when :u_min
-          [point_local(u0, v0, d), point_local(u0, v1, d)]
-        when :u_max
-          [point_local(u1, v0, d), point_local(u1, v1, d)]
-        when :v_min
-          [point_local(u0, v0, d), point_local(u1, v0, d)]
-        when :v_max
-          [point_local(u0, v1, d), point_local(u1, v1, d)]
-        else
-          []
+        when :u_min then [point_local(u0, v0, d), point_local(u0, v1, d)]
+        when :u_max then [point_local(u1, v0, d), point_local(u1, v1, d)]
+        when :v_min then [point_local(u0, v0, d), point_local(u1, v0, d)]
+        when :v_max then [point_local(u0, v1, d), point_local(u1, v1, d)]
+        else []
         end
       end
 
       def edge_world_points(key, transform_context = nil)
-        tr = entity_to_world(@entity, transform_context || @entity.transformation)
+        tr = entity_to_world(@entity, transform_context || @original_transform)
         edge_local_points(key).map { |point| point.transform(tr) }
       end
 
@@ -435,24 +410,33 @@ module TranTuanNoiThat
         Geom::Point3d.linear_combination(0.5, points[0], 0.5, points[1])
       end
 
-      def nearest_midpoint_key(view, x, y)
+      def nearest_edge_key(view, x, y)
         best_key = nil
         best_distance = PICK_RADIUS + 1.0
 
         %i[u_min u_max v_min v_max].each do |key|
-          midpoint = center_handle_screen(key, view)
-          dx = midpoint.x.to_f - x.to_f
-          dy = midpoint.y.to_f - y.to_f
-          distance = Math.sqrt(dx * dx + dy * dy)
-
+          a, b = edge_world_points(key).map { |point| view.screen_coords(point) }
+          distance = distance_to_segment_2d(x.to_f, y.to_f, a.x.to_f, a.y.to_f, b.x.to_f, b.y.to_f)
           if distance <= PICK_RADIUS && distance < best_distance
-            best_key = key
             best_distance = distance
+            best_key = key
           end
         end
+
         best_key
       rescue StandardError
         nil
+      end
+
+      def distance_to_segment_2d(px, py, ax, ay, bx, by)
+        dx = bx - ax
+        dy = by - ay
+        len2 = dx * dx + dy * dy
+        return Math.hypot(px - ax, py - ay) if len2 < 0.000001
+
+        t = ((px - ax) * dx + (py - ay) * dy) / len2
+        t = [[t, 0.0].max, 1.0].min
+        Math.hypot(px - (ax + t * dx), py - (ay + t * dy))
       end
 
       def opposite_edge(key)
@@ -468,7 +452,7 @@ module TranTuanNoiThat
         [:u_min, :u_max].include?(key) ? @u_axis : @v_axis
       end
 
-      def edge_fixed_coord(key)
+      def edge_coord(key)
         case key
         when :u_min then axis_min(@u_axis)
         when :u_max then axis_max(@u_axis)
@@ -477,16 +461,28 @@ module TranTuanNoiThat
         end
       end
 
-      def begin_drag(key, view, x = nil, y = nil)
+      def begin_drag(key, view, x, y)
         @drag_edge = key
         @locked_edge = opposite_edge(key)
         @scale_axis = edge_axis(key)
-        @fixed_coord = edge_fixed_coord(@locked_edge)
-        @factor = 1.0
-        @preview_transform_context = @original_transform
+        @fixed_coord = edge_coord(@locked_edge)
+        @drag_coord = edge_coord(@drag_edge)
+        @original_size = (@drag_coord - @fixed_coord).abs
+        raise 'Kích thước theo hướng kéo bằng 0.' if @original_size < 0.000001
 
-        @anchor_screen = view.screen_coords(edge_midpoint_world(@locked_edge))
-        @drag_screen = view.screen_coords(edge_midpoint_world(@drag_edge))
+        @factor = 1.0
+        @current_size = @original_size
+        @preview_transform_context = @original_transform
+        @dragging = true
+        @moved = false
+        @press_x = x
+        @press_y = y
+
+        @input_point.clear
+        @snap_point = nil
+
+        @anchor_screen = view.screen_coords(edge_midpoint_world(@locked_edge, @original_transform))
+        @drag_screen = view.screen_coords(edge_midpoint_world(@drag_edge, @original_transform))
         @screen_axis = Geom::Vector3d.new(
           @drag_screen.x.to_f - @anchor_screen.x.to_f,
           @drag_screen.y.to_f - @anchor_screen.y.to_f,
@@ -495,39 +491,67 @@ module TranTuanNoiThat
         @screen_axis_len2 = @screen_axis.x * @screen_axis.x + @screen_axis.y * @screen_axis.y
         @screen_axis_len2 = 1.0 if @screen_axis_len2 < 1.0
 
-        @pointer_offset_x = x ? x.to_f - @drag_screen.x.to_f : 0.0
-        @pointer_offset_y = y ? y.to_f - @drag_screen.y.to_f : 0.0
         @state = :scale
-        Sketchup.set_status_text('Scale', SB_VCB_LABEL)
-        Sketchup.set_status_text('1.000', SB_VCB_VALUE)
+        Sketchup.set_status_text('Kích thước', SB_VCB_LABEL)
+        Sketchup.set_status_text(format_mm(@current_size), SB_VCB_VALUE)
+        update_scale_preview(view, x, y)
       end
 
       def reset_scale
         @hover_edge = nil
-        @locked_edge = nil
         @drag_edge = nil
+        @locked_edge = nil
         @scale_axis = nil
         @fixed_coord = nil
+        @drag_coord = nil
+        @original_size = 0.0
         @factor = 1.0
+        @current_size = 0.0
         @dragging = false
+        @moved = false
         @preview_transform_context = @original_transform if @original_transform
-        @anchor_screen = nil
-        @drag_screen = nil
-        @screen_axis = nil
-        @screen_axis_len2 = 1.0
+        @snap_point = nil
+        @input_point.clear if @input_point
         clear_vcb
       end
 
       def update_scale_preview(view, x, y)
-        return unless @locked_edge && @drag_edge && @screen_axis && @anchor_screen
+        return unless @dragging && @scale_axis
 
-        px = x.to_f - @pointer_offset_x.to_f - @anchor_screen.x.to_f
-        py = y.to_f - @pointer_offset_y.to_f - @anchor_screen.y.to_f
-        numerator = px * @screen_axis.x + py * @screen_axis.y
-        @factor = valid_factor(numerator / @screen_axis_len2)
+        target_coord = nil
+        @input_point.pick(view, x, y)
 
+        if @input_point.valid?
+          world_to_local = entity_to_world(@entity, @original_transform).inverse
+          local_point = @input_point.position.transform(world_to_local)
+          target_coord = axis_value(local_point, @scale_axis)
+          @snap_point = @input_point.position
+          view.tooltip = @input_point.tooltip if view.respond_to?(:tooltip=)
+        else
+          @snap_point = nil
+        end
+
+        unless target_coord
+          px = x.to_f - @anchor_screen.x.to_f
+          py = y.to_f - @anchor_screen.y.to_f
+          projection = (px * @screen_axis.x + py * @screen_axis.y) / @screen_axis_len2
+          target_coord = @fixed_coord + (@drag_coord - @fixed_coord) * projection
+        end
+
+        denominator = @drag_coord - @fixed_coord
+        candidate = (target_coord - @fixed_coord) / denominator
+
+        if candidate <= MIN_FACTOR
+          Sketchup.status_text = 'Không cho phép kéo vượt qua cạnh đang khóa.'
+          return
+        end
+
+        @factor = valid_factor(candidate)
+        @current_size = @original_size * @factor
         rebuild_preview_transform
-        Sketchup.set_status_text(format('%.3f', @factor), SB_VCB_VALUE)
+        Sketchup.set_status_text(format_mm(@current_size), SB_VCB_VALUE)
+      rescue StandardError => error
+        puts "[TT Scale Edge preview] #{error.class}: #{error.message}"
       end
 
       def valid_factor(value)
@@ -538,7 +562,7 @@ module TranTuanNoiThat
       end
 
       def rebuild_preview_transform
-        raise 'Chưa chọn cạnh khóa.' unless @scale_axis
+        raise 'Chưa chọn cạnh kéo.' unless @scale_axis
 
         factors = [1.0, 1.0, 1.0]
         factors[@scale_axis] = @factor
@@ -546,33 +570,22 @@ module TranTuanNoiThat
         center = @bbox.center
         anchor_values = [center.x, center.y, center.z]
         anchor_values[@scale_axis] = @fixed_coord
-        anchor = Geom::Point3d.new(anchor_values[0], anchor_values[1], anchor_values[2])
+        anchor = Geom::Point3d.new(*anchor_values)
 
-        to_anchor = Geom::Transformation.translation(
-          Geom::Vector3d.new(anchor.x, anchor.y, anchor.z)
-        )
-        from_anchor = Geom::Transformation.translation(
-          Geom::Vector3d.new(-anchor.x, -anchor.y, -anchor.z)
-        )
-        scale = Geom::Transformation.scaling(
-          Geom::Point3d.new(0, 0, 0),
-          factors[0], factors[1], factors[2]
-        )
+        to_anchor = Geom::Transformation.translation(anchor.to_a)
+        from_anchor = Geom::Transformation.translation([-anchor.x, -anchor.y, -anchor.z])
+        scale = Geom::Transformation.scaling(ORIGIN, factors[0], factors[1], factors[2])
 
-        @preview_transform_context =
-          @original_transform * to_anchor * scale * from_anchor
+        @preview_transform_context = @original_transform * to_anchor * scale * from_anchor
       end
 
       def commit_scale
         raise 'Đối tượng không còn hợp lệ.' unless valid_container?(@entity)
-        raise 'Chưa chọn cạnh khóa.' unless @locked_edge
-        raise 'Hệ số Scale không hợp lệ.' unless @factor > 0.0
+        raise 'Chưa chọn cạnh kéo.' unless @drag_edge
 
-        @model.start_operation('TT - Scale 4 Cạnh', true)
+        @model.start_operation('TT - Scale Kéo Cạnh', true)
         started = true
-
         @entity.transformation = @preview_transform_context
-
         @model.commit_operation
         started = false
 
@@ -583,19 +596,31 @@ module TranTuanNoiThat
         @state = :pick_edge
 
         Sketchup.status_text =
-          'Đã Scale · cạnh khóa giữ nguyên · Ctrl+Z hoàn tác · chọn cạnh khác để tiếp tục.'
+          'Đã Scale theo cạnh · cạnh đối diện giữ nguyên · tiếp tục rê cạnh khác để kéo.'
         true
       rescue StandardError
         @model.abort_operation if started rescue nil
         raise
       end
 
+      def parse_target_length(raw)
+        text = raw.to_s.strip
+        if text.match?(/\A[-+]?\d+(?:\.\d+)?\z/)
+          text.to_f.mm
+        else
+          text.to_l
+        end
+      end
+
+      def format_mm(length)
+        "#{length.to_mm.round(1)} mm"
+      rescue StandardError
+        length.to_s
+      end
+
       def preview_world_corners
         return [] unless @entity && @bbox
-        entity_world_corners(
-          @entity,
-          @preview_transform_context || @entity.transformation
-        )
+        entity_world_corners(@entity, @preview_transform_context || @entity.transformation)
       end
 
       def draw_entity_box(view, entity, color, width)
@@ -607,7 +632,7 @@ module TranTuanNoiThat
           view,
           preview_world_corners,
           Sketchup::Color.new(241, 150, 170),
-          3
+          2
         )
       end
 
@@ -622,69 +647,50 @@ module TranTuanNoiThat
         view.draw(GL_LINES, pairs.flat_map { |a, b| [corners[a], corners[b]] })
       end
 
-      def midpoint_label(key, view)
-        here = view.screen_coords(edge_midpoint_world(key))
-        other = view.screen_coords(edge_midpoint_world(opposite_edge(key)))
-        dx, dy = here.x - other.x, here.y - other.y
-        dx.abs >= dy.abs ? (dx < 0 ? 'TRÁI' : 'PHẢI') : (dy < 0 ? 'TRÊN' : 'DƯỚI')
-      end
-
-      # All mouse handles are around the face centre in screen pixels, even on thin boards.
-      def face_center_world(transform_context = nil)
-        point_local((axis_min(@u_axis) + axis_max(@u_axis)) / 2.0,
-                    (axis_min(@v_axis) + axis_max(@v_axis)) / 2.0,
-                    @face_depth_coord).transform(entity_to_world(@entity, transform_context))
-      end
-
-      def center_handle_screen(key, view, transform_context = nil)
-        center = view.screen_coords(face_center_world(transform_context))
-        edge = view.screen_coords(edge_midpoint_world(key, transform_context))
-        dx, dy = edge.x - center.x, edge.y - center.y
-        length = Math.hypot(dx, dy)
-        if length < 0.001
-          dx, dy = {u_min: [-1,0], u_max: [1,0], v_min: [0,1], v_max: [0,-1]}.fetch(key)
-          length = 1.0
+      def draw_face_edges(view)
+        %i[u_min u_max v_min v_max].each do |key|
+          hover = key == @hover_edge
+          view.line_width = hover ? 5 : 3
+          view.drawing_color = hover ?
+            Sketchup::Color.new(255, 145, 20) :
+            Sketchup::Color.new(45, 135, 235)
+          view.draw(GL_LINES, edge_world_points(key))
         end
-        Geom::Point3d.new(center.x + 36.0 * dx / length, center.y + 36.0 * dy / length, 0)
-      end
 
-      def draw_four_midpoints(view)
-        center = view.screen_coords(face_center_world)
-        keys = %i[u_min u_max v_min v_max]
-        view.line_width = 2
-        keys.each do |key|
-          point = center_handle_screen(key, view)
-          color = key == @hover_edge ? Sketchup::Color.new(255,170,30) : Sketchup::Color.new(50,135,235)
-          view.drawing_color = color
-          view.draw2d(GL_LINES, [center, point])
-          radius = key == @hover_edge ? 7 : 5
-          square = [[-radius,-radius],[radius,-radius],[radius,radius],[-radius,radius]].map do |dx,dy|
-            Geom::Point3d.new(point.x+dx,point.y+dy,0)
-          end
-          view.draw2d(GL_QUADS, square)
-          view.draw_text([point.x+9,point.y-8], midpoint_label(key,view), color: color)
+        if @hover_edge
+          point = edge_midpoint_world(@hover_edge)
+          view.draw_text(
+            point,
+            "KÉO CẠNH #{EDGE_NAMES[@hover_edge]}",
+            color: Sketchup::Color.new(255, 120, 0)
+          )
         end
-        view.draw_text([center.x+10,center.y+10], 'TÂM', color: Sketchup::Color.new(220,110,20))
       end
 
-      def draw_scale_edges(view)
-        center = view.screen_coords(face_center_world(@preview_transform_context))
-        handle = center_handle_screen(@drag_edge, view, @preview_transform_context)
-        view.line_width = 3
-        view.drawing_color = Sketchup::Color.new(40,130,240)
-        view.draw2d(GL_LINES, [center, handle])
-        square = [[-6,-6],[6,-6],[6,6],[-6,6]].map { |dx,dy| Geom::Point3d.new(handle.x+dx,handle.y+dy,0) }
-        view.draw2d(GL_QUADS, square)
-        view.drawing_color = Sketchup::Color.new(230,45,45)
+      def draw_drag_state(view)
+        view.line_width = 5
+        view.drawing_color = Sketchup::Color.new(45, 135, 235)
+        view.draw(GL_LINES, edge_world_points(@drag_edge, @preview_transform_context))
+
+        view.line_width = 4
+        view.drawing_color = Sketchup::Color.new(230, 45, 45)
         view.draw(GL_LINES, edge_world_points(@locked_edge, @preview_transform_context))
+
+        if @snap_point
+          view.draw_points(
+            [@snap_point],
+            10,
+            3,
+            Sketchup::Color.new(255, 150, 20)
+          )
+        end
       end
 
-      def draw_factor_text(view)
-        point = face_center_world(@preview_transform_context)
-        screen = view.screen_coords(point)
-        text = "#{EDGE_NAMES[@locked_edge]} KHÓA · SCALE #{format('%.3f', @factor)}x"
+      def draw_dimension_text(view)
+        point = edge_midpoint_world(@drag_edge, @preview_transform_context)
+        text = "#{format_mm(@current_size)} · #{EDGE_NAMES[@locked_edge]} KHÓA"
         view.draw_text(
-          [screen.x + 14, screen.y - 18],
+          point,
           text,
           color: Sketchup::Color.new(30, 80, 160)
         )
@@ -694,11 +700,15 @@ module TranTuanNoiThat
       def update_status
         Sketchup.status_text = case @state
         when :pick_entity
-          'SCALE 4 CẠNH · click Group/Component cần Scale.'
+          'SCALE KÉO CẠNH · click Group/Component cần chỉnh.'
         when :pick_edge
-          'Kéo từ TÂM để chọn hướng, hoặc kéo nút quanh tâm. Cạnh đối diện giữ cố định.'
+          if @hover_edge
+            "Giữ chuột và kéo CẠNH #{EDGE_NAMES[@hover_edge]} · cạnh đối diện sẽ khóa · có bắt điểm."
+          else
+            'Rê trực tiếp vào 1 trong 4 cạnh màu xanh của mặt tấm rồi kéo.'
+          end
         when :scale
-          "ĐANG SCALE TỪ TÂM · cạnh đỏ = cạnh khóa · nút xanh ở tâm = hướng kéo · thả chuột để áp dụng."
+          'ĐANG KÉO CẠNH · bắt Endpoint/Edge/Face/Inference · thả chuột để tạo · nhập mm rồi Enter.'
         end
       end
 
@@ -710,4 +720,3 @@ module TranTuanNoiThat
     end
   end
 end
-
