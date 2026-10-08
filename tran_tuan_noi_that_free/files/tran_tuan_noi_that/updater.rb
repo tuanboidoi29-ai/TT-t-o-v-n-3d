@@ -216,8 +216,23 @@ module TranTuanNoiThat
         TranTuanNoiThat.save_setting('installed_version', manifest['version'])
         TranTuanNoiThat::Settings.sync if defined?(TranTuanNoiThat::Settings) && TranTuanNoiThat::Settings.instance_variable_get(:@dialog)
         retired = !Array(manifest['remove_files']).empty? || !Array(manifest['remove_dirs']).empty?
-        extra = retired ? "\nĐã xóa sạch tính năng cũ. Hãy đóng và mở lại SketchUp để toolbar làm sạch hoàn toàn." : ''
-        UI.messagebox("Đã cập nhật #{manifest['version']} từ GitHub.\nKhông yêu cầu kích hoạt bản quyền.#{extra}")
+        restart_needed =
+          TranTuanNoiThat.respond_to?(:restart_required?) &&
+          TranTuanNoiThat.restart_required?
+
+        extra =
+          if restart_needed
+            "\n\nTệp mới đã được giữ. Hãy ĐÓNG SketchUp và MỞ LẠI một lần để nạp sạch hệ thống."
+          elsif retired
+            "\nĐã xóa sạch tính năng cũ. Hãy đóng và mở lại SketchUp để toolbar làm sạch hoàn toàn."
+          else
+            ''
+          end
+
+        UI.messagebox(
+          "Đã cập nhật #{manifest['version']} từ GitHub.\n" \
+          "Không yêu cầu kích hoạt bản quyền.#{extra}"
+        )
         true
       rescue StandardError, ScriptError => error
         rollback_errors = []
@@ -315,7 +330,7 @@ module TranTuanNoiThat
       raise 'Máy chủ cập nhật không hợp lệ.' unless %w[raw.githubusercontent.com api.github.com].include?(uri.host)
 
       headers = {
-        'User-Agent' => 'TranTuanNoiThat-SketchUp/1.9.276',
+        'User-Agent' => 'TranTuanNoiThat-SketchUp/1.9.278',
         'Cache-Control' => 'no-cache, no-store, max-age=0',
         'Pragma' => 'no-cache'
       }
