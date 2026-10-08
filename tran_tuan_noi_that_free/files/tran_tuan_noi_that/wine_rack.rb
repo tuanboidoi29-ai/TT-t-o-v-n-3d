@@ -40,6 +40,8 @@ module TranTuanNoiThat
         @preview_center = nil
         @preview_volume_mm3 = 0.0
         @preview_ready = false
+        @preview_a_cut_lines = []
+        @preview_b_cut_lines = []
         @busy = false
 
         use_selection
@@ -60,6 +62,8 @@ module TranTuanNoiThat
           @b = nil
           @preview_ready = false
           @preview_lines = []
+          @preview_a_cut_lines = []
+          @preview_b_cut_lines = []
           @stage = :pick_b
         elsif @stage == :pick_b
           @a = nil
@@ -156,32 +160,63 @@ module TranTuanNoiThat
       end
 
       def draw(view)
-        draw_board(view, @a, Sketchup::Color.new(70, 165, 255, 75)) if valid_board?(@a)
+        # Preview vai A/B rõ ràng:
+        # A = xanh, B = hồng. Đây chỉ là overlay, không sửa model.
+        if valid_board?(@a)
+          draw_board_preview(
+            view,
+            @a,
+            Sketchup::Color.new(60, 150, 255, 65),
+            Sketchup::Color.new(25, 105, 235)
+          )
+        end
 
         second = @stage == :pick_b ? @hover : @b
         if valid_board?(second)
-          draw_board(view, second, Sketchup::Color.new(255, 165, 70, 85))
+          draw_board_preview(
+            view,
+            second,
+            Sketchup::Color.new(255, 135, 185, 65),
+            Sketchup::Color.new(225, 65, 130)
+          )
         end
 
-        if @preview_ready && !@preview_lines.empty?
-          view.line_stipple = '-'
-          view.line_width = 4
-          view.drawing_color = Sketchup::Color.new(235, 40, 40)
-          view.draw(GL_LINES, @preview_lines)
+        if @preview_ready
+          unless @preview_a_cut_lines.empty?
+            view.line_stipple = '-'
+            view.line_width = 5
+            view.drawing_color = Sketchup::Color.new(20, 105, 245)
+            view.draw(GL_LINES, @preview_a_cut_lines)
+          end
+
+          unless @preview_b_cut_lines.empty?
+            view.line_stipple = '-'
+            view.line_width = 5
+            view.drawing_color = Sketchup::Color.new(235, 65, 145)
+            view.draw(GL_LINES, @preview_b_cut_lines)
+          end
           view.line_stipple = ''
 
+          unless @preview_lines.empty?
+            view.line_width = 2
+            view.drawing_color = Sketchup::Color.new(190, 35, 35)
+            view.draw(GL_LINES, @preview_lines)
+          end
+
           if @preview_center
-            text = "GIAO THẬT · #{format_volume(@preview_volume_mm3)} · " \
-                   "A 1/2 TRƯỚC / B 1/2 SAU"
-            text = "GIAO THẬT · #{format_volume(@preview_volume_mm3)} · " \
-                   "A 1/2 SAU / B 1/2 TRƯỚC" if @swap_roles
+            text =
+              if @swap_roles
+                "A XANH: 1/2 MẶT SAU · B HỒNG: 1/2 MẶT TRƯỚC"
+              else
+                "A XANH: 1/2 MẶT TRƯỚC · B HỒNG: 1/2 MẶT SAU"
+              end
 
             view.draw_text(
               @preview_center,
-              text,
+              "#{text}\nGIAO THẬT: #{format_volume(@preview_volume_mm3)}",
               size: 13,
               bold: true,
-              color: Sketchup::Color.new(190, 25, 25)
+              color: Sketchup::Color.new(35, 35, 35)
             )
           end
         end
@@ -357,6 +392,68 @@ module TranTuanNoiThat
         view.draw(GL_LINES, pairs.flat_map { |a, b| [points[a], points[b]] })
       end
 
+      def draw_board_preview(view, entity, fill_color, edge_color)
+        tr = world_transform(entity)
+
+        view.drawing_color = fill_color
+        entity.definition.entities.grep(Sketchup::Face).each do |face|
+          mesh = face.mesh(0)
+
+          mesh.polygons.each do |polygon|
+            indices = polygon.map(&:abs)
+            next if indices.length < 3
+
+            p0 = mesh.point_at(indices[0]).transform(tr)
+            triangles = []
+
+            (1...(indices.length - 1)).each do |index|
+              triangles << p0
+              triangles << mesh.point_at(indices[index]).transform(tr)
+              triangles << mesh.point_at(indices[index + 1]).transform(tr)
+            end
+
+            view.draw(GL_TRIANGLES, triangles) unless triangles.empty?
+          end
+        end
+
+        draw_board(view, entity, edge_color)
+      end
+
+      def solid_snapshot(group)
+        raise 'Preview Solid đã bị xóa.' unless group && group.valid?
+
+        tr = group.transformation
+        lines = group.definition.entities
+          .grep(Sketchup::Edge)
+          .flat_map do |edge|
+            [
+              edge.start.position.transform(tr),
+              edge.end.position.transform(tr)
+            ]
+          end
+
+        bounds = group.bounds
+        {
+          lines: lines,
+          center: bounds.center.transform(tr),
+          volume_mm3: group.volume.to_f * 25.4**3
+        }
+      end
+
+      def duplicate_solid(work, source)
+        raise 'Nguồn Solid tạm đã bị xóa.' unless source && source.valid?
+
+        group = work.add_group
+        instance = group.entities.add_instance(
+          source.definition,
+          source.transformation
+        )
+        instance.explode
+
+        raise 'Không nhân bản được Solid tạm.' unless group.valid? && group.manifold?
+        group
+      end
+
       def copy_solid(work, entity)
         group = work.add_group
         group.entities.add_instance(
@@ -368,9 +465,9 @@ module TranTuanNoiThat
         group
       end
 
-      def preview_intersection(work)
-        left = copy_solid(work, @a)
-        right = copy_solid(work, @b)
+      def build_intersection_solid(work, entity_a = @a, entity_b = @b)
+        left = copy_solid(work, entity_a)
+        right = copy_solid(work, entity_b)
         intersection = left.intersect(right)
 
         unless intersection &&
@@ -380,10 +477,10 @@ module TranTuanNoiThat
           raise 'Hai tấm chỉ chạm mặt/cạnh, không có thể tích giao thật.'
         end
 
+        # Không erase left/right ở đây:
+        # Solid Tools có thể tái sử dụng/xóa operand. Workspace sẽ được
+        # abort/erase nguyên khối, tránh reference to deleted Group.
         intersection
-      ensure
-        left.erase! if left && left.valid?
-        right.erase! if right && right.valid?
       end
 
       def rebuild_preview
@@ -396,24 +493,41 @@ module TranTuanNoiThat
 
         workspace = @context.add_group
         workspace.transformation = @edit.inverse
+        work = workspace.entities
 
-        intersection = preview_intersection(workspace.entities)
-        tr = intersection.transformation
+        intersection = build_intersection_solid(work)
+        snapshot = solid_snapshot(intersection)
 
-        @preview_lines = intersection.definition.entities
-          .grep(Sketchup::Edge)
-          .flat_map do |edge|
-            [
-              edge.start.position.transform(tr),
-              edge.end.position.transform(tr)
-            ]
-          end
+        a_role = @swap_roles ? :back : :front
+        b_role = @swap_roles ? :front : :back
 
-        @preview_volume_mm3 = intersection.volume.to_f * 25.4**3
+        intersection_a = duplicate_solid(work, intersection)
+        intersection_b = duplicate_solid(work, intersection)
 
-        bounds = intersection.bounds
-        @preview_center = bounds.center.transform(tr)
+        cutter_a = cutter_for_half(
+          work,
+          intersection_a,
+          @a,
+          board_cut_side(@a, a_role)
+        )
+        cutter_b = cutter_for_half(
+          work,
+          intersection_b,
+          @b,
+          board_cut_side(@b, b_role)
+        )
 
+        a_snapshot = solid_snapshot(cutter_a)
+        b_snapshot = solid_snapshot(cutter_b)
+
+        @preview_lines = snapshot[:lines]
+        @preview_center = snapshot[:center]
+        @preview_volume_mm3 = snapshot[:volume_mm3]
+        @preview_a_cut_lines = a_snapshot[:lines]
+        @preview_b_cut_lines = b_snapshot[:lines]
+
+        # Hủy toàn bộ workspace sau khi đã lấy dữ liệu thuần.
+        # Không giữ Group tạm ra ngoài operation.
         @model.abort_operation
         started = false
         @preview_ready = true
@@ -421,6 +535,8 @@ module TranTuanNoiThat
         @model.abort_operation if started
         @preview_ready = false
         @preview_lines = []
+        @preview_a_cut_lines = []
+        @preview_b_cut_lines = []
         @preview_center = nil
         @preview_volume_mm3 = 0.0
         raise
@@ -553,16 +669,16 @@ module TranTuanNoiThat
       def cutter_for_half(work, intersection, entity, side)
         slab = build_half_slab(work, entity, side)
         cutter = intersection.intersect(slab)
-        slab.erase! if slab.valid?
 
         unless cutter &&
                cutter.valid? &&
                cutter.manifold? &&
                cutter.volume > EPS_VOL
-          cutter.erase! if cutter && cutter.valid?
           raise 'Không dựng được dao khấu 1/2 chiều sâu.'
         end
 
+        # Không tự erase operands. Solid Tools có thể đã xóa/tái dùng operand;
+        # workspace sẽ dọn toàn bộ sau cùng.
         expand_cutter_in_plane(cutter, entity, @gap_mm)
         cutter
       end
@@ -655,28 +771,27 @@ module TranTuanNoiThat
         workspace.transformation = @edit.inverse
         work = workspace.entities
 
+        # Dùng một intersection riêng làm mẫu dao và hai bản sao riêng
+        # để trim A/B. Không tái sử dụng operand đã bị Solid Tools tiêu thụ.
+        intersection = build_intersection_solid(work)
+        intersection_a = duplicate_solid(work, intersection)
+        intersection_b = duplicate_solid(work, intersection)
+
         a_copy = copy_solid(work, @a)
         b_copy = copy_solid(work, @b)
-        intersection = a_copy.intersect(b_copy)
-
-        unless intersection &&
-               intersection.valid? &&
-               intersection.volume > EPS_VOL
-          raise 'Không còn vùng giao thật giữa A và B.'
-        end
 
         a_role = @swap_roles ? :back : :front
         b_role = @swap_roles ? :front : :back
 
         cutter_a = cutter_for_half(
           work,
-          intersection,
+          intersection_a,
           @a,
           board_cut_side(@a, a_role)
         )
         cutter_b = cutter_for_half(
           work,
-          intersection,
+          intersection_b,
           @b,
           board_cut_side(@b, b_role)
         )
@@ -723,6 +838,8 @@ module TranTuanNoiThat
       def reset_after_execute
         @preview_ready = false
         @preview_lines = []
+        @preview_a_cut_lines = []
+        @preview_b_cut_lines = []
         @preview_center = nil
         @preview_volume_mm3 = 0.0
         @a = nil
