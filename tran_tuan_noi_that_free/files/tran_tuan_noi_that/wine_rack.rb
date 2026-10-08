@@ -2,165 +2,477 @@
 module TranTuanNoiThat
   module WineRack
     extend self
-    # Convex polygon clipping in millimetres; all boards remain within P1/P2.
-    def clip(poly,n,c)
-      out=[]
-      poly.each_with_index do |a,i|
-        b=poly[(i+1)%poly.length]
-        da=a[0]*n[0]+a[1]*n[1]-c;db=b[0]*n[0]+b[1]*n[1]-c
-        out << a if da<=1e-7
-        if (da<0 && db>0)||(da>0 && db<0)
-          f=da/(da-db);out << [a[0]+f*(b[0]-a[0]),a[1]+f*(b[1]-a[1])]
+
+    EPS_MM = 1.0e-6
+
+    # Convex polygon clipping in millimetres.
+    def clip(poly, n, c)
+      out = []
+      poly.each_with_index do |a, i|
+        b = poly[(i + 1) % poly.length]
+        da = a[0] * n[0] + a[1] * n[1] - c
+        db = b[0] * n[0] + b[1] * n[1] - c
+
+        out << a if da <= 1.0e-7
+
+        if (da < 0 && db > 0) || (da > 0 && db < 0)
+          f = da / (da - db)
+          out << [
+            a[0] + f * (b[0] - a[0]),
+            a[1] + f * (b[1] - a[1])
+          ]
         end
       end
-      out=out.each_with_object([]){|p,r|r<<p if r.empty? || Math.hypot(p[0]-r[-1][0],p[1]-r[-1][1])>1e-6}
-      out.pop if out.length>1 && Math.hypot(out[0][0]-out[-1][0],out[0][1]-out[-1][1])<1e-6
+
+      out = out.each_with_object([]) do |point, result|
+        if result.empty? ||
+           Math.hypot(point[0] - result[-1][0], point[1] - result[-1][1]) > EPS_MM
+          result << point
+        end
+      end
+
+      if out.length > 1 &&
+         Math.hypot(out[0][0] - out[-1][0], out[0][1] - out[-1][1]) < EPS_MM
+        out.pop
+      end
+
       out
     end
-    def area(p)
-      return 0 if p.length<3
-      p.each_with_index.sum{|a,i|b=p[(i+1)%p.length];a[0]*b[1]-a[1]*b[0]}.abs/2
+
+    def area(poly)
+      return 0.0 if poly.length < 3
+      poly.each_with_index.sum do |a, i|
+        b = poly[(i + 1) % poly.length]
+        a[0] * b[1] - a[1] * b[0]
+      end.abs / 2.0
     end
-    def rect(x,y,w,h);[[x,y],[x+w,y],[x+w,y+h],[x,y+h]];end
-    def layout(w,h,t,target,kind)
-      raise 'Vùng quá nhỏ so với độ dày ván.' unless w>4*t && h>4*t
-      iw=w-2*t;ih=h-2*t
-      polys=[rect(0,0,w,t),rect(0,h-t,w,t),rect(0,t,t,ih),rect(w-t,t,t,ih)]
-      base=rect(t,t,iw,ih)
-      if kind=='Vuông'
-        cols=[((iw+t)/(target+t)).ceil,1].max
-        rows=[((ih+t)/(target+t)).ceil,1].max
-        raise 'Quá nhiều ô; tăng kích thước ô mong muốn.' if cols*rows>200
-        cw=(iw-(cols-1)*t)/cols;ch=(ih-(rows-1)*t)/rows
-        raise 'Ô quá nhỏ.' unless cw>1 && ch>1
-        (1...cols).each{|i|polys<<rect(t+i*cw+(i-1)*t,t,t,ih)}
-        cols.times{|i|(1...rows).each{|j|polys<<rect(t+i*(cw+t),t+j*ch+(j-1)*t,cw,t)}}
-        note="#{cols} cột × #{rows} hàng · Lọt lòng #{cw.round(1)} × #{ch.round(1)} mm"
-      else
-        a=[1/Math.sqrt(2),1/Math.sqrt(2)];b=[-a[0],a[1]]
-        bands=[]
-        [a,b].each do |n|
-          vals=base.map{|p|p[0]*n[0]+p[1]*n[1]};lo,hi=vals.minmax
-          count=[((hi-lo)/(target+t)).ceil,1].max
-          raise 'Quá nhiều nan chéo; tăng kích thước ô.' if count>20
-          pitch=(hi-lo)/count
-          raise 'Ô quá nhỏ.' unless pitch>t+1
-          bands << [(1...count).map{|i|lo+pitch*i},n,pitch]
+
+    def rect(x, y, w, h)
+      [[x, y], [x + w, y], [x + w, y + h], [x, y + h]]
+    end
+
+    # Đưa các đầu nan về đúng tọa độ tiếp xúc chung.
+    # Việc canonicalize này tránh khe hở cực nhỏ giữa nan-nan và nan-khung.
+    def canonical_point(point, x0, y0, x1, y1)
+      x = point[0].to_f
+      y = point[1].to_f
+
+      x = x0 if (x - x0).abs <= 1.0e-5
+      x = x1 if (x - x1).abs <= 1.0e-5
+      y = y0 if (y - y0).abs <= 1.0e-5
+      y = y1 if (y - y1).abs <= 1.0e-5
+
+      [x.round(6), y.round(6)]
+    end
+
+    def canonical_poly(poly, x0, y0, x1, y1)
+      clean = poly.map { |point| canonical_point(point, x0, y0, x1, y1) }
+
+      clean = clean.each_with_object([]) do |point, result|
+        if result.empty? ||
+           Math.hypot(point[0] - result[-1][0], point[1] - result[-1][1]) > EPS_MM
+          result << point
         end
-        first,n,pitch=bands[0]
-        first.each{|c|polys<<clip(clip(base,n,c+t/2),n.map{|v|-v},-c+t/2)}
-        second,m,_=bands[1]
-        second.each do |c|
-          pieces=[clip(clip(base,m,c+t/2),m.map{|v|-v},-c+t/2)]
-          first.each do |cut|
-            pieces=pieces.flat_map{|p|[clip(p,n,cut-t/2),clip(p,n.map{|v|-v},-cut-t/2)]}.select{|p|area(p)>0.01}
+      end
+
+      if clean.length > 1 &&
+         Math.hypot(clean[0][0] - clean[-1][0], clean[0][1] - clean[-1][1]) < EPS_MM
+        clean.pop
+      end
+
+      clean
+    end
+
+    # frame = true  -> có 4 tấm khung viền.
+    # frame = false -> nan được cắt đúng tới biên P1/P2.
+    def layout(w, h, t, target, kind, frame = true)
+      raise 'Độ dày ván phải lớn hơn 0.' unless t.finite? && t > 0
+      raise 'Kích thước ô phải lớn hơn độ dày ván.' unless target.finite? && target > t
+
+      border = frame ? t : 0.0
+      x0 = border
+      y0 = border
+      x1 = w - border
+      y1 = h - border
+      iw = x1 - x0
+      ih = y1 - y0
+
+      raise 'Vùng quá nhỏ so với độ dày ván.' unless iw > t + 1.0 && ih > t + 1.0
+
+      polys = []
+
+      if frame
+        # Khung không chồng góc: các mặt tiếp xúc dùng cùng đúng tọa độ.
+        polys << rect(0, 0, w, t)
+        polys << rect(0, h - t, w, t)
+        polys << rect(0, t, t, h - 2 * t)
+        polys << rect(w - t, t, t, h - 2 * t)
+      end
+
+      base = rect(x0, y0, iw, ih)
+
+      if kind == 'Vuông'
+        cols = [((iw + t) / (target + t)).ceil, 1].max
+        rows = [((ih + t) / (target + t)).ceil, 1].max
+        raise 'Quá nhiều ô; tăng kích thước ô mong muốn.' if cols * rows > 200
+
+        cw = (iw - (cols - 1) * t) / cols
+        ch = (ih - (rows - 1) * t) / rows
+        raise 'Ô quá nhỏ.' unless cw > 1.0 && ch > 1.0
+
+        # Nan đứng chạy liên tục và chạm chính xác khung trên/dưới.
+        (1...cols).each do |i|
+          x = x0 + i * cw + (i - 1) * t
+          polys << rect(x, y0, t, ih)
+        end
+
+        # Nan ngang được chia theo từng khoang, đầu nan kết thúc đúng tại
+        # cạnh nan đứng hoặc cạnh khung, nên toàn bộ giao nhau là tiếp điểm.
+        cols.times do |i|
+          cell_x = x0 + i * (cw + t)
+          (1...rows).each do |j|
+            y = y0 + j * ch + (j - 1) * t
+            polys << rect(cell_x, y, cw, t)
           end
+        end
+
+        frame_note = frame ? 'KHUNG BẬT' : 'KHUNG TẮT'
+        note = "#{cols} cột × #{rows} hàng · Lọt lòng #{cw.round(1)} × #{ch.round(1)} mm · #{frame_note}"
+      else
+        a = [1.0 / Math.sqrt(2), 1.0 / Math.sqrt(2)]
+        b = [-a[0], a[1]]
+        bands = []
+
+        [a, b].each do |normal|
+          vals = base.map { |point| point[0] * normal[0] + point[1] * normal[1] }
+          lo, hi = vals.minmax
+          count = [((hi - lo) / (target + t)).ceil, 1].max
+          raise 'Quá nhiều nan chéo; tăng kích thước ô.' if count > 20
+
+          pitch = (hi - lo) / count
+          raise 'Ô quá nhỏ.' unless pitch > t + 1.0
+
+          bands << [(1...count).map { |i| lo + pitch * i }, normal, pitch]
+        end
+
+        first, n, pitch = bands[0]
+
+        # Họ nan thứ nhất: clip đúng tới biên tiếp xúc với khung/base.
+        first.each do |c|
+          poly = clip(
+            clip(base, n, c + t / 2.0),
+            n.map { |value| -value },
+            -c + t / 2.0
+          )
+          polys << poly
+        end
+
+        # Họ nan thứ hai: cắt tại đúng hai biên của họ thứ nhất.
+        # Mọi đầu mút sinh ra từ cùng phương trình giao tuyến, không vượt/chừa khe.
+        second, m, = bands[1]
+        second.each do |c|
+          pieces = [
+            clip(
+              clip(base, m, c + t / 2.0),
+              m.map { |value| -value },
+              -c + t / 2.0
+            )
+          ]
+
+          first.each do |cut|
+            pieces = pieces.flat_map do |poly|
+              [
+                clip(poly, n, cut - t / 2.0),
+                clip(poly, n.map { |value| -value }, -cut - t / 2.0)
+              ]
+            end.select { |poly| area(poly) > 0.01 }
+          end
+
           polys.concat(pieces)
         end
-        note="Ô chéo đầy đủ: cạnh lọt lòng #{(pitch-t).round(1)} mm · Ô sát khung được cắt theo biên"
+
+        frame_note = frame ? 'KHUNG BẬT' : 'KHUNG TẮT'
+        note = "Ô chéo · cạnh lọt lòng #{(pitch - t).round(1)} mm · nan chạm biên đúng giao điểm · #{frame_note}"
       end
-      polys=polys.select{|p|area(p)>0.01}
-      raise 'Quá nhiều chi tiết; tăng kích thước ô.' if polys.length>250
-      [polys,note]
+
+      # Chuẩn hóa toàn bộ tọa độ giao nhau và tiếp xúc khung.
+      polys = polys.map do |poly|
+        canonical_poly(poly, x0, y0, x1, y1)
+      end.select { |poly| area(poly) > 0.01 }
+
+      raise 'Quá nhiều chi tiết; tăng kích thước ô.' if polys.length > 250
+
+      [polys, note]
     end
+
     def activate
       Sketchup.active_model.select_tool(Tool.new(17.5.mm))
     end
+
     class Tool < Board::Tool
       def initialize(thickness)
         super
-        @wine_kind=TranTuanNoiThat.setting('wine_kind','Vuông')
-        @wine_kind='Vuông' unless ['Vuông','Chéo'].include?(@wine_kind)
-        @wine_t=TranTuanNoiThat.setting('wine_thickness',17.5).to_f
-        @wine_depth=TranTuanNoiThat.setting('wine_depth',300).to_f
-        @wine_cell=TranTuanNoiThat.setting('wine_cell',100).to_f
-        @wine_polys=[]
+
+        @wine_kind = TranTuanNoiThat.setting('wine_kind', 'Vuông')
+        @wine_kind = 'Vuông' unless ['Vuông', 'Chéo'].include?(@wine_kind)
+
+        @wine_t = TranTuanNoiThat.setting('wine_thickness', 17.5).to_f
+        @wine_depth = TranTuanNoiThat.setting('wine_depth', 300).to_f
+        @wine_cell = TranTuanNoiThat.setting('wine_cell', 100).to_f
+
+        stored_frame = TranTuanNoiThat.setting('wine_frame', true)
+        @wine_frame = !(
+          stored_frame == false ||
+          stored_frame.to_s.downcase == 'false' ||
+          stored_frame.to_s == '0'
+        )
+
+        @wine_polys = []
       end
-      def update(view,x,y)
+
+      def update(view, x, y)
         super
-        @wine_polys=[];@wine_note=''
-        return unless @loops && @loops.first && @loops.first.length==4 && @p1
-        p,a,q,b=@loops.first
-        u=a-p;v=b-p
-        return if u.length<0.1.mm || v.length<0.1.mm
-        polys,@wine_note=WineRack.layout(u.length.to_mm,v.length.to_mm,@wine_t,@wine_cell,@wine_kind)
-        @wine_origin=p;@wine_u=u.normalize;@wine_v=v.normalize
-        @wine_polys=polys
-      rescue StandardError=>e
-        @wine_polys=[];@wine_note=e.message
+        @wine_polys = []
+        @wine_note = ''
+
+        return unless @loops && @loops.first && @loops.first.length == 4 && @p1
+
+        p, a, _q, b = @loops.first
+        u = a - p
+        v = b - p
+
+        return if u.length < 0.1.mm || v.length < 0.1.mm
+
+        @wine_polys, @wine_note = WineRack.layout(
+          u.length.to_mm,
+          v.length.to_mm,
+          @wine_t,
+          @wine_cell,
+          @wine_kind,
+          @wine_frame
+        )
+
+        @wine_origin = p
+        @wine_u = u.normalize
+        @wine_v = v.normalize
+      rescue StandardError => error
+        @wine_polys = []
+        @wine_note = error.message
       end
-      def world(p,back=false)
-        pt=@wine_origin.offset(@wine_u,p[0].mm).offset(@wine_v,p[1].mm)
-        back ? pt.offset(displacement,@wine_depth.mm) : pt
+
+      def world(point, back = false)
+        pt = @wine_origin
+          .offset(@wine_u, point[0].mm)
+          .offset(@wine_v, point[1].mm)
+
+        back ? pt.offset(displacement, @wine_depth.mm) : pt
       end
-      def onKeyDown(key,repeat,flags,view)
-        if key==9
+
+      def onKeyDown(key, repeat, flags, view)
+        # SHIFT = bật/tắt khung viền. Không còn dùng SHIFT khóa hướng P1-P2.
+        if key == 16
           return true if @held[key]
-          @held[key]=true
-          values=UI.inputbox(['Kiểu ô','Dày ván (mm)','Chiều sâu (mm)','Lọt lòng ô tối đa mong muốn (mm)'],
-            [@wine_kind,@wine_t,@wine_depth,@wine_cell],['Vuông|Chéo','','',''],'Vẽ Ô Rượu')
-          if values
-            kind,t,d,c=values;t=Float(t);d=Float(d);c=Float(c)
-            raise 'Độ dày, chiều sâu và kích thước ô phải dương.' unless [t,d,c].all?{|x|x.finite? && x>0} && t>=1 && c>t
-            @wine_kind=kind;@wine_t=t;@wine_depth=d;@wine_cell=c
-            {'kind'=>kind,'thickness'=>t,'depth'=>d,'cell'=>c}.each{|k,val|TranTuanNoiThat.save_setting("wine_#{k}",val)}
-            update(view,*@mouse) if @mouse
-          end
-          @held.delete(9);status;view.invalidate;return true
+
+          @held[key] = true
+          @wine_frame = !@wine_frame
+          TranTuanNoiThat.save_setting('wine_frame', @wine_frame)
+
+          update(view, *@mouse) if @mouse
+          status
+          view.invalidate
+          return true
         end
-        return super if [16,17,70,37,38,39,40].include?(key)
+
+        if key == 9
+          return true if @held[key]
+
+          @held[key] = true
+
+          values = UI.inputbox(
+            [
+              'Kiểu ô',
+              'Dày ván (mm)',
+              'Chiều sâu (mm)',
+              'Lọt lòng ô tối đa mong muốn (mm)'
+            ],
+            [
+              @wine_kind,
+              @wine_t,
+              @wine_depth,
+              @wine_cell
+            ],
+            [
+              'Vuông|Chéo',
+              '',
+              '',
+              ''
+            ],
+            'Vẽ Ô Rượu'
+          )
+
+          if values
+            kind, t, d, c = values
+            t = Float(t)
+            d = Float(d)
+            c = Float(c)
+
+            unless [t, d, c].all? { |value| value.finite? && value > 0 } &&
+                   t >= 1 &&
+                   c > t
+              raise 'Độ dày, chiều sâu và kích thước ô phải dương.'
+            end
+
+            @wine_kind = kind
+            @wine_t = t
+            @wine_depth = d
+            @wine_cell = c
+
+            {
+              'kind' => kind,
+              'thickness' => t,
+              'depth' => d,
+              'cell' => c
+            }.each do |name, value|
+              TranTuanNoiThat.save_setting("wine_#{name}", value)
+            end
+
+            update(view, *@mouse) if @mouse
+          end
+
+          @held.delete(9)
+          status
+          view.invalidate
+          return true
+        end
+
+        # CTRL / F / mũi tên vẫn giữ cơ chế gốc.
+        return super if [17, 70, 37, 38, 39, 40].include?(key)
+
         false
-      rescue StandardError=>e
-        @held.delete(9);UI.messagebox(e.message);true
+      rescue StandardError => error
+        @held.delete(9)
+        @held.delete(16)
+        UI.messagebox(error.message)
+        true
       end
-      def onMouseMove(flags,x,y,view)
+
+      def onKeyUp(key, repeat, flags, view)
+        if key == 16
+          @held.delete(16)
+          return true
+        end
+
+        super
+      end
+
+      def onMouseMove(flags, x, y, view)
         super
         status
       end
+
       def getExtents
-        box=Geom::BoundingBox.new
+        box = Geom::BoundingBox.new
+
         if @p1 && @wine_polys
-          @wine_polys.each{|poly|poly.each{|p|box.add(world(p),world(p,true))}}
+          @wine_polys.each do |poly|
+            poly.each do |point|
+              box.add(world(point), world(point, true))
+            end
+          end
         end
+
         box
       end
-      def enableVCB?;false;end
+
+      def enableVCB?
+        false
+      end
+
       def draw(view)
         @ip.draw(view) if @ip.display?
         return if !@wine_polys || @wine_polys.empty? || !@p1
-        view.drawing_color=Sketchup::Color.new(255,180,195,100)
+
+        view.drawing_color = Sketchup::Color.new(255, 180, 195, 100)
+
         @wine_polys.each do |poly|
-          a=poly.map{|p|world(p)};b=poly.map{|p|world(p,true)}
-          [a,b].each{|pts|view.draw(GL_TRIANGLES,(1...pts.length-1).flat_map{|i|[pts[0],pts[i],pts[i+1]]})}
-          view.draw(GL_QUADS,a.each_index.flat_map{|i|j=(i+1)%a.length;[a[i],a[j],b[j],b[i]]})
-          view.drawing_color=Sketchup::Color.new(160,80,95)
-          view.draw(GL_LINE_LOOP,a);view.draw(GL_LINE_LOOP,b)
-          view.drawing_color=Sketchup::Color.new(255,180,195,100)
+          front = poly.map { |point| world(point) }
+          back = poly.map { |point| world(point, true) }
+
+          [front, back].each do |points|
+            view.draw(
+              GL_TRIANGLES,
+              (1...points.length - 1).flat_map do |i|
+                [points[0], points[i], points[i + 1]]
+              end
+            )
+          end
+
+          view.draw(
+            GL_QUADS,
+            front.each_index.flat_map do |i|
+              j = (i + 1) % front.length
+              [front[i], front[j], back[j], back[i]]
+            end
+          )
+
+          view.drawing_color = Sketchup::Color.new(160, 80, 95)
+          view.draw(GL_LINE_LOOP, front)
+          view.draw(GL_LINE_LOOP, back)
+          view.drawing_color = Sketchup::Color.new(255, 180, 195, 100)
         end
       end
+
       def create_board
         return false unless same_context? && @wine_polys && !@wine_polys.empty?
-        @model.start_operation('TT - Vẽ Ô Rượu',true)
-        parent=@context.add_group;parent.name="Ô Rượu #{@wine_kind}"
-        @wine_polys.each_with_index do |poly,i|
-          g=parent.entities.add_group;g.name=format('VAN_RUOU_%03d',i+1)
-          face=g.entities.add_face(poly.map{|p|world(p)})
+
+        @model.start_operation('TT - Vẽ Ô Rượu', true)
+
+        parent = @context.add_group
+        parent.name = "Ô Rượu #{@wine_kind}"
+
+        parent.set_attribute(
+          'TRẦN TUẤN NỘI THẤT',
+          'khung_vien',
+          @wine_frame ? 'BAT' : 'TAT'
+        )
+
+        @wine_polys.each_with_index do |poly, index|
+          group = parent.entities.add_group
+          group.name = format('VAN_RUOU_%03d', index + 1)
+
+          face = group.entities.add_face(poly.map { |point| world(point) })
           raise 'Không tạo được mặt nan.' unless face
-          face.reverse! if face.normal.dot(displacement)<0
+
+          face.reverse! if face.normal.dot(displacement) < 0
           face.pushpull(@wine_depth.mm)
-          raise 'Nan chưa kín; đã hủy.' unless g.manifold?
-          g.set_attribute('TRẦN TUẤN NỘI THẤT','do_day_mm',@wine_t)
+
+          raise 'Nan chưa kín; đã hủy.' unless group.manifold?
+
+          group.set_attribute(
+            'TRẦN TUẤN NỘI THẤT',
+            'do_day_mm',
+            @wine_t
+          )
         end
-        parent.transformation=@edit.inverse
+
+        parent.transformation = @edit.inverse
+
         @model.commit_operation
-        @model.selection.clear;@model.selection.add(parent)
-        @wine_polys=[]
+        @model.selection.clear
+        @model.selection.add(parent)
+        @wine_polys = []
+
         true
-      rescue StandardError=>e
-        @model.abort_operation;UI.messagebox(e.message);false
+      rescue StandardError => error
+        @model.abort_operation
+        UI.messagebox(error.message)
+        false
       end
+
       def status_text
-        "VẼ Ô RƯỢU #{@wine_kind} · P1 → P2 → click tạo · Giữ SHIFT khóa hướng · TAB cài đặt · CTRL đảo sâu · #{@wine_note}"
+        frame_text = @wine_frame ? 'KHUNG: BẬT' : 'KHUNG: TẮT'
+
+        "VẼ Ô RƯỢU #{@wine_kind} · P1 → P2 → click tạo · "         "SHIFT #{frame_text} · TAB cài đặt · CTRL đảo sâu · #{@wine_note}"
       end
     end
   end
