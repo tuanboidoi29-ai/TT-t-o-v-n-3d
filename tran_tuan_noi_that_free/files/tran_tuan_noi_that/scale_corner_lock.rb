@@ -2,10 +2,15 @@
 # TRẦN TUẤN NỘI THẤT - KÉO MẶT FACE
 # SketchUp 2021+
 #
-# Gọi công cụ -> rà vào Face trong Group/Component -> preview mặt + kích thước
-# -> click khóa mặt -> rê chuột kéo có bắt Endpoint/Edge/Face/Inference
-# -> click lần 2 để áp dụng. Nhập kích thước mm + Enter để áp dụng chính xác.
-# Mặt đối diện luôn giữ cố định. Một thao tác = một Undo.
+# Quy trình 1 click:
+# 1) Gọi công cụ.
+# 2) Rà vào Face trong Group/Component.
+# 3) Face sáng cam + hiện kích thước chính mặt đang rà.
+# 4) Face đang rà tự xác định và khóa hướng kéo theo pháp tuyến gần trục local nhất.
+# 5) Đưa chuột kéo ra/vào; bắt Endpoint / Edge / Face / Inference.
+# 6) Click 1 lần để tạo. Có thể nhập kích thước mm + Enter.
+#
+# Mặt đối diện giữ cố định. Một thao tác = một Undo.
 
 require 'sketchup.rb'
 
@@ -14,7 +19,7 @@ module TranTuanNoiThat
     extend self
 
     remove_const(:VERSION) if const_defined?(:VERSION, false)
-    VERSION = '1.9.260'.freeze
+    VERSION = '1.9.261'.freeze
 
     MIN_FACTOR = 0.001
     AXIS_ALIGN_MIN = 0.70
@@ -27,20 +32,25 @@ module TranTuanNoiThat
       def initialize
         @model = Sketchup.active_model
         @context_to_world = @model.edit_transform
+
         @state = :hover_face
         @hover = nil
         @target = nil
+
         @entity = nil
         @bbox = nil
         @original_transform = nil
         @preview_transform = nil
+
         @axis = nil
         @side = nil
         @drag_coord = nil
         @fixed_coord = nil
+
         @original_size = 0.0
         @current_size = 0.0
         @factor = 1.0
+
         @input_point = Sketchup::InputPoint.new
         @snap_point = nil
         @guide_point = nil
@@ -49,7 +59,8 @@ module TranTuanNoiThat
       end
 
       def activate
-        Sketchup.status_text = 'KÉO MẶT FACE · rà vào mặt của Group/Component.'
+        Sketchup.status_text =
+          'KÉO MẶT FACE · rà vào Face → tự khóa hướng → kéo → bắt điểm → click 1 lần để tạo.'
         @model.active_view.invalidate
       end
 
@@ -66,7 +77,8 @@ module TranTuanNoiThat
         if @state == :drag_face
           clear_drag
           @state = :hover_face
-          Sketchup.status_text = 'Đã hủy kéo mặt · rà vào Face khác.'
+          @hover = nil
+          Sketchup.status_text = 'Đã hủy · rà Face khác để tiếp tục.'
           view.invalidate
         else
           @model.select_tool(nil)
@@ -75,38 +87,50 @@ module TranTuanNoiThat
 
       def onMouseMove(_flags, x, y, view)
         if @state == :hover_face
-          @hover = pick_face_target(view, x, y)
-          update_hover_status
+          picked = pick_face_target(view, x, y)
+
+          if picked
+            @hover = picked
+            update_hover_status
+          elsif @hover
+            # Không cần click để khóa Face.
+            # Face cuối cùng vừa rà tự khóa hướng, chuyển thẳng sang preview kéo.
+            begin_drag(@hover)
+            @state = :drag_face
+            update_drag_preview(view, x, y)
+          else
+            Sketchup.status_text =
+              'KÉO MẶT FACE · rà vào Face của Group/Component để nhận mặt và hướng kéo.'
+          end
         else
           update_drag_preview(view, x, y)
         end
+
         view.invalidate
       rescue StandardError => error
         puts "[TT KeoMatFace move] #{error.class}: #{error.message}"
       end
 
       def onLButtonDown(_flags, x, y, view)
-        if @state == :hover_face
-          picked = pick_face_target(view, x, y)
-          unless picked
-            UI.beep
-            return
-          end
-          lock_face(picked)
-          @state = :drag_face
+        if @state == :drag_face
           update_drag_preview(view, x, y)
-        else
-          update_drag_preview(view, x, y)
+
           if (@factor - 1.0).abs < 0.000001
             UI.beep
-            Sketchup.status_text = 'Chưa thay đổi kích thước · rê chuột hoặc bắt điểm khác.'
+            Sketchup.status_text =
+              'Chưa có khoảng kéo · rê chuột ra/vào theo hướng Face rồi click 1 lần để tạo.'
             return
           end
+
           commit_drag
           @state = :hover_face
           @hover = nil
+          view.invalidate
+        else
+          # Ở trạng thái rà Face, click không dùng để khóa hướng.
+          # Hướng được khóa tự động khi rời Face và bắt đầu kéo.
+          UI.beep if @hover.nil?
         end
-        view.invalidate
       rescue StandardError => error
         UI.messagebox("Kéo Mặt Face:\n#{error.message}")
       end
@@ -129,6 +153,7 @@ module TranTuanNoiThat
           end
 
         raise 'Kích thước phải lớn hơn 0.' unless target_length > 0.0
+
         @factor = valid_factor(target_length / @original_size)
         @current_size = @original_size * @factor
         rebuild_preview_transform
@@ -157,12 +182,15 @@ module TranTuanNoiThat
       def getExtents
         bb = Geom::BoundingBox.new
         info = @state == :hover_face ? @hover : @target
+
         if info
           preview_face_world_points(info).each { |point| bb.add(point) }
-          if @entity && @bbox
-            entity_world_corners(@preview_transform || @original_transform).each { |point| bb.add(point) }
+
+          if @entity && @bbox && @preview_transform
+            entity_world_corners(@preview_transform).each { |point| bb.add(point) }
           end
         end
+
         bb
       rescue StandardError
         Geom::BoundingBox.new
@@ -186,7 +214,9 @@ module TranTuanNoiThat
         helper.do_pick(x, y)
 
         count = helper.count
-        0.upto([count - 1, 8].min) do |index|
+        return nil if count <= 0
+
+        0.upto([count - 1, 10].min) do |index|
           path = helper.path_at(index)
           next unless path && !path.empty?
 
@@ -194,29 +224,34 @@ module TranTuanNoiThat
           next unless face_index
 
           face = path[face_index]
+
           container_index = path.index do |item|
             valid_container?(item) && active_entities.include?(item)
           end
           next unless container_index && container_index < face_index
 
           container = path[container_index]
-          info = build_face_info(path, face_index, container_index, face, container)
+          info = build_face_info(path, face_index, face, container)
           return info if info
         end
+
         nil
       rescue StandardError
         nil
       end
 
-      def build_face_info(path, face_index, container_index, face, container)
+      def build_face_info(path, face_index, face, container)
         container_world = @context_to_world * container.transformation
 
         face_world = @context_to_world
         path[0...face_index].each do |item|
-          face_world *= item.transformation if item.is_a?(Sketchup::Group) || item.is_a?(Sketchup::ComponentInstance)
+          if item.is_a?(Sketchup::Group) || item.is_a?(Sketchup::ComponentInstance)
+            face_world *= item.transformation
+          end
         end
 
         face_to_container = container_world.inverse * face_world
+
         normal = face.normal.transform(face_to_container)
         return nil if normal.length < 0.000001
         normal.normalize!
@@ -228,14 +263,15 @@ module TranTuanNoiThat
         bounds = container.definition.bounds
         center_local = face.bounds.center.transform(face_to_container)
         center_value = coord(center_local, axis)
-        mid_value = coord(bounds.center, axis)
-        side = center_value >= mid_value ? :max : :min
+        middle = coord(bounds.center, axis)
+        side = center_value >= middle ? :max : :min
 
         mesh = face.mesh(0)
         triangles = []
         mesh.polygons.each do |poly|
           indices = poly.map(&:abs)
           next if indices.length < 3
+
           p0 = mesh.point_at(indices[0]).transform(face_to_container)
           (1...(indices.length - 1)).each do |i|
             triangles << [
@@ -263,7 +299,7 @@ module TranTuanNoiThat
         nil
       end
 
-      def lock_face(info)
+      def begin_drag(info)
         @target = info
         @entity = info[:entity]
         @bbox = @entity.definition.bounds
@@ -272,34 +308,37 @@ module TranTuanNoiThat
         @axis = info[:axis]
         @side = info[:side]
 
-        @drag_coord = @side == :max ? axis_max(@bbox, @axis) : axis_min(@bbox, @axis)
-        @fixed_coord = @side == :max ? axis_min(@bbox, @axis) : axis_max(@bbox, @axis)
+        @drag_coord =
+          @side == :max ? axis_max(@bbox, @axis) : axis_min(@bbox, @axis)
+        @fixed_coord =
+          @side == :max ? axis_min(@bbox, @axis) : axis_max(@bbox, @axis)
 
         world_transform = @context_to_world * @original_transform
         axis_vector = transform_axis(world_transform, @axis)
         axis_scale = axis_vector.length
-        raise 'Không đọc được trục kéo của đối tượng.' if axis_scale < 0.000001
+        raise 'Không đọc được hướng kéo của Face.' if axis_scale < 0.000001
 
         @original_size = (@drag_coord - @fixed_coord).abs * axis_scale
         raise 'Kích thước theo hướng kéo bằng 0.' if @original_size < 0.000001
 
         @current_size = @original_size
         @factor = 1.0
+
         @face_center_world = info[:center_local].transform(world_transform)
         @axis_world = axis_vector.clone
         @axis_world.normalize!
-
-        @model.selection.clear
-        @model.selection.add(@entity)
 
         @input_point.clear
         @snap_point = nil
         @guide_point = @face_center_world
 
+        @model.selection.clear
+        @model.selection.add(@entity)
+
         Sketchup.set_status_text('Kích thước', SB_VCB_LABEL)
         Sketchup.set_status_text(format_mm(@current_size), SB_VCB_VALUE)
         Sketchup.status_text =
-          'ĐÃ KHÓA MẶT · rê chuột bắt Endpoint/Edge/Face/Inference · click lần 2 tạo · hoặc nhập mm + Enter.'
+          "ĐÃ KHÓA HƯỚNG #{axis_name(@axis)} THEO FACE · kéo ra/vào · bắt điểm · click 1 lần để tạo."
       end
 
       def update_drag_preview(view, x, y)
@@ -318,24 +357,31 @@ module TranTuanNoiThat
           pair = Geom.closest_points([@face_center_world, @axis_world], ray)
           target_world = pair && pair[0]
         end
+
         return unless target_world
 
         @guide_point = target_world
+
         world_to_local = (@context_to_world * @original_transform).inverse
         target_local = target_world.transform(world_to_local)
         target_coord = coord(target_local, @axis)
 
         denominator = @drag_coord - @fixed_coord
         candidate = (target_coord - @fixed_coord) / denominator
+
         if candidate <= MIN_FACTOR
-          Sketchup.status_text = 'Không kéo xuyên qua mặt đối diện đang khóa.'
+          Sketchup.status_text =
+            'Không kéo xuyên qua mặt đối diện đang khóa.'
           return
         end
 
         @factor = valid_factor(candidate)
         @current_size = @original_size * @factor
         rebuild_preview_transform
+
         Sketchup.set_status_text(format_mm(@current_size), SB_VCB_VALUE)
+        Sketchup.status_text =
+          "KÉO THEO #{axis_name(@axis)} · #{format_mm(@current_size)} · bắt điểm rồi CLICK 1 LẦN để tạo."
       rescue StandardError => error
         puts "[TT KeoMatFace preview] #{error.class}: #{error.message}"
       end
@@ -368,7 +414,8 @@ module TranTuanNoiThat
           factors[2]
         )
 
-        @preview_transform = @original_transform * to_anchor * scaling * from_anchor
+        @preview_transform =
+          @original_transform * to_anchor * scaling * from_anchor
       end
 
       def commit_drag
@@ -377,12 +424,14 @@ module TranTuanNoiThat
 
         @model.start_operation('TT - Kéo Mặt Face', true)
         started = true
+
         @entity.transformation = @preview_transform
+
         @model.commit_operation
         started = false
 
         Sketchup.status_text =
-          "Đã kéo mặt → #{format_mm(@current_size)} · mặt đối diện giữ nguyên · Ctrl+Z để hoàn tác."
+          "Đã kéo Face → #{format_mm(@current_size)} · mặt đối diện giữ nguyên · tiếp tục rà Face khác."
 
         clear_drag
         true
@@ -413,23 +462,28 @@ module TranTuanNoiThat
       end
 
       def update_hover_status
-        if @hover
-          size = face_size_world(@hover)
-          Sketchup.status_text =
-            "FACE #{axis_name(@hover[:axis])} · kích thước hiện tại #{format_mm(size)} · click để kéo."
-        else
-          Sketchup.status_text =
-            'KÉO MẶT FACE · rà vào mặt của Group/Component để preview.'
-        end
+        dims = face_dimensions_mm(@hover)
+        Sketchup.status_text =
+          "FACE #{format_face_dims(dims)} · hướng kéo #{axis_name(@hover[:axis])} · đưa chuột ra khỏi Face để kéo."
       end
 
-      def face_size_world(info)
-        entity = info[:entity]
-        bounds = entity.definition.bounds
-        axis = info[:axis]
-        local_size = axis_max(bounds, axis) - axis_min(bounds, axis)
-        world_transform = @context_to_world * entity.transformation
-        local_size.abs * transform_axis(world_transform, axis).length
+      def face_dimensions_mm(info)
+        bb = Geom::BoundingBox.new
+        info[:loop].each { |point| bb.add(point) }
+
+        plane_axes = [0, 1, 2] - [info[:axis]]
+        tr = @context_to_world * info[:entity].transformation
+
+        plane_axes.map do |axis|
+          local_span = axis_max(bb, axis) - axis_min(bb, axis)
+          (local_span.abs * transform_axis(tr, axis).length).to_mm.round(1)
+        end.sort.reverse
+      rescue StandardError
+        [0.0, 0.0]
+      end
+
+      def format_face_dims(dims)
+        "#{dims[0]} × #{dims[1]} mm"
       end
 
       def preview_face_world_points(info)
@@ -439,6 +493,7 @@ module TranTuanNoiThat
           else
             @context_to_world * info[:entity].transformation
           end
+
         info[:loop].map { |point| point.transform(tr) }
       end
 
@@ -449,23 +504,35 @@ module TranTuanNoiThat
           else
             @context_to_world * info[:entity].transformation
           end
+
         info[:triangles].map do |triangle|
           triangle.map { |point| point.transform(tr) }
         end
       end
 
       def draw_hover(view)
-        draw_face_fill(view, @hover, Sketchup::Color.new(255, 145, 30, 95))
-        points = preview_face_world_points(@hover)
-        draw_loop(view, points, Sketchup::Color.new(255, 120, 0), 4)
+        draw_face_fill(
+          view,
+          @hover,
+          Sketchup::Color.new(255, 145, 30, 100)
+        )
+
+        draw_loop(
+          view,
+          preview_face_world_points(@hover),
+          Sketchup::Color.new(255, 120, 0),
+          4
+        )
 
         center = @hover[:center_local].transform(
           @context_to_world * @hover[:entity].transformation
         )
+        dims = face_dimensions_mm(@hover)
+
         view.draw_text(
           center,
-          "#{axis_name(@hover[:axis])} · #{format_mm(face_size_world(@hover))}",
-          color: Sketchup::Color.new(255, 110, 0)
+          "MẶT #{format_face_dims(dims)} · KÉO #{axis_name(@hover[:axis])}",
+          color: Sketchup::Color.new(255, 100, 0)
         )
       end
 
@@ -477,7 +544,12 @@ module TranTuanNoiThat
           2
         )
 
-        draw_face_fill(view, @target, Sketchup::Color.new(255, 145, 30, 105))
+        draw_face_fill(
+          view,
+          @target,
+          Sketchup::Color.new(255, 145, 30, 110)
+        )
+
         draw_loop(
           view,
           preview_face_world_points(@target),
@@ -485,8 +557,15 @@ module TranTuanNoiThat
           5
         )
 
-        fixed_points = bbox_face_world_points(@axis, opposite_side(@side), @preview_transform)
-        draw_loop(view, fixed_points, Sketchup::Color.new(230, 45, 45), 4)
+        fixed_points =
+          bbox_face_world_points(@axis, opposite_side(@side), @preview_transform)
+
+        draw_loop(
+          view,
+          fixed_points,
+          Sketchup::Color.new(230, 45, 45),
+          4
+        )
 
         if @guide_point && @face_center_world
           view.line_width = 2
@@ -503,10 +582,9 @@ module TranTuanNoiThat
           )
         end
 
-        text_point = preview_face_center_world
         view.draw_text(
-          text_point,
-          "#{format_mm(@current_size)} · MẶT ĐỐI DIỆN KHÓA",
+          preview_face_center_world,
+          "#{format_mm(@current_size)} · CLICK 1 LẦN TẠO",
           color: Sketchup::Color.new(30, 90, 180)
         )
       end
@@ -520,10 +598,10 @@ module TranTuanNoiThat
 
       def draw_loop(view, points, color, width)
         return if points.length < 2
+
         view.line_width = width
         view.drawing_color = color
-        closed = points + [points.first]
-        view.draw(GL_LINE_STRIP, closed)
+        view.draw(GL_LINE_STRIP, points + [points.first])
       end
 
       def draw_entity_box(view, corners, color, width)
@@ -532,9 +610,13 @@ module TranTuanNoiThat
           [4,5],[5,7],[7,6],[6,4],
           [0,4],[1,5],[2,6],[3,7]
         ]
+
         view.line_width = width
         view.drawing_color = color
-        view.draw(GL_LINES, pairs.flat_map { |a, b| [corners[a], corners[b]] })
+        view.draw(
+          GL_LINES,
+          pairs.flat_map { |a, b| [corners[a], corners[b]] }
+        )
       end
 
       def entity_world_corners(transform_context)
@@ -577,7 +659,9 @@ module TranTuanNoiThat
       end
 
       def preview_face_center_world
-        @target[:center_local].transform(@context_to_world * @preview_transform)
+        @target[:center_local].transform(
+          @context_to_world * @preview_transform
+        )
       end
 
       def transform_axis(transform, axis)
