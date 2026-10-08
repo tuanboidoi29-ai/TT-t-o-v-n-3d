@@ -11,23 +11,23 @@ module TranTuanNoiThat
 <title>TT – Đổi Tên</title>
 <style>
 *{box-sizing:border-box}body{font:14px Arial,sans-serif;background:#0f172a;color:#e5e7eb;margin:0}
-.top{background:#f97316;color:#fff;padding:16px 18px}.top h1{font-size:21px;margin:0 0 4px}.top p{margin:0;opacity:.95}
+.top{background:#1677e8;color:#fff;padding:16px 18px}.top h1{font-size:21px;margin:0 0 4px}.top p{margin:0;opacity:.95}
 .wrap{padding:14px}.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
 button,input{font:inherit}button{padding:9px 12px;border:0;border-radius:6px;background:#334155;color:#fff;cursor:pointer}
-button.primary{background:#ea580c}button.danger{background:#991b1b}button:disabled{opacity:.45;cursor:wait}
+button.primary{background:#0c63be}button.danger{background:#145c9e}button:disabled{opacity:.45;cursor:wait}
 input[type=text]{width:100%;padding:9px;border:1px solid #475569;border-radius:6px;background:#111827;color:#fff}
 .grid{display:grid;grid-template-columns:minmax(520px,1.3fr) minmax(300px,.7fr);gap:12px}
 .panel{background:#172033;border:1px solid #334155;border-radius:9px;padding:12px}
 .table-wrap{height:500px;overflow:auto;border:1px solid #334155;border-radius:7px}
 table{border-collapse:collapse;width:100%;font-size:13px}th{position:sticky;top:0;background:#1e293b;z-index:1}
-th,td{padding:8px 7px;border-bottom:1px solid #334155;text-align:left}tr{cursor:pointer}tr:hover{background:#1e293b}tr.active{background:#7c2d12}
+th,td{padding:8px 7px;border-bottom:1px solid #334155;text-align:left}tr{cursor:pointer}tr:hover{background:#1e293b}tr.active{background:#0b4f8c}
 .muted{color:#94a3b8;font-size:12px}.ok{color:#86efac}.err{color:#fca5a5;min-height:20px}
 label{display:block;margin:10px 0}.tagline{padding:8px 10px;background:#0b1220;border-radius:6px;margin:8px 0}
-.name{font-weight:bold;font-size:16px;color:#fdba74;word-break:break-word}.dims{font-size:16px;margin:8px 0}
+.name{font-weight:bold;font-size:16px;color:#8dccff;word-break:break-word}.dims{font-size:16px;margin:8px 0}
 .actions{display:flex;gap:8px;flex-wrap:wrap}.count{color:#cbd5e1;margin-top:8px}
 @media(max-width:900px){.grid{grid-template-columns:1fr}.table-wrap{height:360px}}
 </style>
-</head>
+<style id="tt-blue-white-theme">/*TT_BLUE_WHITE_THEME_v1*/:root{--bg:#06182d;--panel:#0b2748;--blue:#1677e8;--blue2:#45a2ff;--white:#f7fbff;--muted:#b9d8f5;--border:#2d6ea7}html,body{background:var(--bg)!important;color:var(--white)!important}body{font-family:Arial,"Segoe UI",sans-serif!important}h1,h2,h3,h4,h5,h6,label,legend,strong,b,.title,.name{color:#fff!important}p,.muted,.hint,.sub,.note,.help,.desc,.description,.small{color:var(--muted)!important}a{color:#8dccff!important}.top,.header,.head,.titlebar,.page-header,.app-header,.hero,.banner,.brand,.header-bar{background:linear-gradient(135deg,#0a4f9b,#147ce5)!important;color:#fff!important;border-color:#51a9ff!important}.panel,.card,.box,.section,.group,.pane,.sidebar,.content,.settings-card,.toolbar,.controls,.form-section,.block,.item,.row-card{background:var(--panel)!important;color:#fff!important;border-color:var(--border)!important}button,.btn,input[type=button],input[type=submit]{background:linear-gradient(180deg,#2188f3,#0c63be)!important;color:#fff!important;border:1px solid #53aaff!important;border-radius:7px!important}.primary,.go,.active,.selected,.danger,.warning,.secondary{background:#0f75dc!important;color:#fff!important;border-color:#68b8ff!important}input,select,textarea{background:#071d35!important;color:#fff!important;border:1px solid #3f7fb5!important;border-radius:6px!important}table{background:#09223f!important;color:#fff!important;border-color:#2c6595!important}th{background:#0e4f8d!important;color:#fff!important;border-color:#397caf!important}td{border-color:#244f74!important;color:#eaf5ff!important}tr:nth-child(even){background:#0a294a!important}tr:hover{background:#123d68!important}.badge,.pill,.tag,.chip{background:#0d5fae!important;color:#fff!important;border-color:#61b3ff!important}.ok,.success{color:#a9d9ff!important}.err,.error{color:#ffd9eb!important}hr{border-color:#2c628f!important}</style></head>
 <body>
 <div class="top">
   <h1>ĐỔI TÊN TẤM / GROUP / COMPONENT</h1>
