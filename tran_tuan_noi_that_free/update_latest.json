@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.271",
+  "version": "1.9.272",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "KHẤU ÂM DƯƠNG: sửa lỗi preview 'reference to deleted Group' bằng cách chỉ giữ snapshot tọa độ/mesh, không giữ Group tạm sau Solid Tools. Preview mới tô Tấm A màu xanh và Tấm B màu hồng; vùng dao 1/2 của A vẽ xanh đậm, vùng dao 1/2 của B vẽ hồng đậm. A mặc định khấu mặt trước 1/2, B khấu mặt sau 1/2; SHIFT đảo vai. Khi khấu thật dùng các bản sao/intersection độc lập để tránh tái sử dụng operand đã bị Solid Tools xóa.",
+  "notes": "KHẤU ÂM DƯƠNG: chốt đúng quy tắc khấu theo ĐỘ DÀY TẤM, không theo chiều sâu/chiều dài. Mỗi tấm tự nhận cạnh nhỏ nhất làm độ dày thực sau scale; độ sâu rãnh = đúng 1/2 độ dày của chính tấm đó. Preview hiển thị số mm khấu của A xanh và B hồng; lưu board_thickness_mm và notch_depth_mm vào từng tấm sau khi khấu.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "618bf433a0714cc59f6d75420a23fdfbf660f3f98bf80a778d66d5033e4c229b"
+      "sha256": "e3c344323b65b5ee06cf1054d884a682887d432e645a47629bb679349075bdcb"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -314,7 +314,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "7cdc55aa146e14b797b3f32fc6bca5a9dc8365abd6fe37279ee1eb287c2ce070"
+      "sha256": "a3ff6b793bcba0ddd37a9a47e6e7a04cd84cde4a3efa29b4d84475f6a0ed1cb3"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -419,7 +419,7 @@
     {
       "path": "tran_tuan_noi_that/wine_rack.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/wine_rack.rb",
-      "sha256": "ff7def352f3ee7e0e45793b5cd5a2094fe11cc95cd2ac713b8dd0923ac12fc4c"
+      "sha256": "8e2203e9f7a852d6a7db0c8a77843ade96868465392c4b7657e361b76d22276e"
     },
     {
       "path": "tran_tuan_noi_that/board_stats_tool.rb",
