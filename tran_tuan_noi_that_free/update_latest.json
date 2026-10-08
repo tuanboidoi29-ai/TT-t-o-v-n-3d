@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.276",
+  "version": "1.9.277",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Sửa khẩn cấp hệ thống cập nhật: manifest 1.9.275 có ui/cad_walls.html nhưng updater cũ chỉ cho phép ui/settings.html nên cả RAW/API báo 'Đường dẫn cập nhật không hợp lệ'. Bản 1.9.276 loại đường dẫn HTML đó khỏi manifest để máy cũ cập nhật được ngay, đồng thời nâng updater để từ nay cho phép an toàn mọi ui/[a-z0-9_]+.html. Giữ toàn bộ theme xanh-trắng và icon xanh-trắng đã phát hành.",
+  "notes": "Sửa lỗi nạp lại sau theme xanh-trắng: slat_wall_tool.rb đã được đổi giao diện hợp lệ nhưng LOCKED_FEATURE_BASELINES vẫn giữ SHA256 cũ nên báo 'Tính năng khóa đã bị sửa ngoài chủ đích'. Bản 1.9.277 cập nhật baseline khóa đúng SHA256 mới 874eb8507efb..., giữ nguyên logic Lam trang trí và toàn bộ giao diện xanh-trắng. Đồng thời giữ bản sửa updater 1.9.276.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "2612cc92daefb3c3abf344da0e0b86547e26e0120505696dd0b78824105593b2"
+      "sha256": "f62105947f6226152e591f0a2a7bc01bca8fb2693bdf429723019b2385ea0cac"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -314,7 +314,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "7fff842c690c74379f906777866cb1f0695c79206bdf09f4c303541f21cc1702"
+      "sha256": "ae9961b4bf08b9a2ed78255fd0f1b9eb4acd9ef2d0cfb76b2f1931eef263d77d"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
