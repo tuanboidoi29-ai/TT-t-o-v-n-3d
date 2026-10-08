@@ -18,7 +18,7 @@ module TranTuanNoiThat
   }.freeze unless const_defined?(:LOCKED_FEATURE_BASELINES, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.260'.freeze
+  VERSION = '1.9.261'.freeze
 
   class << self
     def setting(key, default = nil)
@@ -462,11 +462,11 @@ module TranTuanNoiThat
       @scale_corner_lock_cmd ||= command(
         'KÉO MẶT FACE',
         'scale_corner_lock.svg',
-        'Rà Face → preview + kích thước → click khóa mặt → rê kéo bắt điểm → click tạo'
+        'Rà Face → preview kích thước mặt → tự khóa hướng theo Face → kéo bắt điểm → click 1 lần tạo'
       ) { ScaleCornerLock.activate }
 
       @scale_corner_lock_cmd.tooltip = 'KÉO MẶT FACE'
-      @scale_corner_lock_cmd.status_bar_text = 'Rà Face → preview + kích thước → click khóa mặt → rê kéo Endpoint/Edge/Face/Inference → click tạo.'
+      @scale_corner_lock_cmd.status_bar_text = 'Rà Face → sáng cam + kích thước mặt → tự khóa hướng → kéo Endpoint/Edge/Face/Inference → click 1 lần tạo.'
       @scale_corner_lock_cmd.menu_text = 'KÉO MẶT FACE' if @scale_corner_lock_cmd.respond_to?(:menu_text=)
       icon = File.join(ROOT, 'icons', 'scale_corner_lock.svg')
       if File.file?(icon)
