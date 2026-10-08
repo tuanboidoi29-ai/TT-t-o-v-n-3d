@@ -1,931 +1,743 @@
 # encoding: UTF-8
+require 'sketchup.rb'
+
 module TranTuanNoiThat
+  # Giữ tên module WineRack để command cũ đang sống trong phiên hot-reload
+  # tự chuyển sang công cụ mới. Toàn bộ logic ô rượu đã được thay thế.
   module WineRack
     extend self
 
-    EPS_MM = 1.0e-6
-
-    # Convex polygon clipping in millimetres.
-    def clip(poly, n, c)
-      out = []
-      poly.each_with_index do |a, i|
-        b = poly[(i + 1) % poly.length]
-        da = a[0] * n[0] + a[1] * n[1] - c
-        db = b[0] * n[0] + b[1] * n[1] - c
-
-        out << a if da <= 1.0e-7
-
-        if (da < 0 && db > 0) || (da > 0 && db < 0)
-          f = da / (da - db)
-          out << [
-            a[0] + f * (b[0] - a[0]),
-            a[1] + f * (b[1] - a[1])
-          ]
-        end
-      end
-
-      out = out.each_with_object([]) do |point, result|
-        if result.empty? ||
-           Math.hypot(point[0] - result[-1][0], point[1] - result[-1][1]) > EPS_MM
-          result << point
-        end
-      end
-
-      if out.length > 1 &&
-         Math.hypot(out[0][0] - out[-1][0], out[0][1] - out[-1][1]) < EPS_MM
-        out.pop
-      end
-
-      out
-    end
-
-    def area(poly)
-      return 0.0 if poly.length < 3
-      poly.each_with_index.sum do |a, i|
-        b = poly[(i + 1) % poly.length]
-        a[0] * b[1] - a[1] * b[0]
-      end.abs / 2.0
-    end
-
-    def signed_area(poly)
-      return 0.0 if poly.length < 3
-      poly.each_with_index.sum do |a, i|
-        b = poly[(i + 1) % poly.length]
-        a[0] * b[1] - a[1] * b[0]
-      end / 2.0
-    end
-
-    def cross2(ax, ay, bx, by)
-      ax * by - ay * bx
-    end
-
-    def convex_intersection(subject, clipper)
-      return [] if subject.length < 3 || clipper.length < 3
-
-      clip = signed_area(clipper) >= 0 ? clipper : clipper.reverse
-      output = subject.dup
-
-      clip.each_with_index do |cp1, i|
-        cp2 = clip[(i + 1) % clip.length]
-        input = output
-        output = []
-        break if input.empty?
-
-        edge_x = cp2[0] - cp1[0]
-        edge_y = cp2[1] - cp1[1]
-
-        inside = lambda do |p|
-          cross2(edge_x, edge_y, p[0] - cp1[0], p[1] - cp1[1]) >= -1.0e-7
-        end
-
-        intersect = lambda do |s, e|
-          rx = e[0] - s[0]
-          ry = e[1] - s[1]
-          den = cross2(rx, ry, edge_x, edge_y)
-          return e if den.abs < 1.0e-12
-
-          qx = cp1[0] - s[0]
-          qy = cp1[1] - s[1]
-          t = cross2(qx, qy, edge_x, edge_y) / den
-          [s[0] + t * rx, s[1] + t * ry]
-        end
-
-        s = input[-1]
-        input.each do |e|
-          s_in = inside.call(s)
-          e_in = inside.call(e)
-
-          if e_in
-            output << intersect.call(s, e) unless s_in
-            output << e
-          elsif s_in
-            output << intersect.call(s, e)
-          end
-
-          s = e
-        end
-      end
-
-      output
-    end
-
-    def polygon_center(poly)
-      return [0.0, 0.0] if poly.empty?
-      [
-        poly.sum { |p| p[0] } / poly.length.to_f,
-        poly.sum { |p| p[1] } / poly.length.to_f
-      ]
-    end
-
-    # Nới footprint dao cực nhỏ để boolean không bị mặt đồng phẳng.
-    # Phần nới nằm ngoài thanh nên không làm rãnh thực tế rộng thêm đáng kể.
-    def expand_from_center(poly, epsilon = 0.10)
-      center = polygon_center(poly)
-      poly.map do |p|
-        dx = p[0] - center[0]
-        dy = p[1] - center[1]
-        len = Math.hypot(dx, dy)
-        next p.dup if len < 1.0e-9
-        scale = (len + epsilon) / len
-        [center[0] + dx * scale, center[1] + dy * scale]
-      end
-    end
-
-    # Với đầu nan vuông, hai họ ±45° được lệch pha t/2 để
-    # hai góc đầu vuông gặp nhau thành một đỉnh V trên biên khung.
-    # Chọn pitch sao cho V trên/dưới khớp chính xác; trái/phải fit gần nhất.
-    def fitted_diagonal_pitch(iw, ih, t, target)
-      desired = target + t
-      usable_y = ih * Math.sqrt(2) - 2.0 * t
-      usable_x = iw * Math.sqrt(2) - 2.0 * t
-      raise 'Vùng quá nhỏ để tạo đầu vuông chữ V.' unless usable_y > desired
-
-      ideal_steps = usable_y / desired
-      center = [ideal_steps.round, 1].max
-      candidates = (([center - 10, 1].max)..(center + 10)).to_a
-
-      best = candidates.map do |steps_y|
-        pitch = usable_y / steps_y.to_f
-        next if pitch <= t + 1.0
-
-        steps_x = usable_x / pitch
-        size_error = ((pitch - t) - target).abs / [target, 1.0].max
-        side_error = (steps_x - steps_x.round).abs
-
-        {
-          pitch: pitch,
-          steps_y: steps_y,
-          steps_x: steps_x,
-          score: size_error + side_error * 0.40
-        }
-      end.compact.min_by { |item| item[:score] }
-
-      raise 'Không chia được ô chéo theo kích thước đã nhập.' unless best
-      best
-    end
-
-    def line_rect_intersections(base, normal, c)
-      xs = base.map { |p| p[0] }
-      ys = base.map { |p| p[1] }
-      x0, x1 = xs.minmax
-      y0, y1 = ys.minmax
-      nx, ny = normal
-      points = []
-
-      if ny.abs > 1.0e-9
-        [x0, x1].each do |x|
-          y = (c - nx * x) / ny
-          points << [x, y] if y >= y0 - 1.0e-7 && y <= y1 + 1.0e-7
-        end
-      end
-
-      if nx.abs > 1.0e-9
-        [y0, y1].each do |y|
-          x = (c - ny * y) / nx
-          points << [x, y] if x >= x0 - 1.0e-7 && x <= x1 + 1.0e-7
-        end
-      end
-
-      unique = []
-      points.each do |point|
-        unique << point unless unique.any? do |other|
-          Math.hypot(point[0] - other[0], point[1] - other[1]) < 1.0e-6
-        end
-      end
-
-      return [] if unique.length < 2
-
-      unique.combination(2).max_by do |a, b|
-        Math.hypot(a[0] - b[0], a[1] - b[1])
-      end
-    end
-
-    # Thanh chéo đầu vuông 90°.
-    # Centerline được cắt trong hình chữ nhật đã co theo nửa bề rộng nan,
-    # vì vậy end-face vuông nằm hoàn toàn trong khung.
-    # Pha của hai họ được lệch t/2 để một góc đầu vuông của mỗi họ
-    # trùng nhau thành đỉnh V đúng trên biên khung.
-    def square_strip(base, normal, c, thickness)
-      xs = base.map { |p| p[0] }
-      ys = base.map { |p| p[1] }
-      x0, x1 = xs.minmax
-      y0, y1 = ys.minmax
-
-      half = thickness / 2.0
-      nx, ny = normal
-      margin_x = half * nx.abs
-      margin_y = half * ny.abs
-
-      center_base = rect(
-        x0 + margin_x,
-        y0 + margin_y,
-        (x1 - x0) - 2.0 * margin_x,
-        (y1 - y0) - 2.0 * margin_y
-      )
-
-      endpoints = line_rect_intersections(center_base, normal, c)
-      return [] unless endpoints && endpoints.length == 2
-
-      p0, p1 = endpoints
-      poly = [
-        [p0[0] + nx * half, p0[1] + ny * half],
-        [p1[0] + nx * half, p1[1] + ny * half],
-        [p1[0] - nx * half, p1[1] - ny * half],
-        [p0[0] - nx * half, p0[1] - ny * half]
-      ]
-
-      signed_area(poly) >= 0 ? poly : poly.reverse
-    end
-
-    def polygon_near_rect_boundary?(poly, rect_poly, max_distance)
-      return false if poly.empty? || rect_poly.empty?
-
-      xs = rect_poly.map { |p| p[0] }
-      ys = rect_poly.map { |p| p[1] }
-      x0, x1 = xs.minmax
-      y0, y1 = ys.minmax
-
-      poly.any? do |p|
-        distance = [
-          (p[0] - x0).abs,
-          (p[0] - x1).abs,
-          (p[1] - y0).abs,
-          (p[1] - y1).abs
-        ].min
-
-        distance <= max_distance
-      end
-    end
-
-    # Mối V sát khung:
-    # - Họ A chạy nguyên tới khung.
-    # - Họ B đầu vuông 90° và kết thúc đúng tại một cạnh bên của A.
-    # - Không cho B chồng qua A, cũng không chừa khe.
-    #
-    # Overlap ở đầu V thường nằm hơi lọt vào trong biên do bề rộng nan,
-    # vì vậy phải nhận theo "vùng gần biên", không chỉ điểm đúng trên biên.
-    def trim_boundary_v_joints(family_a, family_b, base, thickness)
-      half = thickness / 2.0
-      boundary_zone = thickness * 1.65
-      joint_count = 0
-
-      family_b.each do |b_entry|
-        poly_b = b_entry[:poly]
-
-        family_a.each do |a_entry|
-          overlap = convex_intersection(a_entry[:poly], poly_b)
-          next unless area(overlap) > 0.01
-          next unless polygon_near_rect_boundary?(
-            overlap,
-            base,
-            boundary_zone
-          )
-
-          normal = a_entry[:normal]
-          center_c = a_entry[:c]
-
-          # Hai nghiệm tỳ cạnh:
-          # 1) giữ B phía + của cạnh +half của A
-          # 2) giữ B phía - của cạnh -half của A
-          #
-          # Ở giao sát khung, một nghiệm là đoạn rất ngắn ngoài đầu,
-          # nghiệm còn lại là toàn bộ phần nan đi vào bên trong tủ.
-          # Chọn polygon có diện tích lớn hơn -> luôn giữ đúng thân nan.
-          keep_plus = clip(
-            poly_b,
-            normal.map { |value| -value },
-            -(center_c + half)
-          )
-          keep_minus = clip(
-            poly_b,
-            normal,
-            center_c - half
-          )
-
-          candidates = [keep_plus, keep_minus].select do |poly|
-            area(poly) > 0.01
-          end
-          next if candidates.empty?
-
-          trimmed = candidates.max_by { |poly| area(poly) }
-
-          # Chỉ nhận là mối V khi thực sự cắt bỏ phần chồng.
-          if area(poly_b) - area(trimmed) > 0.001
-            poly_b = trimmed
-            joint_count += 1
-          end
-        end
-
-        b_entry[:poly] = poly_b
-      end
-
-      joint_count
-    end
-
-    def rect(x, y, w, h)
-      [[x, y], [x + w, y], [x + w, y + h], [x, y + h]]
-    end
-
-    # Đưa các đầu nan về đúng tọa độ tiếp xúc chung.
-    # Việc canonicalize này tránh khe hở cực nhỏ giữa nan-nan và nan-khung.
-    def canonical_point(point, x0, y0, x1, y1)
-      x = point[0].to_f
-      y = point[1].to_f
-
-      x = x0 if (x - x0).abs <= 1.0e-5
-      x = x1 if (x - x1).abs <= 1.0e-5
-      y = y0 if (y - y0).abs <= 1.0e-5
-      y = y1 if (y - y1).abs <= 1.0e-5
-
-      [x.round(6), y.round(6)]
-    end
-
-    def canonical_poly(poly, x0, y0, x1, y1)
-      clean = poly.map { |point| canonical_point(point, x0, y0, x1, y1) }
-
-      clean = clean.each_with_object([]) do |point, result|
-        if result.empty? ||
-           Math.hypot(point[0] - result[-1][0], point[1] - result[-1][1]) > EPS_MM
-          result << point
-        end
-      end
-
-      if clean.length > 1 &&
-         Math.hypot(clean[0][0] - clean[-1][0], clean[0][1] - clean[-1][1]) < EPS_MM
-        clean.pop
-      end
-
-      clean
-    end
-
-    # frame = true  -> có 4 tấm khung viền.
-    # frame = false -> nan được cắt đúng tới biên P1/P2.
-    def layout(w, h, t, target, kind, frame = true)
-      raise 'Độ dày ván phải lớn hơn 0.' unless t.finite? && t > 0
-      raise 'Kích thước ô phải lớn hơn độ dày ván.' unless target.finite? && target > t
-
-      border = frame ? t : 0.0
-      x0 = border
-      y0 = border
-      x1 = w - border
-      y1 = h - border
-      iw = x1 - x0
-      ih = y1 - y0
-
-      raise 'Vùng quá nhỏ so với độ dày ván.' unless iw > t + 1.0 && ih > t + 1.0
-
-      polys = []
-      meta = {
-        kind: kind,
-        frame: frame,
-        frame_count: frame ? 4 : 0,
-        family_a: [],
-        family_b: [],
-        intersections: []
-      }
-
-      if frame
-        # Khung ngoài ghép góc 45° như cách dựng thủ công.
-        polys << [[0, 0], [w, 0], [w - t, t], [t, t]]
-        polys << [[t, h - t], [w - t, h - t], [w, h], [0, h]]
-        polys << [[0, 0], [t, t], [t, h - t], [0, h]]
-        polys << [[w, 0], [w, h], [w - t, h - t], [w - t, t]]
-      end
-
-      base = rect(x0, y0, iw, ih)
-
-      if kind == 'Vuông'
-        cols = [((iw + t) / (target + t)).ceil, 1].max
-        rows = [((ih + t) / (target + t)).ceil, 1].max
-        raise 'Quá nhiều ô; tăng kích thước ô mong muốn.' if cols * rows > 200
-
-        cw = (iw - (cols - 1) * t) / cols
-        ch = (ih - (rows - 1) * t) / rows
-        raise 'Ô quá nhỏ.' unless cw > 1.0 && ch > 1.0
-
-        # Nan đứng chạy liên tục và chạm chính xác khung trên/dưới.
-        (1...cols).each do |i|
-          x = x0 + i * cw + (i - 1) * t
-          polys << rect(x, y0, t, ih)
-        end
-
-        # Nan ngang được chia theo từng khoang, đầu nan kết thúc đúng tại
-        # cạnh nan đứng hoặc cạnh khung, nên toàn bộ giao nhau là tiếp điểm.
-        cols.times do |i|
-          cell_x = x0 + i * (cw + t)
-          (1...rows).each do |j|
-            y = y0 + j * ch + (j - 1) * t
-            polys << rect(cell_x, y, cw, t)
-          end
-        end
-
-        frame_note = frame ? 'KHUNG BẬT' : 'KHUNG TẮT'
-        note = "#{cols} cột × #{rows} hàng · Lọt lòng #{cw.round(1)} × #{ch.round(1)} mm · #{frame_note}"
-      else
-        # Ô chéo dựng theo tâm khung:
-        # - 2 họ nan liên tục ±45°
-        # - đối xứng qua tâm
-        # - clip đúng theo biên trong khung
-        # - xác định toàn bộ giao điểm để tạo khấu âm dương 1/2 chiều sâu
-        inv = 1.0 / Math.sqrt(2)
-        normals = [
-          [ inv,  inv],
-          [-inv,  inv]
-        ]
-
-        cx = x0 + iw / 2.0
-        cy = y0 + ih / 2.0
-
-        fit = fitted_diagonal_pitch(iw, ih, t, target)
-        pitch = fit[:pitch]
-        raise 'Ô quá nhỏ.' unless pitch > t + 1.0
-
-        # Hai centerline không đi qua cùng một điểm.
-        # Mỗi họ lệch +t/2 theo pháp tuyến: góc ngoài của hai đầu vuông
-        # mới trùng nhau thành đỉnh V đúng tại giữa biên trên.
-        phases = [
-          (cx + y0) * inv + t / 2.0,
-          (-cx + y0) * inv + t / 2.0
-        ]
-
-        families = [[], []]
-
-        normals.each_with_index do |normal, family_index|
-          phase = phases[family_index]
-          vals = base.map do |point|
-            point[0] * normal[0] + point[1] * normal[1]
-          end
-
-          lo, hi = vals.minmax
-          k_min = ((lo - phase) / pitch).floor - 1
-          k_max = ((hi - phase) / pitch).ceil + 1
-
-          (k_min..k_max).each do |k|
-            c_line = phase + k * pitch
-
-            poly = square_strip(base, normal, c_line, t)
-
-            next unless area(poly) > 0.01
-            families[family_index] << {
-              poly: poly,
-              normal: normal,
-              c: c_line
-            }
-          end
-
-          if families[family_index].length > 40
-            raise 'Quá nhiều nan chéo; tăng kích thước ô.'
-          end
-        end
-
-        # Xử lý riêng các giao nhau sát khung:
-        # A đi tới V, B đầu vuông tỳ vào cạnh A.
-        boundary_v_count = trim_boundary_v_joints(
-          families[0],
-          families[1],
-          base,
-          t
-        )
-        meta[:boundary_v_joints] = boundary_v_count
-
-        frame_count = polys.length
-        meta[:family_a] = (frame_count...(frame_count + families[0].length)).to_a
-        polys.concat(families[0].map { |entry| entry[:poly] })
-
-        family_b_start = polys.length
-        meta[:family_b] = (family_b_start...(family_b_start + families[1].length)).to_a
-        polys.concat(families[1].map { |entry| entry[:poly] })
-
-        # Giao điểm còn chồng diện tích sau khi xử lý V là giao bên trong,
-        # dùng để tạo khấu âm dương 1/2.
-        families[0].each_with_index do |entry_a, ia|
-          families[1].each_with_index do |entry_b, ib|
-            overlap = convex_intersection(entry_a[:poly], entry_b[:poly])
-            next unless area(overlap) > 0.01
-
-            overlap = canonical_poly(overlap, x0, y0, x1, y1)
-            next unless area(overlap) > 0.01
-
-            meta[:intersections] << {
-              a_index: meta[:family_a][ia],
-              b_index: meta[:family_b][ib],
-              polygon: overlap,
-              center: polygon_center(overlap)
-            }
-          end
-        end
-
-        clear_diamond = [pitch - t, 1.0].max
-        frame_note = frame ? 'KHUNG BẬT' : 'KHUNG TẮT'
-        side_fit = (fit[:steps_x] - fit[:steps_x].round).abs < 0.08 ? 'V chạm đủ 4 biên' : 'V ưu tiên biên trên/dưới'
-        note = "Ô chéo 45° · #{boundary_v_count} mối V TỲ CẠNH thật · ô nhập #{target.round(1)} mm / thực ≈ #{clear_diamond.round(1)} mm · #{meta[:intersections].length} khấu 1/2 bên trong · #{side_fit} · #{frame_note}"
-      end
-
-      # Chuẩn hóa nhưng giữ nguyên thứ tự/index để metadata giao điểm
-      # luôn trỏ đúng thanh sau khi tạo hình.
-      polys = polys.map do |poly|
-        canonical_poly(poly, x0, y0, x1, y1)
-      end
-      raise 'Có thanh bị suy biến sau khi cắt biên.' if polys.any? { |poly| area(poly) <= 0.01 }
-
-      raise 'Quá nhiều chi tiết; tăng kích thước ô.' if polys.length > 250
-
-      [polys, note, meta]
-    end
+    PREF = 'TT_KHAU_AM_DUONG'.freeze
+    EPS_VOL = 1.0e-7
 
     def activate
-      Sketchup.active_model.select_tool(Tool.new(17.5.mm))
+      Sketchup.active_model.select_tool(Tool.new)
     end
 
-    class Tool < Board::Tool
-      def initialize(thickness)
-        super
+    def container?(entity)
+      entity.is_a?(Sketchup::Group) ||
+        entity.is_a?(Sketchup::ComponentInstance)
+    end
 
-        @wine_kind = TranTuanNoiThat.setting('wine_kind', 'Vuông')
-        @wine_kind = 'Vuông' unless ['Vuông', 'Chéo'].include?(@wine_kind)
+    class Tool
+      def initialize
+        @model = Sketchup.active_model
+        @context = @model.active_entities
+        @edit = @model.edit_transform
 
-        @wine_t = TranTuanNoiThat.setting('wine_thickness', 17.5).to_f
-        @wine_depth = TranTuanNoiThat.setting('wine_depth', 300).to_f
-        @wine_cell = TranTuanNoiThat.setting('wine_cell', 100).to_f
+        @a = nil
+        @b = nil
+        @hover = nil
+        @stage = :pick_a
 
-        stored_frame = TranTuanNoiThat.setting('wine_frame', true)
-        @wine_frame = !(
-          stored_frame == false ||
-          stored_frame.to_s.downcase == 'false' ||
-          stored_frame.to_s == '0'
-        )
+        @gap_mm = Sketchup.read_default(PREF, 'gap_mm', 0.0).to_f
+        @gap_mm = 0.0 unless @gap_mm.finite? && @gap_mm.between?(0.0, 5.0)
 
-        @wine_polys = []
-        @wine_meta = nil
+        raw_swap = Sketchup.read_default(PREF, 'swap_roles', false)
+        @swap_roles = raw_swap == true || raw_swap.to_s.downcase == 'true'
+
+        @preview_lines = []
+        @preview_center = nil
+        @preview_volume_mm3 = 0.0
+        @preview_ready = false
+        @busy = false
+
+        use_selection
       end
 
-      def update(view, x, y)
-        super
-        @wine_polys = []
-        @wine_meta = nil
-        @wine_note = ''
-
-        return unless @loops && @loops.first && @loops.first.length == 4 && @p1
-
-        p, a, _q, b = @loops.first
-        u = a - p
-        v = b - p
-
-        return if u.length < 0.1.mm || v.length < 0.1.mm
-
-        @wine_polys, @wine_note, @wine_meta = WineRack.layout(
-          u.length.to_mm,
-          v.length.to_mm,
-          @wine_t,
-          @wine_cell,
-          @wine_kind,
-          @wine_frame
-        )
-
-        @wine_origin = p
-        @wine_u = u.normalize
-        @wine_v = v.normalize
-      rescue StandardError => error
-        @wine_polys = []
-        @wine_note = error.message
+      def activate
+        status
+        rebuild_preview if @a && @b
+        @model.active_view.invalidate
       end
 
-      def world(point, back = false)
-        pt = @wine_origin
-          .offset(@wine_u, point[0].mm)
-          .offset(@wine_v, point[1].mm)
-
-        back ? pt.offset(displacement, @wine_depth.mm) : pt
+      def deactivate(view)
+        view.invalidate if view
       end
 
-      def world_depth(point, depth_mm)
-        @wine_origin
-          .offset(@wine_u, point[0].mm)
-          .offset(@wine_v, point[1].mm)
-          .offset(displacement, depth_mm.mm)
-      end
-
-      def onKeyDown(key, repeat, flags, view)
-        # SHIFT = bật/tắt khung viền. Không còn dùng SHIFT khóa hướng P1-P2.
-        if key == 16
-          return true if @held[key]
-
-          @held[key] = true
-          @wine_frame = !@wine_frame
-          TranTuanNoiThat.save_setting('wine_frame', @wine_frame)
-
-          update(view, *@mouse) if @mouse
-          status
-          view.invalidate
-          return true
+      def onCancel(_reason, view)
+        if @stage == :ready
+          @b = nil
+          @preview_ready = false
+          @preview_lines = []
+          @stage = :pick_b
+        elsif @stage == :pick_b
+          @a = nil
+          @b = nil
+          @stage = :pick_a
+        else
+          @model.select_tool(nil)
+          return
         end
 
-        if key == 9
-          return true if @held[key]
+        @model.selection.clear
+        @model.selection.add(@a) if valid_board?(@a)
+        status
+        view.invalidate
+      end
 
-          @held[key] = true
+      def onMouseMove(_flags, x, y, view)
+        return if @busy || @stage == :ready
 
-          values = UI.inputbox(
-            [
-              'Kiểu ô',
-              'Dày ván (mm)',
-              'Chiều sâu (mm)',
-              'Kích thước ô rượu lọt lòng (mm)'
-            ],
-            [
-              @wine_kind,
-              @wine_t,
-              @wine_depth,
-              @wine_cell
-            ],
-            [
-              'Vuông|Chéo',
-              '',
-              '',
-              ''
-            ],
-            'Vẽ Ô Rượu · TAB CHIA THEO KÍCH THƯỚC Ô'
-          )
+        picked = pick_board(view, x, y)
+        picked = nil if picked == @a
+        @hover = picked
+        status
+        view.invalidate
+      rescue StandardError => error
+        puts "[TT KhauAmDuong move] #{error.class}: #{error.message}"
+      end
 
-          if values
-            kind, t, d, c = values
-            t = Float(t)
-            d = Float(d)
-            c = Float(c)
+      def onLButtonDown(_flags, x, y, view)
+        return if @busy
 
-            unless [t, d, c].all? { |value| value.finite? && value > 0 } &&
-                   t >= 1 &&
-                   c > t
-              raise 'Độ dày, chiều sâu và kích thước ô rượu phải dương.'
-            end
-
-            @wine_kind = kind
-            @wine_t = t
-            @wine_depth = d
-            @wine_cell = c
-
-            {
-              'kind' => kind,
-              'thickness' => t,
-              'depth' => d,
-              'cell' => c
-            }.each do |name, value|
-              TranTuanNoiThat.save_setting("wine_#{name}", value)
-            end
-
-            update(view, *@mouse) if @mouse
-          end
-
-          @held.delete(9)
-          status
+        if @stage == :ready
+          execute
+          reset_after_execute
           view.invalidate
-          return true
+          return
         end
 
-        # CTRL / F / mũi tên vẫn giữ cơ chế gốc.
-        return super if [17, 70, 37, 38, 39, 40].include?(key)
+        picked = pick_board(view, x, y)
+        return UI.beep unless picked && valid_board?(picked)
 
-        false
+        if @stage == :pick_a
+          @a = picked
+          @b = nil
+          @stage = :pick_b
+          @model.selection.clear
+          @model.selection.add(@a)
+        else
+          return UI.beep if picked == @a
+
+          @b = picked
+          validate_pair!
+          @model.selection.clear
+          @model.selection.add(@a)
+          @model.selection.add(@b)
+          rebuild_preview
+          @stage = :ready
+        end
+
+        status
+        view.invalidate
       rescue StandardError => error
-        @held.delete(9)
-        @held.delete(16)
+        @preview_ready = false
+        @preview_lines = []
+        @b = nil if @stage != :pick_a
+        @stage = @a ? :pick_b : :pick_a
+        UI.messagebox("KHẤU ÂM DƯƠNG:\n#{error.message}")
+        status
+        view.invalidate
+      end
+
+      def onKeyDown(key, repeat, _flags, view)
+        return if @busy || repeat.to_i > 0
+
+        case key
+        when 9 # TAB
+          open_settings
+          rebuild_preview if @a && @b
+          status
+          view.invalidate
+          true
+        when 16 # SHIFT - tiện đảo vai nhanh
+          @swap_roles = !@swap_roles
+          Sketchup.write_default(PREF, 'swap_roles', @swap_roles)
+          status
+          view.invalidate
+          true
+        else
+          false
+        end
+      rescue StandardError => error
         UI.messagebox(error.message)
         true
       end
 
-      def onKeyUp(key, repeat, flags, view)
-        if key == 16
-          @held.delete(16)
-          return true
+      def draw(view)
+        draw_board(view, @a, Sketchup::Color.new(70, 165, 255, 75)) if valid_board?(@a)
+
+        second = @stage == :pick_b ? @hover : @b
+        if valid_board?(second)
+          draw_board(view, second, Sketchup::Color.new(255, 165, 70, 85))
         end
 
-        super
-      end
+        if @preview_ready && !@preview_lines.empty?
+          view.line_stipple = '-'
+          view.line_width = 4
+          view.drawing_color = Sketchup::Color.new(235, 40, 40)
+          view.draw(GL_LINES, @preview_lines)
+          view.line_stipple = ''
 
-      def onMouseMove(flags, x, y, view)
-        super
-        status
+          if @preview_center
+            text = "GIAO THẬT · #{format_volume(@preview_volume_mm3)} · " \
+                   "A 1/2 TRƯỚC / B 1/2 SAU"
+            text = "GIAO THẬT · #{format_volume(@preview_volume_mm3)} · " \
+                   "A 1/2 SAU / B 1/2 TRƯỚC" if @swap_roles
+
+            view.draw_text(
+              @preview_center,
+              text,
+              size: 13,
+              bold: true,
+              color: Sketchup::Color.new(190, 25, 25)
+            )
+          end
+        end
+      rescue StandardError => error
+        puts "[TT KhauAmDuong draw] #{error.class}: #{error.message}"
       end
 
       def getExtents
         box = Geom::BoundingBox.new
 
-        if @p1 && @wine_polys
-          @wine_polys.each do |poly|
-            poly.each do |point|
-              box.add(world(point), world(point, true))
-            end
-          end
+        [@a, @b, @hover].compact.uniq.each do |entity|
+          next unless valid_board?(entity)
+          world_corners(entity).each { |point| box.add(point) }
         end
 
+        @preview_lines.each { |point| box.add(point) }
+        box
+      rescue StandardError
+        Geom::BoundingBox.new
+      end
+
+      private
+
+      def use_selection
+        selected = @model.selection.to_a.select do |entity|
+          WineRack.container?(entity) &&
+            @context.include?(entity) &&
+            entity.valid? &&
+            !entity.locked?
+        end
+
+        if selected.length == 2
+          @a, @b = selected
+          @stage = :ready
+        elsif selected.length == 1
+          @a = selected.first
+          @stage = :pick_b
+        end
+      end
+
+      def valid_board?(entity)
+        entity &&
+          entity.valid? &&
+          WineRack.container?(entity) &&
+          @context.include?(entity) &&
+          !entity.locked?
+      end
+
+      def validate_board!(entity, label)
+        raise "#{label}: đối tượng đã bị xóa hoặc đang khóa." unless valid_board?(entity)
+        raise "#{label}: cần Group/Component kín (Solid)." unless entity.manifold?
+
+        nested = entity.definition.entities.any? do |child|
+          WineRack.container?(child)
+        end
+        raise "#{label}: Group phải là một khối ván, không chứa Group con." if nested
+      end
+
+      def validate_pair!
+        validate_board!(@a, 'Tấm A')
+        validate_board!(@b, 'Tấm B')
+        raise 'Tấm A và B phải là hai Group/Component khác nhau.' if @a == @b
+
+        overlap = world_bounds(@a).intersect(world_bounds(@b))
+        unless overlap.valid? &&
+               overlap.width > 1.0e-6 &&
+               overlap.height > 1.0e-6 &&
+               overlap.depth > 1.0e-6
+          raise 'Hai tấm không có vùng giao 3D.'
+        end
+      end
+
+      def pick_board(view, x, y)
+        helper = view.pick_helper
+        helper.do_pick(x, y)
+
+        0.upto([helper.count - 1, 12].min) do |index|
+          path = helper.path_at(index)
+          next unless path
+
+          entity = path.find do |item|
+            WineRack.container?(item) && @context.include?(item)
+          end
+          return entity if entity && entity.valid? && !entity.locked?
+        end
+
+        nil
+      rescue StandardError
+        nil
+      end
+
+      def status
+        text =
+          case @stage
+          when :pick_a
+            'KHẤU ÂM DƯƠNG · click TẤM A.'
+          when :pick_b
+            'KHẤU ÂM DƯƠNG · A đã chọn · click TẤM B giao với A.'
+          else
+            if @swap_roles
+              'PREVIEW GIAO THẬT · A khấu 1/2 MẶT SAU · B khấu 1/2 MẶT TRƯỚC · click để tạo · TAB cài đặt · SHIFT đảo A/B.'
+            else
+              'PREVIEW GIAO THẬT · A khấu 1/2 MẶT TRƯỚC · B khấu 1/2 MẶT SAU · click để tạo · TAB cài đặt · SHIFT đảo A/B.'
+            end
+          end
+
+        Sketchup.set_status_text(text, SB_PROMPT)
+      end
+
+      def open_settings
+        swap_text = @swap_roles ? 'Có' : 'Không'
+
+        values = UI.inputbox(
+          [
+            'Độ hở mỗi bên rãnh (mm)',
+            'Đảo vai A/B'
+          ],
+          [
+            @gap_mm,
+            swap_text
+          ],
+          [
+            '',
+            'Không|Có'
+          ],
+          'KHẤU ÂM DƯƠNG · CÀI ĐẶT'
+        )
+
+        return unless values
+
+        gap, swap = values
+        gap = Float(gap)
+        raise 'Độ hở cho phép: 0–5 mm.' unless gap.finite? && gap.between?(0.0, 5.0)
+
+        @gap_mm = gap
+        @swap_roles = swap.to_s == 'Có'
+
+        Sketchup.write_default(PREF, 'gap_mm', @gap_mm)
+        Sketchup.write_default(PREF, 'swap_roles', @swap_roles)
+      end
+
+      def world_transform(entity)
+        @edit * entity.transformation
+      end
+
+      def world_bounds(entity)
+        box = Geom::BoundingBox.new
+        tr = world_transform(entity)
+        bounds = entity.definition.bounds
+
+        8.times do |index|
+          box.add(bounds.corner(index).transform(tr))
+        end
         box
       end
 
-      def enableVCB?
-        false
+      def world_corners(entity)
+        tr = world_transform(entity)
+        bounds = entity.definition.bounds
+        8.times.map { |index| bounds.corner(index).transform(tr) }
       end
 
-      def draw(view)
-        @ip.draw(view) if @ip.display?
-        return if !@wine_polys || @wine_polys.empty? || !@p1
+      def draw_board(view, entity, color)
+        points = world_corners(entity)
+        pairs = [
+          [0,1],[1,3],[3,2],[2,0],
+          [4,5],[5,7],[7,6],[6,4],
+          [0,4],[1,5],[2,6],[3,7]
+        ]
 
-        view.drawing_color = Sketchup::Color.new(255, 180, 195, 100)
+        view.line_width = 2
+        view.drawing_color = color
+        view.draw(GL_LINES, pairs.flat_map { |a, b| [points[a], points[b]] })
+      end
 
-        @wine_polys.each do |poly|
-          front = poly.map { |point| world(point) }
-          back = poly.map { |point| world(point, true) }
+      def copy_solid(work, entity)
+        group = work.add_group
+        group.entities.add_instance(
+          entity.definition,
+          world_transform(entity)
+        ).explode
 
-          [front, back].each do |points|
-            view.draw(
-              GL_TRIANGLES,
-              (1...points.length - 1).flat_map do |i|
-                [points[0], points[i], points[i + 1]]
-              end
-            )
+        raise 'Không tạo được bản sao Solid.' unless group.manifold?
+        group
+      end
+
+      def preview_intersection(work)
+        left = copy_solid(work, @a)
+        right = copy_solid(work, @b)
+        intersection = left.intersect(right)
+
+        unless intersection &&
+               intersection.valid? &&
+               intersection.respond_to?(:volume) &&
+               intersection.volume > EPS_VOL
+          raise 'Hai tấm chỉ chạm mặt/cạnh, không có thể tích giao thật.'
+        end
+
+        intersection
+      ensure
+        left.erase! if left && left.valid?
+        right.erase! if right && right.valid?
+      end
+
+      def rebuild_preview
+        return unless @a && @b
+        validate_pair!
+
+        started = false
+        @model.start_operation('TT - Preview Khấu Âm Dương', true)
+        started = true
+
+        workspace = @context.add_group
+        workspace.transformation = @edit.inverse
+
+        intersection = preview_intersection(workspace.entities)
+        tr = intersection.transformation
+
+        @preview_lines = intersection.definition.entities
+          .grep(Sketchup::Edge)
+          .flat_map do |edge|
+            [
+              edge.start.position.transform(tr),
+              edge.end.position.transform(tr)
+            ]
           end
 
-          view.draw(
-            GL_QUADS,
-            front.each_index.flat_map do |i|
-              j = (i + 1) % front.length
-              [front[i], front[j], back[j], back[i]]
+        @preview_volume_mm3 = intersection.volume.to_f * 25.4**3
+
+        bounds = intersection.bounds
+        @preview_center = bounds.center.transform(tr)
+
+        @model.abort_operation
+        started = false
+        @preview_ready = true
+      rescue StandardError
+        @model.abort_operation if started
+        @preview_ready = false
+        @preview_lines = []
+        @preview_center = nil
+        @preview_volume_mm3 = 0.0
+        raise
+      end
+
+      def axis_vectors(transform)
+        [transform.xaxis, transform.yaxis, transform.zaxis]
+      end
+
+      def thickness_axis(entity)
+        tr = world_transform(entity)
+        bounds = entity.definition.bounds
+        local_sizes = [bounds.width, bounds.height, bounds.depth]
+        axes = axis_vectors(tr)
+
+        world_sizes = local_sizes.each_with_index.map do |size, index|
+          size * axes[index].length
+        end
+
+        world_sizes.each_with_index.min_by(&:first)[1]
+      end
+
+      def toward_camera_side(entity)
+        tr = world_transform(entity)
+        axis_index = thickness_axis(entity)
+        axis = axis_vectors(tr)[axis_index].clone
+        raise 'Không xác định được trục độ dày.' if axis.length < 1.0e-9
+        axis.normalize!
+
+        center_world = entity.definition.bounds.center.transform(tr)
+        to_eye = @model.active_view.camera.eye - center_world
+
+        to_eye.dot(axis) >= 0.0 ? :max : :min
+      end
+
+      def opposite_side(side)
+        side == :max ? :min : :max
+      end
+
+      def board_cut_side(entity, role)
+        front = toward_camera_side(entity)
+
+        case role
+        when :front then front
+        else opposite_side(front)
+        end
+      end
+
+      def local_axis_scale(transform, index)
+        axis_vectors(transform)[index].length
+      end
+
+      def build_half_slab(work, entity, side)
+        tr = world_transform(entity)
+        bounds = entity.definition.bounds
+        thin = thickness_axis(entity)
+
+        min_values = [bounds.min.x, bounds.min.y, bounds.min.z]
+        max_values = [bounds.max.x, bounds.max.y, bounds.max.z]
+        mid = (min_values[thin] + max_values[thin]) / 2.0
+
+        3.times do |axis|
+          scale = local_axis_scale(tr, axis)
+          raise 'Scale đối tượng không hợp lệ.' if scale < 1.0e-9
+          epsilon_local = 0.05.mm / scale
+
+          if axis == thin
+            if side == :max
+              min_values[axis] = mid
+              max_values[axis] += epsilon_local
+            else
+              min_values[axis] -= epsilon_local
+              max_values[axis] = mid
             end
-          )
-
-          view.drawing_color = Sketchup::Color.new(160, 80, 95)
-          view.draw(GL_LINE_LOOP, front)
-          view.draw(GL_LINE_LOOP, back)
-          view.drawing_color = Sketchup::Color.new(255, 180, 195, 100)
-        end
-
-        if @wine_kind == 'Chéo' && @wine_meta && @wine_meta[:intersections]
-          points = @wine_meta[:intersections].map { |hit| world(hit[:center]) }
-          unless points.empty?
-            view.draw_points(
-              points,
-              8,
-              3,
-              Sketchup::Color.new(230, 70, 35)
-            )
+          else
+            min_values[axis] -= epsilon_local
+            max_values[axis] += epsilon_local
           end
         end
+
+        add_oriented_box(work, min_values, max_values, tr)
       end
 
-      def build_half_lap_cutter(parent_entities, footprint, from_front)
-        cutter = parent_entities.add_group
-        epsilon_depth = 0.20
-        half_depth = @wine_depth / 2.0
+      def add_oriented_box(work, min_values, max_values, transform)
+        points = []
 
-        if from_front
-          start_depth = -epsilon_depth
-          direction = displacement.clone
-          length = half_depth + epsilon_depth
-        else
-          start_depth = @wine_depth + epsilon_depth
-          direction = displacement.clone
-          direction.reverse!
-          length = half_depth + epsilon_depth
+        [0, 1].each do |z|
+          [0, 1].each do |y|
+            [0, 1].each do |x|
+              values = [
+                x.zero? ? min_values[0] : max_values[0],
+                y.zero? ? min_values[1] : max_values[1],
+                z.zero? ? min_values[2] : max_values[2]
+              ]
+              points << Geom::Point3d.new(*values).transform(transform)
+            end
+          end
         end
 
-        cutter_poly = WineRack.expand_from_center(footprint, 0.10)
-        face = cutter.entities.add_face(
-          cutter_poly.map { |point| world_depth(point, start_depth) }
+        # index = z*4 + y*2 + x
+        faces = [
+          [0, 2, 3, 1],
+          [4, 5, 7, 6],
+          [0, 1, 5, 4],
+          [2, 6, 7, 3],
+          [0, 4, 6, 2],
+          [1, 3, 7, 5]
+        ]
+
+        group = work.add_group
+        center = Geom::Point3d.new(
+          points.sum(&:x) / 8.0,
+          points.sum(&:y) / 8.0,
+          points.sum(&:z) / 8.0
         )
-        raise 'Không dựng được dao khấu giao điểm.' unless face
 
-        face.reverse! if face.normal.dot(direction) < 0
-        face.pushpull(length.mm)
+        faces.each do |indices|
+          face = group.entities.add_face(indices.map { |i| points[i] })
+          raise 'Không dựng được nửa chiều sâu.' unless face
 
-        raise 'Dao khấu giao điểm chưa kín.' unless cutter.manifold?
+          face_center = face.bounds.center
+          outward = face_center - center
+          face.reverse! if face.normal.dot(outward) < 0.0
+        end
+
+        raise 'Khối nửa chiều sâu chưa kín.' unless group.manifold?
+        group
+      end
+
+      def cutter_for_half(work, intersection, entity, side)
+        slab = build_half_slab(work, entity, side)
+        cutter = intersection.intersect(slab)
+        slab.erase! if slab.valid?
+
+        unless cutter &&
+               cutter.valid? &&
+               cutter.manifold? &&
+               cutter.volume > EPS_VOL
+          cutter.erase! if cutter && cutter.valid?
+          raise 'Không dựng được dao khấu 1/2 chiều sâu.'
+        end
+
+        expand_cutter_in_plane(cutter, entity, @gap_mm)
         cutter
       end
 
-      def apply_half_lap(parent_entities, groups)
-        return groups unless @wine_kind == 'Chéo'
-        return groups unless @wine_meta && @wine_meta[:intersections]
+      def expand_cutter_in_plane(cutter, entity, gap_mm)
+        return cutter if gap_mm <= 0.0
 
-        hits = @wine_meta[:intersections]
-        return groups if hits.empty?
+        target_tr = world_transform(entity)
+        inverse = target_tr.inverse
+        thin = thickness_axis(entity)
 
-        # Họ A khấu từ trước, họ B khấu từ sau.
-        [
-          [:a_index, true],
-          [:b_index, false]
-        ].each do |index_key, from_front|
-          by_group = hits.group_by { |hit| hit[index_key] }
+        vertices = cutter.definition.entities
+          .grep(Sketchup::Face)
+          .flat_map(&:vertices)
+          .uniq
 
-          by_group.each do |group_index, group_hits|
-            target = groups[group_index]
-            next unless target && target.valid?
+        raise 'Dao khấu không có đỉnh.' if vertices.empty?
 
-            name = target.name
-            material = target.material
-
-            group_hits.each do |hit|
-              cutter = build_half_lap_cutter(
-                parent_entities,
-                hit[:polygon],
-                from_front
-              )
-
-              result = cutter.trim(target)
-              cutter.erase! if cutter.valid?
-
-              unless result && result.valid? && result.manifold?
-                raise 'Không khấu được giao điểm nan. Đã hủy toàn bộ ô rượu.'
-              end
-
-              result.name = name
-              result.material = material if material
-              target = result
-            end
-
-            target.set_attribute(
-              'TRẦN TUẤN NỘI THẤT',
-              'khau_am_duong',
-              from_front ? 'MAT_TRUOC_1_2' : 'MAT_SAU_1_2'
-            )
-            groups[group_index] = target
-          end
+        cutter_tr = cutter.transformation
+        local_points = vertices.map do |vertex|
+          vertex.position.transform(cutter_tr).transform(inverse)
         end
 
-        groups
+        box = Geom::BoundingBox.new
+        box.add(local_points)
+
+        mins = [box.min.x, box.min.y, box.min.z]
+        maxs = [box.max.x, box.max.y, box.max.z]
+        center = box.center
+
+        factors = [1.0, 1.0, 1.0]
+
+        3.times do |axis|
+          next if axis == thin
+
+          size = maxs[axis] - mins[axis]
+          next if size < 1.0e-9
+
+          scale = local_axis_scale(target_tr, axis)
+          gap_local = gap_mm.mm / scale
+          factors[axis] = (size + 2.0 * gap_local) / size
+        end
+
+        local_scale = Geom::Transformation.scaling(
+          center,
+          factors[0],
+          factors[1],
+          factors[2]
+        )
+        world_scale = target_tr * local_scale * inverse
+        cutter.transform!(world_scale)
+        cutter
       end
 
-      def create_board
-        return false unless same_context? && @wine_polys && !@wine_polys.empty?
+      def replace_geometry(target, result)
+        target.make_unique if target.respond_to?(:make_unique)
 
-        @model.start_operation('TT - Vẽ Ô Rượu', true)
+        original_name = target.name
+        original_layer = target.layer
+        original_material = target.material
 
-        parent = @context.add_group
-        parent.name = "Ô Rượu #{@wine_kind}"
+        destination = target.definition.entities
+        destination.clear!
 
-        parent.set_attribute(
-          'TRẦN TUẤN NỘI THẤT',
-          'khung_vien',
-          @wine_frame ? 'BAT' : 'TAT'
+        world_to_target = world_transform(target).inverse
+        instance = destination.add_instance(
+          result.definition,
+          world_to_target * result.transformation
+        )
+        instance.explode
+
+        target.name = original_name
+        target.layer = original_layer
+        target.material = original_material if original_material
+
+        raise "#{original_name}: tấm sau khấu không còn Solid." unless target.manifold?
+      end
+
+      def execute
+        validate_pair!
+        raise 'Chưa có preview giao thật.' unless @preview_ready
+
+        @busy = true
+        started = false
+
+        @model.start_operation('TT - Khấu Âm Dương 1/2', true)
+        started = true
+
+        workspace = @context.add_group
+        workspace.transformation = @edit.inverse
+        work = workspace.entities
+
+        a_copy = copy_solid(work, @a)
+        b_copy = copy_solid(work, @b)
+        intersection = a_copy.intersect(b_copy)
+
+        unless intersection &&
+               intersection.valid? &&
+               intersection.volume > EPS_VOL
+          raise 'Không còn vùng giao thật giữa A và B.'
+        end
+
+        a_role = @swap_roles ? :back : :front
+        b_role = @swap_roles ? :front : :back
+
+        cutter_a = cutter_for_half(
+          work,
+          intersection,
+          @a,
+          board_cut_side(@a, a_role)
+        )
+        cutter_b = cutter_for_half(
+          work,
+          intersection,
+          @b,
+          board_cut_side(@b, b_role)
         )
 
-        groups = []
+        result_a = cutter_a.trim(a_copy)
+        result_b = cutter_b.trim(b_copy)
 
-        @wine_polys.each_with_index do |poly, index|
-          group = parent.entities.add_group
-          group.name = format('VAN_RUOU_%03d', index + 1)
-
-          face = group.entities.add_face(poly.map { |point| world(point) })
-          raise 'Không tạo được mặt nan.' unless face
-
-          face.reverse! if face.normal.dot(displacement) < 0
-          face.pushpull(@wine_depth.mm)
-
-          raise 'Nan chưa kín; đã hủy.' unless group.manifold?
-          groups << group
+        unless result_a && result_a.valid? && result_a.manifold?
+          raise 'Tấm A khấu 1/2 thất bại.'
+        end
+        unless result_b && result_b.valid? && result_b.manifold?
+          raise 'Tấm B khấu 1/2 thất bại.'
         end
 
-        groups = apply_half_lap(parent.entities, groups)
+        replace_geometry(@a, result_a)
+        replace_geometry(@b, result_b)
 
-        groups.compact.each do |group|
-          next unless group.valid?
-          group.set_attribute(
-            'TRẦN TUẤN NỘI THẤT',
-            'do_day_mm',
-            @wine_t
-          )
-        end
+        @a.set_attribute(PREF, 'half_lap_role', a_role.to_s)
+        @b.set_attribute(PREF, 'half_lap_role', b_role.to_s)
+        @a.set_attribute(PREF, 'gap_mm', @gap_mm)
+        @b.set_attribute(PREF, 'gap_mm', @gap_mm)
 
-        if @wine_kind == 'Chéo' && @wine_meta
-          parent.set_attribute(
-            'TRẦN TUẤN NỘI THẤT',
-            'so_giao_diem_khau',
-            @wine_meta[:intersections].length
-          )
-          parent.set_attribute(
-            'TRẦN TUẤN NỘI THẤT',
-            'kieu_khau',
-            'AM_DUONG_1_2_CHIEU_SAU'
-          )
-        end
-
-        parent.transformation = @edit.inverse
+        workspace.erase! if workspace.valid?
 
         @model.commit_operation
-        @model.selection.clear
-        @model.selection.add(parent)
-        @wine_polys = []
-        @wine_meta = nil
+        started = false
 
-        true
-      rescue StandardError => error
-        @model.abort_operation
-        UI.messagebox(error.message)
-        false
+        @model.selection.clear
+        @model.selection.add(@a)
+        @model.selection.add(@b)
+
+        Sketchup.set_status_text(
+          'Đã KHẤU ÂM DƯƠNG 1/2 · hai rãnh gặp tại tâm chiều sâu · Ctrl+Z hoàn tác.',
+          SB_PROMPT
+        )
+        UI.beep
+      rescue StandardError
+        @model.abort_operation if started
+        raise
+      ensure
+        @busy = false
       end
 
-      def status_text
-        frame_text = @wine_frame ? 'KHUNG: BẬT' : 'KHUNG: TẮT'
+      def reset_after_execute
+        @preview_ready = false
+        @preview_lines = []
+        @preview_center = nil
+        @preview_volume_mm3 = 0.0
+        @a = nil
+        @b = nil
+        @hover = nil
+        @stage = :pick_a
+        status
+      end
 
-        "VẼ Ô RƯỢU #{@wine_kind} · P1 → P2 → click tạo · " \
-        "SHIFT #{frame_text} · TAB chia theo kích thước ô · CTRL đảo sâu · #{@wine_note}"
+      def format_volume(mm3)
+        if mm3 >= 1_000_000.0
+          "#{(mm3 / 1_000_000.0).round(2)} dm³"
+        else
+          "#{mm3.round(1)} mm³"
+        end
       end
     end
   end
