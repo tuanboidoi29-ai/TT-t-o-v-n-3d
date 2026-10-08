@@ -47,6 +47,90 @@ module TranTuanNoiThat
       end.abs / 2.0
     end
 
+    def signed_area(poly)
+      return 0.0 if poly.length < 3
+      poly.each_with_index.sum do |a, i|
+        b = poly[(i + 1) % poly.length]
+        a[0] * b[1] - a[1] * b[0]
+      end / 2.0
+    end
+
+    def cross2(ax, ay, bx, by)
+      ax * by - ay * bx
+    end
+
+    def convex_intersection(subject, clipper)
+      return [] if subject.length < 3 || clipper.length < 3
+
+      clip = signed_area(clipper) >= 0 ? clipper : clipper.reverse
+      output = subject.dup
+
+      clip.each_with_index do |cp1, i|
+        cp2 = clip[(i + 1) % clip.length]
+        input = output
+        output = []
+        break if input.empty?
+
+        edge_x = cp2[0] - cp1[0]
+        edge_y = cp2[1] - cp1[1]
+
+        inside = lambda do |p|
+          cross2(edge_x, edge_y, p[0] - cp1[0], p[1] - cp1[1]) >= -1.0e-7
+        end
+
+        intersect = lambda do |s, e|
+          rx = e[0] - s[0]
+          ry = e[1] - s[1]
+          den = cross2(rx, ry, edge_x, edge_y)
+          return e if den.abs < 1.0e-12
+
+          qx = cp1[0] - s[0]
+          qy = cp1[1] - s[1]
+          t = cross2(qx, qy, edge_x, edge_y) / den
+          [s[0] + t * rx, s[1] + t * ry]
+        end
+
+        s = input[-1]
+        input.each do |e|
+          s_in = inside.call(s)
+          e_in = inside.call(e)
+
+          if e_in
+            output << intersect.call(s, e) unless s_in
+            output << e
+          elsif s_in
+            output << intersect.call(s, e)
+          end
+
+          s = e
+        end
+      end
+
+      output
+    end
+
+    def polygon_center(poly)
+      return [0.0, 0.0] if poly.empty?
+      [
+        poly.sum { |p| p[0] } / poly.length.to_f,
+        poly.sum { |p| p[1] } / poly.length.to_f
+      ]
+    end
+
+    # Nới footprint dao cực nhỏ để boolean không bị mặt đồng phẳng.
+    # Phần nới nằm ngoài thanh nên không làm rãnh thực tế rộng thêm đáng kể.
+    def expand_from_center(poly, epsilon = 0.10)
+      center = polygon_center(poly)
+      poly.map do |p|
+        dx = p[0] - center[0]
+        dy = p[1] - center[1]
+        len = Math.hypot(dx, dy)
+        next p.dup if len < 1.0e-9
+        scale = (len + epsilon) / len
+        [center[0] + dx * scale, center[1] + dy * scale]
+      end
+    end
+
     def rect(x, y, w, h)
       [[x, y], [x + w, y], [x + w, y + h], [x, y + h]]
     end
@@ -100,6 +184,14 @@ module TranTuanNoiThat
       raise 'Vùng quá nhỏ so với độ dày ván.' unless iw > t + 1.0 && ih > t + 1.0
 
       polys = []
+      meta = {
+        kind: kind,
+        frame: frame,
+        frame_count: frame ? 4 : 0,
+        family_a: [],
+        family_b: [],
+        intersections: []
+      }
 
       if frame
         # Khung ngoài ghép góc 45° như cách dựng thủ công.
@@ -143,11 +235,11 @@ module TranTuanNoiThat
         # - 2 họ nan liên tục ±45°
         # - đối xứng qua tâm
         # - clip đúng theo biên trong khung
-        # Cách này tương đương vẽ thanh mẫu rồi rotate/mirror thủ công trong SketchUp.
+        # - xác định toàn bộ giao điểm để tạo khấu âm dương 1/2 chiều sâu
         inv = 1.0 / Math.sqrt(2)
         normals = [
-          [ inv,  inv],   # thanh hướng -45°
-          [-inv,  inv]    # thanh hướng +45°
+          [ inv,  inv],
+          [-inv,  inv]
         ]
 
         cx = x0 + iw / 2.0
@@ -155,9 +247,9 @@ module TranTuanNoiThat
         pitch = target + t
         raise 'Ô quá nhỏ.' unless pitch > t + 1.0
 
-        family_counts = []
+        families = [[], []]
 
-        normals.each do |normal|
+        normals.each_with_index do |normal, family_index|
           center_c = cx * normal[0] + cy * normal[1]
           offsets = base.map do |point|
             point[0] * normal[0] + point[1] * normal[1] - center_c
@@ -167,7 +259,6 @@ module TranTuanNoiThat
           k_min = (lo / pitch).floor - 1
           k_max = (hi / pitch).ceil + 1
 
-          count = 0
           (k_min..k_max).each do |k|
             c_line = center_c + k * pitch
 
@@ -178,19 +269,43 @@ module TranTuanNoiThat
             )
 
             next unless area(poly) > 0.01
-
-            # Một nan = một polygon liên tục từ biên này tới biên kia.
-            polys << poly
-            count += 1
+            families[family_index] << poly
           end
 
-          raise 'Quá nhiều nan chéo; tăng kích thước ô.' if count > 40
-          family_counts << count
+          if families[family_index].length > 40
+            raise 'Quá nhiều nan chéo; tăng kích thước ô.'
+          end
+        end
+
+        frame_count = polys.length
+        meta[:family_a] = (frame_count...(frame_count + families[0].length)).to_a
+        polys.concat(families[0])
+
+        family_b_start = polys.length
+        meta[:family_b] = (family_b_start...(family_b_start + families[1].length)).to_a
+        polys.concat(families[1])
+
+        # Giao điểm thật = phần diện tích chồng giữa một nan họ A và một nan họ B.
+        families[0].each_with_index do |poly_a, ia|
+          families[1].each_with_index do |poly_b, ib|
+            overlap = convex_intersection(poly_a, poly_b)
+            next unless area(overlap) > 0.01
+
+            overlap = canonical_poly(overlap, x0, y0, x1, y1)
+            next unless area(overlap) > 0.01
+
+            meta[:intersections] << {
+              a_index: meta[:family_a][ia],
+              b_index: meta[:family_b][ib],
+              polygon: overlap,
+              center: polygon_center(overlap)
+            }
+          end
         end
 
         clear_diamond = [pitch - t, 1.0].max
         frame_note = frame ? 'KHUNG BẬT' : 'KHUNG TẮT'
-        note = "Ô chéo 45° tâm chuẩn · #{family_counts[0]} + #{family_counts[1]} nan · lọt lòng ≈ #{clear_diamond.round(1)} mm · #{frame_note}"
+        note = "Ô chéo 45° · #{families[0].length} + #{families[1].length} nan · #{meta[:intersections].length} giao điểm khấu 1/2 · lọt lòng ≈ #{clear_diamond.round(1)} mm · #{frame_note}"
       end
 
       # Chuẩn hóa toàn bộ tọa độ giao nhau và tiếp xúc khung.
@@ -200,7 +315,7 @@ module TranTuanNoiThat
 
       raise 'Quá nhiều chi tiết; tăng kích thước ô.' if polys.length > 250
 
-      [polys, note]
+      [polys, note, meta]
     end
 
     def activate
@@ -231,6 +346,7 @@ module TranTuanNoiThat
       def update(view, x, y)
         super
         @wine_polys = []
+        @wine_meta = nil
         @wine_note = ''
 
         return unless @loops && @loops.first && @loops.first.length == 4 && @p1
@@ -241,7 +357,7 @@ module TranTuanNoiThat
 
         return if u.length < 0.1.mm || v.length < 0.1.mm
 
-        @wine_polys, @wine_note = WineRack.layout(
+        @wine_polys, @wine_note, @wine_meta = WineRack.layout(
           u.length.to_mm,
           v.length.to_mm,
           @wine_t,
@@ -264,6 +380,13 @@ module TranTuanNoiThat
           .offset(@wine_v, point[1].mm)
 
         back ? pt.offset(displacement, @wine_depth.mm) : pt
+      end
+
+      def world_depth(point, depth_mm)
+        @wine_origin
+          .offset(@wine_u, point[0].mm)
+          .offset(@wine_v, point[1].mm)
+          .offset(displacement, depth_mm.mm)
       end
 
       def onKeyDown(key, repeat, flags, view)
@@ -418,6 +541,98 @@ module TranTuanNoiThat
           view.draw(GL_LINE_LOOP, back)
           view.drawing_color = Sketchup::Color.new(255, 180, 195, 100)
         end
+
+        if @wine_kind == 'Chéo' && @wine_meta && @wine_meta[:intersections]
+          points = @wine_meta[:intersections].map { |hit| world(hit[:center]) }
+          unless points.empty?
+            view.draw_points(
+              points,
+              8,
+              3,
+              Sketchup::Color.new(230, 70, 35)
+            )
+          end
+        end
+      end
+
+      def build_half_lap_cutter(parent_entities, footprint, from_front)
+        cutter = parent_entities.add_group
+        epsilon_depth = 0.20
+        half_depth = @wine_depth / 2.0
+
+        if from_front
+          start_depth = -epsilon_depth
+          direction = displacement.clone
+          length = half_depth + epsilon_depth * 2.0
+        else
+          start_depth = @wine_depth + epsilon_depth
+          direction = displacement.clone.reverse
+          length = half_depth + epsilon_depth * 2.0
+        end
+
+        cutter_poly = WineRack.expand_from_center(footprint, 0.10)
+        face = cutter.entities.add_face(
+          cutter_poly.map { |point| world_depth(point, start_depth) }
+        )
+        raise 'Không dựng được dao khấu giao điểm.' unless face
+
+        face.reverse! if face.normal.dot(direction) < 0
+        face.pushpull(length.mm)
+
+        raise 'Dao khấu giao điểm chưa kín.' unless cutter.manifold?
+        cutter
+      end
+
+      def apply_half_lap(parent_entities, groups)
+        return groups unless @wine_kind == 'Chéo'
+        return groups unless @wine_meta && @wine_meta[:intersections]
+
+        hits = @wine_meta[:intersections]
+        return groups if hits.empty?
+
+        # Họ A khấu từ trước, họ B khấu từ sau.
+        [
+          [:a_index, true],
+          [:b_index, false]
+        ].each do |index_key, from_front|
+          by_group = hits.group_by { |hit| hit[index_key] }
+
+          by_group.each do |group_index, group_hits|
+            target = groups[group_index]
+            next unless target && target.valid?
+
+            name = target.name
+            material = target.material
+
+            group_hits.each do |hit|
+              cutter = build_half_lap_cutter(
+                parent_entities,
+                hit[:polygon],
+                from_front
+              )
+
+              result = cutter.trim(target)
+              cutter.erase! if cutter.valid?
+
+              unless result && result.valid? && result.manifold?
+                raise 'Không khấu được giao điểm nan. Đã hủy toàn bộ ô rượu.'
+              end
+
+              result.name = name
+              result.material = material if material
+              target = result
+            end
+
+            target.set_attribute(
+              'TRẦN TUẤN NỘI THẤT',
+              'khau_am_duong',
+              from_front ? 'MAT_TRUOC_1_2' : 'MAT_SAU_1_2'
+            )
+            groups[group_index] = target
+          end
+        end
+
+        groups
       end
 
       def create_board
@@ -434,6 +649,8 @@ module TranTuanNoiThat
           @wine_frame ? 'BAT' : 'TAT'
         )
 
+        groups = []
+
         @wine_polys.each_with_index do |poly, index|
           group = parent.entities.add_group
           group.name = format('VAN_RUOU_%03d', index + 1)
@@ -445,11 +662,30 @@ module TranTuanNoiThat
           face.pushpull(@wine_depth.mm)
 
           raise 'Nan chưa kín; đã hủy.' unless group.manifold?
+          groups << group
+        end
 
+        groups = apply_half_lap(parent.entities, groups)
+
+        groups.compact.each do |group|
+          next unless group.valid?
           group.set_attribute(
             'TRẦN TUẤN NỘI THẤT',
             'do_day_mm',
             @wine_t
+          )
+        end
+
+        if @wine_kind == 'Chéo' && @wine_meta
+          parent.set_attribute(
+            'TRẦN TUẤN NỘI THẤT',
+            'so_giao_diem_khau',
+            @wine_meta[:intersections].length
+          )
+          parent.set_attribute(
+            'TRẦN TUẤN NỘI THẤT',
+            'kieu_khau',
+            'AM_DUONG_1_2_CHIEU_SAU'
           )
         end
 
@@ -459,6 +695,7 @@ module TranTuanNoiThat
         @model.selection.clear
         @model.selection.add(parent)
         @wine_polys = []
+        @wine_meta = nil
 
         true
       rescue StandardError => error
