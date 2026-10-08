@@ -674,16 +674,16 @@ module TranTuanNoiThat
         <<~HTML
           <!doctype html><html lang="vi"><head><meta charset="utf-8"><style>
           *{box-sizing:border-box}body{margin:0;background:#111827;color:#e5e7eb;font:14px Arial}
-          .head{padding:20px 24px;background:linear-gradient(135deg,#f97316,#c2410c)}
+          .head{padding:20px 24px;background:linear-gradient(135deg,#1677e8,#0e5aa5)}
           h1{margin:0;font-size:22px}.sub{margin-top:5px;opacity:.92}.body{padding:18px}
           .cards{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:14px}
           .card,.panel{background:#1f2937;border:1px solid #374151;border-radius:10px;padding:12px}
-          .n{font-size:22px;font-weight:bold;color:#fdba74}.k{font-size:11px;color:#9ca3af;margin-top:3px}
+          .n{font-size:22px;font-weight:bold;color:#8dccff}.k{font-size:11px;color:#9ca3af;margin-top:3px}
           .scope{margin:10px 0;color:#fbbf24}
           .setup{display:grid;grid-template-columns:180px 1fr auto;gap:10px;align-items:end;margin:12px 0}
           label{display:block;color:#d1d5db;font-size:12px;margin-bottom:5px}
           input{width:100%;padding:10px;border-radius:7px;border:1px solid #4b5563;background:#111827;color:#fff}
-          .previewstate{padding:10px 12px;border-radius:8px;background:#7c2d12;color:#fff;margin:12px 0;font-weight:bold}
+          .previewstate{padding:10px 12px;border-radius:8px;background:#0b4f8c;color:#fff;margin:12px 0;font-weight:bold}
           .previewstate.ok{background:#065f46}
           .gallery{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:12px}
           .sheet{background:#fff;color:#111827;border:1px solid #4b5563;border-radius:8px;overflow:hidden;box-shadow:0 4px 14px #0006}
@@ -697,11 +697,11 @@ module TranTuanNoiThat
           td{padding:7px;border:1px solid #374151;font-size:12px}td.num{text-align:right;white-space:nowrap}
           .buttons{display:flex;flex-wrap:wrap;gap:10px;margin-top:15px}
           button{padding:11px 16px;border:0;border-radius:8px;font-weight:bold;cursor:pointer}
-          button:disabled{opacity:.35;cursor:not-allowed}.primary{background:#f97316;color:#fff}
+          button:disabled{opacity:.35;cursor:not-allowed}.primary{background:#1677e8;color:#fff}
           .green{background:#059669;color:#fff}.blue{background:#2563eb;color:#fff}.dark{background:#374151;color:#fff}
           .note{margin-top:10px;font-size:12px;color:#9ca3af;line-height:1.5}
           .tag{padding:3px 7px;border-radius:999px;background:#ffedd5;color:#9a3412;font-size:10px}
-          </style></head><body>
+          </style><style id="tt-blue-white-theme">/*TT_BLUE_WHITE_THEME_v1*/:root{--bg:#06182d;--panel:#0b2748;--blue:#1677e8;--white:#f7fbff;--muted:#b9d8f5;--border:#2d6ea7}html,body{background:var(--bg)!important;color:var(--white)!important}body{font-family:Arial,"Segoe UI",sans-serif!important}h1,h2,h3,h4,h5,h6,label,legend,strong,b,.title,.name{color:#fff!important}p,.muted,.hint,.sub,.note,.help,.desc,.description,.small{color:var(--muted)!important}a{color:#8dccff!important}.top,.header,.head,.titlebar,.page-header,.app-header,.hero,.banner,.brand,.header-bar{background:linear-gradient(135deg,#0a4f9b,#147ce5)!important;color:#fff!important;border-color:#51a9ff!important}.panel,.card,.box,.section,.group,.pane,.sidebar,.content,.settings-card,.toolbar,.controls,.form-section,.block,.item,.row-card{background:var(--panel)!important;color:#fff!important;border-color:var(--border)!important}button,.btn,input[type=button],input[type=submit]{background:linear-gradient(180deg,#2188f3,#0c63be)!important;color:#fff!important;border:1px solid #53aaff!important;border-radius:7px!important}.primary,.go,.active,.selected,.danger,.warning,.secondary{background:#0f75dc!important;color:#fff!important;border-color:#68b8ff!important}input,select,textarea{background:#071d35!important;color:#fff!important;border:1px solid #3f7fb5!important;border-radius:6px!important}table{background:#09223f!important;color:#fff!important;border-color:#2c6595!important}th{background:#0e4f8d!important;color:#fff!important;border-color:#397caf!important}td{border-color:#244f74!important;color:#eaf5ff!important}tr:nth-child(even){background:#0a294a!important}tr:hover{background:#123d68!important}.badge,.pill,.tag,.chip{background:#0d5fae!important;color:#fff!important;border-color:#61b3ff!important}.ok,.success{color:#a9d9ff!important}.err,.error{color:#ffd9eb!important}hr{border-color:#2c628f!important}</style></head><body>
           <div class="head"><h1>XUẤT LAYOUT + THỐNG KÊ VÁN</h1>
           <div class="sub">TRẦN TUẤN NỘI THẤT · V<span id="ver">-</span> · A3 NGANG · XEM TRƯỚC NGAY TRONG BẢNG</div></div>
           <div class="body">
