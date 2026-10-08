@@ -101,6 +101,7 @@ module TranTuanNoiThat
 
     def reload_runtime
       cleanup_retired_chatgpt
+      cleanup_retired_wine_rack_data
       CadWalls.close if const_defined?(:CadWalls, false) && CadWalls.respond_to?(:close)
       cleanup_retired_led_contact
       if const_defined?(:TamPro, false)
@@ -222,6 +223,25 @@ module TranTuanNoiThat
       true
     end
 
+    def cleanup_retired_wine_rack_data
+      begin
+        FileUtils.rm_f(File.join(ROOT, 'icons', 'wine_rack.svg'))
+
+        %w[
+          wine_kind
+          wine_thickness
+          wine_depth
+          wine_cell
+          wine_frame
+        ].each do |key|
+          Sketchup.write_default(NAME, key, '')
+        end
+      rescue StandardError => error
+        puts "[TT cleanup WineRack old data] #{error.class}: #{error.message}"
+      end
+      true
+    end
+
     def cleanup_retired_library
       # Dọn sạch Thư viện Nội thất đã gỡ ở 1.9.123.
       begin
@@ -302,6 +322,7 @@ module TranTuanNoiThat
 
     def install_ui
       cleanup_retired_chatgpt
+      cleanup_retired_wine_rack_data
       cleanup_retired_library
       cleanup_retired_cabinet_door
       cleanup_retired_vector_image_cnc
