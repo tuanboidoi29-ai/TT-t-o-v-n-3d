@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.277",
+  "version": "1.9.278",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Sửa lỗi nạp lại sau theme xanh-trắng: slat_wall_tool.rb đã được đổi giao diện hợp lệ nhưng LOCKED_FEATURE_BASELINES vẫn giữ SHA256 cũ nên báo 'Tính năng khóa đã bị sửa ngoài chủ đích'. Bản 1.9.277 cập nhật baseline khóa đúng SHA256 mới 874eb8507efb..., giữ nguyên logic Lam trang trí và toàn bộ giao diện xanh-trắng. Đồng thời giữ bản sửa updater 1.9.276.",
+  "notes": "Sửa cơ chế cập nhật khi nạp nóng thất bại. Toàn bộ Ruby đã kiểm tra Syntax OK; lỗi còn lại là xung đột runtime trong phiên SketchUp cũ. Bản 1.9.278 ghi rõ file/lỗi runtime, và nếu hot-reload không thành công thì KHÔNG rollback tệp mới: giữ bản cập nhật, báo chi tiết và yêu cầu đóng/mở SketchUp một lần. Khi khởi động sạch, hệ thống nạp lại từ đầu. Updater cũng báo rõ trạng thái cần restart.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "f62105947f6226152e591f0a2a7bc01bca8fb2693bdf429723019b2385ea0cac"
+      "sha256": "5419f64e1be34eade9204a47f461e2ca291392400b043dfdc553dd13f10342b2"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -309,12 +309,12 @@
     {
       "path": "tran_tuan_noi_that/updater.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/updater.rb",
-      "sha256": "e1dd5da377f915168d9ab38584c479d5463a0645070f66ae7a55c4f4513ebd30"
+      "sha256": "d182935d89b4c90c1b372aebb1b02e623b0ab0e540a5a5856d1fc498448a6869"
     },
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "ae9961b4bf08b9a2ed78255fd0f1b9eb4acd9ef2d0cfb76b2f1931eef263d77d"
+      "sha256": "31b1d6b34fa4320fe84904e063ed166c65ac671a76a60605bdf8454f341a9100"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
