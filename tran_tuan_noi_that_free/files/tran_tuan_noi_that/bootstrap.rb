@@ -592,7 +592,7 @@ module TranTuanNoiThat
 
     def install_notch_ui
       return false unless defined?(TranTuanNoiThat::NotchTool)
-      @notch_cmd ||= command('Khấu ván AUTO', 'khau_am_duong.svg', 'Click khấu ngay; SHIFT đổi khuôn/tấm bị khấu; TAB lưu mở rộng biên và dao; hoàn tất chỉ beep.') { NotchTool.activate }
+      @notch_cmd ||= command('Khấu ván AUTO', 'notch.svg', 'Click khấu ngay; SHIFT đổi khuôn/tấm bị khấu; TAB lưu mở rộng biên và dao; hoàn tất chỉ beep.') { NotchTool.activate }
       add_feature_command_once(@notch_cmd, :notch_menu_installed)
     end
 
