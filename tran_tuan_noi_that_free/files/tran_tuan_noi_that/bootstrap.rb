@@ -18,7 +18,7 @@ module TranTuanNoiThat
   }.freeze unless const_defined?(:LOCKED_FEATURE_BASELINES, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.270'.freeze
+  VERSION = '1.9.271'.freeze
 
   class << self
     def setting(key, default = nil)
@@ -567,7 +567,7 @@ module TranTuanNoiThat
 
       # Hot reload: đổi ngay tên/icon của command Vẽ Ô Rượu cũ.
       @wine_rack_cmd.tooltip = 'KHẤU ÂM DƯƠNG'
-      @wine_rack_cmd.status_bar_text = 'Chọn 2 Group/Component Solid giao nhau · tự nhận vùng giao thật · khấu đối nghịch 1/2 chiều sâu · TAB cài đặt · SHIFT đảo A/B.'
+      @wine_rack_cmd.status_bar_text = 'Preview: Tấm A màu xanh khấu 1/2 mặt trước, Tấm B màu hồng khấu 1/2 mặt sau · giao thật · TAB cài đặt · SHIFT đảo A/B.'
       @wine_rack_cmd.menu_text = 'KHẤU ÂM DƯƠNG' if @wine_rack_cmd.respond_to?(:menu_text=)
 
       icon = File.join(ROOT, 'icons', 'notch.svg')
