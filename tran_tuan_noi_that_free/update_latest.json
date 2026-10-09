@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.281",
+  "version": "1.9.282",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "DIM 2 điểm / DIM đa điểm: bỏ đường guide phụ khi rê chuột. Sau P1-P2, chỉ hiển thị preview DIM thật; hướng X/Y/Z tự đổi động theo vị trí chuột. Việc chọn hướng dùng chuyển động chuột trên màn hình để chọn Model Axis gần nhất, không dùng camera.direction và không để Endpoint/Edge/Inference kéo lệch hướng. DIM đa điểm cũng bỏ đường nối guide giữa các điểm, chỉ giữ marker P1/P2/P3 và preview DIM thật.",
+  "notes": "Sửa lỗi DIM 'Zero length vector'. Các vector Model Axis/offset giờ được kiểm tra chiều dài trước khi chuẩn hóa; không dùng normalize trên vector 0. Khi chuột đi qua vị trí suy biến, DIM giữ hướng hợp lệ gần nhất thay vì bật popup hoặc mất preview. Lỗi zero-vector tạm thời khi rê chuột bị bỏ qua; trước khi tạo DIM thật vẫn kiểm tra P1/P2 và offset ở hệ tọa độ local.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "1a3a1b7adee95bb4504cd52657c3aa2571f2d88537a119daee17e50a5fe09873"
+      "sha256": "20bf5c695f80d9d98cec6fa7074620cc98ebf20317fded230330246437e2a4c2"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -29,7 +29,7 @@
     {
       "path": "tran_tuan_noi_that/dimension_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/dimension_tool.rb",
-      "sha256": "63ba267c464dbf651cce5b0c99f05efb7bfef8a71015c0b2ccc8a0c711742370"
+      "sha256": "139e4b2a2040add452b7476b2cfe01cf1431038f9e776bfb350e4fadd6441cd0"
     },
     {
       "path": "tran_tuan_noi_that/door_standard_tool.rb",
@@ -314,7 +314,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "141633f4bf867c32c015ef2d388e3711b2a3a14a872fe4232ba9b05803cd43d8"
+      "sha256": "8747ac896180c832f5666689d7998384fd1d5ba92cb98c3039fde1af0c24fdbe"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
