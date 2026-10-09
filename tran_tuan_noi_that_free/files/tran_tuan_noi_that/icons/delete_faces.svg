@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <title>Xóa Face giữ khung</title>
+  <defs>
+    <linearGradient id="b" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#55AAFF"/>
+      <stop offset="1" stop-color="#1677E8"/>
+    </linearGradient>
+  </defs>
+  <!-- khung dây -->
+  <path d="M10 18 L34 8 L54 22 L48 48 L24 56 L8 40 Z"
+        fill="none" stroke="#FFFFFF" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M10 18 L30 30 L54 22 M30 30 L24 56 M30 30 L48 48"
+        fill="none" stroke="#A8D8FF" stroke-width="3" stroke-linecap="round"/>
+  <!-- mặt bị xóa -->
+  <path d="M10 18 L34 8 L30 30 Z"
+        fill="url(#b)" opacity=".45" stroke="#0A3D7A" stroke-width="1.5"/>
+  <!-- dấu X -->
+  <circle cx="50" cy="13" r="10" fill="#1677E8" stroke="#FFFFFF" stroke-width="2"/>
+  <path d="M46 9 L54 17 M54 9 L46 17"
+        stroke="#FFFFFF" stroke-width="3" stroke-linecap="round"/>
+</svg>
