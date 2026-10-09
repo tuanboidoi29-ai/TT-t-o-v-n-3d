@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <title>Xóa vật liệu về mặc định</title>
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#55AAFF"/>
+      <stop offset="1" stop-color="#1677E8"/>
+    </linearGradient>
+  </defs>
+  <rect x="8" y="12" width="36" height="40" rx="5" fill="url(#g)" stroke="#0A3D7A" stroke-width="2"/>
+  <path d="M15 20h22v24H15z" fill="#FFFFFF" opacity=".92"/>
+  <path d="M21 26h10v12H21z" fill="#A8D8FF"/>
+  <path d="M43 19l12 12-7 7-12-12z" fill="#FFFFFF" stroke="#0A3D7A" stroke-width="2"/>
+  <path d="M49 33l6 6" stroke="#0A3D7A" stroke-width="3" stroke-linecap="round"/>
+  <path d="M42 45h14" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round"/>
+</svg>
