@@ -732,7 +732,6 @@ module TranTuanNoiThat
       def draw_multi_points(view)
         return if @points.empty?
 
-        view.point_size = 8
         view.drawing_color = Sketchup::Color.new(30, 120, 210)
         view.draw_points(@points, 8, 2, Sketchup::Color.new(30, 120, 210))
 
@@ -756,7 +755,7 @@ module TranTuanNoiThat
       def draw_mode_badge(view)
         text = @mode == MODE_MULTI ? 'DIM ĐA ĐIỂM · TAB: 2 ĐIỂM' : 'DIM 2 ĐIỂM · TAB: ĐA ĐIỂM'
         view.draw_text(
-          Geom::Point3d.new(16, 28, 0),
+          [16, 28],
           text,
           size: 13,
           bold: true,
