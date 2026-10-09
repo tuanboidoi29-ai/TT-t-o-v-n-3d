@@ -18,7 +18,7 @@ module TranTuanNoiThat
   }.freeze unless const_defined?(:LOCKED_FEATURE_BASELINES, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.283'.freeze
+  VERSION = '1.9.284'.freeze
 
   class << self
     def setting(key, default = nil)
@@ -33,13 +33,14 @@ module TranTuanNoiThat
       VERSION.to_s
     end
 
-    def feature_enabled?(feature)
-      value = setting("feature_#{feature}", true)
-      value == true || value.to_s.downcase == 'true' || value.to_s == '1'
+    # Từ 1.9.284 không còn cơ chế bật/tắt từng tính năng.
+    # Giữ method để tương thích code cũ nhưng mọi tính năng luôn được bật.
+    def feature_enabled?(_feature = nil)
+      true
     end
 
-    def feature_validation_proc(feature)
-      proc { feature_enabled?(feature) ? MF_ENABLED : MF_GRAYED }
+    def feature_validation_proc(_feature = nil)
+      proc { MF_ENABLED }
     end
 
     # Load the included Ruby source explicitly, including when reloading.
@@ -68,23 +69,35 @@ module TranTuanNoiThat
     end
 
     def refresh_feature_commands
+      # Xóa hiệu lực các validation proc cũ do cơ chế Bật/Tắt tính năng để lại.
+      # Chỉ chạm các command từng có feature flag; command đã gỡ vẫn giữ trạng thái riêng.
       return false unless @toolbar
-      features = {
-        'Vẽ Ván' => :board,
-        'Tạo Khối BOX' => :box,
-        'Vẽ Ngăn Kéo' => :drawer,
-        'Bo Cong Khối' => :round,
-        'Co Giãn Khối MODE' => :stretch_mode,
-        'Xoay Vân Ván' => :grain,
-        'Xuất Layout + Thống Kê Ván' => :layout_stats
-      }
+
+      feature_titles = [
+        'Vẽ Ván',
+        'Tạo Khối BOX',
+        'Vẽ Ngăn Kéo',
+        'Bo Cong Khối',
+        'Co Giãn Khối MODE',
+        'Xoay Vân Ván',
+        'Xuất Layout + Thống Kê Ván'
+      ]
+
       @toolbar.each do |item|
         next unless item.is_a?(UI::Command)
-        feature = features[item.tooltip.to_s]
-        item.set_validation_proc(&feature_validation_proc(feature)) if feature
+        next unless feature_titles.include?(item.tooltip.to_s)
+        item.set_validation_proc { MF_ENABLED }
       end
+
+      # Đồng bộ dữ liệu cũ về true để các bản code cũ còn sống trong phiên
+      # cũng không thể làm mờ/tắt các công cụ này.
+      %w[board box drawer round stretch_mode grain layout_stats].each do |feature|
+        save_setting("feature_#{feature}", true)
+      end
+
       true
-    rescue StandardError
+    rescue StandardError => error
+      puts "[TT refresh features] #{error.class}: #{error.message}"
       false
     end
 
@@ -722,19 +735,16 @@ module TranTuanNoiThat
     end
 
     def command(title, icon_name, description, feature = nil, &block)
-      cmd = UI::Command.new(title) do
-        if feature.nil? || feature_enabled?(feature)
-          block.call
-        else
-          UI.messagebox("Tính năng #{title} đang tắt trong Cài Đặt Chung.")
-        end
-      end
+      cmd = UI::Command.new(title) { block.call }
       icon = File.join(ROOT, 'icons', icon_name)
       cmd.small_icon = icon
       cmd.large_icon = icon
       cmd.tooltip = title
       cmd.status_bar_text = description
-      cmd.set_validation_proc { feature_enabled?(feature) ? MF_ENABLED : MF_GRAYED } if feature
+
+      # Tham số feature chỉ giữ để tương thích chữ ký method cũ.
+      # Không còn khóa command theo Cài Đặt Chung.
+      cmd.set_validation_proc { MF_ENABLED } if feature
       cmd
     end
 
