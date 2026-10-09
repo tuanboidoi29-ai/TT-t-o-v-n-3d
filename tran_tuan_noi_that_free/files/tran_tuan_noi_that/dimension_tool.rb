@@ -465,6 +465,7 @@ module TranTuanNoiThat
         @p2 = nil
         @hover = nil
         @offset = nil
+        @dim_axis_name = nil
         @points = []
       end
 
@@ -490,6 +491,10 @@ module TranTuanNoiThat
             'DIM 2 ĐIỂM · kéo vị trí DIM → click đặt · TAB chuyển DIM ĐA ĐIỂM.'
           end
 
+        if @dim_axis_name && valid_offset?
+          text += " · HƯỚNG DIM: #{@dim_axis_name}"
+        end
+
         Sketchup.set_status_text(text, SB_PROMPT)
       end
 
@@ -503,6 +508,7 @@ module TranTuanNoiThat
           @offset = offset_from_cursor(@p1, @p2, view, x, y)
         end
 
+        status
         view.invalidate
       rescue StandardError => error
         show_error(error)
@@ -606,27 +612,135 @@ module TranTuanNoiThat
         @offset = offset_from_cursor(@points.first, @points.last, view, x, y)
       end
 
+      def model_axis_candidates(measure_axis)
+        bases = [
+          ['X', Geom::Vector3d.new(1, 0, 0)],
+          ['Y', Geom::Vector3d.new(0, 1, 0)],
+          ['Z', Geom::Vector3d.new(0, 0, 1)]
+        ]
+
+        result = []
+
+        bases.each do |name, base|
+          dot = base.dot(measure_axis)
+
+          # Chiếu Model Axis xuống mặt phẳng vuông góc với P1-P2.
+          # Vì vậy đường DIM luôn vuông góc với đoạn đo nhưng vẫn bám X/Y/Z.
+          perp = Geom::Vector3d.new(
+            base.x - measure_axis.x * dot,
+            base.y - measure_axis.y * dot,
+            base.z - measure_axis.z * dot
+          )
+          next if perp.length < 1.0e-6
+
+          perp.normalize!
+
+          # Với đoạn chéo, hai Model Axis có thể chiếu thành cùng một hướng.
+          duplicate = result.any? do |_old_name, old_axis|
+            old_axis.dot(perp).abs > 0.9999
+          end
+          next if duplicate
+
+          result << [name, perp]
+        end
+
+        result
+      end
+
+      def screen_axis_score(view, middle, direction, x, y)
+        origin_2d = view.screen_coords(middle)
+        sample_3d = middle.offset(direction, 250.mm)
+        sample_2d = view.screen_coords(sample_3d)
+
+        sx = sample_2d.x - origin_2d.x
+        sy = sample_2d.y - origin_2d.y
+        sl = Math.sqrt(sx * sx + sy * sy)
+        return 0.0 if sl < 1.0e-6
+
+        mx = x.to_f - origin_2d.x
+        my = y.to_f - origin_2d.y
+        ml = Math.sqrt(mx * mx + my * my)
+        return 0.0 if ml < 1.0e-6
+
+        ((sx * mx + sy * my) / (sl * ml)).abs
+      end
+
+      def point_on_model_axis_plane(view, x, y, middle, measure_axis, offset_axis)
+        plane_normal = measure_axis.cross(offset_axis)
+        return nil if plane_normal.length < 1.0e-6
+
+        Geom.intersect_line_plane(
+          view.pickray(x, y),
+          [middle, plane_normal]
+        )
+      end
+
       def offset_from_cursor(a, b, view, x, y)
+        @dim_axis_name = nil
         return nil unless a && b
         return nil if a.distance(b) <= 0.1.mm
 
         middle = Geom::Point3d.linear_combination(0.5, a, 0.5, b)
+        measure_axis = (b - a).normalize
+        candidates = model_axis_candidates(measure_axis)
+        return nil if candidates.empty?
+
+        raw_hover = @hover ? (@hover - middle) : nil
+
+        ranked = candidates.map do |name, direction|
+          score =
+            if raw_hover && raw_hover.length > 0.1.mm
+              raw_hover.dot(direction).abs
+            else
+              screen_axis_score(view, middle, direction, x, y)
+            end
+
+          [score, name, direction]
+        end.sort_by { |row| -row[0] }
+
+        _score, name, direction = ranked.first
+        return nil unless direction
+
         point =
-          @hover ||
-          Geom.intersect_line_plane(
-            view.pickray(x, y),
-            [middle, view.camera.direction]
-          )
+          if @hover
+            @hover
+          else
+            point_on_model_axis_plane(
+              view,
+              x,
+              y,
+              middle,
+              measure_axis,
+              direction
+            )
+          end
         return nil unless point
 
-        axis = (b - a).normalize
         raw = point - middle
-        offset = Geom::Vector3d.new(
-          raw.x - axis.x * raw.dot(axis),
-          raw.y - axis.y * raw.dot(axis),
-          raw.z - axis.z * raw.dot(axis)
-        )
-        offset.length > 0.1.mm ? offset : nil
+        distance = raw.dot(direction)
+
+        # Nếu InputPoint đang nằm gần P1-P2, lấy vị trí chuột trên mặt phẳng
+        # Model Axis tương ứng để DIM vẫn kéo tự do, không phụ thuộc camera plane.
+        if distance.abs <= 0.1.mm
+          plane_point = point_on_model_axis_plane(
+            view,
+            x,
+            y,
+            middle,
+            measure_axis,
+            direction
+          )
+          distance = (plane_point - middle).dot(direction) if plane_point
+        end
+
+        return nil if distance.abs <= 0.1.mm
+
+        offset = direction.clone
+        offset.length = distance.abs
+        offset.reverse! if distance < 0.0
+
+        @dim_axis_name = name
+        offset
       end
 
       def valid_offset?
@@ -754,6 +868,7 @@ module TranTuanNoiThat
 
       def draw_mode_badge(view)
         text = @mode == MODE_MULTI ? 'DIM ĐA ĐIỂM · TAB: 2 ĐIỂM' : 'DIM 2 ĐIỂM · TAB: ĐA ĐIỂM'
+        text += " · HƯỚNG: #{@dim_axis_name}" if @dim_axis_name && valid_offset?
         view.draw_text(
           [16, 28],
           text,
