@@ -18,7 +18,7 @@ module TranTuanNoiThat
   }.freeze unless const_defined?(:LOCKED_FEATURE_BASELINES, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.285'.freeze
+  VERSION = '1.9.286'.freeze
 
   class << self
     def setting(key, default = nil)
@@ -665,11 +665,11 @@ module TranTuanNoiThat
       @delete_faces_cmd ||= command(
         'XÓA FACE → GIỮ KHUNG',
         'delete_faces.svg',
-        'Chọn hoặc quét chọn Face / Group / Component → gọi công cụ = xóa Face ngay, chỉ giữ Edge/khung · 1 Undo.'
+        'Chọn/quét Face / Group / Component → xóa Face ngay → tự đóng thành GROUP KHUNG · phím tắt đề xuất: X · 1 Undo.'
       ) { DeleteFacesTool.run }
 
       @delete_faces_cmd.tooltip = 'XÓA FACE → GIỮ KHUNG'
-      @delete_faces_cmd.status_bar_text = 'Chọn/quét nhiều đối tượng rồi bấm: xóa toàn bộ Face bên trong, giữ Edge/khung, không phá Group/Tag/vị trí.'
+      @delete_faces_cmd.status_bar_text = 'Chọn/quét đối tượng → xóa Face ngay → mỗi đối tượng thành 1 GROUP KHUNG. Phím tắt đề xuất: X (gán trong Preferences > Shortcuts).'
       @delete_faces_cmd.menu_text = 'XÓA FACE → GIỮ KHUNG' if @delete_faces_cmd.respond_to?(:menu_text=)
 
       add_feature_command_once(
