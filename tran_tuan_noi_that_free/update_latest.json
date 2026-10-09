@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.283",
+  "version": "1.9.284",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Thêm chức năng XÓA VẬT LIỆU → MẶC ĐỊNH. Chọn một hoặc nhiều Face/Group/Component rồi bấm icon mới xanh-trắng; hệ thống xóa Material mặt trước, mặt sau, vật liệu gán ở Group/Component và vật liệu bên trong, trả về Default Material. Không đổi hình học, tên, Tag/Layer hay vị trí; Component được Make Unique trước khi sửa nội dung nếu đang dùng chung definition để không ảnh hưởng instance khác. Nếu không chọn gì, công cụ không quét toàn model. Một lần thao tác = một Undo.",
+  "notes": "Xóa hoàn toàn chức năng BẬT/TẮT từng tính năng trong Cài Đặt Chung. Gỡ card checkbox khỏi giao diện Settings, không còn lưu/đọc các feature_board/box/drawer/round/stretch_mode/grain/layout_stats. Lõi feature_enabled? nay luôn trả true; các command từng có feature flag luôn Enabled và không còn thông báo 'đang tắt trong Cài Đặt Chung'. Khi nạp lại, các giá trị feature_* cũ được đồng bộ về true để icon đã từng bị làm mờ sáng lại. Giữ nguyên các cài đặt còn lại như độ dày mặc định, tự kiểm tra cập nhật và kênh cập nhật.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "b583325bbc1fc031a5ab3dcb68aa804b4ba2622184eb0c99bced77984674813d"
+      "sha256": "a1736678aebb9449fc63855d42963807b683c650c7e83c342c270f7be5332486"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -264,7 +264,7 @@
     {
       "path": "tran_tuan_noi_that/settings.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/settings.rb",
-      "sha256": "d69823bf750f1db13e0e28f4b754b0387f82447159b70421fe45f3f92ca08984"
+      "sha256": "7ec0e9d471a6f1c58978bdf6aec16a16277017509d5691b9990250bf0eb21c48"
     },
     {
       "path": "tran_tuan_noi_that/slat_wall_tool.rb",
@@ -304,7 +304,7 @@
     {
       "path": "tran_tuan_noi_that/ui/settings.html",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/ui/settings.html",
-      "sha256": "113a8092ba15f4255ac10e82009c06aec154d1a7aa5f54831031f4e13f783c65"
+      "sha256": "d8eae41be5da8b1b8b0f17a586e8c4eb27220ac9786b72eeb708cbbf5215441d"
     },
     {
       "path": "tran_tuan_noi_that/updater.rb",
@@ -314,7 +314,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "1467f3423f98cf8a87b59808fef14b49600ec046153f678f70f47b4e07eb56d8"
+      "sha256": "41c1d152dab2a155f79f6e3b7434a4af9934db2e676d14f3c9e926d66c180dee"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
