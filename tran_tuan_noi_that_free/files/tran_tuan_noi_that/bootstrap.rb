@@ -18,7 +18,7 @@ module TranTuanNoiThat
   }.freeze unless const_defined?(:LOCKED_FEATURE_BASELINES, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.284'.freeze
+  VERSION = '1.9.285'.freeze
 
   class << self
     def setting(key, default = nil)
@@ -164,6 +164,7 @@ module TranTuanNoiThat
         door_open_mark
         grain_tool
         material_reset_tool
+        delete_faces_tool
         grain_material_fix
         grain_align_fix
         grain_standard_2440_fix
@@ -389,6 +390,7 @@ module TranTuanNoiThat
       install_stretch_mode_ui
       install_grain_ui
       install_material_reset_ui
+      install_delete_faces_ui
       install_door_open_mark_ui
       install_notch_ui
       install_wine_rack_ui
@@ -654,6 +656,29 @@ module TranTuanNoiThat
       true
     rescue StandardError => error
       puts "[TT UI MaterialReset] #{error.class}: #{error.message}"
+      false
+    end
+
+    def install_delete_faces_ui
+      return false unless defined?(TranTuanNoiThat::DeleteFacesTool)
+
+      @delete_faces_cmd ||= command(
+        'XÓA FACE → GIỮ KHUNG',
+        'delete_faces.svg',
+        'Chọn hoặc quét chọn Face / Group / Component → gọi công cụ = xóa Face ngay, chỉ giữ Edge/khung · 1 Undo.'
+      ) { DeleteFacesTool.run }
+
+      @delete_faces_cmd.tooltip = 'XÓA FACE → GIỮ KHUNG'
+      @delete_faces_cmd.status_bar_text = 'Chọn/quét nhiều đối tượng rồi bấm: xóa toàn bộ Face bên trong, giữ Edge/khung, không phá Group/Tag/vị trí.'
+      @delete_faces_cmd.menu_text = 'XÓA FACE → GIỮ KHUNG' if @delete_faces_cmd.respond_to?(:menu_text=)
+
+      add_feature_command_once(
+        @delete_faces_cmd,
+        :delete_faces_menu_installed
+      )
+      true
+    rescue StandardError => error
+      puts "[TT UI DeleteFaces] #{error.class}: #{error.message}"
       false
     end
 
