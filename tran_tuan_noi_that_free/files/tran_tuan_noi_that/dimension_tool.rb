@@ -466,6 +466,8 @@ module TranTuanNoiThat
         @hover = nil
         @offset = nil
         @dim_axis_name = nil
+        @last_valid_offset = nil
+        @last_dim_axis_name = nil
         @points = []
       end
 
@@ -502,15 +504,36 @@ module TranTuanNoiThat
         @ip.pick(view, x, y)
         @hover = @ip.valid? ? @ip.position : nil
 
-        if @mode == MODE_MULTI
-          update_multi_offset(view, x, y)
-        elsif @p2
-          @offset = offset_from_cursor(@p1, @p2, view, x, y)
+        candidate =
+          if @mode == MODE_MULTI
+            update_multi_offset(view, x, y)
+          elsif @p2
+            offset_from_cursor(@p1, @p2, view, x, y)
+          end
+
+        if candidate && candidate.length > 0.1.mm
+          @offset = candidate
+          @last_valid_offset = candidate.clone
+          @last_dim_axis_name = @dim_axis_name
+        elsif (@p2 || (@mode == MODE_MULTI && @points.length >= 2)) &&
+              @last_valid_offset &&
+              @last_valid_offset.length > 0.1.mm
+          # Chuột vừa đi qua vị trí suy biến: giữ preview hợp lệ gần nhất.
+          @offset = @last_valid_offset.clone
+          @dim_axis_name = @last_dim_axis_name
+        else
+          @offset = nil
         end
 
         status
         view.invalidate
       rescue StandardError => error
+        if zero_vector_error?(error)
+          @offset = @last_valid_offset.clone if @last_valid_offset
+          @dim_axis_name = @last_dim_axis_name
+          view.invalidate
+          return
+        end
         show_error(error)
       end
 
@@ -606,10 +629,29 @@ module TranTuanNoiThat
       end
 
       def update_multi_offset(view, x, y)
-        return @offset = nil if @points.length < 2
+        return nil if @points.length < 2
 
         # Dùng trục từ điểm đầu tới điểm cuối để cả chuỗi nằm cùng một hàng DIM.
-        @offset = offset_from_cursor(@points.first, @points.last, view, x, y)
+        offset_from_cursor(@points.first, @points.last, view, x, y)
+      end
+
+      def safe_unit(vector)
+        return nil unless vector
+        length = vector.length.to_f
+        return nil unless length.finite? && length > 1.0e-8
+
+        Geom::Vector3d.new(
+          vector.x / length,
+          vector.y / length,
+          vector.z / length
+        )
+      rescue StandardError
+        nil
+      end
+
+      def zero_vector_error?(error)
+        error &&
+          error.message.to_s.downcase.include?('zero length vector')
       end
 
       def model_axis_candidates(measure_axis)
@@ -631,9 +673,8 @@ module TranTuanNoiThat
             base.y - measure_axis.y * dot,
             base.z - measure_axis.z * dot
           )
-          next if perp.length < 1.0e-6
-
-          perp.normalize!
+          perp = safe_unit(perp)
+          next unless perp
 
           # Với đoạn chéo, hai Model Axis có thể chiếu thành cùng một hướng.
           duplicate = result.any? do |_old_name, old_axis|
@@ -648,8 +689,16 @@ module TranTuanNoiThat
       end
 
       def screen_axis_score(view, middle, direction, x, y)
+        direction = safe_unit(direction)
+        return 0.0 unless direction
+
         origin_2d = view.screen_coords(middle)
-        sample_3d = middle.offset(direction, 250.mm)
+        distance = 250.mm
+        sample_3d = Geom::Point3d.new(
+          middle.x + direction.x * distance,
+          middle.y + direction.y * distance,
+          middle.z + direction.z * distance
+        )
         sample_2d = view.screen_coords(sample_3d)
 
         sx = sample_2d.x - origin_2d.x
@@ -666,8 +715,8 @@ module TranTuanNoiThat
       end
 
       def point_on_model_axis_plane(view, x, y, middle, measure_axis, offset_axis)
-        plane_normal = measure_axis.cross(offset_axis)
-        return nil if plane_normal.length < 1.0e-6
+        plane_normal = safe_unit(measure_axis.cross(offset_axis))
+        return nil unless plane_normal
 
         Geom.intersect_line_plane(
           view.pickray(x, y),
@@ -681,7 +730,9 @@ module TranTuanNoiThat
         return nil if a.distance(b) <= 0.1.mm
 
         middle = Geom::Point3d.linear_combination(0.5, a, 0.5, b)
-        measure_axis = (b - a).normalize
+        measure_axis = safe_unit(b - a)
+        return nil unless measure_axis
+
         candidates = model_axis_candidates(measure_axis)
         return nil if candidates.empty?
 
@@ -717,12 +768,25 @@ module TranTuanNoiThat
 
         return nil if distance.abs <= 0.1.mm
 
-        offset = direction.clone
-        offset.length = distance.abs
-        offset.reverse! if distance < 0.0
+        direction = safe_unit(direction)
+        return nil unless direction
+
+        magnitude = distance.abs
+        return nil unless magnitude.finite? && magnitude > 0.1.mm
+
+        sign = distance < 0.0 ? -1.0 : 1.0
+        offset = Geom::Vector3d.new(
+          direction.x * magnitude * sign,
+          direction.y * magnitude * sign,
+          direction.z * magnitude * sign
+        )
+        return nil if offset.length <= 0.1.mm
 
         @dim_axis_name = name
         offset
+      rescue StandardError => error
+        return nil if zero_vector_error?(error)
+        raise
       end
 
       def valid_offset?
@@ -739,11 +803,14 @@ module TranTuanNoiThat
 
         @model.start_operation('TT - DIM 2 điểm', true)
         inv = @edit.inverse
-        @context.add_dimension_linear(
-          @p1.transform(inv),
-          @p2.transform(inv),
-          @offset.transform(inv)
-        )
+        lp1 = @p1.transform(inv)
+        lp2 = @p2.transform(inv)
+        loffset = @offset.transform(inv)
+
+        raise 'P1 và P2 đang trùng nhau.' if lp1.distance(lp2) <= 0.1.mm
+        raise 'Hướng đặt DIM chưa hợp lệ.' if loffset.length <= 0.1.mm
+
+        @context.add_dimension_linear(lp1, lp2, loffset)
         @model.commit_operation
       end
 
@@ -869,6 +936,7 @@ module TranTuanNoiThat
       end
 
       def show_error(error)
+        return if zero_vector_error?(error)
         UI.messagebox("DIM: #{error.message}")
       end
     end
