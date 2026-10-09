@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.282",
+  "version": "1.9.283",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Sửa lỗi DIM 'Zero length vector'. Các vector Model Axis/offset giờ được kiểm tra chiều dài trước khi chuẩn hóa; không dùng normalize trên vector 0. Khi chuột đi qua vị trí suy biến, DIM giữ hướng hợp lệ gần nhất thay vì bật popup hoặc mất preview. Lỗi zero-vector tạm thời khi rê chuột bị bỏ qua; trước khi tạo DIM thật vẫn kiểm tra P1/P2 và offset ở hệ tọa độ local.",
+  "notes": "Thêm chức năng XÓA VẬT LIỆU → MẶC ĐỊNH. Chọn một hoặc nhiều Face/Group/Component rồi bấm icon mới xanh-trắng; hệ thống xóa Material mặt trước, mặt sau, vật liệu gán ở Group/Component và vật liệu bên trong, trả về Default Material. Không đổi hình học, tên, Tag/Layer hay vị trí; Component được Make Unique trước khi sửa nội dung nếu đang dùng chung definition để không ảnh hưởng instance khác. Nếu không chọn gì, công cụ không quét toàn model. Một lần thao tác = một Undo.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "20bf5c695f80d9d98cec6fa7074620cc98ebf20317fded230330246437e2a4c2"
+      "sha256": "b583325bbc1fc031a5ab3dcb68aa804b4ba2622184eb0c99bced77984674813d"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -314,7 +314,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "8747ac896180c832f5666689d7998384fd1d5ba92cb98c3039fde1af0c24fdbe"
+      "sha256": "1467f3423f98cf8a87b59808fef14b49600ec046153f678f70f47b4e07eb56d8"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -430,6 +430,16 @@
       "path": "tran_tuan_noi_that/icons/khau_am_duong.svg",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/icons/khau_am_duong.svg",
       "sha256": "c3cbd24278c2a630f33155b93776bd196bb0fc183bc810e02748c3efbd828340"
+    },
+    {
+      "path": "tran_tuan_noi_that/material_reset_tool.rb",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/material_reset_tool.rb",
+      "sha256": "0e7c18e9920c72fce1aec911df94ffa5b0883478b888dee225893c1df768e963"
+    },
+    {
+      "path": "tran_tuan_noi_that/icons/reset_material.svg",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/icons/reset_material.svg",
+      "sha256": "85e9fb57f108f5809953955c06ca6d90b9c4127ba315ecf39fc9971765f97a45"
     }
   ],
   "stretch_mode_version": "1.0.1",
