@@ -18,7 +18,7 @@ module TranTuanNoiThat
   }.freeze unless const_defined?(:LOCKED_FEATURE_BASELINES, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.279'.freeze
+  VERSION = '1.9.280'.freeze
 
   class << self
     def setting(key, default = nil)
@@ -648,7 +648,7 @@ module TranTuanNoiThat
       @dim_points_cmd.set_validation_proc { MF_GRAYED } if @dim_points_cmd
       @dim_auto_cmd ||= command('DIM 2 điểm', 'dim_auto.svg', 'Mặc định DIM 2 điểm · TAB chuyển DIM đa điểm · ENTER tạo chuỗi DIM đa điểm.') { DetailDimensions.launch }
       @dim_auto_cmd.tooltip = 'DIM 2 điểm'
-      @dim_auto_cmd.status_bar_text = 'Gọi công cụ = DIM 2 điểm · TAB đổi DIM đa điểm · đa điểm: P1-P2-P3... rồi ENTER để tạo.'
+      @dim_auto_cmd.status_bar_text = 'Gọi công cụ = DIM 2 điểm · kéo chuột tự nhận hướng X/Y/Z theo Model Axis, không theo camera · TAB đổi DIM đa điểm.'
       add_feature_command_once(@dim_auto_cmd, :dim_auto_menu_installed)
     end
 
