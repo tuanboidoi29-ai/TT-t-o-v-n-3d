@@ -18,7 +18,7 @@ module TranTuanNoiThat
   }.freeze unless const_defined?(:LOCKED_FEATURE_BASELINES, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.282'.freeze
+  VERSION = '1.9.283'.freeze
 
   class << self
     def setting(key, default = nil)
@@ -150,6 +150,7 @@ module TranTuanNoiThat
         cad_walls
         door_open_mark
         grain_tool
+        material_reset_tool
         grain_material_fix
         grain_align_fix
         grain_standard_2440_fix
@@ -374,6 +375,7 @@ module TranTuanNoiThat
       install_round_ui
       install_stretch_mode_ui
       install_grain_ui
+      install_material_reset_ui
       install_door_open_mark_ui
       install_notch_ui
       install_wine_rack_ui
@@ -617,6 +619,29 @@ module TranTuanNoiThat
       return false unless defined?(TranTuanNoiThat::NotchTool)
       @notch_cmd ||= command('Khấu ván AUTO', 'notch.svg', 'Click khấu ngay; SHIFT đổi khuôn/tấm bị khấu; TAB lưu mở rộng biên và dao; hoàn tất chỉ beep.') { NotchTool.activate }
       add_feature_command_once(@notch_cmd, :notch_menu_installed)
+    end
+
+    def install_material_reset_ui
+      return false unless defined?(TranTuanNoiThat::MaterialReset)
+
+      @material_reset_cmd ||= command(
+        'Xóa Vật Liệu → Mặc Định',
+        'reset_material.svg',
+        'Chọn Face / Group / Component → xóa Material mặt trước, mặt sau và bên trong → trả về Default Material · 1 Undo.'
+      ) { MaterialReset.run }
+
+      @material_reset_cmd.tooltip = 'Xóa Vật Liệu → Mặc Định'
+      @material_reset_cmd.status_bar_text = 'Chọn 1 hoặc nhiều Face/Group/Component rồi bấm: xóa vật liệu về mặc định, giữ nguyên hình học/Tag/Group.'
+      @material_reset_cmd.menu_text = 'Xóa Vật Liệu → Mặc Định' if @material_reset_cmd.respond_to?(:menu_text=)
+
+      add_feature_command_once(
+        @material_reset_cmd,
+        :material_reset_menu_installed
+      )
+      true
+    rescue StandardError => error
+      puts "[TT UI MaterialReset] #{error.class}: #{error.message}"
+      false
     end
 
     def install_door_open_mark_ui
