@@ -447,67 +447,351 @@ module TranTuanNoiThat
       Sketchup.active_model.select_tool(TwoPointTool.new)
     end
     class TwoPointTool
+      MODE_TWO = :two
+      MODE_MULTI = :multi
+
       def activate
-        @model=Sketchup.active_model;@context=@model.active_entities;@edit=@model.edit_transform
-        @ip=Sketchup::InputPoint.new;@first=Sketchup::InputPoint.new
-        reset
+        @model = Sketchup.active_model
+        @context = @model.active_entities
+        @edit = @model.edit_transform
+        @ip = Sketchup::InputPoint.new
+        @mode = MODE_TWO
+        reset_geometry
+        status
       end
-      def reset
-        @p1=@p2=@hover=@offset=nil
-        Sketchup.status_text='DIM: Chọn P1 → P2 → kéo vị trí DIM → click đặt. ESC hủy.'
+
+      def reset_geometry
+        @p1 = nil
+        @p2 = nil
+        @hover = nil
+        @offset = nil
+        @points = []
       end
-      def onMouseMove(flags,x,y,view)
-        @ip.pick(view,x,y)
-        @hover=@ip.valid? ? @ip.position : nil
-        if @p2
-          middle=Geom::Point3d.linear_combination(0.5,@p1,0.5,@p2)
-          point=@hover || Geom.intersect_line_plane(view.pickray(x,y),[middle,view.camera.direction])
-          if point
-            axis=(@p2-@p1).normalize
-            raw=point-middle
-            @offset=Geom::Vector3d.new(raw.x-axis.x*raw.dot(axis),raw.y-axis.y*raw.dot(axis),raw.z-axis.z*raw.dot(axis))
+
+      def mode_name
+        @mode == MODE_MULTI ? 'DIM ĐA ĐIỂM' : 'DIM 2 ĐIỂM'
+      end
+
+      def status
+        text =
+          if @mode == MODE_MULTI
+            if @points.empty?
+              'DIM ĐA ĐIỂM · click P1 → P2 → P3... · TAB về DIM 2 ĐIỂM · ESC thoát.'
+            elsif @points.length == 1
+              'DIM ĐA ĐIỂM · đã có P1 · tiếp tục click P2, P3... · Backspace xóa điểm cuối.'
+            else
+              'DIM ĐA ĐIỂM · tiếp tục thêm điểm · rê chuột đặt vị trí DIM · ENTER hoặc double-click để tạo · TAB đổi mode.'
+            end
+          elsif !@p1
+            'DIM 2 ĐIỂM · chọn P1 · TAB chuyển DIM ĐA ĐIỂM · ESC thoát.'
+          elsif !@p2
+            'DIM 2 ĐIỂM · chọn P2 · TAB chuyển DIM ĐA ĐIỂM.'
           else
-            @offset=nil
+            'DIM 2 ĐIỂM · kéo vị trí DIM → click đặt · TAB chuyển DIM ĐA ĐIỂM.'
           end
-        end
-        view.invalidate
+
+        Sketchup.set_status_text(text, SB_PROMPT)
       end
-      def onLButtonDown(flags,x,y,view)
-        raise 'Cấp chỉnh sửa đã đổi; mở lại DIM.' unless @model.active_entities==@context
-        onMouseMove(flags,x,y,view)
-        if !@p1
-          @p1=@hover.clone if @hover
+
+      def onMouseMove(_flags, x, y, view)
+        @ip.pick(view, x, y)
+        @hover = @ip.valid? ? @ip.position : nil
+
+        if @mode == MODE_MULTI
+          update_multi_offset(view, x, y)
+        elsif @p2
+          @offset = offset_from_cursor(@p1, @p2, view, x, y)
+        end
+
+        view.invalidate
+      rescue StandardError => error
+        show_error(error)
+      end
+
+      def onLButtonDown(flags, x, y, view)
+        ensure_context!
+        onMouseMove(flags, x, y, view)
+
+        if @mode == MODE_MULTI
+          add_multi_point
+        elsif !@p1
+          @p1 = @hover.clone if @hover
         elsif !@p2
-          @p2=@hover.clone if @hover && @hover.distance(@p1)>0.1.mm
-        elsif @offset && @offset.length>0.1.mm
-          @model.start_operation('TT - DIM 2 điểm',true)
-          inv=@edit.inverse
-          @context.add_dimension_linear(@p1.transform(inv),@p2.transform(inv),@offset.transform(inv))
-          @model.commit_operation
-          reset
+          if @hover && @hover.distance(@p1) > 0.1.mm
+            @p2 = @hover.clone
+          end
+        elsif @offset && @offset.length > 0.1.mm
+          commit_two
+          reset_geometry
         end
+
+        status
         view.invalidate
-      rescue StandardError=>e
+      rescue StandardError => error
         @model.abort_operation rescue nil
-        UI.messagebox(e.message)
+        show_error(error)
       end
+
+      def onLButtonDoubleClick(_flags, _x, _y, view)
+        return unless @mode == MODE_MULTI
+        return unless @points.length >= 2 && valid_offset?
+
+        commit_multi
+        reset_geometry
+        status
+        view.invalidate
+      rescue StandardError => error
+        @model.abort_operation rescue nil
+        show_error(error)
+      end
+
+      def onKeyDown(key, repeat, _flags, view)
+        return false if repeat.to_i > 1
+
+        case key
+        when 9 # TAB
+          toggle_mode
+          view.invalidate
+          true
+        when 13 # ENTER
+          if @mode == MODE_MULTI && @points.length >= 2 && valid_offset?
+            commit_multi
+            reset_geometry
+            status
+            view.invalidate
+            true
+          else
+            false
+          end
+        when 8 # BACKSPACE
+          if @mode == MODE_MULTI && !@points.empty?
+            @points.pop
+            @offset = nil if @points.length < 2
+            status
+            view.invalidate
+            true
+          else
+            false
+          end
+        else
+          false
+        end
+      rescue StandardError => error
+        @model.abort_operation rescue nil
+        show_error(error)
+        true
+      end
+
+      def toggle_mode
+        @mode = @mode == MODE_TWO ? MODE_MULTI : MODE_TWO
+        reset_geometry
+        status
+        UI.beep
+      end
+
+      def add_multi_point
+        return unless @hover
+
+        point = @hover.clone
+        if @points.empty? || point.distance(@points.last) > 0.1.mm
+          @points << point
+          @offset = nil if @points.length < 2
+        end
+      end
+
+      def update_multi_offset(view, x, y)
+        return @offset = nil if @points.length < 2
+
+        # Dùng trục từ điểm đầu tới điểm cuối để cả chuỗi nằm cùng một hàng DIM.
+        @offset = offset_from_cursor(@points.first, @points.last, view, x, y)
+      end
+
+      def offset_from_cursor(a, b, view, x, y)
+        return nil unless a && b
+        return nil if a.distance(b) <= 0.1.mm
+
+        middle = Geom::Point3d.linear_combination(0.5, a, 0.5, b)
+        point =
+          @hover ||
+          Geom.intersect_line_plane(
+            view.pickray(x, y),
+            [middle, view.camera.direction]
+          )
+        return nil unless point
+
+        axis = (b - a).normalize
+        raw = point - middle
+        offset = Geom::Vector3d.new(
+          raw.x - axis.x * raw.dot(axis),
+          raw.y - axis.y * raw.dot(axis),
+          raw.z - axis.z * raw.dot(axis)
+        )
+        offset.length > 0.1.mm ? offset : nil
+      end
+
+      def valid_offset?
+        @offset && @offset.length > 0.1.mm
+      end
+
+      def ensure_context!
+        raise 'Cấp chỉnh sửa đã đổi; mở lại DIM.' unless @model.active_entities == @context
+      end
+
+      def commit_two
+        ensure_context!
+        raise 'Chưa đủ P1 / P2 / vị trí DIM.' unless @p1 && @p2 && valid_offset?
+
+        @model.start_operation('TT - DIM 2 điểm', true)
+        inv = @edit.inverse
+        @context.add_dimension_linear(
+          @p1.transform(inv),
+          @p2.transform(inv),
+          @offset.transform(inv)
+        )
+        @model.commit_operation
+      end
+
+      def commit_multi
+        ensure_context!
+        raise 'DIM đa điểm cần ít nhất 2 điểm.' if @points.length < 2
+        raise 'Hãy rê chuột ra vị trí đặt hàng DIM.' unless valid_offset?
+
+        pairs = @points.each_cons(2).reject do |a, b|
+          a.distance(b) <= 0.1.mm
+        end
+        raise 'Không có đoạn DIM hợp lệ.' if pairs.empty?
+
+        @model.start_operation('TT - DIM đa điểm', true)
+        inv = @edit.inverse
+
+        pairs.each do |a, b|
+          @context.add_dimension_linear(
+            a.transform(inv),
+            b.transform(inv),
+            @offset.transform(inv)
+          )
+        end
+
+        @model.commit_operation
+      end
+
       def draw(view)
         @ip.draw(view) if @ip.valid? && @ip.display?
+
+        view.line_width = 2
+        view.drawing_color = Sketchup::Color.new(30, 120, 210)
+
+        if @mode == MODE_MULTI
+          draw_multi(view)
+        else
+          draw_two(view)
+        end
+
+        draw_mode_badge(view)
+      rescue StandardError => error
+        puts "[TT DIM draw] #{error.class}: #{error.message}"
+      end
+
+      def draw_two(view)
         return unless @p1
-        view.drawing_color=Sketchup::Color.new(30,120,210);view.line_width=2
-        other=@p2 || @hover
+
+        other = @p2 || @hover
         return unless other
-        view.draw(GL_LINES,[@p1,other])
-        if @p2 && @offset && @offset.length>0.1.mm
-          a=@p1.offset(@offset);b=@p2.offset(@offset)
-          view.draw(GL_LINES,[@p1,a,a,b,b,@p2])
-          view.draw_text(view.screen_coords(Geom::Point3d.linear_combination(0.5,a,0.5,b)),format('%.1f mm',@p1.distance(@p2).to_mm))
+
+        view.draw(GL_LINES, [@p1, other])
+
+        if @p2 && valid_offset?
+          draw_dim_preview(view, @p1, @p2, @offset)
         end
       end
-      def onCancel(reason,view)
-        @p1 ? reset : @model.select_tool(nil);view.invalidate
+
+      def draw_multi(view)
+        preview_points = @points.dup
+        if @hover && (
+          preview_points.empty? ||
+          @hover.distance(preview_points.last) > 0.1.mm
+        )
+          preview_points << @hover
+        end
+
+        if preview_points.length >= 2
+          segments = preview_points.each_cons(2).flat_map { |a, b| [a, b] }
+          view.draw(GL_LINES, segments)
+        end
+
+        if @points.length >= 2 && valid_offset?
+          @points.each_cons(2) do |a, b|
+            next if a.distance(b) <= 0.1.mm
+            draw_dim_preview(view, a, b, @offset)
+          end
+        end
+
+        draw_multi_points(view)
       end
-      def deactivate(view);view.invalidate;end
+
+      def draw_multi_points(view)
+        return if @points.empty?
+
+        view.point_size = 8
+        view.drawing_color = Sketchup::Color.new(30, 120, 210)
+        view.draw_points(@points, 8, 2, Sketchup::Color.new(30, 120, 210))
+
+        @points.each_with_index do |point, index|
+          screen = view.screen_coords(point)
+          view.draw_text(screen, "P#{index + 1}")
+        end
+      end
+
+      def draw_dim_preview(view, a, b, offset)
+        aa = a.offset(offset)
+        bb = b.offset(offset)
+        view.draw(GL_LINES, [a, aa, aa, bb, bb, b])
+        middle = Geom::Point3d.linear_combination(0.5, aa, 0.5, bb)
+        view.draw_text(
+          view.screen_coords(middle),
+          format('%.1f mm', a.distance(b).to_mm)
+        )
+      end
+
+      def draw_mode_badge(view)
+        text = @mode == MODE_MULTI ? 'DIM ĐA ĐIỂM · TAB: 2 ĐIỂM' : 'DIM 2 ĐIỂM · TAB: ĐA ĐIỂM'
+        view.draw_text(
+          Geom::Point3d.new(16, 28, 0),
+          text,
+          size: 13,
+          bold: true,
+          color: Sketchup::Color.new(30, 120, 210)
+        )
+      rescue StandardError
+        # Một số phiên bản SketchUp không hỗ trợ options đầy đủ cho draw_text.
+      end
+
+      def onCancel(_reason, view)
+        if active_geometry?
+          reset_geometry
+          status
+        else
+          @model.select_tool(nil)
+        end
+        view.invalidate
+      end
+
+      def active_geometry?
+        if @mode == MODE_MULTI
+          !@points.empty?
+        else
+          !!(@p1 || @p2)
+        end
+      end
+
+      def deactivate(view)
+        Sketchup.set_status_text('', SB_PROMPT)
+        view.invalidate
+      end
+
+      def show_error(error)
+        UI.messagebox("DIM: #{error.message}")
+      end
     end
   end
 end
