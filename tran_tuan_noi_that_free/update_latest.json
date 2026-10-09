@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.284",
+  "version": "1.9.285",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Xóa hoàn toàn chức năng BẬT/TẮT từng tính năng trong Cài Đặt Chung. Gỡ card checkbox khỏi giao diện Settings, không còn lưu/đọc các feature_board/box/drawer/round/stretch_mode/grain/layout_stats. Lõi feature_enabled? nay luôn trả true; các command từng có feature flag luôn Enabled và không còn thông báo 'đang tắt trong Cài Đặt Chung'. Khi nạp lại, các giá trị feature_* cũ được đồng bộ về true để icon đã từng bị làm mờ sáng lại. Giữ nguyên các cài đặt còn lại như độ dày mặc định, tự kiểm tra cập nhật và kênh cập nhật.",
+  "notes": "Thêm chức năng XÓA FACE → GIỮ KHUNG. Chọn hoặc quét chọn một/nhiều Face, Group hoặc Component rồi gọi công cụ: xóa Face ngay, chỉ giữ lại Edge/khung dây. Với Group/Component, xử lý đệ quy các Face bên trong nhưng không explode, không đổi Tag/Layer/tên/vị trí. Component/Group dùng chung definition được Make Unique trước để không ảnh hưởng instance khác. Không có hộp xác nhận khi đã có vùng chọn; một lần thao tác = một Undo. Thêm icon xanh-trắng riêng.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "a1736678aebb9449fc63855d42963807b683c650c7e83c342c270f7be5332486"
+      "sha256": "7773534787d9f2c76fb412f2cb33649de6790145390575499886f7ca126a90a8"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -314,7 +314,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "41c1d152dab2a155f79f6e3b7434a4af9934db2e676d14f3c9e926d66c180dee"
+      "sha256": "9fd35ca43be6e58f0b72a4da4fea33f334dd6ad29b42742880b2d2e273d5eff5"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -440,6 +440,16 @@
       "path": "tran_tuan_noi_that/icons/reset_material.svg",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/icons/reset_material.svg",
       "sha256": "85e9fb57f108f5809953955c06ca6d90b9c4127ba315ecf39fc9971765f97a45"
+    },
+    {
+      "path": "tran_tuan_noi_that/delete_faces_tool.rb",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/delete_faces_tool.rb",
+      "sha256": "5a92b7ae95d25f5d9be496d2e4939ef5715360a51d5d4e78932e3de4745b1e52"
+    },
+    {
+      "path": "tran_tuan_noi_that/icons/delete_faces.svg",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/icons/delete_faces.svg",
+      "sha256": "fd38696c2d4256e19ee6e76f7010cfed5a510a63f640dc565162293510a38e66"
     }
   ],
   "stretch_mode_version": "1.0.1",
