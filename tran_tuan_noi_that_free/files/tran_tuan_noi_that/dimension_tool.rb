@@ -481,14 +481,14 @@ module TranTuanNoiThat
             elsif @points.length == 1
               'DIM ĐA ĐIỂM · đã có P1 · tiếp tục click P2, P3... · Backspace xóa điểm cuối.'
             else
-              'DIM ĐA ĐIỂM · tiếp tục thêm điểm · rê chuột đặt vị trí DIM · ENTER hoặc double-click để tạo · TAB đổi mode.'
+              'DIM ĐA ĐIỂM · di chuột: tự nhận hướng X/Y/Z · ENTER hoặc double-click để tạo · TAB đổi mode.'
             end
           elsif !@p1
             'DIM 2 ĐIỂM · chọn P1 · TAB chuyển DIM ĐA ĐIỂM · ESC thoát.'
           elsif !@p2
             'DIM 2 ĐIỂM · chọn P2 · TAB chuyển DIM ĐA ĐIỂM.'
           else
-            'DIM 2 ĐIỂM · kéo vị trí DIM → click đặt · TAB chuyển DIM ĐA ĐIỂM.'
+            'DIM 2 ĐIỂM · di chuột: tự nhận hướng X/Y/Z → click đặt · TAB chuyển DIM ĐA ĐIỂM.'
           end
 
         if @dim_axis_name && valid_offset?
@@ -685,53 +685,35 @@ module TranTuanNoiThat
         candidates = model_axis_candidates(measure_axis)
         return nil if candidates.empty?
 
-        raw_hover = @hover ? (@hover - middle) : nil
-
+        # Hướng DIM bám trực tiếp chuyển động chuột trên màn hình.
+        # Không dùng InputPoint/Inference để chọn hướng, tránh Endpoint/Edge
+        # làm DIM nhảy sang trục khác.
         ranked = candidates.map do |name, direction|
-          score =
-            if raw_hover && raw_hover.length > 0.1.mm
-              raw_hover.dot(direction).abs
-            else
-              screen_axis_score(view, middle, direction, x, y)
-            end
-
-          [score, name, direction]
+          [
+            screen_axis_score(view, middle, direction, x, y),
+            name,
+            direction
+          ]
         end.sort_by { |row| -row[0] }
 
         _score, name, direction = ranked.first
         return nil unless direction
 
-        point =
-          if @hover
-            @hover
-          else
-            point_on_model_axis_plane(
-              view,
-              x,
-              y,
-              middle,
-              measure_axis,
-              direction
-            )
-          end
+        # Vị trí DIM cũng ưu tiên chính vị trí chuột trên mặt phẳng
+        # Model Axis đã chọn. InputPoint chỉ là fallback nếu tia chuột song song.
+        point = point_on_model_axis_plane(
+          view,
+          x,
+          y,
+          middle,
+          measure_axis,
+          direction
+        )
+        point ||= @hover
         return nil unless point
 
         raw = point - middle
         distance = raw.dot(direction)
-
-        # Nếu InputPoint đang nằm gần P1-P2, lấy vị trí chuột trên mặt phẳng
-        # Model Axis tương ứng để DIM vẫn kéo tự do, không phụ thuộc camera plane.
-        if distance.abs <= 0.1.mm
-          plane_point = point_on_model_axis_plane(
-            view,
-            x,
-            y,
-            middle,
-            measure_axis,
-            direction
-          )
-          distance = (plane_point - middle).dot(direction) if plane_point
-        end
 
         return nil if distance.abs <= 0.1.mm
 
@@ -807,32 +789,15 @@ module TranTuanNoiThat
       end
 
       def draw_two(view)
-        return unless @p1
+        return unless @p1 && @p2 && valid_offset?
 
-        other = @p2 || @hover
-        return unless other
-
-        view.draw(GL_LINES, [@p1, other])
-
-        if @p2 && valid_offset?
-          draw_dim_preview(view, @p1, @p2, @offset)
-        end
+        # Chỉ vẽ preview DIM thật; bỏ đường gióng/hướng phụ P1→chuột.
+        draw_dim_preview(view, @p1, @p2, @offset)
       end
 
       def draw_multi(view)
-        preview_points = @points.dup
-        if @hover && (
-          preview_points.empty? ||
-          @hover.distance(preview_points.last) > 0.1.mm
-        )
-          preview_points << @hover
-        end
-
-        if preview_points.length >= 2
-          segments = preview_points.each_cons(2).flat_map { |a, b| [a, b] }
-          view.draw(GL_LINES, segments)
-        end
-
+        # Không nối các điểm bằng đường guide.
+        # Chỉ giữ marker P1/P2/P3... và preview DIM thật.
         if @points.length >= 2 && valid_offset?
           @points.each_cons(2) do |a, b|
             next if a.distance(b) <= 0.1.mm
