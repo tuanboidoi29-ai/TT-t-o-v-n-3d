@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.285",
+  "version": "1.9.286",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Thêm chức năng XÓA FACE → GIỮ KHUNG. Chọn hoặc quét chọn một/nhiều Face, Group hoặc Component rồi gọi công cụ: xóa Face ngay, chỉ giữ lại Edge/khung dây. Với Group/Component, xử lý đệ quy các Face bên trong nhưng không explode, không đổi Tag/Layer/tên/vị trí. Component/Group dùng chung definition được Make Unique trước để không ảnh hưởng instance khác. Không có hộp xác nhận khi đã có vùng chọn; một lần thao tác = một Undo. Thêm icon xanh-trắng riêng.",
+  "notes": "Tinh chỉnh XÓA FACE → GIỮ KHUNG: sau khi xóa Face, mỗi Group/Component được chuyển thành đúng 1 GROUP KHUNG chỉ chứa Edge, giữ vị trí/transform và Tag của đối tượng ngoài; Component dùng chung không bị ảnh hưởng vì không sửa definition gốc. Các Face rời đang chọn được gom thành một GROUP KHUNG riêng. Kết quả tự được chọn lại sau khi tạo. Phím tắt X được ghi là phím tắt đề xuất; SketchUp Ruby không có API chính thức để ép gán shortcut toàn cục, vì vậy cần gán X một lần trong Preferences > Shortcuts.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "7773534787d9f2c76fb412f2cb33649de6790145390575499886f7ca126a90a8"
+      "sha256": "187903e33ca7d546f66aea10f5f144e06c77bab2830b893412f94f3b12d61606"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -314,7 +314,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "9fd35ca43be6e58f0b72a4da4fea33f334dd6ad29b42742880b2d2e273d5eff5"
+      "sha256": "819d48c2c138ead5d50a0149c235a5833de2d043f86b2e576126341c108cf5d9"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -444,7 +444,7 @@
     {
       "path": "tran_tuan_noi_that/delete_faces_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/delete_faces_tool.rb",
-      "sha256": "5a92b7ae95d25f5d9be496d2e4939ef5715360a51d5d4e78932e3de4745b1e52"
+      "sha256": "45afcb1ff668d7dba303075a3b739031b6e299b41a47b4318e8a81d0ead821b5"
     },
     {
       "path": "tran_tuan_noi_that/icons/delete_faces.svg",
