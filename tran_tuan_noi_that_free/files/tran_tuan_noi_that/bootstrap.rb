@@ -18,7 +18,7 @@ module TranTuanNoiThat
   }.freeze unless const_defined?(:LOCKED_FEATURE_BASELINES, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.287'.freeze
+  VERSION = '1.9.288'.freeze
 
   class << self
     def setting(key, default = nil)
@@ -165,6 +165,7 @@ module TranTuanNoiThat
         grain_tool
         material_reset_tool
         delete_faces_tool
+        cnc_profile_tool
         grain_material_fix
         grain_align_fix
         grain_standard_2440_fix
@@ -391,6 +392,7 @@ module TranTuanNoiThat
       install_grain_ui
       install_material_reset_ui
       install_delete_faces_ui
+      install_cnc_profile_ui
       install_door_open_mark_ui
       install_notch_ui
       install_wine_rack_ui
@@ -697,6 +699,29 @@ module TranTuanNoiThat
       true
     rescue StandardError => error
       puts "[TT UI DeleteFaces] #{error.class}: #{error.message}"
+      false
+    end
+
+    def install_cnc_profile_ui
+      return false unless defined?(TranTuanNoiThat::CNCProfileTool)
+
+      @cnc_profile_cmd ||= command(
+        'TẠO BIÊN DẠNG CNC',
+        'cnc_profile.svg',
+        'Chọn Group/Component → mở thư viện 20 mẫu CNC → chọn mẫu/DÙNG NGAY → rê Face → preview → click đặt Curve line weld.'
+      ) { CNCProfileTool.show_dialog }
+
+      @cnc_profile_cmd.tooltip = 'TẠO BIÊN DẠNG CNC'
+      @cnc_profile_cmd.status_bar_text = 'Thư viện biên dạng CNC · tùy chỉnh kích thước/cách mép/Tag/Instance · preview · click Face để đặt Curve line weld.'
+      @cnc_profile_cmd.menu_text = 'TẠO BIÊN DẠNG CNC' if @cnc_profile_cmd.respond_to?(:menu_text=)
+
+      add_feature_command_once(
+        @cnc_profile_cmd,
+        :cnc_profile_menu_installed
+      )
+      true
+    rescue StandardError => error
+      puts "[TT UI CNCProfile] #{error.class}: #{error.message}"
       false
     end
 
