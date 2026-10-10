@@ -10,6 +10,7 @@ module TranTuanNoiThat
     ACTIVE_KEY = 'cnc_profile_active_v1'.freeze
     DICT = 'TT_CNC_PROFILE'.freeze
     EPS = 1.0e-7
+    SNAP_RADIUS_PX = 22.0
 
     DEFAULT_PROFILES = [
       {'id'=>'builtin_rect','name'=>'01 Chữ nhật','kind'=>'rectangle','width'=>500.0,'height'=>300.0,'edge_gap'=>30.0,'p1'=>0.0,'p2'=>0.0,'segments'=>32,'fit'=>false,'rotation'=>0.0,'mirror'=>false,'builtin'=>true},
@@ -584,7 +585,7 @@ module TranTuanNoiThat
         @active_entities = @model.active_entities
         @edit_to_world = @model.edit_transform
         Sketchup.set_status_text(
-          "CNC #{@profile['name']} · rà Face của Group/Component bất kỳ → tự nhận Group → preview → click đặt · TAB thư viện · ESC thoát.",
+          "CNC #{@profile['name']} · rà Face → tự nhận khổ ván + 9 điểm MÉP/TÂM/MÉP → preview → click đặt · TAB thư viện · ESC thoát.",
           SB_PROMPT
         )
       end
@@ -648,19 +649,39 @@ module TranTuanNoiThat
           view.draw(GL_LINES, pairs) unless pairs.empty?
         end
 
+        snap_points = @hover[:snap_points_world] || []
+        unless snap_points.empty?
+          view.draw_points(
+            snap_points,
+            6,
+            2,
+            Sketchup::Color.new(90, 190, 255)
+          )
+        end
+
         center = @hover[:center_world]
-        view.point_size = 8 if view.respond_to?(:point_size=)
         view.draw_points(
           [center],
-          8,
+          10,
           2,
           Sketchup::Color.new(255, 150, 40)
         )
 
-        label = "#{@profile['name']} · #{@hover[:width_mm].round(1)} × #{@hover[:height_mm].round(1)} mm"
+        if @hover[:snap_world]
+          view.draw_points(
+            [@hover[:snap_world]],
+            12,
+            2,
+            Sketchup::Color.new(255, 210, 60)
+          )
+        end
+
+        label = "#{@profile['name']} · CNC #{@hover[:width_mm].round(1)} × #{@hover[:height_mm].round(1)} mm"
+        board_label = "KHỔ FACE #{@hover[:board_width_mm].round(1)} × #{@hover[:board_height_mm].round(1)} mm"
+        snap_label = @hover[:snap_label] ? " · BẮT #{@hover[:snap_label]}" : ' · ĐẶT TỰ DO'
         view.draw_text(
           view.screen_coords(center),
-          label
+          "#{label} · #{board_label}#{snap_label}"
         )
       rescue StandardError => error
         puts "[TT CNC draw] #{error.class}: #{error.message}"
@@ -718,7 +739,10 @@ module TranTuanNoiThat
             face,
             target_world,
             face_world,
-            point_world
+            point_world,
+            view,
+            x,
+            y
           )
           return info if info
         end
@@ -763,7 +787,16 @@ module TranTuanNoiThat
         nil
       end
 
-      def preview_info(target, face, target_world, face_world, point_world)
+      def preview_info(
+        target,
+        face,
+        target_world,
+        face_world,
+        point_world,
+        view,
+        mouse_x,
+        mouse_y
+      )
         world_vertices = face.outer_loop.vertices.map do |vertex|
           vertex.position.transform(face_world)
         end
@@ -777,9 +810,47 @@ module TranTuanNoiThat
         normal = safe_unit(plane[1])
         return nil unless normal
 
-        u_axis, v_axis = face_axes(normal)
-        return nil unless u_axis && v_axis
+        # Trục khổ ván luôn lấy từ Face thật, trước khi xoay/mirror biên dạng.
+        board_u, board_v = face_axes(normal)
+        return nil unless board_u && board_v
 
+        values_u = target_vertices.map { |point| point_dot(point, board_u) }
+        values_v = target_vertices.map { |point| point_dot(point, board_v) }
+        min_u, max_u = values_u.minmax
+        min_v, max_v = values_v.minmax
+
+        board_width_mm = (max_u - min_u).to_mm
+        board_height_mm = (max_v - min_v).to_mm
+        return nil if board_width_mm <= 0.1 || board_height_mm <= 0.1
+
+        # 9 điểm bắt: 4 góc + 4 trung điểm cạnh + tâm.
+        snap_points = build_board_snap_points(
+          target_vertices.first,
+          board_u,
+          board_v,
+          min_u,
+          max_u,
+          min_v,
+          max_v,
+          target_world
+        )
+        snapped = nearest_snap_point(
+          snap_points,
+          view,
+          mouse_x,
+          mouse_y
+        )
+
+        anchor =
+          if snapped
+            snapped[:local]
+          else
+            point_world.transform(target_inverse)
+          end
+
+        # Hướng hình CNC có thể xoay/lật độc lập với hệ trục khổ ván.
+        u_axis = board_u
+        v_axis = board_v
         angle = @profile['rotation'].to_f * Math::PI / 180.0
         if angle.abs > EPS
           u_axis, v_axis = rotate_axes(u_axis, v_axis, angle)
@@ -788,30 +859,33 @@ module TranTuanNoiThat
           u_axis = u_axis.reverse
         end
 
-        anchor = point_world.transform(target_inverse)
         width_mm = @profile['width'].to_f
         height_mm = @profile['height'].to_f
 
         if @profile['fit']
-          values_u = target_vertices.map { |point| point_dot(point, u_axis) }
-          values_v = target_vertices.map { |point| point_dot(point, v_axis) }
-          min_u, max_u = values_u.minmax
-          min_v, max_v = values_v.minmax
+          # Fit giữ đúng cơ chế cũ nhưng tâm luôn về tâm khổ Face.
+          fit_u = target_vertices.map { |point| point_dot(point, u_axis) }
+          fit_v = target_vertices.map { |point| point_dot(point, v_axis) }
+          fit_min_u, fit_max_u = fit_u.minmax
+          fit_min_v, fit_max_v = fit_v.minmax
           gap = @profile['edge_gap'].to_f
 
-          width_mm = (max_u - min_u).to_mm - gap * 2.0
-          height_mm = (max_v - min_v).to_mm - gap * 2.0
+          width_mm = (fit_max_u - fit_min_u).to_mm - gap * 2.0
+          height_mm = (fit_max_v - fit_min_v).to_mm - gap * 2.0
           return nil if width_mm <= 1.0 || height_mm <= 1.0
 
-          base = target_vertices.first
-          anchor = base.offset(
+          anchor = point_from_uv(
+            target_vertices.first,
             u_axis,
-            ((min_u + max_u) / 2.0) - point_dot(base, u_axis)
-          )
-          anchor = anchor.offset(
             v_axis,
-            ((min_v + max_v) / 2.0) - point_dot(anchor, v_axis)
+            (fit_min_u + fit_max_u) / 2.0,
+            (fit_min_v + fit_max_v) / 2.0
           )
+          snapped = {
+            :label => 'TÂM KHỔ VÁN · AUTO FIT',
+            :local => anchor,
+            :world => anchor.transform(target_world)
+          }
         end
 
         anchor = anchor.offset(u_axis, @profile['offset_x'].to_f.mm)
@@ -850,8 +924,93 @@ module TranTuanNoiThat
           :world_paths => world_paths,
           :center_world => anchor.transform(target_world),
           :width_mm => width_mm,
-          :height_mm => height_mm
+          :height_mm => height_mm,
+          :board_width_mm => board_width_mm,
+          :board_height_mm => board_height_mm,
+          :snap_points_world => snap_points.map { |item| item[:world] },
+          :snap_label => snapped && snapped[:label],
+          :snap_world => snapped && snapped[:world]
         }
+      end
+
+      def point_from_uv(base, u_axis, v_axis, u_value, v_value)
+        point = base.offset(
+          u_axis,
+          u_value - point_dot(base, u_axis)
+        )
+        point.offset(
+          v_axis,
+          v_value - point_dot(point, v_axis)
+        )
+      end
+
+      def build_board_snap_points(
+        base,
+        u_axis,
+        v_axis,
+        min_u,
+        max_u,
+        min_v,
+        max_v,
+        target_world
+      )
+        mid_u = (min_u + max_u) / 2.0
+        mid_v = (min_v + max_v) / 2.0
+
+        us = [
+          ['MÉP U-', min_u],
+          ['TÂM U', mid_u],
+          ['MÉP U+', max_u]
+        ]
+        vs = [
+          ['MÉP V-', min_v],
+          ['TÂM V', mid_v],
+          ['MÉP V+', max_v]
+        ]
+
+        result = []
+        us.each do |u_name, u_value|
+          vs.each do |v_name, v_value|
+            local = point_from_uv(
+              base,
+              u_axis,
+              v_axis,
+              u_value,
+              v_value
+            )
+            label =
+              if u_name == 'TÂM U' && v_name == 'TÂM V'
+                'TÂM KHỔ VÁN'
+              else
+                "#{u_name} · #{v_name}"
+              end
+
+            result << {
+              :label => label,
+              :local => local,
+              :world => local.transform(target_world)
+            }
+          end
+        end
+        result
+      end
+
+      def nearest_snap_point(points, view, mouse_x, mouse_y)
+        best = nil
+        best_distance = SNAP_RADIUS_PX
+
+        points.each do |item|
+          screen = view.screen_coords(item[:world])
+          dx = screen.x.to_f - mouse_x.to_f
+          dy = screen.y.to_f - mouse_y.to_f
+          distance = Math.sqrt(dx * dx + dy * dy)
+          next if distance > best_distance
+
+          best_distance = distance
+          best = item
+        end
+
+        best
       end
 
       def point_dot(point, axis)
