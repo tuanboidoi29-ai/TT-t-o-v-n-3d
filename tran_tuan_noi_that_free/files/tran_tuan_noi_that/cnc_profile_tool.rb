@@ -295,24 +295,9 @@ module TranTuanNoiThat
     end
 
     def activate_profile(profile)
-      model = Sketchup.active_model
-      targets = model.selection.to_a.select do |entity|
-        (entity.is_a?(Sketchup::Group) ||
-          entity.is_a?(Sketchup::ComponentInstance)) &&
-          entity.valid? &&
-          !entity.locked? &&
-          model.active_entities.include?(entity)
-      end
-
-      if targets.empty?
-        UI.messagebox(
-          "TẠO BIÊN DẠNG CNC:\n" \
-          "Hãy chọn ít nhất 1 Group/Component trước, sau đó chọn mẫu và DÙNG NGAY."
-        )
-        return false
-      end
-
-      model.select_tool(PlacementTool.new(profile, targets))
+      # Không cần chọn Group/Component trước.
+      # Chọn mẫu → DÙNG NGAY → rà trực tiếp Face; tool tự nhận Group chứa Face.
+      Sketchup.active_model.select_tool(PlacementTool.new(profile))
       true
     end
 
@@ -588,11 +573,8 @@ module TranTuanNoiThat
     end
 
     class PlacementTool
-      def initialize(profile, targets)
+      def initialize(profile)
         @profile = CNCProfileTool.deep_copy(profile)
-        @targets = targets
-        @target_ids = {}
-        targets.each { |entity| @target_ids[entity.object_id] = true }
         @hover = nil
         @ip = Sketchup::InputPoint.new
       end
@@ -602,7 +584,7 @@ module TranTuanNoiThat
         @active_entities = @model.active_entities
         @edit_to_world = @model.edit_transform
         Sketchup.set_status_text(
-          "CNC #{@profile['name']} · rê vào Face của Group đang chọn → preview → click đặt · TAB mở thư viện · ESC thoát.",
+          "CNC #{@profile['name']} · rà Face của Group/Component bất kỳ → tự nhận Group → preview → click đặt · TAB thư viện · ESC thoát.",
           SB_PROMPT
         )
       end
@@ -696,20 +678,27 @@ module TranTuanNoiThat
           face_index = path.rindex { |item| item.is_a?(Sketchup::Face) }
           next unless face_index
 
-          target_index = path.index do |item|
-            @target_ids[item.object_id] &&
-              (item.is_a?(Sketchup::Group) ||
-                item.is_a?(Sketchup::ComponentInstance))
+          # Tự lấy Group/Component gần Face nhất trong đường pick.
+          # Không phụ thuộc selection và hỗ trợ cả Group lồng nhau.
+          target_index = nil
+          (face_index - 1).downto(0) do |path_index|
+            item = path[path_index]
+            if item.is_a?(Sketchup::Group) ||
+               item.is_a?(Sketchup::ComponentInstance)
+              target_index = path_index
+              break
+            end
           end
-          next unless target_index && target_index < face_index
+          next unless target_index
 
           target = path[target_index]
-          next unless target.valid? && !target.locked?
+          next unless target.valid?
+          next if target.respond_to?(:locked?) && target.locked?
 
           face = path[face_index]
           face_transform = helper.transformation_at(index) || Geom::Transformation.new
           face_world = @edit_to_world * face_transform
-          target_world = @edit_to_world * target.transformation
+          target_world = world_transform_for_path(path, target_index)
 
           point_world = point_on_face(view, x, y, face, face_world)
           next unless point_world
@@ -738,6 +727,18 @@ module TranTuanNoiThat
       rescue StandardError => error
         puts "[TT CNC pick] #{error.class}: #{error.message}"
         nil
+      end
+
+      def world_transform_for_path(path, target_index)
+        transform = @edit_to_world
+        0.upto(target_index) do |index|
+          item = path[index]
+          if item.is_a?(Sketchup::Group) ||
+             item.is_a?(Sketchup::ComponentInstance)
+            transform *= item.transformation
+          end
+        end
+        transform
       end
 
       def point_on_face(view, x, y, face, face_world)
@@ -1056,7 +1057,7 @@ module TranTuanNoiThat
                   <button class="use" onclick="useProfile()">✓ DÙNG NGAY → RA FACE CLICK ĐỂ ĐẶT</button>
                 </div>
                 <div id="notice" class="notice"></div>
-                <div class="hint">Kết quả: Group biên dạng nằm bên trong Group/Component được chọn · chỉ có Curve/Line · không tạo Face · các đoạn được weld bằng Curve.</div>
+                <div class="hint">Không cần chọn Group trước. Chọn mẫu → DÙNG NGAY → rà Face; hệ thống tự nhận Group/Component chứa Face và đặt Curve/Line weld vào đúng Group đó.</div>
               </div>
 
               <div class="preview">
