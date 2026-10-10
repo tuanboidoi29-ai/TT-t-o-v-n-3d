@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.286",
+  "version": "1.9.287",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Tinh chỉnh XÓA FACE → GIỮ KHUNG: sau khi xóa Face, mỗi Group/Component được chuyển thành đúng 1 GROUP KHUNG chỉ chứa Edge, giữ vị trí/transform và Tag của đối tượng ngoài; Component dùng chung không bị ảnh hưởng vì không sửa definition gốc. Các Face rời đang chọn được gom thành một GROUP KHUNG riêng. Kết quả tự được chọn lại sau khi tạo. Phím tắt X được ghi là phím tắt đề xuất; SketchUp Ruby không có API chính thức để ép gán shortcut toàn cục, vì vậy cần gán X một lần trong Preferences > Shortcuts.",
+  "notes": "Sửa để XÓA FACE → GIỮ KHUNG xuất hiện dễ tìm trong SketchUp 2022 Preferences > Shortcuts. Giữ lệnh Unicode trong submenu plugin, đồng thời thêm một alias ASCII trực tiếp ở menu Extensions cấp ngoài: 'TT - Xoa Face Giu Khung'. Đây là cùng một chức năng. Sau khi cập nhật cần đóng/mở lại SketchUp, sau đó vào Preferences > Shortcuts, tìm 'TT - Xoa Face' và gán phím X.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "187903e33ca7d546f66aea10f5f144e06c77bab2830b893412f94f3b12d61606"
+      "sha256": "b6c97e03290e7e2b83db40e1fdc017300e013cc92477c465d2abf4df61d38c72"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -314,7 +314,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "819d48c2c138ead5d50a0149c235a5833de2d043f86b2e576126341c108cf5d9"
+      "sha256": "9687e75fdc665ccb736a2ce5a83502fedaafed65eafb21b5656bd0b7b61cc531"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
