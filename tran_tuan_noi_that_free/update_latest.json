@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.287",
+  "version": "1.9.288",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Sửa để XÓA FACE → GIỮ KHUNG xuất hiện dễ tìm trong SketchUp 2022 Preferences > Shortcuts. Giữ lệnh Unicode trong submenu plugin, đồng thời thêm một alias ASCII trực tiếp ở menu Extensions cấp ngoài: 'TT - Xoa Face Giu Khung'. Đây là cùng một chức năng. Sau khi cập nhật cần đóng/mở lại SketchUp, sau đó vào Preferences > Shortcuts, tìm 'TT - Xoa Face' và gán phím X.",
+  "notes": "Thêm chức năng TẠO BIÊN DẠNG CNC. Có thư viện 20 mẫu hệ thống tự sinh + mẫu tự lưu bằng JSON trong cấu hình SketchUp; bảng cài đặt xanh-trắng có preview mô phỏng, tìm mẫu, tạo bản sao, lưu/xóa mẫu custom. Cho phép tùy chỉnh tên mẫu, Instance/Group, Tag mặc định ABF_, loại biên dạng, dài/rộng, cách mép, tự khít theo Face, độ mịn, thông số riêng từng mẫu, offset X/Y, góc xoay và mirror. Quy trình: chọn Group/Component → mở TẠO BIÊN DẠNG CNC → tích/chọn mẫu → DÙNG NGAY → rê vào Face bên trong Group được chọn để preview → click đặt. Kết quả là Group biên dạng thật nằm bên trong Group/Component đích, chỉ chứa Curve/Line không tạo Face; các đoạn được tạo bằng add_curve để weld thành đường liên tục. Component dùng chung được Make Unique trước khi ghi hình học. TAB khi đang đặt quay lại thư viện.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "b6c97e03290e7e2b83db40e1fdc017300e013cc92477c465d2abf4df61d38c72"
+      "sha256": "47838ce31bc7c8d71bfc39b17c67b6cabd667b72cd918082b0910fad34338879"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -314,7 +314,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "9687e75fdc665ccb736a2ce5a83502fedaafed65eafb21b5656bd0b7b61cc531"
+      "sha256": "8eea0d029e7303d67813232f5a1ba99544bec52fdd808686c1d8959e98431437"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -450,6 +450,16 @@
       "path": "tran_tuan_noi_that/icons/delete_faces.svg",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/icons/delete_faces.svg",
       "sha256": "fd38696c2d4256e19ee6e76f7010cfed5a510a63f640dc565162293510a38e66"
+    },
+    {
+      "path": "tran_tuan_noi_that/cnc_profile_tool.rb",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/cnc_profile_tool.rb",
+      "sha256": "c8219b75c79a6fe7bbec5f21c698601dbda04e2a5374600fe55063840f151900"
+    },
+    {
+      "path": "tran_tuan_noi_that/icons/cnc_profile.svg",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/icons/cnc_profile.svg",
+      "sha256": "e410581fb738d4b3a33c3a835209ab55b9be1867354d1141ace2b1627e3885d2"
     }
   ],
   "stretch_mode_version": "1.0.1",
