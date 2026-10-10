@@ -18,7 +18,7 @@ module TranTuanNoiThat
   }.freeze unless const_defined?(:LOCKED_FEATURE_BASELINES, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.290'.freeze
+  VERSION = '1.9.291'.freeze
 
   class << self
     def setting(key, default = nil)
@@ -712,7 +712,7 @@ module TranTuanNoiThat
       ) { CNCProfileTool.show_dialog }
 
       @cnc_profile_cmd.tooltip = 'TẠO BIÊN DẠNG CNC'
-      @cnc_profile_cmd.status_bar_text = 'Chọn mẫu → DÙNG NGAY → rà Face: tự nhận khổ ván + 9 điểm MÉP/TÂM/MÉP → hút điểm gần chuột → click đặt Curve/Line weld.'
+      @cnc_profile_cmd.status_bar_text = 'Chọn mẫu → DÙNG NGAY → rà Face: tự nhận khổ ván + MÉP/TÂM/MÉP → click tạo Curve/Line trực tiếp trong Group chứa Face, không tạo Group con.'
       @cnc_profile_cmd.menu_text = 'TẠO BIÊN DẠNG CNC' if @cnc_profile_cmd.respond_to?(:menu_text=)
 
       add_feature_command_once(
