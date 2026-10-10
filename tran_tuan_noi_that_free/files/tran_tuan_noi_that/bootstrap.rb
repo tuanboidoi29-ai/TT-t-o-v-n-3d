@@ -18,7 +18,7 @@ module TranTuanNoiThat
   }.freeze unless const_defined?(:LOCKED_FEATURE_BASELINES, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.286'.freeze
+  VERSION = '1.9.287'.freeze
 
   class << self
     def setting(key, default = nil)
@@ -669,13 +669,31 @@ module TranTuanNoiThat
       ) { DeleteFacesTool.run }
 
       @delete_faces_cmd.tooltip = 'XÓA FACE → GIỮ KHUNG'
-      @delete_faces_cmd.status_bar_text = 'Chọn/quét đối tượng → xóa Face ngay → mỗi đối tượng thành 1 GROUP KHUNG. Phím tắt đề xuất: X (gán trong Preferences > Shortcuts).'
+      @delete_faces_cmd.status_bar_text = 'Chọn/quét đối tượng → xóa Face ngay → mỗi đối tượng thành 1 GROUP KHUNG. Phím tắt đề xuất: X.'
       @delete_faces_cmd.menu_text = 'XÓA FACE → GIỮ KHUNG' if @delete_faces_cmd.respond_to?(:menu_text=)
 
       add_feature_command_once(
         @delete_faces_cmd,
         :delete_faces_menu_installed
       )
+
+      # SketchUp 2022 đôi khi không index tốt menu Unicode/submenu vào Preferences > Shortcuts.
+      # Tạo một alias ASCII ở menu Extensions cấp ngoài để luôn tìm thấy.
+      @delete_faces_shortcut_cmd ||= UI::Command.new(
+        'TT - Xoa Face Giu Khung'
+      ) { DeleteFacesTool.run }
+
+      icon = File.join(ROOT, 'icons', 'delete_faces.svg')
+      @delete_faces_shortcut_cmd.small_icon = icon
+      @delete_faces_shortcut_cmd.large_icon = icon
+      @delete_faces_shortcut_cmd.tooltip = 'TT - Xoa Face Giu Khung'
+      @delete_faces_shortcut_cmd.status_bar_text = 'Shortcut alias cho XÓA FACE → GIỮ KHUNG. Gán phím X trong Preferences > Shortcuts.'
+
+      unless @delete_faces_shortcut_menu_installed
+        UI.menu('Extensions').add_item(@delete_faces_shortcut_cmd)
+        @delete_faces_shortcut_menu_installed = true
+      end
+
       true
     rescue StandardError => error
       puts "[TT UI DeleteFaces] #{error.class}: #{error.message}"
