@@ -1091,13 +1091,15 @@ module TranTuanNoiThat
           target.make_unique
         end
 
+        # Tạo Curve/Line TRỰC TIẾP trong entities của Group/Component chứa Face.
+        # Không sinh thêm Group con.
         entities = target.definition.entities
-        profile_group = entities.add_group
-        profile_group.name = @profile['instance_name'].to_s
 
         tag_name = @profile['tag_name'].to_s.strip
         tag_name = CNCProfileTool.abf_name(@profile['name']) if tag_name.empty?
-        profile_group.layer = @model.layers.add(tag_name)
+        layer = @model.layers.add(tag_name)
+
+        created_edges = []
 
         info[:local_paths].each do |path|
           points = path[:points]
@@ -1105,24 +1107,31 @@ module TranTuanNoiThat
 
           curve_points = points.dup
           curve_points << points.first if path[:closed]
-          edges = profile_group.entities.add_curve(curve_points)
 
-          if !edges || edges.empty?
-            raise 'Không tạo được Curve CNC.'
+          edges = entities.add_curve(curve_points)
+          raise 'Không tạo được Curve CNC.' if !edges || edges.empty?
+
+          edges.each do |edge|
+            next unless edge && edge.valid?
+
+            edge.layer = layer
+            edge.set_attribute(DICT, 'profile_id', @profile['id'].to_s)
+            edge.set_attribute(DICT, 'profile_name', @profile['name'].to_s)
+            edge.set_attribute(DICT, 'instance_name', @profile['instance_name'].to_s)
+            edge.set_attribute(DICT, 'tag_name', tag_name)
+            edge.set_attribute(DICT, 'profile_json', JSON.generate(@profile))
+            edge.set_attribute(DICT, 'welded_curve', true)
+            edge.set_attribute(DICT, 'line_only', true)
+            created_edges << edge
           end
         end
 
-        profile_group.set_attribute(DICT, 'profile_id', @profile['id'].to_s)
-        profile_group.set_attribute(DICT, 'profile_name', @profile['name'].to_s)
-        profile_group.set_attribute(DICT, 'tag_name', tag_name)
-        profile_group.set_attribute(DICT, 'profile_json', JSON.generate(@profile))
-        profile_group.set_attribute(DICT, 'welded_curve', true)
-        profile_group.set_attribute(DICT, 'line_only', true)
+        raise 'Không tạo được đường CNC.' if created_edges.empty?
 
         @model.commit_operation
         started = false
         UI.beep
-        profile_group
+        created_edges
       rescue StandardError
         @model.abort_operation if started
         raise
@@ -1168,7 +1177,7 @@ module TranTuanNoiThat
         <body>
           <div class="head">
             <h1>TẠO BIÊN DẠNG CNC</h1>
-            <div class="sub">Thư viện mẫu · preview · đặt Curve/Line thật vào Face của Group/Component</div>
+            <div class="sub">Thư viện mẫu · preview · tạo Curve/Line trực tiếp trên Face trong Group/Component · không Group con</div>
           </div>
           <div class="wrap">
             <div class="panel left">
@@ -1216,7 +1225,7 @@ module TranTuanNoiThat
                   <button class="use" onclick="useProfile()">✓ DÙNG NGAY → RA FACE CLICK ĐỂ ĐẶT</button>
                 </div>
                 <div id="notice" class="notice"></div>
-                <div class="hint">Không cần chọn Group trước. Chọn mẫu → DÙNG NGAY → rà Face; hệ thống tự nhận Group/Component chứa Face và đặt Curve/Line weld vào đúng Group đó.</div>
+                <div class="hint">Không cần chọn Group trước. Chọn mẫu → DÙNG NGAY → rà Face; hệ thống tự nhận Group/Component chứa Face và tạo Curve/Line weld TRỰC TIẾP trong chính Group đó, không tạo Group con.</div>
               </div>
 
               <div class="preview">
