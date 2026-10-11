@@ -100,7 +100,7 @@ module TranTuanNoiThat
       end
 
       @dialog = UI::HtmlDialog.new(
-        dialog_title: 'TRẦN TUẤN - TẠO BIÊN DẠNG CNC',
+        dialog_title: 'TRẦN TUẤN - TẠO TIẾT DIỆN CNC',
         preferences_key: 'TranTuanNoiThat.CNCProfile',
         scrollable: true,
         resizable: true,
@@ -219,7 +219,7 @@ module TranTuanNoiThat
       raise 'Dữ liệu biên dạng không hợp lệ.' unless data.is_a?(Hash)
 
       name = data['name'].to_s.strip
-      name = 'Biên dạng CNC' if name.empty?
+      name = 'Tiết diện CNC' if name.empty?
 
       kind = data['kind'].to_s
       kind = 'rectangle' unless KIND_LABELS.key?(kind)
@@ -266,12 +266,12 @@ module TranTuanNoiThat
 
     def abf_name(name)
       core = name.to_s.strip
-      core = 'BIEN_DANG_CNC' if core.empty?
+      core = 'TIET_DIEN_CNC' if core.empty?
       core = core.gsub(/[\\\/:*?"<>|]+/, '_')
       core = core.gsub(/\s+/, '_')
       core = core.gsub(/_+/, '_')
       core = core.sub(/\A_+/, '').sub(/_+\z/, '')
-      core = 'BIEN_DANG_CNC' if core.empty?
+      core = 'TIET_DIEN_CNC' if core.empty?
       core.start_with?('ABF_') ? core : "ABF_#{core}"
     end
 
@@ -585,7 +585,7 @@ module TranTuanNoiThat
         @active_entities = @model.active_entities
         @edit_to_world = @model.edit_transform
         Sketchup.set_status_text(
-          "CNC #{@profile['name']} · rà Face → tự nhận khổ ván + 9 điểm MÉP/TÂM/MÉP → preview → click đặt · TAB thư viện · ESC thoát.",
+          "TIẾT DIỆN #{@profile['name']} · rà Face → tự nhận cạnh gần nhất + tự cách mép theo cài đặt → click đặt · TAB thư viện · ESC thoát.",
           SB_PROMPT
         )
       end
@@ -611,7 +611,7 @@ module TranTuanNoiThat
         view.invalidate
       rescue StandardError => error
         @model.abort_operation rescue nil
-        UI.messagebox("TẠO BIÊN DẠNG CNC:\n#{error.message}")
+        UI.messagebox("TẠO TIẾT DIỆN CNC:\n#{error.message}")
       end
 
       def onKeyDown(key, repeat, _flags, _view)
@@ -676,12 +676,13 @@ module TranTuanNoiThat
           )
         end
 
-        label = "#{@profile['name']} · CNC #{@hover[:width_mm].round(1)} × #{@hover[:height_mm].round(1)} mm"
+        label = "#{@profile['name']} · TIẾT DIỆN #{@hover[:width_mm].round(1)} × #{@hover[:height_mm].round(1)} mm"
         board_label = "KHỔ FACE #{@hover[:board_width_mm].round(1)} × #{@hover[:board_height_mm].round(1)} mm"
-        snap_label = @hover[:snap_label] ? " · BẮT #{@hover[:snap_label]}" : ' · ĐẶT TỰ DO'
+        edge_label = " · #{@hover[:edge_label]} · CÁCH MÉP #{@hover[:edge_gap_mm].round(1)} mm"
+        snap_label = @hover[:snap_label] ? " · BẮT #{@hover[:snap_label]}" : ''
         view.draw_text(
           view.screen_coords(center),
-          "#{label} · #{board_label}#{snap_label}"
+          "#{label} · #{board_label}#{edge_label}#{snap_label}"
         )
       rescue StandardError => error
         puts "[TT CNC draw] #{error.class}: #{error.message}"
@@ -810,7 +811,7 @@ module TranTuanNoiThat
         normal = safe_unit(plane[1])
         return nil unless normal
 
-        # Trục khổ ván luôn lấy từ Face thật, trước khi xoay/mirror biên dạng.
+        # Hệ trục khổ ván lấy trực tiếp từ Face thật.
         board_u, board_v = face_axes(normal)
         return nil unless board_u && board_v
 
@@ -823,8 +824,42 @@ module TranTuanNoiThat
         board_height_mm = (max_v - min_v).to_mm
         return nil if board_width_mm <= 0.1 || board_height_mm <= 0.1
 
-        # 9 điểm bắt: 4 góc + 4 trung điểm cạnh + tâm.
-        snap_points = build_board_snap_points(
+        mouse_local = point_world.transform(target_inverse)
+        mouse_u = point_dot(mouse_local, board_u)
+        mouse_v = point_dot(mouse_local, board_v)
+
+        # Tự nhận cạnh Face gần chuột nhất.
+        distances = {
+          'U-' => (mouse_u - min_u).abs,
+          'U+' => (max_u - mouse_u).abs,
+          'V-' => (mouse_v - min_v).abs,
+          'V+' => (max_v - mouse_v).abs
+        }
+        edge_code = distances.min_by { |_code, distance| distance }[0]
+
+        width_mm = @profile['width'].to_f
+        height_mm = @profile['height'].to_f
+        gap_mm = [@profile['edge_gap'].to_f, 0.0].max
+
+        # Góc xoay làm thay đổi phần chiếm chỗ theo U/V.
+        angle = @profile['rotation'].to_f * Math::PI / 180.0
+        cosine = Math.cos(angle).abs
+        sine = Math.sin(angle).abs
+        half_u = (width_mm * cosine + height_mm * sine) * 0.5
+        half_v = (width_mm * sine + height_mm * cosine) * 0.5
+
+        if @profile['fit']
+          # AUTO FIT vẫn giữ kích thước khít Face, nhưng khoảng cách mép
+          # được hiểu là margin thật quanh tiết diện.
+          width_mm = board_width_mm - gap_mm * 2.0
+          height_mm = board_height_mm - gap_mm * 2.0
+          return nil if width_mm <= 1.0 || height_mm <= 1.0
+
+          half_u = width_mm * 0.5
+          half_v = height_mm * 0.5
+        end
+
+        placement = section_anchor_for_edge(
           target_vertices.first,
           board_u,
           board_v,
@@ -832,61 +867,39 @@ module TranTuanNoiThat
           max_u,
           min_v,
           max_v,
-          target_world
+          mouse_u,
+          mouse_v,
+          edge_code,
+          gap_mm,
+          half_u,
+          half_v
         )
+        return nil unless placement
+
+        anchor = placement[:anchor]
+        rail_snaps = placement[:snap_points].map do |item|
+          {
+            :label => item[:label],
+            :local => item[:local],
+            :world => item[:local].transform(target_world)
+          }
+        end
+
         snapped = nearest_snap_point(
-          snap_points,
+          rail_snaps,
           view,
           mouse_x,
           mouse_y
         )
+        anchor = snapped[:local] if snapped
 
-        anchor =
-          if snapped
-            snapped[:local]
-          else
-            point_world.transform(target_inverse)
-          end
-
-        # Hướng hình CNC có thể xoay/lật độc lập với hệ trục khổ ván.
+        # Hướng hình tiết diện giữ theo trục Face, sau đó mới xoay/mirror.
         u_axis = board_u
         v_axis = board_v
-        angle = @profile['rotation'].to_f * Math::PI / 180.0
         if angle.abs > EPS
           u_axis, v_axis = rotate_axes(u_axis, v_axis, angle)
         end
-        if @profile['mirror']
-          u_axis = u_axis.reverse
-        end
-
-        width_mm = @profile['width'].to_f
-        height_mm = @profile['height'].to_f
-
-        if @profile['fit']
-          # Fit giữ đúng cơ chế cũ nhưng tâm luôn về tâm khổ Face.
-          fit_u = target_vertices.map { |point| point_dot(point, u_axis) }
-          fit_v = target_vertices.map { |point| point_dot(point, v_axis) }
-          fit_min_u, fit_max_u = fit_u.minmax
-          fit_min_v, fit_max_v = fit_v.minmax
-          gap = @profile['edge_gap'].to_f
-
-          width_mm = (fit_max_u - fit_min_u).to_mm - gap * 2.0
-          height_mm = (fit_max_v - fit_min_v).to_mm - gap * 2.0
-          return nil if width_mm <= 1.0 || height_mm <= 1.0
-
-          anchor = point_from_uv(
-            target_vertices.first,
-            u_axis,
-            v_axis,
-            (fit_min_u + fit_max_u) / 2.0,
-            (fit_min_v + fit_max_v) / 2.0
-          )
-          snapped = {
-            :label => 'TÂM KHỔ VÁN · AUTO FIT',
-            :local => anchor,
-            :world => anchor.transform(target_world)
-          }
-        end
+        u_axis = u_axis.reverse if @profile['mirror']
 
         anchor = anchor.offset(u_axis, @profile['offset_x'].to_f.mm)
         anchor = anchor.offset(v_axis, @profile['offset_y'].to_f.mm)
@@ -928,10 +941,113 @@ module TranTuanNoiThat
           :height_mm => height_mm,
           :board_width_mm => board_width_mm,
           :board_height_mm => board_height_mm,
-          :snap_points_world => snap_points.map { |item| item[:world] },
+          :snap_points_world => rail_snaps.map { |item| item[:world] },
           :snap_label => snapped && snapped[:label],
-          :snap_world => snapped && snapped[:world]
+          :snap_world => snapped && snapped[:world],
+          :edge_code => edge_code,
+          :edge_label => edge_label(edge_code),
+          :edge_gap_mm => gap_mm
         }
+      end
+
+      def section_anchor_for_edge(
+        base,
+        u_axis,
+        v_axis,
+        min_u,
+        max_u,
+        min_v,
+        max_v,
+        mouse_u,
+        mouse_v,
+        edge_code,
+        gap_mm,
+        half_u_mm,
+        half_v_mm
+      )
+        gap = gap_mm.mm
+        half_u = half_u_mm.mm
+        half_v = half_v_mm.mm
+
+        safe_min_u = min_u + gap + half_u
+        safe_max_u = max_u - gap - half_u
+        safe_min_v = min_v + gap + half_v
+        safe_max_v = max_v - gap - half_v
+
+        # Nếu tiết diện lớn hơn khổ cho phép, vẫn neo giữa để preview không mất.
+        center_u = (min_u + max_u) * 0.5
+        center_v = (min_v + max_v) * 0.5
+
+        case edge_code
+        when 'U-'
+          center_u = [min_u + gap + half_u, max_u - gap - half_u].min
+          center_v = clamp_value(mouse_v, safe_min_v, safe_max_v, (min_v + max_v) * 0.5)
+          rail_min = safe_min_v <= safe_max_v ? safe_min_v : min_v
+          rail_max = safe_min_v <= safe_max_v ? safe_max_v : max_v
+          rail_mid = (rail_min + rail_max) * 0.5
+          stations = [
+            ['MÉP DƯỚI', center_u, rail_min],
+            ['TÂM CẠNH', center_u, rail_mid],
+            ['MÉP TRÊN', center_u, rail_max]
+          ]
+        when 'U+'
+          center_u = [max_u - gap - half_u, min_u + gap + half_u].max
+          center_v = clamp_value(mouse_v, safe_min_v, safe_max_v, (min_v + max_v) * 0.5)
+          rail_min = safe_min_v <= safe_max_v ? safe_min_v : min_v
+          rail_max = safe_min_v <= safe_max_v ? safe_max_v : max_v
+          rail_mid = (rail_min + rail_max) * 0.5
+          stations = [
+            ['MÉP DƯỚI', center_u, rail_min],
+            ['TÂM CẠNH', center_u, rail_mid],
+            ['MÉP TRÊN', center_u, rail_max]
+          ]
+        when 'V-'
+          center_v = [min_v + gap + half_v, max_v - gap - half_v].min
+          center_u = clamp_value(mouse_u, safe_min_u, safe_max_u, (min_u + max_u) * 0.5)
+          rail_min = safe_min_u <= safe_max_u ? safe_min_u : min_u
+          rail_max = safe_min_u <= safe_max_u ? safe_max_u : max_u
+          rail_mid = (rail_min + rail_max) * 0.5
+          stations = [
+            ['MÉP TRÁI', rail_min, center_v],
+            ['TÂM CẠNH', rail_mid, center_v],
+            ['MÉP PHẢI', rail_max, center_v]
+          ]
+        else # V+
+          center_v = [max_v - gap - half_v, min_v + gap + half_v].max
+          center_u = clamp_value(mouse_u, safe_min_u, safe_max_u, (min_u + max_u) * 0.5)
+          rail_min = safe_min_u <= safe_max_u ? safe_min_u : min_u
+          rail_max = safe_min_u <= safe_max_u ? safe_max_u : max_u
+          rail_mid = (rail_min + rail_max) * 0.5
+          stations = [
+            ['MÉP TRÁI', rail_min, center_v],
+            ['TÂM CẠNH', rail_mid, center_v],
+            ['MÉP PHẢI', rail_max, center_v]
+          ]
+        end
+
+        {
+          :anchor => point_from_uv(base, u_axis, v_axis, center_u, center_v),
+          :snap_points => stations.map do |label, u_value, v_value|
+            {
+              :label => label,
+              :local => point_from_uv(base, u_axis, v_axis, u_value, v_value)
+            }
+          end
+        }
+      end
+
+      def clamp_value(value, min_value, max_value, fallback)
+        return fallback if min_value > max_value
+        [[value, min_value].max, max_value].min
+      end
+
+      def edge_label(code)
+        {
+          'U-' => 'MÉP TRÁI',
+          'U+' => 'MÉP PHẢI',
+          'V-' => 'MÉP DƯỚI',
+          'V+' => 'MÉP TRÊN'
+        }[code.to_s] || code.to_s
       end
 
       def point_from_uv(base, u_axis, v_axis, u_value, v_value)
@@ -943,57 +1059,6 @@ module TranTuanNoiThat
           v_axis,
           v_value - point_dot(point, v_axis)
         )
-      end
-
-      def build_board_snap_points(
-        base,
-        u_axis,
-        v_axis,
-        min_u,
-        max_u,
-        min_v,
-        max_v,
-        target_world
-      )
-        mid_u = (min_u + max_u) / 2.0
-        mid_v = (min_v + max_v) / 2.0
-
-        us = [
-          ['MÉP U-', min_u],
-          ['TÂM U', mid_u],
-          ['MÉP U+', max_u]
-        ]
-        vs = [
-          ['MÉP V-', min_v],
-          ['TÂM V', mid_v],
-          ['MÉP V+', max_v]
-        ]
-
-        result = []
-        us.each do |u_name, u_value|
-          vs.each do |v_name, v_value|
-            local = point_from_uv(
-              base,
-              u_axis,
-              v_axis,
-              u_value,
-              v_value
-            )
-            label =
-              if u_name == 'TÂM U' && v_name == 'TÂM V'
-                'TÂM KHỔ VÁN'
-              else
-                "#{u_name} · #{v_name}"
-              end
-
-            result << {
-              :label => label,
-              :local => local,
-              :world => local.transform(target_world)
-            }
-          end
-        end
-        result
       end
 
       def nearest_snap_point(points, view, mouse_x, mouse_y)
@@ -1197,7 +1262,7 @@ module TranTuanNoiThat
         </head>
         <body>
           <div class="head">
-            <h1>TẠO BIÊN DẠNG CNC</h1>
+            <h1>TẠO TIẾT DIỆN CNC</h1>
             <div class="sub">Thư viện mẫu · Curve/Line nằm ĐỒNG PHẲNG đúng Face trong Group/Component · không Group con</div>
           </div>
           <div class="wrap">
@@ -1224,7 +1289,7 @@ module TranTuanNoiThat
                   <div><label>Cao Y (mm)</label><input id="height" type="number" step="1" oninput="drawPreview()"></div>
                 </div>
                 <div class="row">
-                  <div><label>Cách mép (mm)</label><input id="edge_gap" type="number" step="1"></div>
+                  <div><label>Cách mép ván → tiết diện (mm)</label><input id="edge_gap" type="number" step="1"></div>
                   <div><label>Số đoạn mịn</label><input id="segments" type="number" min="4" max="180" step="1" oninput="drawPreview()"></div>
                 </div>
                 <label class="check"><input id="fit" type="checkbox"> Tự khít theo Face = kích thước Face trừ 2 × cách mép</label>
@@ -1243,7 +1308,7 @@ module TranTuanNoiThat
                 <div class="buttons">
                   <button onclick="saveProfile()">LƯU VÀO THƯ VIỆN</button>
                   <button id="delete_btn" class="danger" onclick="deleteProfile()">XÓA MẪU TỰ TẠO</button>
-                  <button class="use" onclick="useProfile()">✓ DÙNG NGAY → RA FACE CLICK ĐỂ ĐẶT</button>
+                  <button class="use" onclick="useProfile()">✓ DÙNG NGAY → RÀ FACE → TỰ CANH MÉP → CLICK ĐẶT</button>
                 </div>
                 <div id="notice" class="notice"></div>
                 <div class="hint">Không cần chọn Group trước. Chọn mẫu → DÙNG NGAY → rà Face; Curve/Line được ép ĐỒNG PHẲNG đúng mặt Face trong chính Group/Component, không tạo Group con.</div>
@@ -1252,7 +1317,7 @@ module TranTuanNoiThat
               <div class="preview">
                 <div class="title">PREVIEW MÔ PHỎNG</div>
                 <canvas id="canvas" width="520" height="520"></canvas>
-                <div class="hint">Màu xanh: đường CNC sẽ tạo. Tâm preview tương ứng vị trí click trên Face. Khi bật “Tự khít Face”, cách mép sẽ quyết định kích thước thực.</div>
+                <div class="hint">Màu xanh: đường CNC sẽ tạo. Tâm preview tương ứng vị trí click trên Face. Cách mép là khoảng thật từ mép ván tới mép ngoài tiết diện. Hệ thống tự nhận cạnh gần chuột nhất.</div>
               </div>
             </div>
           </div>
@@ -1303,7 +1368,7 @@ module TranTuanNoiThat
             }
             function read(){
               const p=current?clone(current):{};
-              p.name=$('name').value.trim()||'Biên dạng CNC';
+              p.name=$('name').value.trim()||'Tiết diện CNC';
               p.instance_name=$('instance_name').value.trim()||abfName(p.name);
               p.tag_name=$('tag_name').value.trim()||abfName(p.name);
               p.kind=$('kind').value;
