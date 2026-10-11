@@ -1251,9 +1251,10 @@ module TranTuanNoiThat
         )
       end
 
-      def erase_legacy_root_overlays(target, face)
+      def erase_legacy_root_overlays(target, face, legacy_face_pid = nil)
         target_pid = (target.persistent_id rescue target.entityID).to_s
         face_pid = (face.persistent_id rescue face.entityID).to_s
+        legacy_face_pid = legacy_face_pid.to_s
         removed = 0
 
         @model.entities.grep(Sketchup::Edge).dup.each do |edge|
@@ -1264,7 +1265,9 @@ module TranTuanNoiThat
           edge_target = edge.get_attribute(DICT, 'source_target_pid', '').to_s rescue ''
           edge_face = edge.get_attribute(DICT, 'source_face_pid', '').to_s rescue ''
           next unless edge_target == target_pid
-          next unless edge_face.empty? || edge_face == face_pid
+          next unless edge_face.empty? ||
+            edge_face == face_pid ||
+            (!legacy_face_pid.empty? && edge_face == legacy_face_pid)
 
           edge.erase!
           removed += 1
@@ -1284,6 +1287,8 @@ module TranTuanNoiThat
         started = false
         @model.start_operation('TT - Tạo Tiết Diện CNC Trong Face', true)
         started = true
+
+        legacy_face_pid = (face.persistent_id rescue face.entityID).to_s
 
         # ABF DIRECT FACE:
         # Hình học thật nằm trong đúng Group/Component chứa Face để ABF có thể
@@ -1310,7 +1315,7 @@ module TranTuanNoiThat
           info[:face] = face
         end
 
-        erase_legacy_root_overlays(target, face)
+        erase_legacy_root_overlays(target, face, legacy_face_pid)
 
         entities = target.definition.entities
         default_layer = @model.layers[0]
