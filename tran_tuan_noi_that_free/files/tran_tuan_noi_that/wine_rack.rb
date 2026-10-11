@@ -28,6 +28,8 @@ module TranTuanNoiThat
         @a = nil
         @b = nil
         @hover = nil
+        @targets = []
+        @batch_pairs = []
         @stage = :pick_a
 
         @gap_mm = Sketchup.read_default(PREF, 'gap_mm', 0.0).to_f
@@ -49,7 +51,7 @@ module TranTuanNoiThat
 
       def activate
         status
-        rebuild_preview if @a && @b
+        rebuild_preview if @a && @b && @stage == :ready
         @model.active_view.invalidate
       end
 
@@ -58,12 +60,16 @@ module TranTuanNoiThat
       end
 
       def onCancel(_reason, view)
-        if @stage == :ready
+        if @stage == :batch_ready || @stage == :batch_pick
+          @targets = []
+          @batch_pairs = []
+          @a = nil
           @b = nil
-          @preview_ready = false
-          @preview_lines = []
-          @preview_a_cut_lines = []
-          @preview_b_cut_lines = []
+          clear_preview
+          @stage = :pick_a
+        elsif @stage == :ready
+          @b = nil
+          clear_preview
           @stage = :pick_b
         elsif @stage == :pick_b
           @a = nil
@@ -81,7 +87,7 @@ module TranTuanNoiThat
       end
 
       def onMouseMove(_flags, x, y, view)
-        return if @busy || @stage == :ready
+        return if @busy || @stage == :ready || @stage == :batch_ready
 
         picked = pick_board(view, x, y)
         picked = nil if picked == @a
@@ -92,8 +98,15 @@ module TranTuanNoiThat
         puts "[TT KhauAmDuong move] #{error.class}: #{error.message}"
       end
 
-      def onLButtonDown(_flags, x, y, view)
+      def onLButtonDown(flags, x, y, view)
         return if @busy
+
+        if @stage == :batch_ready
+          execute_batch
+          reset_after_execute
+          view.invalidate
+          return
+        end
 
         if @stage == :ready
           execute
@@ -104,6 +117,20 @@ module TranTuanNoiThat
 
         picked = pick_board(view, x, y)
         return UI.beep unless picked && valid_board?(picked)
+
+        if multi_select_modifier?(flags)
+          toggle_batch_target(picked)
+          status
+          view.invalidate
+          return
+        end
+
+        if @stage == :batch_pick
+          toggle_batch_target(picked)
+          status
+          view.invalidate
+          return
+        end
 
         if @stage == :pick_a
           @a = picked
@@ -126,10 +153,9 @@ module TranTuanNoiThat
         status
         view.invalidate
       rescue StandardError => error
-        @preview_ready = false
-        @preview_lines = []
+        clear_preview
         @b = nil if @stage != :pick_a
-        @stage = @a ? :pick_b : :pick_a
+        @stage = @a ? :pick_b : :pick_a unless @stage == :batch_pick
         UI.messagebox("KHẤU ÂM DƯƠNG:\n#{error.message}")
         status
         view.invalidate
@@ -141,7 +167,11 @@ module TranTuanNoiThat
         case key
         when 9 # TAB
           open_settings
-          rebuild_preview if @a && @b
+          if @stage == :ready && @a && @b
+            rebuild_preview
+          elsif @stage == :batch_ready || @stage == :batch_pick
+            @batch_pairs = batch_candidate_pairs(@targets)
+          end
           status
           view.invalidate
           true
@@ -160,6 +190,36 @@ module TranTuanNoiThat
       end
 
       def draw(view)
+        if @stage == :batch_ready || @stage == :batch_pick
+          @targets.each_with_index do |entity, index|
+            next unless valid_board?(entity)
+            draw_board_preview(
+              view,
+              entity,
+              Sketchup::Color.new(80, 175, 255, 48),
+              Sketchup::Color.new(20, 115, 225)
+            )
+            center = world_bounds(entity).center
+            view.draw_text(
+              center,
+              "#{index + 1}",
+              size: 12,
+              bold: true,
+              color: Sketchup::Color.new(20, 80, 170)
+            )
+          end
+
+          if @stage == :batch_pick && valid_board?(@hover) && !@targets.include?(@hover)
+            draw_board_preview(
+              view,
+              @hover,
+              Sketchup::Color.new(255, 170, 80, 50),
+              Sketchup::Color.new(235, 105, 20)
+            )
+          end
+          return
+        end
+
         # Preview vai A/B rõ ràng:
         # A = xanh, B = hồng. Đây chỉ là overlay, không sửa model.
         if valid_board?(@a)
@@ -230,7 +290,7 @@ module TranTuanNoiThat
       def getExtents
         box = Geom::BoundingBox.new
 
-        [@a, @b, @hover].compact.uniq.each do |entity|
+        [@a, @b, @hover, *@targets].compact.uniq.each do |entity|
           next unless valid_board?(entity)
           world_corners(entity).each { |point| box.add(point) }
         end
@@ -251,13 +311,88 @@ module TranTuanNoiThat
             !entity.locked?
         end
 
-        if selected.length == 2
+        if selected.length >= 3
+          prepare_batch_selection(selected)
+        elsif selected.length == 2
           @a, @b = selected
           @stage = :ready
         elsif selected.length == 1
           @a = selected.first
           @stage = :pick_b
         end
+      end
+
+      def multi_select_modifier?(flags)
+        return false unless defined?(COPY_MODIFIER_MASK)
+        (flags.to_i & COPY_MODIFIER_MASK.to_i) != 0
+      rescue StandardError
+        false
+      end
+
+      def prepare_batch_selection(items)
+        @targets = Array(items).select { |entity| valid_board?(entity) }.uniq
+        @a = nil
+        @b = nil
+        clear_preview
+        @batch_pairs = batch_candidate_pairs(@targets)
+        @stage = @targets.length >= 2 ? :batch_ready : :batch_pick
+
+        @model.selection.clear
+        @targets.each { |entity| @model.selection.add(entity) if valid_board?(entity) }
+      end
+
+      def toggle_batch_target(entity)
+        if @targets.empty?
+          @targets << @a if valid_board?(@a)
+          @targets << @b if valid_board?(@b)
+          @a = nil
+          @b = nil
+          clear_preview
+        end
+
+        if @targets.include?(entity)
+          @targets.delete(entity)
+        else
+          @targets << entity
+        end
+
+        @targets.select! { |item| valid_board?(item) }
+        @targets.uniq!
+        @batch_pairs = batch_candidate_pairs(@targets)
+        @stage = @targets.length >= 2 ? :batch_ready : :batch_pick
+
+        @model.selection.clear
+        @targets.each { |item| @model.selection.add(item) }
+      end
+
+      def batch_candidate_pairs(items)
+        list = Array(items).select { |entity| valid_board?(entity) }.uniq
+        result = []
+
+        list.each_with_index do |left, i|
+          ((i + 1)...list.length).each do |j|
+            right = list[j]
+            overlap = world_bounds(left).intersect(world_bounds(right))
+            next unless overlap.valid?
+            next unless overlap.width > 1.0e-6 &&
+                        overlap.height > 1.0e-6 &&
+                        overlap.depth > 1.0e-6
+            result << [left, right]
+          end
+        end
+
+        result
+      rescue StandardError
+        []
+      end
+
+      def clear_preview
+        @preview_ready = false
+        @preview_lines = []
+        @preview_a_cut_lines = []
+        @preview_b_cut_lines = []
+        @preview_center = nil
+        @preview_volume_mm3 = 0.0
       end
 
       def valid_board?(entity)
@@ -315,9 +450,13 @@ module TranTuanNoiThat
         text =
           case @stage
           when :pick_a
-            'KHẤU ÂM DƯƠNG · click TẤM A.'
+            'KHẤU ÂM DƯƠNG · click TẤM A · hoặc quét chọn nhiều tấm trước khi chạy lệnh · CTRL+CLICK thêm/bớt tấm.'
           when :pick_b
-            'KHẤU ÂM DƯƠNG · A đã chọn · click TẤM B giao với A.'
+            'KHẤU ÂM DƯƠNG · A đã chọn · click TẤM B giao với A · CTRL+CLICK để chuyển sang chọn nhiều.'
+          when :batch_pick
+            "KHẤU ÂM DƯƠNG NHIỀU · đã chọn #{@targets.length} tấm · CTRL+CLICK thêm/bớt · cần ít nhất 2 tấm."
+          when :batch_ready
+            "KHẤU ÂM DƯƠNG NHIỀU · #{@targets.length} tấm · #{@batch_pairs.length} cặp có vùng giao · click để KHẤU TẤT CẢ · CTRL+CLICK thêm/bớt · TAB cài đặt · SHIFT đảo vai."
           else
             if @swap_roles
               'PREVIEW · A khấu MẶT SAU đúng 1/2 CHIỀU RỘNG A · B khấu MẶT TRƯỚC đúng 1/2 CHIỀU RỘNG B · click tạo · TAB cài đặt · SHIFT đảo A/B.'
@@ -788,6 +927,120 @@ module TranTuanNoiThat
         raise "#{original_name}: tấm sau khấu không còn Solid." unless target.manifold?
       end
 
+      def apply_notch_attributes(entity, role)
+        entity.set_attribute(PREF, 'half_lap_role', role.to_s)
+        entity.set_attribute(PREF, 'board_thickness_mm', board_thickness_mm(entity).round(4))
+        entity.set_attribute(PREF, 'board_width_mm', board_width_mm(entity).round(4))
+        entity.set_attribute(PREF, 'notch_depth_mm', half_width_mm(entity).round(4))
+        entity.set_attribute(PREF, 'gap_mm', @gap_mm)
+      end
+
+      def execute_pair_in_batch(entity_a, entity_b)
+        validate_board!(entity_a, 'Tấm A')
+        validate_board!(entity_b, 'Tấm B')
+
+        workspace = @context.add_group
+        workspace.transformation = @edit.inverse
+        work = workspace.entities
+
+        begin
+          intersection = build_intersection_solid(work, entity_a, entity_b)
+          intersection_a = duplicate_solid(work, intersection)
+          intersection_b = duplicate_solid(work, intersection)
+
+          a_copy = copy_solid(work, entity_a)
+          b_copy = copy_solid(work, entity_b)
+
+          a_role = @swap_roles ? :back : :front
+          b_role = @swap_roles ? :front : :back
+
+          cutter_a = cutter_for_half(
+            work,
+            intersection_a,
+            entity_a,
+            board_cut_side(entity_a, a_role)
+          )
+          cutter_b = cutter_for_half(
+            work,
+            intersection_b,
+            entity_b,
+            board_cut_side(entity_b, b_role)
+          )
+
+          result_a = cutter_a.trim(a_copy)
+          result_b = cutter_b.trim(b_copy)
+
+          unless result_a && result_a.valid? && result_a.manifold?
+            raise 'Tấm A khấu 1/2 thất bại.'
+          end
+          unless result_b && result_b.valid? && result_b.manifold?
+            raise 'Tấm B khấu 1/2 thất bại.'
+          end
+
+          replace_geometry(entity_a, result_a)
+          replace_geometry(entity_b, result_b)
+          apply_notch_attributes(entity_a, a_role)
+          apply_notch_attributes(entity_b, b_role)
+          true
+        ensure
+          workspace.erase! if workspace && workspace.valid?
+        end
+      end
+
+      def execute_batch
+        @targets.select! { |entity| valid_board?(entity) }
+        raise 'Cần chọn ít nhất 2 Group/Component.' if @targets.length < 2
+
+        @targets.each_with_index do |entity, index|
+          validate_board!(entity, "Tấm #{index + 1}")
+        end
+
+        pairs = batch_candidate_pairs(@targets)
+        raise 'Các tấm đã chọn không có cặp nào giao nhau theo vùng 3D.' if pairs.empty?
+
+        @busy = true
+        started = false
+        @model.start_operation('TT - Khấu Âm Dương Nhiều Tấm', true)
+        started = true
+
+        success = 0
+        skipped = []
+
+        pairs.each_with_index do |pair, index|
+          left, right = pair
+          begin
+            execute_pair_in_batch(left, right)
+            success += 1
+          rescue StandardError => error
+            skipped << "Cặp #{index + 1}: #{error.message}"
+          end
+        end
+
+        if success <= 0
+          @model.abort_operation
+          started = false
+          raise "Không khấu được cặp nào.\n#{skipped.first(5).join("\n")}"
+        end
+
+        @model.commit_operation
+        started = false
+
+        @model.selection.clear
+        @targets.each do |entity|
+          @model.selection.add(entity) if valid_board?(entity)
+        end
+
+        message = "Đã KHẤU ÂM DƯƠNG #{success} cặp / #{@targets.length} tấm · 1 lần Undo."
+        message += " · Bỏ qua #{skipped.length} cặp không giao thật/lỗi." unless skipped.empty?
+        Sketchup.set_status_text(message, SB_PROMPT)
+        UI.beep
+      rescue StandardError
+        @model.abort_operation if started
+        raise
+      ensure
+        @busy = false
+      end
+
       def execute
         validate_pair!
         raise 'Chưa có preview giao thật.' unless @preview_ready
@@ -840,16 +1093,8 @@ module TranTuanNoiThat
         replace_geometry(@a, result_a)
         replace_geometry(@b, result_b)
 
-        @a.set_attribute(PREF, 'half_lap_role', a_role.to_s)
-        @b.set_attribute(PREF, 'half_lap_role', b_role.to_s)
-        @a.set_attribute(PREF, 'board_thickness_mm', board_thickness_mm(@a).round(4))
-        @b.set_attribute(PREF, 'board_thickness_mm', board_thickness_mm(@b).round(4))
-        @a.set_attribute(PREF, 'board_width_mm', board_width_mm(@a).round(4))
-        @b.set_attribute(PREF, 'board_width_mm', board_width_mm(@b).round(4))
-        @a.set_attribute(PREF, 'notch_depth_mm', half_width_mm(@a).round(4))
-        @b.set_attribute(PREF, 'notch_depth_mm', half_width_mm(@b).round(4))
-        @a.set_attribute(PREF, 'gap_mm', @gap_mm)
-        @b.set_attribute(PREF, 'gap_mm', @gap_mm)
+        apply_notch_attributes(@a, a_role)
+        apply_notch_attributes(@b, b_role)
 
         workspace.erase! if workspace.valid?
 
@@ -873,6 +1118,8 @@ module TranTuanNoiThat
       end
 
       def reset_after_execute
+        @targets = []
+        @batch_pairs = []
         @preview_ready = false
         @preview_lines = []
         @preview_a_cut_lines = []
