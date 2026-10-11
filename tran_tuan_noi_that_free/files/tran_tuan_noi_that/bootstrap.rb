@@ -18,7 +18,7 @@ module TranTuanNoiThat
   }.freeze unless const_defined?(:LOCKED_FEATURE_BASELINES, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.298'.freeze
+  VERSION = '1.9.299'.freeze
 
   class << self
     def setting(key, default = nil)
@@ -165,7 +165,6 @@ module TranTuanNoiThat
         grain_tool
         material_reset_tool
         delete_faces_tool
-        cnc_profile_tool
         grain_material_fix
         grain_align_fix
         grain_standard_2440_fix
@@ -359,12 +358,36 @@ module TranTuanNoiThat
       true
     end
 
+    def cleanup_retired_cnc_profile
+      begin
+        FileUtils.rm_f(File.join(ROOT, 'cnc_profile_tool.rb'))
+        FileUtils.rm_f(File.join(ROOT, 'icons', 'cnc_profile.svg'))
+
+        if const_defined?(:CNCProfileTool, false)
+          runtime = const_get(:CNCProfileTool)
+          dialog = runtime.instance_variable_get(:@dialog) if runtime.respond_to?(:instance_variable_get)
+          dialog.close if dialog && dialog.respond_to?(:close)
+          remove_const(:CNCProfileTool)
+        end
+
+        if instance_variable_defined?(:@cnc_profile_cmd) && @cnc_profile_cmd
+          @cnc_profile_cmd.tooltip = 'Chức năng TẠO TIẾT DIỆN CNC đã gỡ'
+          @cnc_profile_cmd.status_bar_text = 'TẠO TIẾT DIỆN CNC đã được xóa khỏi TRẦN TUẤN NỘI THẤT. Mở lại SketchUp để toolbar/menu làm sạch hoàn toàn.'
+          @cnc_profile_cmd.set_validation_proc { MF_GRAYED }
+        end
+      rescue StandardError => error
+        puts "[TT cleanup retired CNC profile] #{error.class}: #{error.message}"
+      end
+      true
+    end
+
     def install_ui
       cleanup_retired_chatgpt
       cleanup_retired_wine_rack_data
       cleanup_retired_library
       cleanup_retired_cabinet_door
       cleanup_retired_vector_image_cnc
+      cleanup_retired_cnc_profile
       unless @ui_installed
         @ui_installed = true
         @main_menu = UI.menu('Extensions').add_submenu(NAME)
@@ -392,7 +415,6 @@ module TranTuanNoiThat
       install_grain_ui
       install_material_reset_ui
       install_delete_faces_ui
-      install_cnc_profile_ui
       install_door_open_mark_ui
       install_notch_ui
       install_wine_rack_ui
@@ -699,29 +721,6 @@ module TranTuanNoiThat
       true
     rescue StandardError => error
       puts "[TT UI DeleteFaces] #{error.class}: #{error.message}"
-      false
-    end
-
-    def install_cnc_profile_ui
-      return false unless defined?(TranTuanNoiThat::CNCProfileTool)
-
-      @cnc_profile_cmd ||= command(
-        'TẠO TIẾT DIỆN CNC',
-        'cnc_profile.svg',
-        'Mở thư viện 20 mẫu CNC → chọn mẫu/DÙNG NGAY → rà Face bất kỳ → tự nhận Group/Component chứa Face → preview → click đặt.'
-      ) { CNCProfileTool.show_dialog }
-
-      @cnc_profile_cmd.tooltip = 'TẠO TIẾT DIỆN CNC'
-      @cnc_profile_cmd.status_bar_text = 'ABF EDGE SAFE · Tiết diện nằm trong chính Group/Component nhưng tách topology bằng container line-only; Face ván sạch để ABF Dán Cạnh/Trải phẳng/Nesting.'
-      @cnc_profile_cmd.menu_text = 'TẠO TIẾT DIỆN CNC' if @cnc_profile_cmd.respond_to?(:menu_text=)
-
-      add_feature_command_once(
-        @cnc_profile_cmd,
-        :cnc_profile_menu_installed
-      )
-      true
-    rescue StandardError => error
-      puts "[TT UI CNCProfile] #{error.class}: #{error.message}"
       false
     end
 
