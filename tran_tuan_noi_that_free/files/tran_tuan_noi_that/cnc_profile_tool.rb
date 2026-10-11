@@ -1,6 +1,7 @@
 # encoding: UTF-8
 require 'sketchup.rb'
 require 'json'
+require 'fileutils'
 
 module TranTuanNoiThat
   module CNCProfileTool
@@ -9,6 +10,8 @@ module TranTuanNoiThat
     LIBRARY_KEY = 'cnc_profile_library_v1'.freeze
     ACTIVE_KEY = 'cnc_profile_active_v1'.freeze
     DICT = 'TT_CNC_PROFILE'.freeze
+    USER_DATA_DIR = 'tran_tuan_noi_that_user'.freeze
+    LIBRARY_FILE = 'tiet_dien_cnc_library.json'.freeze
     EPS = 1.0e-7
     SNAP_RADIUS_PX = 22.0
 
@@ -55,32 +58,95 @@ module TranTuanNoiThat
       'scallop_top' => ['Độ võng (mm)','Số múi']
     }.freeze
 
+    def user_data_dir
+      plugins = Sketchup.find_support_file('Plugins').to_s
+      base = plugins.empty? ? File.expand_path('~') : plugins
+      dir = File.join(base, USER_DATA_DIR)
+      FileUtils.mkdir_p(dir) unless File.directory?(dir)
+      dir
+    rescue StandardError
+      File.expand_path('~')
+    end
+
+    def library_file_path
+      File.join(user_data_dir, LIBRARY_FILE)
+    end
+
+    def read_custom_library_file
+      path = library_file_path
+      return nil unless File.file?(path)
+
+      raw = File.binread(path)
+      raw = raw.force_encoding('UTF-8') if raw.respond_to?(:force_encoding)
+      parsed = JSON.parse(raw)
+      parsed.is_a?(Array) ? parsed : nil
+    rescue StandardError => error
+      puts "[TT CNC Library read file] #{error.class}: #{error.message}"
+      nil
+    end
+
+    def read_custom_library_default
+      raw = Sketchup.read_default(
+        TranTuanNoiThat::NAME,
+        LIBRARY_KEY,
+        '[]'
+      ).to_s
+      parsed = JSON.parse(raw)
+      parsed.is_a?(Array) ? parsed : []
+    rescue StandardError
+      []
+    end
+
     def library
-      custom = []
-      raw = Sketchup.read_default(TranTuanNoiThat::NAME, LIBRARY_KEY, '[]').to_s
-      begin
-        parsed = JSON.parse(raw)
-        custom = parsed if parsed.is_a?(Array)
-      rescue JSON::ParserError
-        custom = []
-      end
+      custom = read_custom_library_file
+      custom = read_custom_library_default if custom.nil?
 
       defaults = DEFAULT_PROFILES.map { |profile| deep_copy(profile) }
-      customs = custom.select { |profile| profile.is_a?(Hash) }.map do |profile|
+      customs = Array(custom).select { |profile| profile.is_a?(Hash) }.map do |profile|
         normalize_profile(profile, false)
       end
       defaults + customs
     end
 
     def save_custom_library(items)
-      data = items.reject { |profile| profile['builtin'] }.map do |profile|
+      data = Array(items).reject { |profile| profile['builtin'] }.map do |profile|
         normalize_profile(profile, false)
       end
-      Sketchup.write_default(
-        TranTuanNoiThat::NAME,
-        LIBRARY_KEY,
-        JSON.generate(data)
-      )
+
+      json = JSON.pretty_generate(data)
+      path = library_file_path
+      temp = "#{path}.tmp"
+
+      File.open(temp, 'wb') do |file|
+        file.write(json.encode('UTF-8'))
+        file.flush
+      end
+
+      File.delete(path) if File.exist?(path)
+      File.rename(temp, path)
+
+      # Giữ thêm bản dự phòng trong SketchUp Preferences.
+      begin
+        Sketchup.write_default(
+          TranTuanNoiThat::NAME,
+          LIBRARY_KEY,
+          JSON.generate(data)
+        )
+      rescue StandardError => error
+        puts "[TT CNC Library write_default] #{error.class}: #{error.message}"
+      end
+
+      # Đọc lại file để xác nhận ghi thật thành công.
+      verify = read_custom_library_file
+      raise 'Không đọc lại được file thư viện sau khi lưu.' unless verify.is_a?(Array)
+
+      expected_ids = data.map { |item| item['id'].to_s }.sort
+      actual_ids = verify.map { |item| item['id'].to_s }.sort
+      raise 'File thư viện chưa ghi đủ mẫu.' unless expected_ids == actual_ids
+
+      true
+    ensure
+      File.delete(temp) if defined?(temp) && temp && File.exist?(temp)
     end
 
     def active_profile
@@ -114,32 +180,56 @@ module TranTuanNoiThat
 
       @dialog.add_action_callback('save_profile') do |_ctx, payload|
         begin
-          data = JSON.parse(payload)
-          profile = normalize_profile(data, false)
-          items = library
+          data = JSON.parse(payload.to_s)
+          raise 'Dữ liệu mẫu gửi từ bảng cài đặt không hợp lệ.' unless data.is_a?(Hash)
 
-          if data['builtin'] || profile['id'].to_s.start_with?('builtin_')
+          original_builtin = truthy?(data['builtin']) ||
+            data['id'].to_s.start_with?('builtin_')
+
+          profile = normalize_profile(data, false)
+
+          # Mẫu hệ thống luôn được SAVE AS thành mẫu người dùng mới.
+          # Mẫu tự lưu giữ nguyên ID để bấm LƯU lần sau là cập nhật.
+          if original_builtin
             profile['id'] = custom_id
+            base_name = profile['name'].to_s.strip
+            profile['name'] = "#{base_name} - TỰ LƯU" unless base_name.include?('TỰ LƯU')
           end
           profile['builtin'] = false
 
-          index = items.index { |item| item['id'] == profile['id'] && !item['builtin'] }
+          items = library
+          index = items.index do |item|
+            !item['builtin'] && item['id'].to_s == profile['id'].to_s
+          end
+
           if index
             items[index] = profile
           else
             items << profile
           end
 
-          save_custom_library(items)
+          raise 'Không ghi được thư viện tiết diện.' unless save_custom_library(items)
+
+          # Xác nhận chính mẫu vừa lưu có trong thư viện đọc lại.
+          saved = library.find do |item|
+            !item['builtin'] && item['id'].to_s == profile['id'].to_s
+          end
+          raise 'Đã ghi file nhưng chưa tìm thấy mẫu vừa lưu.' unless saved
+
           Sketchup.write_default(
             TranTuanNoiThat::NAME,
             ACTIVE_KEY,
             profile['id']
           )
+
           sync_dialog(profile['id'])
-          notify('Đã lưu mẫu vào THƯ VIỆN CNC.', 'ok')
+          notify(
+            "ĐÃ LƯU MẪU: #{saved['name']}\n#{library_file_path}",
+            'ok'
+          )
         rescue StandardError => error
-          notify(error.message, 'error')
+          puts "[TT CNC save_profile] #{error.class}: #{error.message}"
+          notify("LƯU MẪU THẤT BẠI: #{error.message}", 'error')
         end
       end
 
@@ -154,13 +244,18 @@ module TranTuanNoiThat
           end
           save_custom_library(custom)
           sync_dialog(DEFAULT_PROFILES.first['id'])
-          notify('Đã xóa mẫu tự tạo.', 'ok')
+          notify('Đã xóa mẫu tiết diện tự tạo.', 'ok')
         rescue StandardError => error
           notify(error.message, 'error')
         end
       end
 
       @dialog.add_action_callback('reset_library') do |_ctx|
+        begin
+          File.delete(library_file_path) if File.exist?(library_file_path)
+        rescue StandardError => error
+          puts "[TT CNC Library reset file] #{error.class}: #{error.message}"
+        end
         Sketchup.write_default(
           TranTuanNoiThat::NAME,
           LIBRARY_KEY,
@@ -172,7 +267,7 @@ module TranTuanNoiThat
           DEFAULT_PROFILES.first['id']
         )
         sync_dialog
-        notify('Đã khôi phục 20 mẫu CNC mặc định.', 'ok')
+        notify('Đã khôi phục 20 mẫu tiết diện mặc định.', 'ok')
       end
 
       @dialog.add_action_callback('use_profile') do |_ctx, payload|
@@ -1329,7 +1424,7 @@ module TranTuanNoiThat
             const $=id=>document.getElementById(id);
             function clone(o){return JSON.parse(JSON.stringify(o))}
             function abfName(s){
-              let n=(s||'BIEN DANG CNC').trim().replace(/[\\\/:*?"<>|]+/g,'_').replace(/\s+/g,'_').replace(/_+/g,'_');
+              let n=(s||'TIET DIEN CNC').trim().replace(/[\\\/:*?"<>|]+/g,'_').replace(/\s+/g,'_').replace(/_+/g,'_');
               return n.startsWith('ABF_')?n:'ABF_'+n;
             }
 
@@ -1380,12 +1475,15 @@ module TranTuanNoiThat
               const labels=DATA.kind_labels[$('kind').value]||['Thông số 1','Thông số 2'];
               $('p1_label').textContent=labels[0];$('p2_label').textContent=labels[1];
             }
-            function saveProfile(){sketchup.save_profile(JSON.stringify(read()))}
+            function saveProfile(){
+              window.ttNotice('Đang lưu mẫu tiết diện...','ok');
+              sketchup.save_profile(JSON.stringify(read()));
+            }
             function deleteProfile(){if(current&&!current.builtin)sketchup.delete_profile(current.id)}
             function resetLib(){sketchup.reset_library()}
             function useProfile(){sketchup.use_profile(JSON.stringify(read()))}
             function newCopy(){
-              const p=read();p.id='';p.builtin=false;p.name='Mẫu CNC mới';p.instance_name='ABF_Mau_CNC_moi';p.tag_name='ABF_Mau_CNC_moi';current=p;fill(p);renderList();drawPreview();
+              const p=read();p.id='';p.builtin=false;p.name='Mẫu tiết diện mới';p.instance_name='ABF_Mau_tiet_dien_moi';p.tag_name='ABF_Mau_tiet_dien_moi';current=p;fill(p);renderList();drawPreview();
             }
 
             function roundedRect(w,h,r,n){
