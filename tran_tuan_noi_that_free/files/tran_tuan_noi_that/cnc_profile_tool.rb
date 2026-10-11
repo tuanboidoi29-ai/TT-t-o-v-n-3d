@@ -11,7 +11,9 @@ module TranTuanNoiThat
     ACTIVE_KEY = 'cnc_profile_active_v1'.freeze
     DICT = 'TT_CNC_PROFILE'.freeze
     ABF_SAFE_TAG = 'TT_CNC_ABF_SAFE'.freeze
+    ABF_CONTAINER_TAG = 'TT_CNC_TIEP_DIEN'.freeze
     ABF_DIRECT_VERSION = 2
+    ABF_CONTAINER_VERSION = 3
     USER_DATA_DIR = 'tran_tuan_noi_that_user'.freeze
     LIBRARY_FILE = 'tiet_dien_cnc_library.json'.freeze
     EPS = 1.0e-7
@@ -160,7 +162,198 @@ module TranTuanNoiThat
       library.find { |profile| profile['id'].to_s == id } || library.first
     end
 
+    def edge_profile_metadata?(edge)
+      return false unless edge && edge.valid?
+      dict = edge.attribute_dictionary(DICT, false) rescue nil
+      !!dict
+    rescue StandardError
+      false
+    end
+
+    def direct_legacy_profile_edge?(edge)
+      return false unless edge_profile_metadata?(edge)
+      context = edge.get_attribute(DICT, 'geometry_context', '').to_s rescue ''
+      context == 'TARGET_DEFINITION_FACE'
+    rescue StandardError
+      false
+    end
+
+    def technical_container?(entity)
+      entity.is_a?(Sketchup::Group) &&
+        truthy?(entity.get_attribute(DICT, 'abf_edge_safe_container', false))
+    rescue StandardError
+      false
+    end
+
+    def find_or_create_abf_container(entities, model = Sketchup.active_model)
+      group = entities.grep(Sketchup::Group).find do |item|
+        technical_container?(item)
+      end
+      return group if group && group.valid?
+
+      group = entities.add_group
+      group.name = 'TT - TIẾT DIỆN CNC - ABF EDGE SAFE'
+      group.set_attribute(DICT, 'abf_edge_safe_container', true)
+      group.set_attribute(DICT, 'abf_container_version', ABF_CONTAINER_VERSION)
+      group.set_attribute(DICT, 'purpose', 'KEEP_PANEL_FACE_CLEAN_FOR_ABF_EDGE_BAND')
+
+      layer = model.layers[ABF_CONTAINER_TAG] || model.layers.add(ABF_CONTAINER_TAG)
+      group.layer = layer
+      group
+    end
+
+    def ordered_edge_path(edges)
+      list = Array(edges).select { |edge| edge && edge.valid? }
+      return [[], false] if list.empty?
+
+      adjacency = Hash.new { |hash, key| hash[key] = [] }
+      vertices = {}
+      list.each do |edge|
+        [edge.start, edge.end].each do |vertex|
+          vertices[vertex.object_id] = vertex
+          adjacency[vertex.object_id] << edge
+        end
+      end
+
+      start_id = adjacency.keys.find { |key| adjacency[key].length == 1 }
+      closed = start_id.nil?
+      start_id ||= list.first.start.object_id
+
+      used = {}
+      points = []
+      current_id = start_id
+      guard = 0
+
+      while guard < list.length + 2
+        guard += 1
+        vertex = vertices[current_id]
+        break unless vertex
+        points << vertex.position
+
+        next_edge = adjacency[current_id].find do |edge|
+          !used[edge.object_id]
+        end
+        break unless next_edge
+
+        used[next_edge.object_id] = true
+        other = next_edge.start.object_id == current_id ? next_edge.end : next_edge.start
+        current_id = other.object_id
+
+        if closed && current_id == start_id
+          points << vertices[start_id].position
+          break
+        end
+      end
+
+      [points, closed]
+    rescue StandardError
+      [[], false]
+    end
+
+    def copy_profile_attributes(source_edge, target_edges, context)
+      keys = %w[
+        profile_id profile_name instance_name requested_abf_name
+        profile_json welded_curve line_only source_target_pid
+        source_face_pid source_type raw_geometry_untagged
+        abf_detected_when_created
+      ]
+      Array(target_edges).each do |edge|
+        next unless edge && edge.valid?
+        keys.each do |key|
+          value = source_edge.get_attribute(DICT, key, nil) rescue nil
+          edge.set_attribute(DICT, key, value) unless value.nil?
+        end
+        edge.set_attribute(DICT, 'abf_edge_safe', true)
+        edge.set_attribute(DICT, 'abf_container_version', ABF_CONTAINER_VERSION)
+        edge.set_attribute(DICT, 'geometry_context', context)
+        edge.hidden = false
+        edge.layer = Sketchup.active_model.layers[0] rescue edge.layer
+      end
+    end
+
+    def migrate_definition_direct_profiles!(definition, model = Sketchup.active_model)
+      return 0 unless definition && definition.respond_to?(:entities)
+      entities = definition.entities
+      legacy = entities.grep(Sketchup::Edge).select do |edge|
+        direct_legacy_profile_edge?(edge)
+      end
+      return 0 if legacy.empty?
+
+      container = find_or_create_abf_container(entities, model)
+      target_entities = container.entities
+
+      buckets = {}
+      legacy.each do |edge|
+        curve = edge.curve rescue nil
+        key = curve ? "curve_#{curve.object_id}" : "edge_#{edge.object_id}"
+        (buckets[key] ||= []) << edge
+      end
+
+      moved = 0
+      buckets.each_value do |edges|
+        points, closed = ordered_edge_path(edges)
+        next if points.length < 2
+
+        curve_points = points.dup
+        if closed && curve_points.first.distance(curve_points.last) > 0.001.mm
+          curve_points << curve_points.first
+        end
+
+        new_edges = target_entities.add_curve(curve_points)
+        next unless new_edges && !new_edges.empty?
+
+        copy_profile_attributes(
+          edges.first,
+          new_edges,
+          'TARGET_CHILD_ABF_EDGE_SAFE'
+        )
+        moved += edges.length
+      end
+
+      # Xóa Edge cũ khỏi Face cha. SketchUp sẽ heal/merge các Face đồng phẳng,
+      # trả lại bề mặt sạch để ABF nhận cạnh.
+      legacy.dup.each do |edge|
+        edge.erase! if edge.valid?
+      end
+
+      moved
+    rescue StandardError => error
+      puts "[TT CNC ABF migrate definition] #{error.class}: #{error.message}"
+      0
+    end
+
+    def migrate_model_direct_profiles_for_abf!
+      model = Sketchup.active_model
+      return 0 unless model
+
+      definitions = model.definitions.to_a
+      affected = definitions.select do |definition|
+        definition.respond_to?(:entities) &&
+          definition.entities.grep(Sketchup::Edge).any? do |edge|
+            direct_legacy_profile_edge?(edge)
+          end
+      end
+      return 0 if affected.empty?
+
+      started = false
+      model.start_operation('TT - Sửa Tiết Diện Tương Thích ABF', true)
+      started = true
+
+      moved = affected.inject(0) do |sum, definition|
+        sum + migrate_definition_direct_profiles!(definition, model)
+      end
+
+      model.commit_operation
+      started = false
+      moved
+    rescue StandardError => error
+      model.abort_operation if started
+      puts "[TT CNC ABF migrate model] #{error.class}: #{error.message}"
+      0
+    end
+
     def show_dialog
+      migrated = migrate_model_direct_profiles_for_abf!
       if @dialog && @dialog.visible?
         @dialog.bring_to_front
         sync_dialog
@@ -178,7 +371,15 @@ module TranTuanNoiThat
       )
 
       @dialog.set_html(dialog_html)
-      @dialog.add_action_callback('ready') { |_ctx| sync_dialog }
+      @dialog.add_action_callback('ready') do |_ctx|
+        sync_dialog
+        if migrated.to_i > 0
+          notify(
+            "Đã chuyển #{migrated} Edge tiết diện cũ sang cấu trúc ABF EDGE SAFE. Face ván đã được trả về sạch để Dán Cạnh.",
+            'ok'
+          )
+        end
+      end
 
       @dialog.add_action_callback('save_profile') do |_ctx, payload|
         begin
@@ -393,6 +594,7 @@ module TranTuanNoiThat
     end
 
     def activate_profile(profile)
+      migrate_model_direct_profiles_for_abf!
       # Không cần chọn Group/Component trước.
       # Chọn mẫu → DÙNG NGAY → rà trực tiếp Face; tool tự nhận Group chứa Face.
       Sketchup.active_model.select_tool(PlacementTool.new(profile))
@@ -1285,17 +1487,12 @@ module TranTuanNoiThat
         raise 'Face đích đã bị xóa.' unless face && face.valid?
 
         started = false
-        @model.start_operation('TT - Tạo Tiết Diện CNC Trong Face', true)
+        @model.start_operation('TT - Tạo Tiết Diện CNC ABF EDGE SAFE', true)
         started = true
 
         legacy_face_pid = (face.persistent_id rescue face.entityID).to_s
 
-        # ABF DIRECT FACE:
-        # Hình học thật nằm trong đúng Group/Component chứa Face để ABF có thể
-        # đọc cùng context với tấm khi Intersect / Flatten / Nesting.
-        #
-        # Chỉ Make Unique khi Component đang dùng chung Definition và người dùng
-        # đang đặt tiết diện cho riêng instance này.
+        # Component dùng chung: chỉ Make Unique khi đặt tiết diện riêng cho instance.
         if target.is_a?(Sketchup::ComponentInstance) &&
            target.definition.instances.length > 1 &&
            target.respond_to?(:make_unique)
@@ -1304,8 +1501,6 @@ module TranTuanNoiThat
           old_face_normal.normalize! if old_face_normal.length > EPS
 
           target.make_unique
-
-          # Sau make_unique entity Face cũ có thể không còn thuộc definition mới.
           face = repick_face_after_unique(
             target,
             old_face_center,
@@ -1315,9 +1510,22 @@ module TranTuanNoiThat
           info[:face] = face
         end
 
+        # Dọn overlay ngoài model từ 1.9.296 nếu có.
         erase_legacy_root_overlays(target, face, legacy_face_pid)
 
+        # Nếu definition này còn Edge trực tiếp trên Face từ 1.9.297,
+        # chuyển chúng vào container kỹ thuật trước để heal Face.
+        CNCProfileTool.migrate_definition_direct_profiles!(
+          target.definition,
+          @model
+        )
+
         entities = target.definition.entities
+        container = CNCProfileTool.find_or_create_abf_container(
+          entities,
+          @model
+        )
+        profile_entities = container.entities
         default_layer = @model.layers[0]
 
         requested_abf_name = @profile['tag_name'].to_s.strip
@@ -1325,9 +1533,12 @@ module TranTuanNoiThat
 
         created_edges = []
 
-        # Plane phải lấy lại từ Face đang sống trong definition hiện tại.
-        plane_origin = face.vertices.first.position
-        plane_normal = safe_unit(face.normal)
+        # Dùng plane đã bắt từ preview; container có transform identity nên
+        # tọa độ local của target cũng chính là tọa độ local của container.
+        face_plane = info[:face_plane_local]
+        raise 'Không đọc được mặt phẳng Face đích.' unless face_plane && face_plane.length == 2
+        plane_origin = face_plane[0]
+        plane_normal = safe_unit(face_plane[1])
         raise 'Không đọc được pháp tuyến Face đích.' unless plane_normal
 
         source_target_pid = target.persistent_id rescue target.entityID
@@ -1339,8 +1550,6 @@ module TranTuanNoiThat
           points = path[:points]
           next if points.length < 2
 
-          # Ép trực tiếp vào đúng plane của Face TRONG LOCAL definition.
-          # Không offset Z, không overlay ngoài model.
           curve_points = points.map do |point|
             project_point_to_plane(
               point,
@@ -1350,19 +1559,16 @@ module TranTuanNoiThat
           end
           curve_points << curve_points.first if path[:closed]
 
-          edges = entities.add_curve(curve_points)
-          raise 'Không tạo được Curve tiết diện trong Face.' if !edges || edges.empty?
+          edges = profile_entities.add_curve(curve_points)
+          raise 'Không tạo được Curve tiết diện ABF EDGE SAFE.' if !edges || edges.empty?
 
           edges.each do |edge|
             next unless edge && edge.valid?
-
-            # ABF/SketchUp chuẩn: raw geometry để Untagged.
             edge.layer = default_layer if default_layer
             edge.hidden = false
             edge.soft = false if edge.respond_to?(:soft=)
             edge.smooth = false if edge.respond_to?(:smooth=)
 
-            # Metadata riêng của TRẦN TUẤN, không giả lập nội bộ ABF.
             edge.set_attribute(DICT, 'profile_id', @profile['id'].to_s)
             edge.set_attribute(DICT, 'profile_name', @profile['name'].to_s)
             edge.set_attribute(DICT, 'instance_name', @profile['instance_name'].to_s)
@@ -1370,9 +1576,9 @@ module TranTuanNoiThat
             edge.set_attribute(DICT, 'profile_json', JSON.generate(@profile))
             edge.set_attribute(DICT, 'welded_curve', true)
             edge.set_attribute(DICT, 'line_only', true)
-            edge.set_attribute(DICT, 'abf_direct_face', true)
-            edge.set_attribute(DICT, 'abf_direct_version', ABF_DIRECT_VERSION)
-            edge.set_attribute(DICT, 'geometry_context', 'TARGET_DEFINITION_FACE')
+            edge.set_attribute(DICT, 'abf_edge_safe', true)
+            edge.set_attribute(DICT, 'abf_container_version', ABF_CONTAINER_VERSION)
+            edge.set_attribute(DICT, 'geometry_context', 'TARGET_CHILD_ABF_EDGE_SAFE')
             edge.set_attribute(DICT, 'source_target_pid', source_target_pid)
             edge.set_attribute(DICT, 'source_face_pid', source_face_pid)
             edge.set_attribute(DICT, 'source_type', source_type)
@@ -1459,7 +1665,7 @@ module TranTuanNoiThat
         <body>
           <div class="head">
             <h1>TẠO TIẾT DIỆN CNC</h1>
-            <div class="sub">ABF DIRECT FACE · Curve/Line nằm trực tiếp trong chính Face của Group/Component</div>
+            <div class="sub">ABF EDGE SAFE · Tiết diện nằm trong chính Group/Component nhưng không chia Face ván</div>
           </div>
           <div class="wrap">
             <div class="panel left">
@@ -1507,7 +1713,7 @@ module TranTuanNoiThat
                   <button class="use" onclick="useProfile()">✓ DÙNG NGAY → RÀ FACE → TỰ CANH MÉP → CLICK ĐẶT</button>
                 </div>
                 <div id="notice" class="notice"></div>
-                <div class="hint">ABF DIRECT FACE: Curve/Line được tạo trực tiếp trong Entities của Group/Component chứa Face, ép đúng plane Face, không Group con, luôn visible và raw Edge để Untagged. Tên ABF_ chỉ lưu metadata để không làm sai bộ lọc Tag của ABF.</div>
+                <div class="hint">ABF EDGE SAFE: tiết diện nằm trong một container kỹ thuật bên trong chính Group/Component và đồng phẳng đúng Face. Container tách topology để Face ván không bị split, giúp ABF Dán Cạnh/Trải phẳng/Nesting vẫn nhận bề mặt chuẩn. Edge luôn visible và Untagged.</div>
               </div>
 
               <div class="preview">
