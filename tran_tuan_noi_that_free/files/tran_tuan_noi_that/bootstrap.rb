@@ -18,7 +18,7 @@ module TranTuanNoiThat
   }.freeze unless const_defined?(:LOCKED_FEATURE_BASELINES, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.299'.freeze
+  VERSION = '1.9.300'.freeze
 
   class << self
     def setting(key, default = nil)
@@ -626,12 +626,12 @@ module TranTuanNoiThat
       @wine_rack_cmd ||= command(
         'KHẤU ÂM DƯƠNG',
         'khau_am_duong.svg',
-        'Chọn 2 Solid giao nhau · tự nhận giao thật · A khấu 1/2 trước, B khấu 1/2 sau · TAB cài đặt'
+        'Chọn/quét chọn nhiều Solid trước khi chạy lệnh hoặc CTRL+CLICK thêm/bớt · tự tìm các cặp giao nhau · khấu hàng loạt trong 1 Undo'
       ) { WineRack.activate }
 
       # Hot reload: đổi ngay tên/icon của command Vẽ Ô Rượu cũ.
       @wine_rack_cmd.tooltip = 'KHẤU ÂM DƯƠNG'
-      @wine_rack_cmd.status_bar_text = 'Preview: tự nhận Dài/Rộng/Dày; A xanh khấu đúng 1/2 CHIỀU RỘNG từ mặt trước, B hồng khấu đúng 1/2 CHIỀU RỘNG từ mặt sau · TAB cài đặt · SHIFT đảo A/B.'
+      @wine_rack_cmd.status_bar_text = 'Hỗ trợ chọn/quét chọn nhiều Group/Component Solid. 3+ tấm: tự tìm các cặp giao 3D và khấu hàng loạt trong 1 Undo. CTRL+CLICK thêm/bớt · TAB cài đặt · SHIFT đảo A/B.'
       @wine_rack_cmd.menu_text = 'KHẤU ÂM DƯƠNG' if @wine_rack_cmd.respond_to?(:menu_text=)
 
       icon = File.join(ROOT, 'icons', 'khau_am_duong.svg')
