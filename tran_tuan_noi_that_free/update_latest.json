@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.297",
+  "version": "1.9.298",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Tinh chỉnh TẠO TIẾT DIỆN CNC theo ABF DIRECT FACE. Tiết diện giờ được tạo bằng raw Curve/Edge trực tiếp trong target.definition.entities của chính Group/Component chứa Face, cùng context hình học để ABF Intersect/Contact Face/Flatten/Nesting đọc đúng. Mọi điểm được project chính xác về plane local của Face; không Group con, không offset Z, Edge luôn visible và không soft/smooth. Raw Edge để Untagged (Layers[0]); tên ABF_ người dùng nhập chỉ lưu metadata TT_CNC_PROFILE, không giả lập Tag/dictionary nội bộ ABF. Component dùng chung chỉ Make Unique khi cần sửa riêng instance và tự bắt lại Face sau Make Unique. Khi tạo lại, tự dọn overlay MODEL_ROOT_OVERLAY của bản 1.9.296 có cùng source target/face để tránh trùng. Giữ nguyên thư viện mẫu, tự nhận mép ván, Cách mép và bắt MÉP–TÂM–MÉP.",
+  "notes": "Sửa tương thích ABF DÁN CẠNH khi tấm có TIẾT DIỆN. Nguyên nhân là raw Curve/Edge trực tiếp trên Face ở 1.9.297 làm split Face và ABF nhận bề mặt bất thường. Từ 1.9.298, tiết diện vẫn nằm bên trong chính Group/Component và đồng phẳng đúng Face nhưng được đặt trong container kỹ thuật line-only 'TT - TIẾT DIỆN CNC - ABF EDGE SAFE'. Container tách topology nên Face ván chính không bị chia; ABF Dán Cạnh/Trải phẳng/Nesting vẫn đọc bề mặt tấm sạch. Container chỉ chứa Edge/Curve, tự xóa mọi Face phụ, raw Edge để Untagged và luôn visible. Khi mở công cụ, plugin tự chuyển Edge tiết diện kiểu TARGET_DEFINITION_FACE của 1.9.297 vào container và xóa Edge cũ để SketchUp heal/merge lại Face ván. Overlay ngoài model của 1.9.296 vẫn được dọn khi tạo lại đúng tấm/Face. Giữ nguyên tự canh mép, Cách mép, thư viện mẫu và metadata TT_CNC_PROFILE.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "4d543fa6370e3d8798a3b4fac575d388e2668ac8222abe9fe43955fb460d90e2"
+      "sha256": "539bdf3f6d8d674f29428a2943911d76d1a03475215a1a5b5962c37d28865dc0"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -314,7 +314,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "a4a07a04dadae239150f29d842a51907b63970c240b9409e381361f1adbbc1d9"
+      "sha256": "40683f99180566f2f98fa0c68d638ad4679cce3c1b0c179051caa31f7b9fa65d"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -454,7 +454,7 @@
     {
       "path": "tran_tuan_noi_that/cnc_profile_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/cnc_profile_tool.rb",
-      "sha256": "8ff5ccd60b32cd835b51deff49387bc48185b4eb7d8b77fd108809cb4f89f390"
+      "sha256": "579cd5df1c01745ff1ecf1698b7f86ff4b38c39357f8c88f92dd11038c82227d"
     },
     {
       "path": "tran_tuan_noi_that/icons/cnc_profile.svg",
