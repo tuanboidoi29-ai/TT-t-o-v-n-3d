@@ -10,6 +10,8 @@ module TranTuanNoiThat
     LIBRARY_KEY = 'cnc_profile_library_v1'.freeze
     ACTIVE_KEY = 'cnc_profile_active_v1'.freeze
     DICT = 'TT_CNC_PROFILE'.freeze
+    ABF_SAFE_TAG = 'TT_CNC_ABF_SAFE'.freeze
+    ABF_SAFE_VERSION = 1
     USER_DATA_DIR = 'tran_tuan_noi_that_user'.freeze
     LIBRARY_FILE = 'tiet_dien_cnc_library.json'.freeze
     EPS = 1.0e-7
@@ -1251,24 +1253,29 @@ module TranTuanNoiThat
 
       def create_profile(info)
         target = info[:target]
+        face = info[:face]
         raise 'Group/Component đích đã bị xóa.' unless target && target.valid?
+        raise 'Face đích đã bị xóa.' unless face && face.valid?
 
         started = false
-        @model.start_operation('TT - Tạo Biên Dạng CNC', true)
+        @model.start_operation('TT - Tạo Tiết Diện CNC ABF SAFE', true)
         started = true
 
-        if target.definition.instances.length > 1 &&
-           target.respond_to?(:make_unique)
-          target.make_unique
-        end
+        # ABF SAFE:
+        # - KHÔNG make_unique Component.
+        # - KHÔNG thêm Edge vào target.definition.entities.
+        # - KHÔNG chia/split Face của tấm.
+        # - KHÔNG tạo Group con trong tấm.
+        # - KHÔNG gán Tag bắt đầu ABF_ vào hình học thật.
+        #
+        # Curve được đặt tại MODEL ROOT, đúng tọa độ world của Face.
+        # Vì khác Entities context với tấm nên nhìn vẫn nằm trên Face nhưng
+        # topology/manifold của tấm hoàn toàn không đổi cho ABF Flatten/Nesting.
+        entities = @model.entities
+        safe_layer = @model.layers[ABF_SAFE_TAG] || @model.layers.add(ABF_SAFE_TAG)
 
-        # Tạo Curve/Line TRỰC TIẾP trong entities của Group/Component chứa Face.
-        # Không sinh thêm Group con.
-        entities = target.definition.entities
-
-        tag_name = @profile['tag_name'].to_s.strip
-        tag_name = CNCProfileTool.abf_name(@profile['name']) if tag_name.empty?
-        layer = @model.layers.add(tag_name)
+        requested_abf_name = @profile['tag_name'].to_s.strip
+        requested_abf_name = CNCProfileTool.abf_name(@profile['name']) if requested_abf_name.empty?
 
         created_edges = []
 
@@ -1278,31 +1285,58 @@ module TranTuanNoiThat
         plane_normal = safe_unit(face_plane[1])
         raise 'Không đọc được pháp tuyến Face đích.' unless plane_normal
 
+        target_world = info[:target_world]
+        raise 'Không đọc được transform Group/Component đích.' unless target_world
+
+        source_target_pid = target.persistent_id rescue target.entityID
+        source_face_pid = face.persistent_id rescue face.entityID
+        source_type = target.is_a?(Sketchup::ComponentInstance) ? 'COMPONENT' : 'GROUP'
+        abf_detected = defined?(::ABF) ? true : false
+
         info[:local_paths].each do |path|
           points = path[:points]
           next if points.length < 2
 
-          # Ép toàn bộ biên dạng về đúng plane của Face trong local Group/Component.
-          # Không nâng Z, không tạo Group con, không để Curve nổi/lệch khỏi mặt.
-          curve_points = points.map do |point|
-            project_point_to_plane(point, plane_origin, plane_normal)
+          # Ép về đúng plane Face trong local, sau đó chuyển sang WORLD.
+          # Hình học CNC nằm ngoài topology của tấm nhưng thị giác trùng đúng Face.
+          world_points = points.map do |point|
+            local_point = project_point_to_plane(
+              point,
+              plane_origin,
+              plane_normal
+            )
+            local_point.transform(target_world)
           end
-          curve_points << curve_points.first if path[:closed]
+          world_points << world_points.first if path[:closed]
 
-          edges = entities.add_curve(curve_points)
-          raise 'Không tạo được Curve CNC.' if !edges || edges.empty?
+          edges = entities.add_curve(world_points)
+          raise 'Không tạo được Curve CNC ABF SAFE.' if !edges || edges.empty?
 
           edges.each do |edge|
             next unless edge && edge.valid?
 
-            edge.layer = layer
+            edge.layer = safe_layer
+            edge.hidden = false
+            edge.soft = false if edge.respond_to?(:soft=)
+            edge.smooth = false if edge.respond_to?(:smooth=)
+
+            # Chỉ dùng dictionary riêng của TRẦN TUẤN.
+            # Không ghi/giả lập bất kỳ dictionary nội bộ nào của ABF.
             edge.set_attribute(DICT, 'profile_id', @profile['id'].to_s)
             edge.set_attribute(DICT, 'profile_name', @profile['name'].to_s)
             edge.set_attribute(DICT, 'instance_name', @profile['instance_name'].to_s)
-            edge.set_attribute(DICT, 'tag_name', tag_name)
+            edge.set_attribute(DICT, 'requested_abf_name', requested_abf_name)
             edge.set_attribute(DICT, 'profile_json', JSON.generate(@profile))
             edge.set_attribute(DICT, 'welded_curve', true)
             edge.set_attribute(DICT, 'line_only', true)
+            edge.set_attribute(DICT, 'abf_safe', true)
+            edge.set_attribute(DICT, 'abf_safe_version', ABF_SAFE_VERSION)
+            edge.set_attribute(DICT, 'geometry_context', 'MODEL_ROOT_OVERLAY')
+            edge.set_attribute(DICT, 'source_target_pid', source_target_pid)
+            edge.set_attribute(DICT, 'source_face_pid', source_face_pid)
+            edge.set_attribute(DICT, 'source_type', source_type)
+            edge.set_attribute(DICT, 'abf_detected_when_created', abf_detected)
+            edge.set_attribute(DICT, 'source_transform', JSON.generate(target_world.to_a))
             created_edges << edge
           end
         end
@@ -1358,7 +1392,7 @@ module TranTuanNoiThat
         <body>
           <div class="head">
             <h1>TẠO TIẾT DIỆN CNC</h1>
-            <div class="sub">Thư viện mẫu · Curve/Line nằm ĐỒNG PHẲNG đúng Face trong Group/Component · không Group con</div>
+            <div class="sub">ABF SAFE · Curve/Line trùng đúng Face nhưng không làm thay đổi hình học tấm</div>
           </div>
           <div class="wrap">
             <div class="panel left">
@@ -1376,7 +1410,7 @@ module TranTuanNoiThat
                 <label>Tên mẫu</label><input id="name">
                 <div class="row">
                   <div><label>Instance / Group</label><input id="instance_name" placeholder="ABF_..."></div>
-                  <div><label>Tag</label><input id="tag_name" placeholder="ABF_..."></div>
+                  <div><label>Tên ABF / metadata</label><input id="tag_name" placeholder="ABF_... (không gán Tag thật)"></div>
                 </div>
                 <label>Loại biên dạng</label><select id="kind" onchange="updateKind();drawPreview()"></select>
                 <div class="row">
@@ -1406,7 +1440,7 @@ module TranTuanNoiThat
                   <button class="use" onclick="useProfile()">✓ DÙNG NGAY → RÀ FACE → TỰ CANH MÉP → CLICK ĐẶT</button>
                 </div>
                 <div id="notice" class="notice"></div>
-                <div class="hint">Không cần chọn Group trước. Chọn mẫu → DÙNG NGAY → rà Face; Curve/Line được ép ĐỒNG PHẲNG đúng mặt Face trong chính Group/Component, không tạo Group con.</div>
+                <div class="hint">ABF SAFE: Curve/Line nhìn đồng phẳng đúng Face nhưng được tạo ngoài topology của tấm. Không split Face, không Make Unique, không Group con, không ẩn và không gán Tag ABF_ thật.</div>
               </div>
 
               <div class="preview">
