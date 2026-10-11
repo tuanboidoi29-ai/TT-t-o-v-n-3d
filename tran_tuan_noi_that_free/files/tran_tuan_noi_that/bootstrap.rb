@@ -18,7 +18,7 @@ module TranTuanNoiThat
   }.freeze unless const_defined?(:LOCKED_FEATURE_BASELINES, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.292'.freeze
+  VERSION = '1.9.293'.freeze
 
   class << self
     def setting(key, default = nil)
@@ -706,14 +706,14 @@ module TranTuanNoiThat
       return false unless defined?(TranTuanNoiThat::CNCProfileTool)
 
       @cnc_profile_cmd ||= command(
-        'TẠO BIÊN DẠNG CNC',
+        'TẠO TIẾT DIỆN CNC',
         'cnc_profile.svg',
         'Mở thư viện 20 mẫu CNC → chọn mẫu/DÙNG NGAY → rà Face bất kỳ → tự nhận Group/Component chứa Face → preview → click đặt.'
       ) { CNCProfileTool.show_dialog }
 
-      @cnc_profile_cmd.tooltip = 'TẠO BIÊN DẠNG CNC'
-      @cnc_profile_cmd.status_bar_text = 'Chọn mẫu → DÙNG NGAY → rà Face → Curve/Line được ép đồng phẳng đúng Face trong Group/Component; không Group con, không lệch mặt.'
-      @cnc_profile_cmd.menu_text = 'TẠO BIÊN DẠNG CNC' if @cnc_profile_cmd.respond_to?(:menu_text=)
+      @cnc_profile_cmd.tooltip = 'TẠO TIẾT DIỆN CNC'
+      @cnc_profile_cmd.status_bar_text = 'Chọn mẫu tiết diện → DÙNG NGAY → rà Face: tự nhận cạnh gần nhất và tự cách mép ván đúng thông số → click đặt Curve/Line đồng phẳng Face.'
+      @cnc_profile_cmd.menu_text = 'TẠO TIẾT DIỆN CNC' if @cnc_profile_cmd.respond_to?(:menu_text=)
 
       add_feature_command_once(
         @cnc_profile_cmd,
