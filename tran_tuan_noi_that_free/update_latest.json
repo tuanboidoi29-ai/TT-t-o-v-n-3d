@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.292",
+  "version": "1.9.293",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Tinh chỉnh TẠO BIÊN DẠNG CNC: biên dạng luôn nằm đồng phẳng đúng mặt Face của Group/Component được rà. Trước khi tạo Curve, toàn bộ điểm biên dạng được chiếu chính xác về plane Face trong local coordinates của Group/Component; không nâng Z, không lệch khỏi mặt và không tạo Group con. Giữ nguyên bắt MÉP–TÂM–MÉP, thư viện, Tag/metadata và Curve weld.",
+  "notes": "Chuyển TẠO BIÊN DẠNG CNC thành TẠO TIẾT DIỆN CNC. Khi rà Face, hệ thống tự nhận cạnh ván gần chuột nhất (trái/phải/trên/dưới) và tự đặt tiết diện cách mép ván đúng thông số Cách mép trong cài đặt. Khoảng cách được tính từ mép ván tới mép ngoài tiết diện, có tính kích thước tiết diện và góc xoay; dọc theo cạnh vẫn có 3 điểm bắt MÉP–TÂM–MÉP. Curve/Line vẫn được ép đồng phẳng đúng Face trong Group/Component, không tạo Group con, giữ weld/Tag/metadata và thư viện mẫu cũ.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "36bea03ebc18f8aeab7d8ff06ee05679b3dac6c4abc39321dba9c2db8d1be48b"
+      "sha256": "eafa4d456310641478c199146c4ae8693b9f174511eba17a61ad47aa51282389"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -314,7 +314,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "56c72e03cc98482480f735dea00b3e035c2e5f138016ef83fef4070e121b467a"
+      "sha256": "99048c901a56964a67c2f5035ea24a77c8f4a911fc0332c9816e9fbdfb4fc043"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -454,7 +454,7 @@
     {
       "path": "tran_tuan_noi_that/cnc_profile_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/cnc_profile_tool.rb",
-      "sha256": "d77e922a5af79bc3e291367527806c8fcbe6ac6651b571bf6f77757af9fcec21"
+      "sha256": "eac53f3985f228ea8d76501a90b21904d65f02e700ce2a581cfc25dcbd13de3f"
     },
     {
       "path": "tran_tuan_noi_that/icons/cnc_profile.svg",
