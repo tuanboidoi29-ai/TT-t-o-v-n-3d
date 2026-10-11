@@ -18,7 +18,7 @@ module TranTuanNoiThat
   }.freeze unless const_defined?(:LOCKED_FEATURE_BASELINES, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.296'.freeze
+  VERSION = '1.9.297'.freeze
 
   class << self
     def setting(key, default = nil)
@@ -712,7 +712,7 @@ module TranTuanNoiThat
       ) { CNCProfileTool.show_dialog }
 
       @cnc_profile_cmd.tooltip = 'TẠO TIẾT DIỆN CNC'
-      @cnc_profile_cmd.status_bar_text = 'ABF SAFE · Rà Face → tự canh mép → tạo Curve/Line trùng mặt nhưng tách khỏi topology tấm; không split Face, không Make Unique, không ẩn.'
+      @cnc_profile_cmd.status_bar_text = 'ABF DIRECT FACE · Rà Face → tự canh mép → tạo raw Curve/Edge trực tiếp trong Group/Component chứa Face, đúng plane Face, luôn visible, Untagged.'
       @cnc_profile_cmd.menu_text = 'TẠO TIẾT DIỆN CNC' if @cnc_profile_cmd.respond_to?(:menu_text=)
 
       add_feature_command_once(
