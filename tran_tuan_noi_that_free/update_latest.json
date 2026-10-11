@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.294",
+  "version": "1.9.295",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Sửa lỗi KHÔNG LƯU ĐƯỢC MẪU TIẾT DIỆN. Thư viện mẫu người dùng giờ được lưu bền bằng file JSON riêng tại thư mục Plugins/tran_tuan_noi_that_user/tiet_dien_cnc_library.json, đồng thời giữ Sketchup.write_default làm bản dự phòng. Sau khi lưu, plugin đọc lại file và xác minh chính ID mẫu vừa ghi trước khi báo thành công. Mẫu hệ thống khi bấm LƯU tự tạo bản TỰ LƯU mới; mẫu tự lưu bấm LƯU lần sau sẽ cập nhật đúng ID. Giữ đầy đủ kích thước, cách mép, loại tiết diện, thông số riêng, độ mịn, xoay, mirror, offset, Instance và Tag.",
+  "notes": "Tinh chỉnh VẼ VÁN: mọi tấm ván mới tạo đều được đặt tên mặc định ngay cho cả Instance Name của Group và Group/Definition Name. Tên tự sinh theo kích thước thực dạng 'Ván DàixRộngxDày', ví dụ 'Ván 800x300x17.5'. Trục dài lấy theo cạnh dài nhất của biên dạng ván; dài/rộng được chuẩn hóa để tên thống nhất. Đồng thời lưu attribute ten_van_mac_dinh để các công cụ thống kê/đổi tên có thể đọc. Giữ nguyên toàn bộ thao tác P1-P2, Face mode, bắt mép/tâm/mép, độ dày và TAB/CTRL hiện tại.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -14,12 +14,12 @@
     {
       "path": "tran_tuan_noi_that/board_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/board_tool.rb",
-      "sha256": "cec317577ab9bf4d9c9ecc6fe6f62dcb0e68138b19ca20ca3eafc604c08dc3cd"
+      "sha256": "e5d4899d3ce392957cd06779696bdeceff2cf329559d890652c8f0864a475b3b"
     },
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "3140c1d0d3dd653b3e3d88de7fa92311a427410209c929e4d664a8b4345e6747"
+      "sha256": "6ed3853b85fd57caadc2b234bdaafd8e1879fce4ecc561ea30a817334cef6a5a"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -314,7 +314,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "109c86db8484f33ee1e25e27b772987d40d946d5506a416aa416e29851363042"
+      "sha256": "89ed426f62793d1eb1f115cff9d7bb42de627cc234319e6fdfe1ef9bbb3ec9e9"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
