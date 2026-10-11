@@ -302,6 +302,11 @@ module TranTuanNoiThat
         new_edges = target_entities.add_curve(curve_points)
         next unless new_edges && !new_edges.empty?
 
+        # Container kỹ thuật chỉ được có Edge/Curve, không giữ Face phụ.
+        target_entities.grep(Sketchup::Face).dup.each do |extra_face|
+          extra_face.erase! if extra_face.valid?
+        end
+
         copy_profile_attributes(
           edges.first,
           new_edges,
@@ -1561,6 +1566,11 @@ module TranTuanNoiThat
 
           edges = profile_entities.add_curve(curve_points)
           raise 'Không tạo được Curve tiết diện ABF EDGE SAFE.' if !edges || edges.empty?
+
+          # Không cho phép container sinh Face kín; ABF chỉ thấy line-only helper.
+          profile_entities.grep(Sketchup::Face).dup.each do |extra_face|
+            extra_face.erase! if extra_face.valid?
+          end
 
           edges.each do |edge|
             next unless edge && edge.valid?
