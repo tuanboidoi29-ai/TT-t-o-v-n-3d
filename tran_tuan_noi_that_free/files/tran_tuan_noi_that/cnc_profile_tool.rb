@@ -920,6 +920,7 @@ module TranTuanNoiThat
           :target => target,
           :face => face,
           :target_world => target_world,
+          :face_plane_local => [plane[0], normal],
           :local_paths => local_paths,
           :world_paths => world_paths,
           :center_world => anchor.transform(target_world),
@@ -1078,6 +1079,16 @@ module TranTuanNoiThat
         [safe_unit(u), safe_unit(v)]
       end
 
+      def project_point_to_plane(point, plane_origin, plane_normal)
+        vector = plane_origin.vector_to(point)
+        distance = vector.dot(plane_normal)
+        Geom::Point3d.new(
+          point.x - plane_normal.x * distance,
+          point.y - plane_normal.y * distance,
+          point.z - plane_normal.z * distance
+        )
+      end
+
       def create_profile(info)
         target = info[:target]
         raise 'Group/Component đích đã bị xóa.' unless target && target.valid?
@@ -1101,12 +1112,22 @@ module TranTuanNoiThat
 
         created_edges = []
 
+        face_plane = info[:face_plane_local]
+        raise 'Không đọc được mặt phẳng Face đích.' unless face_plane && face_plane.length == 2
+        plane_origin = face_plane[0]
+        plane_normal = safe_unit(face_plane[1])
+        raise 'Không đọc được pháp tuyến Face đích.' unless plane_normal
+
         info[:local_paths].each do |path|
           points = path[:points]
           next if points.length < 2
 
-          curve_points = points.dup
-          curve_points << points.first if path[:closed]
+          # Ép toàn bộ biên dạng về đúng plane của Face trong local Group/Component.
+          # Không nâng Z, không tạo Group con, không để Curve nổi/lệch khỏi mặt.
+          curve_points = points.map do |point|
+            project_point_to_plane(point, plane_origin, plane_normal)
+          end
+          curve_points << curve_points.first if path[:closed]
 
           edges = entities.add_curve(curve_points)
           raise 'Không tạo được Curve CNC.' if !edges || edges.empty?
@@ -1177,7 +1198,7 @@ module TranTuanNoiThat
         <body>
           <div class="head">
             <h1>TẠO BIÊN DẠNG CNC</h1>
-            <div class="sub">Thư viện mẫu · preview · tạo Curve/Line trực tiếp trên Face trong Group/Component · không Group con</div>
+            <div class="sub">Thư viện mẫu · Curve/Line nằm ĐỒNG PHẲNG đúng Face trong Group/Component · không Group con</div>
           </div>
           <div class="wrap">
             <div class="panel left">
@@ -1225,7 +1246,7 @@ module TranTuanNoiThat
                   <button class="use" onclick="useProfile()">✓ DÙNG NGAY → RA FACE CLICK ĐỂ ĐẶT</button>
                 </div>
                 <div id="notice" class="notice"></div>
-                <div class="hint">Không cần chọn Group trước. Chọn mẫu → DÙNG NGAY → rà Face; hệ thống tự nhận Group/Component chứa Face và tạo Curve/Line weld TRỰC TIẾP trong chính Group đó, không tạo Group con.</div>
+                <div class="hint">Không cần chọn Group trước. Chọn mẫu → DÙNG NGAY → rà Face; Curve/Line được ép ĐỒNG PHẲNG đúng mặt Face trong chính Group/Component, không tạo Group con.</div>
               </div>
 
               <div class="preview">
