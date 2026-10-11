@@ -269,6 +269,89 @@ module TranTuanNoiThat
         @loops.flatten.each{|p|box.add(shifted(p),shifted(p,true))} if valid?
         box
       end
+      def board_name_from_geometry
+        loop = @loops && @loops.first
+        thickness_mm = @thickness.to_mm.to_f
+
+        return format_board_name(0.0, 0.0, thickness_mm) unless loop && loop.length >= 3
+
+        # Lấy cạnh dài nhất làm trục DÀI của tấm.
+        pairs = loop.each_index.map do |index|
+          a = loop[index]
+          b = loop[(index + 1) % loop.length]
+          [a, b, a.distance(b)]
+        end
+        longest = pairs.max_by { |_a, _b, length| length }
+        return format_board_name(0.0, 0.0, thickness_mm) unless longest
+
+        u_axis = longest[0].vector_to(longest[1])
+        return format_board_name(0.0, 0.0, thickness_mm) if u_axis.length <= 1.0e-9
+        u_axis.normalize!
+
+        normal = displacement
+        return format_board_name(0.0, 0.0, thickness_mm) unless normal && normal.length > 1.0e-9
+        normal = normal.clone
+        normal.normalize!
+
+        v_axis = normal.cross(u_axis)
+        return format_board_name(0.0, 0.0, thickness_mm) if v_axis.length <= 1.0e-9
+        v_axis.normalize!
+
+        origin = loop.first
+        u_values = loop.map { |point| origin.vector_to(point).dot(u_axis) }
+        v_values = loop.map { |point| origin.vector_to(point).dot(v_axis) }
+
+        length_mm = (u_values.max - u_values.min).abs.to_mm.to_f
+        width_mm  = (v_values.max - v_values.min).abs.to_mm.to_f
+
+        # Dài luôn là cạnh lớn hơn để tên thống nhất.
+        if width_mm > length_mm
+          length_mm, width_mm = width_mm, length_mm
+        end
+
+        format_board_name(length_mm, width_mm, thickness_mm)
+      rescue StandardError
+        format_board_name(0.0, 0.0, @thickness.to_mm.to_f)
+      end
+
+      def format_board_name(length_mm, width_mm, thickness_mm)
+        dims = [length_mm, width_mm, thickness_mm].map do |value|
+          rounded = value.to_f.round(2)
+          if (rounded - rounded.round).abs < 0.001
+            rounded.round.to_s
+          else
+            rounded.to_s.sub(/0+\z/, '').sub(/\.\z/, '')
+          end
+        end
+        "Ván #{dims.join('x')}"
+      end
+
+      def apply_default_board_names(group)
+        name = board_name_from_geometry
+        group.name = name
+
+        # Group cũng có một ComponentDefinition riêng. Đặt tên luôn Definition
+        # để Entity Info / Outliner / các công cụ đọc definition đều có tên.
+        definition = group.definition rescue nil
+        definition.name = name if definition && definition.respond_to?(:name=)
+
+        group.set_attribute(
+          'TRẦN TUẤN NỘI THẤT',
+          'ten_van_mac_dinh',
+          name
+        )
+        name
+      rescue StandardError => error
+        puts "[TT Board name] #{error.class}: #{error.message}"
+        begin
+          group.name = 'Ván'
+          group.definition.name = 'Ván' if group.respond_to?(:definition)
+        rescue StandardError
+          nil
+        end
+        'Ván'
+      end
+
       def create_board
         return false unless same_context? && valid?
         @model.start_operation('TRẦN TUẤN - Vẽ Ván',true)
@@ -288,7 +371,7 @@ module TranTuanNoiThat
           cap.pushpull(@thickness)
           raise 'Ván chưa kín; đã hủy lượt tạo.' unless group.manifold?
           group.transformation=@edit.inverse
-          group.name='TT_VAN'
+          apply_default_board_names(group)
           group.set_attribute('TRẦN TUẤN NỘI THẤT','loai','VAN')
           group.set_attribute('TRẦN TUẤN NỘI THẤT','do_day_mm',@thickness.to_mm)
           @model.commit_operation
