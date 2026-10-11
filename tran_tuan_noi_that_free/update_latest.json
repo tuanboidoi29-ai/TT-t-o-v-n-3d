@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.299",
+  "version": "1.9.300",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "XÓA HOÀN TOÀN chức năng TẠO TIẾT DIỆN CNC / TẠO BIÊN DẠNG CNC khỏi TRẦN TUẤN NỘI THẤT. Gỡ load module, menu, toolbar, command runtime, source cnc_profile_tool.rb và icon cnc_profile.svg. Updater thêm 2 file này vào remove_files để tự xóa bản cũ trên máy. Nếu chức năng đang được load trong phiên SketchUp hiện tại, bootstrap sẽ đóng dialog, vô hiệu command cũ và yêu cầu mở lại SketchUp để menu/toolbar được làm sạch hoàn toàn. Không tự xóa hình học tiết diện đã tồn tại trong model để tránh mất dữ liệu thiết kế.",
+  "notes": "Tinh chỉnh KHẤU ÂM DƯƠNG: hỗ trợ chọn/quét chọn nhiều Group/Component Solid. Có thể dùng công cụ Select của SketchUp quét/chọn nhiều tấm trước rồi chạy KHẤU ÂM DƯƠNG; nếu từ 3 tấm trở lên hệ thống tự lập danh sách các cặp có vùng giao 3D theo bounding box và khấu hàng loạt, bỏ qua cặp không giao thật/lỗi. Trong công cụ có thể CTRL+CLICK để thêm/bớt từng tấm. Tất cả cặp thành công được xử lý trong một operation để Ctrl+Z hoàn tác một lần. Giữ nguyên chế độ 2 tấm với preview A xanh/B hồng, TAB cài đặt độ hở và SHIFT đảo vai A/B. Sau batch, các tấm vẫn được giữ Selection.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "6953560829ceaab2a88a10c9c5abe37cfae49d6955610ce892f4d5eb3928d817"
+      "sha256": "f81f9068aa02ba11bb9d13271723c8908f43b0f6c9c34085dfaa6366a690d42f"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -314,7 +314,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "c3c054f0058fc24454dfa1786cd85b4102e4a8481dd009c75985fd3c383beaf9"
+      "sha256": "4806c71d77acfda4b62141e66deb18a826972fa40af440196b085122e0f9f244"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -419,7 +419,7 @@
     {
       "path": "tran_tuan_noi_that/wine_rack.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/wine_rack.rb",
-      "sha256": "fa135d75c86b1806e7446035f0cff037a89b8778308039ddbd6f3c76a3359c4f"
+      "sha256": "01ac31d9edecb83266f753c208b4b562536b92ca4b483f750b4689a571fa1a16"
     },
     {
       "path": "tran_tuan_noi_that/board_stats_tool.rb",
