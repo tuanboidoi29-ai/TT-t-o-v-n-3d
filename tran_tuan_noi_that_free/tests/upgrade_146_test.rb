@@ -52,7 +52,7 @@ module Geom
   end
 end
 class TestModel
-  attr_accessor :entities,:chosen_tool
+  attr_accessor :entities,:chosen_tool,:edit_transform
   def initialize(items)
     @entities=@active_entities=Sketchup::Entities.new(items);@selection=[];@edit_transform=Geom::Transformation.new;@active_path=[];@active_view=TestView.new;@commits=0;@aborts=0
   end
