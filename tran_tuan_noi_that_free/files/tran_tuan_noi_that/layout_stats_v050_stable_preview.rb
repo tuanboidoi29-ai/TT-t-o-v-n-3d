@@ -36,7 +36,7 @@ module TranTuanNoiThat
         end
 
         @dialog = UI::HtmlDialog.new(
-          dialog_title: 'TRẦN TUẤN - XUẤT LAYOUT + THỐNG KÊ VÁN',
+          dialog_title: 'TRẦN TUẤN - XUẤT LAYOUT KỸ THUẬT',
           preferences_key: 'TranTuanNoiThat.LayoutStats',
           scrollable: true,
           resizable: true,
