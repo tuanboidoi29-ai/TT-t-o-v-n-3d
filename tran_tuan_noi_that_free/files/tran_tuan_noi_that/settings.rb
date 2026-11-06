@@ -20,6 +20,7 @@ module TranTuanNoiThat
   tt_runtime_load.call('layout_stats_v081_cut_offset_fix')
   tt_runtime_load.call('layout_stats_v090_technical_dim')
   tt_runtime_load.call('layout_stats_v101_fast_pages')
+  tt_runtime_load.call('layout_stats_v110_layout_only_dim_dedupe')
 
   # VERSION is owned only by bootstrap.rb. Do not override it here.
 
