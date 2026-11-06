@@ -3,6 +3,7 @@ module Geom
   attr_accessor :x,:y,:z
   def initialize(x,y,z);@x,@y,@z=x.to_f,y.to_f,z.to_f;end
   def to_a;[x,y,z];end
+  def valid?;x.finite? && y.finite? && z.finite?;end
   def length;Math.sqrt(dot(self));end
   def dot(v);x*v.x+y*v.y+z*v.z;end
   def cross(v);Vector3d.new(y*v.z-z*v.y,z*v.x-x*v.z,x*v.y-y*v.x);end
