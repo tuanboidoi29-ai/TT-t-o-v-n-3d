@@ -48,10 +48,30 @@ module Sketchup
   attr_reader :red,:green,:blue,:alpha
   def initialize(red,green,blue,alpha=255);@red,@green,@blue,@alpha=red,green,blue,alpha;end
  end
+ class Vertex
+  attr_accessor :position,:faces
+  def initialize(position);@position=position;@faces=[];end
+ end
  class Face;end
- class Edge;end
- class Group;end
- class ComponentInstance;end
+ class Edge
+  attr_reader :start,:end
+  def initialize(start_vertex,end_vertex);@start,@end=start_vertex,end_vertex;end
+  def vertices;[@start,@end];end
+ end
+ class Entities < Array
+  def initialize(items=[]);super();concat(items);end
+ end
+ class Definition
+  attr_reader :entities
+  def initialize(entities=Entities.new);@entities=entities;end
+ end
+ class Group
+  attr_accessor :name,:transformation
+  attr_reader :definition
+  def initialize(definition=Definition.new,transformation=Geom::Transformation.new);@definition,@transformation=definition,transformation;end
+  def entities;@definition.entities;end
+ end
+ class ComponentInstance < Group;end
 end
 module UI
  @timers={};@next=0
