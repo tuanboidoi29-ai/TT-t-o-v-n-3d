@@ -41,6 +41,10 @@ class Numeric
 end
 module Sketchup
  @prefs={}
+ class << self
+  attr_accessor :model
+  def active_model;@model;end
+ end
  def self.read_default(s,k,d);@prefs.fetch([s,k],d);end
  def self.write_default(s,k,v);@prefs[[s,k]]=v;end
  def self.set_status_text(*);end
