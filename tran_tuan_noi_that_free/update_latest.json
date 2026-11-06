@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.300",
+  "version": "1.9.301",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Tinh chỉnh KHẤU ÂM DƯƠNG: hỗ trợ chọn/quét chọn nhiều Group/Component Solid. Có thể dùng công cụ Select của SketchUp quét/chọn nhiều tấm trước rồi chạy KHẤU ÂM DƯƠNG; nếu từ 3 tấm trở lên hệ thống tự lập danh sách các cặp có vùng giao 3D theo bounding box và khấu hàng loạt, bỏ qua cặp không giao thật/lỗi. Trong công cụ có thể CTRL+CLICK để thêm/bớt từng tấm. Tất cả cặp thành công được xử lý trong một operation để Ctrl+Z hoàn tác một lần. Giữ nguyên chế độ 2 tấm với preview A xanh/B hồng, TAB cài đặt độ hở và SHIFT đảo vai A/B. Sau batch, các tấm vẫn được giữ Selection.",
+  "notes": "1.9.301: Tách Xuất Layout khỏi Thống kê ván; LayOut/PDF và xem trước chỉ còn bản vẽ kỹ thuật. DIM trùng trị số được lọc trong từng hình chiếu, ưu tiên DIM phủ bì. Thống kê ván vẫn là lệnh độc lập.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "f81f9068aa02ba11bb9d13271723c8908f43b0f6c9c34085dfaa6366a690d42f"
+      "sha256": "723ee2af6b85cb2612c8d252f37b36849ad4b170f1d293ede5ad3a9ca4a10ed3"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -232,6 +232,11 @@
       "sha256": "0281da1bf4d4feca08770c8dd374d2164015dccfca8178efd3dd737fd37084aa"
     },
     {
+      "path": "tran_tuan_noi_that/layout_stats_v110_layout_only_dim_dedupe.rb",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/layout_stats_v110_layout_only_dim_dedupe.rb",
+      "sha256": "76e76d3df4e04ae5cb5194b024cfaca81b449e36a98e54451d88a6aa4c4e2fba"
+    },
+    {
       "path": "tran_tuan_noi_that/layout_technical.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/layout_technical.rb",
       "sha256": "117199af335bf821354e102587b8d17080aa1c3fb19497beef2a651749656bc4"
@@ -264,7 +269,7 @@
     {
       "path": "tran_tuan_noi_that/settings.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/settings.rb",
-      "sha256": "7ec0e9d471a6f1c58978bdf6aec16a16277017509d5691b9990250bf0eb21c48"
+      "sha256": "fee4e9e6f491a129580b658c3d58119846fd1d4cd763cfc061781640e91bc491"
     },
     {
       "path": "tran_tuan_noi_that/slat_wall_tool.rb",
@@ -314,7 +319,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "4806c71d77acfda4b62141e66deb18a826972fa40af440196b085122e0f9f244"
+      "sha256": "242688e5cea3e381b58fbcf60003e17384e28b90483e3d7a7c7ecdd4e09f5515"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
