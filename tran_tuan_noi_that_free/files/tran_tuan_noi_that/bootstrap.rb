@@ -80,7 +80,7 @@ module TranTuanNoiThat
         'Bo Cong Khối',
         'Co Giãn Khối MODE',
         'Xoay Vân Ván',
-        'Xuất Layout + Thống Kê Ván'
+        'Xuất Layout'
       ]
 
       @toolbar.each do |item|
@@ -761,9 +761,9 @@ module TranTuanNoiThat
       return false unless defined?(TranTuanNoiThat::LayoutStats)
       @layout_stats_ui_installed = true
       @layout_stats_cmd ||= command(
-        'Xuất Layout + Thống Kê Ván',
+        'Xuất Layout',
         'layout_stats.svg',
-        'Xuất LayOut/PDF kỹ thuật + thống kê ván.',
+        'Xuất LayOut/PDF kỹ thuật. Thống kê ván dùng lệnh riêng.',
         :layout_stats
       ) { LayoutStats.show }
       add_feature_command_once(@layout_stats_cmd, :layout_stats_menu_installed)
