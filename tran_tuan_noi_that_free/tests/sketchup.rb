@@ -14,7 +14,7 @@ module Geom
  class Point3d < Vector3d
   def -(p);Vector3d.new(x-p.x,y-p.y,z-p.z);end
   def offset(v,d=1);v=v.normalize;Point3d.new(x+v.x*d,y+v.y*d,z+v.z*d);end
-  def transform(t);Point3d.new(*t.rows.map { |r| r[0]*x+r[1]*y+r[2]*z+r[3] });end
+  def transform(t);Point3d.new(*t.rows.first(3).map { |r| r[0]*x+r[1]*y+r[2]*z+r[3] });end
   def distance(p);(self-p).length;end
  end
  class Transformation
