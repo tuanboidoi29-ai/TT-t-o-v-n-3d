@@ -32,7 +32,7 @@ jobs:
           grep -Fq "VERSION = '1.9.301'" tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb
           grep -Fq "VERSION = '1.9.146'" tran_tuan_noi_that_free/files/tran_tuan_noi_that/tam_pro.rb
           grep -Fq "ext.version = '1.9.301'" tran_tuan_noi_that_free/files/TranTuanNoiThat.rb
+          ruby tran_tuan_noi_that_free/tests/layout_fast_pages_test.rb
           ruby tran_tuan_noi_that_free/tests/slat_wall_test.rb
           ruby tran_tuan_noi_that_free/tests/led_tool_test.rb
           ruby tran_tuan_noi_that_free/tests/contact_tool_test.rb
-          ruby tran_tuan_noi_that_free/tests/layout_fast_pages_test.rb
