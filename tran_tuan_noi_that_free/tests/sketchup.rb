@@ -38,6 +38,7 @@ module Geom
   def initialize;@pts=[];end
   def add(*pts);@pts.concat(pts);end
   def min;Point3d.new(*3.times.map { |i| @pts.map { |p| p.to_a[i] }.min });end
+  def max;Point3d.new(*3.times.map { |i| @pts.map { |p| p.to_a[i] }.max });end
   def width;span(0);end;def height;span(1);end;def depth;span(2);end
   def span(i);v=@pts.map { |p| p.to_a[i] };v.max-v.min;end
   def empty?;@pts.empty?;end
