@@ -1,6 +1,7 @@
 require_relative 'layout_restore_155_test'
 require 'tmpdir'
 load File.expand_path('../files/tran_tuan_noi_that/layout_stats_v101_fast_pages.rb',__dir__)
+load File.expand_path('../files/tran_tuan_noi_that/layout_stats_v110_layout_only_dim_dedupe.rb',__dir__)
 module Sketchup
   class << self
     attr_accessor :active_model
@@ -62,7 +63,7 @@ Dir.mktmpdir do |dir|
  m.tt_fast_export(:pdf)
  assert(UI.prompts==1 && Sketchup.active_model.copies==1,'one prompt and one save_copy')
  assert(m.viewports.size==12 && m.viewports.map(&:first).uniq.size==12,'one viewport on each page')
- assert(m.statistics_start==13,'statistics starts after views')
+ assert(m.statistics_start.nil?,'PDF excludes board statistics')
  UI.destination=File.join(dir,'test.layout');UI.prompts=0
  m.tt_fast_export(:layout)
  assert(UI.prompts==1,'one layout prompt')
@@ -70,4 +71,57 @@ Dir.mktmpdir do |dir|
 end
 assert(m.tt_page_required(:front)==1,'single preview image per page')
 assert(m.dialog_html.include?("sketchup.export_pdf(document.getElementById('cut').value)"),'export uses current cut input')
-puts 'Fast export checks passed: one prompt/copy, cancellation, 12 separate pages and retained LayOut source'
+
+assert(m.dialog_html.include?('XUẤT LAYOUT KỸ THUẬT'),'layout UI is separated from board statistics')
+assert(m.dialog_html.include?('.cards,.scope,.tablewrap,.statsmini{display:none!important}'),'statistics UI is hidden')
+
+class Numeric
+  def mm; self; end unless method_defined?(:mm)
+end
+class DimPointDouble
+  attr_reader :value
+  def initialize(value); @value=value.to_f; end
+  def distance(other); (value-other.value).abs; end
+end
+class DimEntityDouble
+  attr_accessor :valid,:kind
+  def initialize; @valid=true; end
+  def valid?; @valid; end
+end
+class DimEntitiesDouble
+  attr_reader :items
+  def initialize; @items=[]; end
+  def add_dimension_linear(*)
+    dim=DimEntityDouble.new
+    @items << dim
+    dim
+  end
+  def erase_entities(items); items.each { |item| item.valid=false }; end
+end
+class DimModelDouble
+  attr_reader :entities
+  def initialize; @entities=DimEntitiesDouble.new; end
+end
+class << m
+  def tt_dim_register(dim,_tag,_job_key,_role,kind)
+    dim.kind=kind
+    dim
+  end
+end
+m.instance_variable_set(:@tt_v110_dim_seen,Hash.new { |h,k| h[k]=[] })
+dm=DimModelDouble.new
+p0=DimPointDouble.new(0)
+p100=DimPointDouble.new(100)
+p200=DimPointDouble.new(200)
+first=m.tt_dim_add_linear(dm,nil,{key:'dim-test'},:front,:chain_x,p0,p100,nil)
+assert(first && first.valid?,'first chain DIM created')
+assert(m.tt_dim_add_linear(dm,nil,{key:'dim-test'},:front,:chain_z,p0,p100,nil).nil?,'same-size chain DIM removed')
+overall=m.tt_dim_add_linear(dm,nil,{key:'dim-test'},:front,:overall_x,p0,p100,nil)
+assert(overall && overall.valid? && !first.valid?,'overall DIM replaces duplicate chain DIM')
+assert(m.tt_dim_add_linear(dm,nil,{key:'dim-test'},:front,:overall_z,p0,p100,nil).nil?,'same-size overall DIM deduplicated')
+side=m.tt_dim_add_linear(dm,nil,{key:'dim-test'},:side,:chain_y,p0,p100,nil)
+assert(side && side.valid?,'same size is preserved in another view')
+different=m.tt_dim_add_linear(dm,nil,{key:'dim-test'},:front,:chain_x,p0,p200,nil)
+assert(different && different.valid?,'different size DIM is preserved')
+
+puts 'Layout export checks passed: no stats pages, 12 technical views, duplicate DIM filtering'
