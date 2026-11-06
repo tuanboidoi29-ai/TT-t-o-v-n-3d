@@ -36,6 +36,9 @@ module Geom
  end
 end
 X_AXIS=Geom::Vector3d.new(1,0,0);Y_AXIS=Geom::Vector3d.new(0,1,0);Z_AXIS=Geom::Vector3d.new(0,0,1);ORIGIN=Geom::Point3d.new(0,0,0);SB_PROMPT=0
+class Numeric
+ def mm;to_f/25.4;end unless method_defined?(:mm)
+end
 module Sketchup
  @prefs={}
  def self.read_default(s,k,d);@prefs.fetch([s,k],d);end
