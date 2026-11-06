@@ -41,6 +41,10 @@ module Sketchup
  def self.read_default(s,k,d);@prefs.fetch([s,k],d);end
  def self.write_default(s,k,v);@prefs[[s,k]]=v;end
  def self.set_status_text(*);end
+ class Color
+  attr_reader :red,:green,:blue,:alpha
+  def initialize(red,green,blue,alpha=255);@red,@green,@blue,@alpha=red,green,blue,alpha;end
+ end
  class Face;end
  class Edge;end
  class Group;end
