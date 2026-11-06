@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.301",
+  "version": "1.9.302",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "1.9.301: Tách Xuất Layout khỏi Thống kê ván; LayOut/PDF và xem trước chỉ còn bản vẽ kỹ thuật. DIM trùng trị số được lọc trong từng hình chiếu, ưu tiên DIM phủ bì. Thống kê ván vẫn là lệnh độc lập.",
+  "notes": "Xuất Layout chỉ còn bản vẽ kỹ thuật, bỏ thống kê ván khỏi PDF/LayOut; DIM trùng trị số trong cùng hình chiếu chỉ giữ một, ưu tiên DIM phủ bì. Lệnh THỐNG KÊ VÁN riêng không thay đổi.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "71a2f3d3b9b438a86660a68cbe0f9d4c2767b98558cddbabf0a25bb6a98f5762"
+      "sha256": "749e910c9ad5c6a871586a61755056b921111c1ad07de167c8cb6bd72b8b4007"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -319,7 +319,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "242688e5cea3e381b58fbcf60003e17384e28b90483e3d7a7c7ecdd4e09f5515"
+      "sha256": "71c8890cf4269945b2a370b2112dd5e61ce99433496adf47d4f439aea86fd208"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
