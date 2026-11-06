@@ -18,6 +18,7 @@ module Geom
   def distance(p);(self-p).length;end
  end
  class Transformation
+  def self.scale(x,y=x,z=x);new([[x,0,0,0],[0,y,0,0],[0,0,z,0],[0,0,0,1]]);end
   attr_reader :rows
   def initialize(rows=nil);@rows=rows || [[1,0,0,0],[0,1,0,0],[0,0,1,0]];end
   def *(other)
