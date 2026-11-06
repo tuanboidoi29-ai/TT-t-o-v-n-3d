@@ -19,6 +19,13 @@ module Geom
  class Transformation
   attr_reader :rows
   def initialize(rows=nil);@rows=rows || [[1,0,0,0],[0,1,0,0],[0,0,1,0]];end
+  def *(other)
+   a=rows.length==3 ? rows+[[0,0,0,1]] : rows
+   b=other.rows.length==3 ? other.rows+[[0,0,0,1]] : other.rows
+   Transformation.new(3.times.map do |i|
+    3.times.map{|j|4.times.sum{|k|a[i][k]*b[k][j]}}+[4.times.sum{|k|a[i][k]*b[k][3]}]
+   end)
+  end
   def inverse
    a,b,c=rows.map { |r| Vector3d.new(*r[0,3]) };det=a.dot(b.cross(c))
    cols=[b.cross(c),c.cross(a),a.cross(b)].map { |v| v.to_a.map { |x| x/det } }
