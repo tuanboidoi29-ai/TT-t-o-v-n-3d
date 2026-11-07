@@ -157,6 +157,8 @@ module TranTuanNoiThat
         @span_u = @span_v = nil
         @depth_axis = Y_AXIS
         @depth_length = @options['fallback_depth'].mm
+        @auto_hover_ready = false
+        @auto_container = nil
         status
       end
 
@@ -174,6 +176,14 @@ module TranTuanNoiThat
       def onMouseMove(_flags, x, y, view)
         if @state.zero?
           @ip.pick(view, x, y)
+          if @ip.valid? && auto_detect_cavity(view)
+            @auto_hover_ready = true
+          else
+            @auto_hover_ready = false
+            clear_axes
+            @recognition_result = nil
+          end
+          status
         elsif @state == 1
           @ip.pick(view, x, y, @ip1)
           if @ip.valid?
@@ -196,9 +206,17 @@ module TranTuanNoiThat
         if @state.zero?
           @ip.pick(view, x, y)
           return UI.beep unless @ip.valid?
+          if auto_detect_cavity(view)
+            @auto_hover_ready = true
+            return UI.beep unless valid_front? && !preview_parts.empty?
+            create_drawers
+            reset
+            view.invalidate
+            return
+          end
           @ip1.copy!(@ip)
           @p1 = @ip.position
-          # P1 is only an anchor. Orientation is determined at P2.
+          # Fallback: giữ quy trình 3 điểm cho hình học không nằm trong Group/Component.
           @manual_mode = true
           clear_axes
           @state = 1
@@ -294,6 +312,85 @@ module TranTuanNoiThat
       def valid_front?
         @origin && @axis_u && @axis_v && @span_u && @span_v &&
           @span_u.abs > 1.mm && @span_v.abs > 1.mm
+      end
+
+      # Nhận diện lòng tủ khi rê chuột vào khoảng trống. Ray chuột thường chạm
+      # mặt hậu; dùng Group/Component bao ngoài làm khung giới hạn và mặt hậu làm mốc sâu.
+      def auto_detect_cavity(view)
+        face = @ip.face
+        return false unless face
+        path = @ip.instance_path
+        chain = path.respond_to?(:to_a) ? path.to_a : []
+        containers = chain.reverse.select do |entity|
+          entity.is_a?(Sketchup::Group) || entity.is_a?(Sketchup::ComponentInstance)
+        end
+        return false if containers.empty?
+
+        normal = face.normal.transform(@ip.transformation)
+        return false unless normal.valid? && normal.length > 0.001
+        normal.normalize!
+        toward_camera = view.camera.direction.reverse
+        normal = normal.reverse if normal.dot(toward_camera) < 0
+        depth_axis = normal.reverse
+
+        vertical = projected_axis(Z_AXIS, normal)
+        vertical = projected_axis(Y_AXIS, normal) if vertical.length < 0.01
+        vertical = projected_axis(X_AXIS, normal) if vertical.length < 0.01
+        return false if vertical.length < 0.01
+        vertical.normalize!
+        horizontal = vertical.cross(normal)
+        return false if horizontal.length < 0.01
+        horizontal.normalize!
+
+        hit_point = @ip.position
+        candidates = containers.filter_map do |container|
+          bounds = container.bounds
+          next unless bounds && !bounds.empty?
+          corners = (0..7).map { |index| bounds.corner(index) }
+          rel = corners.map { |point| hit_point.vector_to(point) }
+          us = rel.map { |vector| vector.dot(horizontal) }
+          vs = rel.map { |vector| vector.dot(vertical) }
+          ds = rel.map { |vector| vector.dot(depth_axis) }
+          width = us.max - us.min
+          height = vs.max - vs.min
+          depth = ds.max - ds.min
+          next unless width > 100.mm && height > 100.mm && depth > 100.mm
+          next if width > 3000.mm || height > 3000.mm || depth > 3000.mm
+          [width * height * depth, us.minmax, vs.minmax, ds.minmax]
+        end
+        selected = candidates.min_by(&:first)
+        return false unless selected
+
+        _volume, u_range, v_range, d_range = selected
+        wall = @options['side_thickness'].mm
+        # Trừ bề dày vách ở hai bên và trên/dưới để lấy kích thước lòng thực.
+        u0 = u_range[0] + wall
+        u1 = u_range[1] - wall
+        v0 = v_range[0] + wall
+        v1 = v_range[1] - wall
+        front_d = d_range[0] + wall
+        hit_d = hit_point.vector_to(hit_point).dot(depth_axis)
+        # Điểm InputPoint nằm trên mặt hậu; chiếu vị trí đó theo trục sâu từ hit.
+        rear_d = d_range[1] - wall
+        depth = rear_d - front_d
+        return false unless u1 - u0 > 100.mm && v1 - v0 > 100.mm && depth > 100.mm
+
+        @axis_u = horizontal
+        @axis_v = vertical
+        @surface_normal = normal
+        @depth_axis = @options['reverse_depth'] ? depth_axis.reverse : depth_axis
+        @origin = hit_point.offset(horizontal, u0).offset(vertical, v0).offset(depth_axis, front_d)
+        @span_u = u1 - u0
+        @span_v = v1 - v0
+        @depth_length = depth
+        @rear_detected = true
+        @manual_mode = false
+        @auto_container = containers.first
+        @recognition_result = recognize_drawer_structure
+        true
+      rescue StandardError => error
+        puts "[TT Drawer hover detect] #{error.class}: #{error.message}"
+        false
       end
 
       def prepare_second_point(input_point)
@@ -775,7 +872,7 @@ module TranTuanNoiThat
       def status
         Sketchup.status_text = case @state
         when 0
-          'VẼ NGĂN KÉO: Click P1. Có Face sẽ tự nhận mặt tủ; không có Face sẽ chuyển sang bắt 3 điểm.'
+          'VẼ NGĂN KÉO: Rê chuột vào khoảng trống lòng tủ để xem preview, click để tạo. Không nhận diện được thì dùng quy trình 3 điểm.'
         when 1
           @manual_mode ? 'BẮT 3 ĐIỂM: Click P2 xác định chiều ngang.' : 'Click P2 trên mặt tủ để khóa vùng và xem preview.'
         when 2
