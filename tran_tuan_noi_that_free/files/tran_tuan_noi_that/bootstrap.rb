@@ -18,7 +18,7 @@ module TranTuanNoiThat
   }.freeze unless const_defined?(:LOCKED_FEATURE_BASELINES, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.302'.freeze
+  VERSION = '1.9.303'.freeze
 
   class << self
     def setting(key, default = nil)
@@ -181,11 +181,17 @@ module TranTuanNoiThat
         updater
         don_dim_line
       ].each do |stem|
-        next if runtime_load(stem)
-        raise(@last_runtime_error.to_s.empty? ? "Không nạp được #{stem}" : @last_runtime_error)
+        unless runtime_load(stem)
+          (@runtime_load_errors ||= []) << @last_runtime_error.to_s
+          puts "[TT skipped module] #{@last_runtime_error}"
+        end
       end
 
-      verify_locked_features
+      begin
+        verify_locked_features
+      rescue StandardError, ScriptError => error
+        (@runtime_load_errors ||= []) << "Kiểm tra tính toàn vẹn: #{error.class}: #{error.message}"
+      end
 
       %w[
         round_smooth_fix
@@ -194,10 +200,13 @@ module TranTuanNoiThat
         stretch_auto_scope_fix
         stretch_window_tool
       ].each do |stem|
-        next if runtime_load(stem)
-        raise(@last_runtime_error.to_s.empty? ? "Không nạp được #{stem}" : @last_runtime_error)
+        unless runtime_load(stem)
+          (@runtime_load_errors ||= []) << @last_runtime_error.to_s
+          puts "[TT skipped patch] #{@last_runtime_error}"
+        end
       end
 
+      @last_runtime_error = (@runtime_load_errors || []).uniq.join("\n")
       true
     rescue StandardError, ScriptError => error
       @last_runtime_error = "#{error.class}: #{error.message}" if @last_runtime_error.to_s.empty?
@@ -818,36 +827,66 @@ module TranTuanNoiThat
 
     def boot
       hot_reload = !!@booted_once
+      @runtime_load_errors = []
+      reload_runtime
 
-      if reload_runtime
-        @restart_required = false
+      # A single broken tool must never prevent the extension menu/toolbar from appearing.
+      begin
         install_ui
-        @booted_once = true
+      rescue StandardError, ScriptError => error
+        @last_runtime_error = [@last_runtime_error, "UI: #{error.class}: #{error.message}"].reject(&:empty?).join("\n")
+        puts "[TT UI recovery] #{@last_runtime_error}"
+        install_recovery_ui
+      end
 
-        unless @startup_check_scheduled
-          @startup_check_scheduled = true
+      @booted_once = true
+      @restart_required = false
+
+      unless @startup_check_scheduled
+        @startup_check_scheduled = true
+        if defined?(Updater) && Updater.respond_to?(:check)
           UI.start_timer(5.0, false) do
             Updater.check(false) if setting('auto_update', true)
           end
         end
-        return true
       end
 
-      detail = last_runtime_error
-      if hot_reload
-        # Cập nhật file đã hoàn tất nhưng phiên SketchUp hiện tại còn object/dialog/
-        # constant cũ. Không buộc updater rollback; giữ bản mới và yêu cầu restart.
-        @restart_required = true
-        UI.messagebox(
-          "Đã cài tệp cập nhật nhưng phiên SketchUp hiện tại không nạp nóng được.\n" \
-          "Hãy ĐÓNG SketchUp và MỞ LẠI một lần.\n\n" \
-          "Chi tiết: #{detail}"
-        )
-        @booted_once = true
-        return true
+      if !@last_runtime_error.to_s.empty?
+        UI.messagebox("TRẦN TUẤN NỘI THẤT đã khôi phục menu và thanh công cụ.\\nMột số mô-đun có lỗi và đã được bỏ qua để không làm mất toàn bộ giao diện.\\n\\n#{@last_runtime_error}")
+      elsif hot_reload
+        puts '[TT] Nạp nóng hoàn tất.'
       end
+      true
+    rescue StandardError, ScriptError => error
+      @last_runtime_error = "#{error.class}: #{error.message}"
+      puts "[TT boot] #{@last_runtime_error}"
+      install_recovery_ui
+      @booted_once = true
+      true
+    end
 
-      raise "Nạp hệ thống không thành công.\n#{detail}"
+    def install_recovery_ui
+      @recovery_menu ||= UI.menu('Extensions').add_submenu(NAME)
+      @recovery_toolbar ||= UI::Toolbar.new(NAME)
+      unless @recovery_ui_installed
+        cmd = UI::Command.new('Mở Cài Đặt Chung') do
+          Settings.show if defined?(Settings) && Settings.respond_to?(:show)
+        end
+        icon = File.join(ROOT, 'icons', 'settings.svg')
+        cmd.small_icon = icon
+        cmd.large_icon = icon
+        cmd.tooltip = 'TRẦN TUẤN NỘI THẤT — Cài Đặt Chung'
+        @recovery_menu.add_item(cmd)
+        @recovery_toolbar.add_item(cmd)
+        @recovery_ui_installed = true
+      end
+      @recovery_toolbar.restore
+      @recovery_toolbar.show
+      true
+    rescue StandardError => error
+      puts "[TT recovery UI] #{error.class}: #{error.message}"
+      false
+    end
     end
   end
 end
