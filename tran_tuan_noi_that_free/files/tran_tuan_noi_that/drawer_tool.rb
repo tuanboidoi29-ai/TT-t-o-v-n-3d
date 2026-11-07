@@ -11,8 +11,8 @@ module TranTuanNoiThat
       'stop_top_gap' => 2.0, 'stop_bottom_gap' => 2.0,
       'quantity' => 3, 'orientation' => 'vertical',
       'front_gap' => 10.0, 'bottom_mode' => 'cover',
-      'bottom_offset' => 5.0, 'bottom_thickness' => 9.0,
-      'side_thickness' => 17.5, 'bottom_shift' => 10.0,
+      'bottom_thickness' => 9.0,
+      'side_thickness' => 17.5,
       'mark_contact' => false,
       'reverse_depth' => false,
       'fallback_depth' => 500.0
@@ -99,14 +99,12 @@ module TranTuanNoiThat
         <div class="field"><label>Hở thanh trước (mm)</label><input id="front_gap" type="number" step="0.1"></div>
         <div class="field"><label>Dày tấm đáy (mm)</label><input id="bottom_thickness" type="number" step="0.1"></div>
         <div class="field"><label>Dày thanh (mm)</label><input id="side_thickness" type="number" step="0.1"></div>
-        <div class="field"><label>Offset đáy 4 cạnh (mm)</label><input id="bottom_offset" type="number" step="0.1"></div>
-        <div class="field"><label>Tịnh tiến tấm đáy (mm)</label><input id="bottom_shift" type="number" step="0.1"></div>
         <div class="field wide"><label>Chiều sâu dự phòng khi không dò thấy hậu (mm)</label><input id="fallback_depth" type="number" step="0.1"></div>
         <div class="field wide"><label>Hướng tạo</label><div class="modes"><label><input type="radio" name="orientation" value="vertical"> Dọc</label><label><input type="radio" name="orientation" value="horizontal"> Ngang</label></div></div>
         <div class="field wide"><label>Hướng chiều sâu</label><div class="modes"><label><input id="reverse_depth" type="checkbox"> Đảo hướng ngăn kéo trước/sau</label></div></div>
-        <div class="field wide"><label>Chế độ tấm đáy</label><div class="modes"><label><input type="radio" name="bottom_mode" value="cover"> Phủ 4 cạnh ngoài</label><label><input type="radio" name="bottom_mode" value="custom"> Tùy chỉnh offset</label></div></div>
+        <div class="field wide"><label>Đánh dấu tiếp diện đáy</label><div class="modes"><label><input type="radio" name="bottom_mode" value="cover"> Không đánh dấu</label><label><input type="radio" name="bottom_mode" value="custom"> Cho phép đánh dấu ABF</label></div></div>
         <div class="field wide"><label>Đánh dấu tiếp diện</label><div class="modes"><label><input id="mark_contact" type="checkbox"> Đánh dấu biên thanh giao nhau với tấm đáy</label></div></div></div>
-        </div><button onclick="applyNow()">ÁP DỤNG - CẬP NHẬT PREVIEW</button><div id="msg"></div><div class="note">Tịnh tiến chỉ nâng tấm đáy; 4 thanh giữ nguyên. Click trong model sau khi chỉnh xong để tạo thật.</div>
+        </div><button onclick="applyNow()">ÁP DỤNG - CẬP NHẬT PREVIEW</button><div id="msg"></div><div class="note">Mặt trên tấm đáy khoang tủ là mốc chuẩn; tấm đáy ngăn kéo đặt trên mặt chuẩn này. Click trong model sau khi chỉnh xong để tạo thật.</div>
         <script>
         const initial=#{json};
         Object.keys(initial).forEach(k=>{const el=document.getElementById(k);if(el){if(el.type==='checkbox')el.checked=initial[k]===true;else el.value=initial[k]}});
@@ -115,7 +113,7 @@ module TranTuanNoiThat
         document.getElementById('mark_contact').checked=initial.mark_contact===true||initial.mark_contact==='true';
         document.getElementById('reverse_depth').checked=initial.reverse_depth===true||initial.reverse_depth==='true';
         function value(id){return document.getElementById(id).value}
-        function applyNow(){const data={};['division_mode','max_size','stop_top_gap','stop_bottom_gap','side_height','rail_gap','back_clearance','quantity','front_gap','bottom_thickness','side_thickness','bottom_offset','bottom_shift','fallback_depth'].forEach(k=>data[k]=value(k));['middle_stop','top_stop'].forEach(k=>data[k]=document.getElementById(k).checked);data.orientation=document.querySelector('input[name=orientation]:checked').value;data.bottom_mode=document.querySelector('input[name=bottom_mode]:checked').value;data.mark_contact=document.getElementById('mark_contact').checked;data.reverse_depth=document.getElementById('reverse_depth').checked;sketchup.apply(JSON.stringify(data))}
+        function applyNow(){const data={};['division_mode','max_size','stop_top_gap','stop_bottom_gap','side_height','rail_gap','back_clearance','quantity','front_gap','bottom_thickness','side_thickness','fallback_depth'].forEach(k=>data[k]=value(k));['middle_stop','top_stop'].forEach(k=>data[k]=document.getElementById(k).checked);data.orientation=document.querySelector('input[name=orientation]:checked').value;data.bottom_mode=document.querySelector('input[name=bottom_mode]:checked').value;data.mark_contact=document.getElementById('mark_contact').checked;data.reverse_depth=document.getElementById('reverse_depth').checked;sketchup.apply(JSON.stringify(data))}
         function syncContact(){const custom=document.querySelector('input[name=bottom_mode]:checked').value==='custom';const mark=document.getElementById('mark_contact');mark.disabled=!custom;if(!custom)mark.checked=false;applyNow()}
         document.querySelectorAll('input[name=bottom_mode]').forEach(el=>el.addEventListener('change',syncContact));
         document.getElementById('mark_contact').addEventListener('change',applyNow);
@@ -595,16 +593,18 @@ module TranTuanNoiThat
         rear_low_hit = recognition_ray(rear_low_point, @depth_axis, 1)
         result[:rear_crossbar] = recognition_parallel?(rear_low_hit, @depth_axis) && !result[:rear]
 
-        # Neu tam day nam lui sau mep truoc cua hai hoi va dinh, lay mep tam day lam moc.
+        # Lấy mặt trên tấm đáy khoang làm mốc cao độ. Mặt dưới đỉnh là giới hạn trên.
+        # Dời gốc về đúng mặt trên đáy để toàn bộ preview/ngăn kéo nằm trong lòng khoang.
         if result[:bottom] && result[:sides] && result[:top]
           bottom_hit = top_bottom_mid[:negative]
-          if bottom_hit
-            local_z = @origin.vector_to(bottom_hit[:point]).dot(@axis_v)
-            bottom_front_origin = local_point(@span_u * 0.5, 0, local_z)
-            inset_hit = recognition_ray(bottom_front_origin, @depth_axis, 1)
-            inset = inset_hit ? inset_hit[:distance] - 2.mm : 0.0
-            if inset > 3.mm && inset < depth - 3.mm
-              result[:bottom_recess_mm] = inset.to_mm
+          top_hit = top_bottom_mid[:positive]
+          if bottom_hit && top_hit
+            bottom_z = @origin.vector_to(bottom_hit[:point]).dot(@axis_v)
+            top_z = @origin.vector_to(top_hit[:point]).dot(@axis_v)
+            usable_height = top_z - bottom_z
+            if usable_height > 50.mm
+              @origin = @origin.offset(@axis_v, bottom_z)
+              @span_v = usable_height
               result[:reference] = :bottom_panel
             end
           end
@@ -703,8 +703,9 @@ module TranTuanNoiThat
         gap = @options['rail_gap'].mm
         thick = @options['side_thickness'].mm
         bottom_t = @options['bottom_thickness'].mm
-        # z0 là mặt trên tấm đáy chuẩn; thanh kéo bắt đầu đúng tại mặt chuẩn.
-        rail_z = z0
+        # z0 là mặt trên tấm đáy khoang: tấm đáy ngăn kéo đặt trên đó,
+        # còn hai hồi/thanh bắt đầu từ mặt trên của chính tấm đáy ngăn kéo.
+        rail_z = z0 + bottom_t
         max_h = [z1 - rail_z, 1.mm].max
         side_h = [@options['side_height'].mm, max_h].min
         front_h = [[side_h - @options['front_gap'].mm, 1.mm].max, side_h].min
@@ -719,12 +720,12 @@ module TranTuanNoiThat
           { name: "THANH_SAU#{tag}", box: [x0+thick, y1-thick, rail_z, x1-x0-thick*2, thick, side_h] }
         ]
         cover_bottom = @options['bottom_mode'] == 'cover'
-        inset = cover_bottom ? 0 : @options['bottom_offset'].mm
+        inset = 0.0
         bx0, bx1 = x0 + inset, x1 - inset
         by0, by1 = y0 + inset, y1 - inset
         # Chế độ phủ: mặt trên đáy chạm đúng mặt dưới 4 thanh và bốn cạnh
         # trùng với mép ngoài của hệ thanh. Tịnh tiến chỉ áp dụng cho tùy chỉnh.
-        bottom_z = cover_bottom ? rail_z - bottom_t : rail_z - bottom_t + @options['bottom_shift'].mm
+        bottom_z = z0
         parts << { name: "TAM_DAY#{tag}", box: [bx0, by0, bottom_z, bx1-bx0, by1-by0, bottom_t], bottom: true }
         parts
       end
