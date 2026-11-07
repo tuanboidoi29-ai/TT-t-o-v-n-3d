@@ -369,8 +369,7 @@ module TranTuanNoiThat
         v0 = v_range[0] + wall
         v1 = v_range[1] - wall
         front_d = d_range[0] + wall
-        hit_d = hit_point.vector_to(hit_point).dot(depth_axis)
-        # Điểm InputPoint nằm trên mặt hậu; chiếu vị trí đó theo trục sâu từ hit.
+        # Điểm InputPoint nằm trên mặt hậu; khoảng sâu được chiếu theo bounds.
         rear_d = d_range[1] - wall
         depth = rear_d - front_d
         return false unless u1 - u0 > 100.mm && v1 - v0 > 100.mm && depth > 100.mm
@@ -378,8 +377,13 @@ module TranTuanNoiThat
         @axis_u = horizontal
         @axis_v = vertical
         @surface_normal = normal
-        @depth_axis = @options['reverse_depth'] ? depth_axis.reverse : depth_axis
-        @origin = hit_point.offset(horizontal, u0).offset(vertical, v0).offset(depth_axis, front_d)
+        if @options['reverse_depth']
+          @depth_axis = depth_axis.reverse
+          @origin = hit_point.offset(horizontal, u0).offset(vertical, v0).offset(depth_axis, rear_d)
+        else
+          @depth_axis = depth_axis
+          @origin = hit_point.offset(horizontal, u0).offset(vertical, v0).offset(depth_axis, front_d)
+        end
         @span_u = u1 - u0
         @span_v = v1 - v0
         @depth_length = depth
