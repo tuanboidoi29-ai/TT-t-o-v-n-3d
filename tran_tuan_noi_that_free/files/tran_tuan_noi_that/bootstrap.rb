@@ -887,7 +887,6 @@ module TranTuanNoiThat
       puts "[TT recovery UI] #{error.class}: #{error.message}"
       false
     end
-    end
   end
 end
 
