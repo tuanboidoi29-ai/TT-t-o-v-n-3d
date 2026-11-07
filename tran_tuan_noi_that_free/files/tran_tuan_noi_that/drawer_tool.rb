@@ -5,7 +5,7 @@ module TranTuanNoiThat
 
     DEFAULTS = {
       'side_height' => 150.0, 'rail_gap' => 13.0,
-      'bottom_clearance' => 10.0, 'back_clearance' => 30.0,
+      'back_clearance' => 30.0,
       'division_mode' => 'count', 'max_size' => 300.0,
       'middle_stop' => false, 'top_stop' => false,
       'stop_top_gap' => 2.0, 'stop_bottom_gap' => 2.0,
@@ -87,7 +87,6 @@ module TranTuanNoiThat
         </style><style id="tt-blue-white-theme">/*TT_BLUE_WHITE_THEME_v1*/:root{--bg:#06182d;--panel:#0b2748;--blue:#1677e8;--white:#f7fbff;--muted:#b9d8f5;--border:#2d6ea7}html,body{background:var(--bg)!important;color:var(--white)!important}body{font-family:Arial,"Segoe UI",sans-serif!important}h1,h2,h3,h4,h5,h6,label,legend,strong,b,.title,.name{color:#fff!important}p,.muted,.hint,.sub,.note,.help,.desc,.description,.small{color:var(--muted)!important}a{color:#8dccff!important}.top,.header,.head,.titlebar,.page-header,.app-header,.hero,.banner,.brand,.header-bar{background:linear-gradient(135deg,#0a4f9b,#147ce5)!important;color:#fff!important;border-color:#51a9ff!important}.panel,.card,.box,.section,.group,.pane,.sidebar,.content,.settings-card,.toolbar,.controls,.form-section,.block,.item,.row-card{background:var(--panel)!important;color:#fff!important;border-color:var(--border)!important}button,.btn,input[type=button],input[type=submit]{background:linear-gradient(180deg,#2188f3,#0c63be)!important;color:#fff!important;border:1px solid #53aaff!important;border-radius:7px!important}.primary,.go,.active,.selected,.danger,.warning,.secondary{background:#0f75dc!important;color:#fff!important;border-color:#68b8ff!important}input,select,textarea{background:#071d35!important;color:#fff!important;border:1px solid #3f7fb5!important;border-radius:6px!important}table{background:#09223f!important;color:#fff!important;border-color:#2c6595!important}th{background:#0e4f8d!important;color:#fff!important;border-color:#397caf!important}td{border-color:#244f74!important;color:#eaf5ff!important}tr:nth-child(even){background:#0a294a!important}tr:hover{background:#123d68!important}.badge,.pill,.tag,.chip{background:#0d5fae!important;color:#fff!important;border-color:#61b3ff!important}.ok,.success{color:#a9d9ff!important}.err,.error{color:#ffd9eb!important}hr{border-color:#2c628f!important}</style></head><body><h2>CÀI ĐẶT NGĂN KÉO</h2><div class="sub">TAB mở bảng này • thay đổi sẽ cập nhật preview</div><div class="grid">
         <div class="field"><label>Chiều cao thanh (mm)</label><input id="side_height" type="number" step="0.1"></div>
         <div class="field"><label>Hở ray mỗi bên (mm)</label><input id="rail_gap" type="number" step="0.1"></div>
-        <div class="field"><label>Cách đáy view (mm)</label><input id="bottom_clearance" type="number" step="0.1"></div>
         <div class="field"><label>Cách hậu (mm)</label><input id="back_clearance" type="number" step="0.1"></div>
         <div class="field"><label>Cách chia</label><select id="division_mode"><option value="count">Số lượng cố định</option><option value="maximum">Kích thước tối đa mỗi khoang</option></select></div>
         <div class="field"><label>Kích thước khoang tối đa (mm)</label><input id="max_size" type="number" min="1" step="0.1"></div>
@@ -116,7 +115,7 @@ module TranTuanNoiThat
         document.getElementById('mark_contact').checked=initial.mark_contact===true||initial.mark_contact==='true';
         document.getElementById('reverse_depth').checked=initial.reverse_depth===true||initial.reverse_depth==='true';
         function value(id){return document.getElementById(id).value}
-        function applyNow(){const data={};['division_mode','max_size','stop_top_gap','stop_bottom_gap','side_height','rail_gap','bottom_clearance','back_clearance','quantity','front_gap','bottom_thickness','side_thickness','bottom_offset','bottom_shift','fallback_depth'].forEach(k=>data[k]=value(k));['middle_stop','top_stop'].forEach(k=>data[k]=document.getElementById(k).checked);data.orientation=document.querySelector('input[name=orientation]:checked').value;data.bottom_mode=document.querySelector('input[name=bottom_mode]:checked').value;data.mark_contact=document.getElementById('mark_contact').checked;data.reverse_depth=document.getElementById('reverse_depth').checked;sketchup.apply(JSON.stringify(data))}
+        function applyNow(){const data={};['division_mode','max_size','stop_top_gap','stop_bottom_gap','side_height','rail_gap','back_clearance','quantity','front_gap','bottom_thickness','side_thickness','bottom_offset','bottom_shift','fallback_depth'].forEach(k=>data[k]=value(k));['middle_stop','top_stop'].forEach(k=>data[k]=document.getElementById(k).checked);data.orientation=document.querySelector('input[name=orientation]:checked').value;data.bottom_mode=document.querySelector('input[name=bottom_mode]:checked').value;data.mark_contact=document.getElementById('mark_contact').checked;data.reverse_depth=document.getElementById('reverse_depth').checked;sketchup.apply(JSON.stringify(data))}
         function syncContact(){const custom=document.querySelector('input[name=bottom_mode]:checked').value==='custom';const mark=document.getElementById('mark_contact');mark.disabled=!custom;if(!custom)mark.checked=false;applyNow()}
         document.querySelectorAll('input[name=bottom_mode]').forEach(el=>el.addEventListener('change',syncContact));
         document.getElementById('mark_contact').addEventListener('change',applyNow);
@@ -687,7 +686,7 @@ module TranTuanNoiThat
             limit = if horizontal || last
                       sz1
                     else
-                      sz1 + @options['bottom_clearance'].mm
+                      sz1
                     end
             low = top + @options['stop_bottom_gap'].mm
             high = limit - @options['stop_top_gap'].mm
@@ -704,8 +703,8 @@ module TranTuanNoiThat
         gap = @options['rail_gap'].mm
         thick = @options['side_thickness'].mm
         bottom_t = @options['bottom_thickness'].mm
-        base_z = z0 + @options['bottom_clearance'].mm
-        rail_z = base_z + bottom_t
+        # z0 là mặt trên tấm đáy chuẩn; thanh kéo bắt đầu đúng tại mặt chuẩn.
+        rail_z = z0
         max_h = [z1 - rail_z, 1.mm].max
         side_h = [@options['side_height'].mm, max_h].min
         front_h = [[side_h - @options['front_gap'].mm, 1.mm].max, side_h].min
@@ -725,7 +724,7 @@ module TranTuanNoiThat
         by0, by1 = y0 + inset, y1 - inset
         # Chế độ phủ: mặt trên đáy chạm đúng mặt dưới 4 thanh và bốn cạnh
         # trùng với mép ngoài của hệ thanh. Tịnh tiến chỉ áp dụng cho tùy chỉnh.
-        bottom_z = cover_bottom ? rail_z - bottom_t : base_z + @options['bottom_shift'].mm
+        bottom_z = cover_bottom ? rail_z - bottom_t : rail_z - bottom_t + @options['bottom_shift'].mm
         parts << { name: "TAM_DAY#{tag}", box: [bx0, by0, bottom_z, bx1-bx0, by1-by0, bottom_t], bottom: true }
         parts
       end
