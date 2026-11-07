@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.306",
+  "version": "1.9.307",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Chuyển Vẽ Ngăn Kéo sang nhận diện tự động khi rê chuột vào khoảng trống lòng tủ; tự lấy kích thước khoang từ Group/Component bao tủ, hiển thị preview và click để tạo. Giữ quy trình 3 điểm làm dự phòng khi không tìm được khung bao.",
+  "notes": "Vẽ Ngăn Kéo: lấy mặt trên tấm đáy khoang tủ làm mốc; đặt đáy ngăn kéo trong lòng khoang; bỏ thông số offset/tịnh tiến đáy.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -39,7 +39,7 @@
     {
       "path": "tran_tuan_noi_that/drawer_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/drawer_tool.rb",
-      "sha256": "be453e11b2215a143ccfa78ead929f55fe2febf4ddc4d5055a32ef5733d45087"
+      "sha256": "075499892b45158faecfaa3aa66a6b4ed13dd687b568d66fd4543f2191a0848f"
     },
     {
       "path": "tran_tuan_noi_that/grain_align_fix.rb",
@@ -470,5 +470,5 @@
     "tran_tuan_noi_that/cnc_profile_tool.rb",
     "tran_tuan_noi_that/icons/cnc_profile.svg"
   ],
-  "release_notes": "1.9.306: Lấy mặt trên tấm đáy làm mốc chuẩn; bỏ thông số Cách đáy trong cài đặt và công thức ngăn kéo."
+  "release_notes": "1.9.307: Chuẩn hóa mặt trên tấm đáy làm mốc; loại bỏ thông số cách đáy và tịnh tiến đáy."
 }
