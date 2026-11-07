@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.302",
+  "version": "1.9.303",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Xuất Layout chỉ còn bản vẽ kỹ thuật, bỏ thống kê ván khỏi PDF/LayOut; DIM trùng trị số trong cùng hình chiếu chỉ giữ một, ưu tiên DIM phủ bì. Lệnh THỐNG KÊ VÁN riêng không thay đổi.",
+  "notes": "Khắc phục khởi động: lỗi ở một mô-đun riêng lẻ không còn chặn toàn bộ menu/toolbar; thêm giao diện khôi phục khi nạp mô-đun lỗi; cập nhật bộ nạp Extension lên 1.9.303. Giữ nguyên các công cụ hiện có.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "749e910c9ad5c6a871586a61755056b921111c1ad07de167c8cb6bd72b8b4007"
+      "sha256": "f6217f3f24c751d6ad6a96c43e18d0c7d05cc5c5"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -319,7 +319,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "71c8890cf4269945b2a370b2112dd5e61ce99433496adf47d4f439aea86fd208"
+      "sha256": "2865c121b57e5203e4ec5321d0a2505773813fc6"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
