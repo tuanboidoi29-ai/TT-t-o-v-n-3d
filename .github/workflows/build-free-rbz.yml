@@ -28,7 +28,7 @@ jobs:
           manifest = JSON.parse(File.binread(File.join(root, 'update_latest.json')))
           raise 'Edition mismatch' unless manifest['edition'] == 'no_license'
           raise 'License must not be required' unless manifest['license_required'] == false
-          raise 'Invalid version' unless manifest['version'].to_s.match?(/\\A\\d+\\.\\d+\\.\\d+\\z/)
+          raise 'Invalid version' unless manifest['version'].to_s.match?(/^[0-9]+[.][0-9]+[.][0-9]+$/)
           files = manifest.fetch('files')
           raise 'Empty manifest' unless files.is_a?(Array) && !files.empty?
           files.each do |item|
@@ -57,6 +57,7 @@ jobs:
           set -euo pipefail
           VERSION="$(ruby -rjson -e "puts JSON.parse(File.read('tran_tuan_noi_that_free/update_latest.json'))['version']")"
           STAGE="$RUNNER_TEMP/tt_free_rbz"
+          export STAGE
           rm -rf "$STAGE"
           mkdir -p "$STAGE"
           ruby <<'RUBY'
