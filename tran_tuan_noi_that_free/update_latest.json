@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.304",
+  "version": "1.9.305",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Bổ sung bộ nhận diện kết cấu ngăn kéo: ưu tiên 2 hồi + đỉnh + đáy + hậu; nhận diện các biến thể thiếu đáy/hậu và trường hợp xà đáy, xà sau; tự chọn cặp hồi hoặc tấm đáy làm mốc khi đáy thụt vào. Giữ nguyên thông số và cách tạo ngăn kéo.",
+  "notes": "Chuyển Vẽ Ngăn Kéo sang nhận diện tự động khi rê chuột vào khoảng trống lòng tủ; tự lấy kích thước khoang từ Group/Component bao tủ, hiển thị preview và click để tạo. Giữ quy trình 3 điểm làm dự phòng khi không tìm được khung bao.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -39,7 +39,7 @@
     {
       "path": "tran_tuan_noi_that/drawer_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/drawer_tool.rb",
-      "sha256": "49ae110a3cc06b4bd8d3cbc51e0c3edf00478c1f7705a47de8b11cf2cc3ea3fe"
+      "sha256": "a5ef4a44ff28945e1f24a459f66ef96f25d2e54626e0a37808cc852f2f2eaff7"
     },
     {
       "path": "tran_tuan_noi_that/grain_align_fix.rb",
