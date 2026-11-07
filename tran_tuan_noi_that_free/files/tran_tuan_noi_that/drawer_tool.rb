@@ -401,11 +401,145 @@ module TranTuanNoiThat
           @depth_axis = view.camera.direction.dot(@surface_normal) > 0 ? @surface_normal : @surface_normal.reverse
         end
         @depth_axis = @depth_axis.reverse if @options['reverse_depth']
+        @recognition_result = recognize_drawer_structure
       rescue StandardError
         @depth_length = @options['fallback_depth'].mm
         base = @surface_normal || Y_AXIS
         @depth_axis = @options['reverse_depth'] ? base.reverse : base
         @rear_detected = false
+        @recognition_result = recognize_drawer_structure
+      end
+
+      # Quet ket cau ngan keo theo hinh hoc thuc trong model, khong phu thuoc camera.
+      # Ray ngang tim hai mat hoi; ray doc tim mat dinh/day; ray theo chieu sau tim hau/xa sau.
+      def recognition_ray(point, axis, sign)
+        direction = axis.clone
+        return nil unless direction.valid? && direction.length > 0.001
+        direction.normalize!
+        direction = direction.reverse if sign.to_i < 0
+        start = point.offset(direction, 2.mm)
+        hit = Sketchup.active_model.raytest([start, direction], true)
+        return nil unless hit && hit[0].is_a?(Geom::Point3d)
+
+        path = hit[1]
+        face = path.respond_to?(:reverse) ? path.reverse.find { |entity| entity.is_a?(Sketchup::Face) } : nil
+        return nil unless face
+
+        transform = begin
+          Sketchup::InstancePath.new(path).transformation
+        rescue StandardError
+          Geom::Transformation.new
+        end
+        normal = face.normal.transform(transform)
+        return nil unless normal.valid? && normal.length > 0.001
+        normal.normalize!
+        { point: hit[0], distance: start.distance(hit[0]), normal: normal }
+      rescue StandardError
+        nil
+      end
+
+      def recognition_parallel?(hit, axis)
+        return false unless hit && hit[:normal]
+        axis.valid? && axis.length > 0.001 && hit[:normal].dot(axis).abs >= 0.88
+      rescue StandardError
+        false
+      end
+
+      def recognition_pair(point, axis)
+        negative = recognition_ray(point, axis, -1)
+        positive = recognition_ray(point, axis, 1)
+        {
+          negative: recognition_parallel?(negative, axis) ? negative : nil,
+          positive: recognition_parallel?(positive, axis) ? positive : nil
+        }
+      end
+
+      def recognize_drawer_structure
+        result = {
+          sides: false, top: false, bottom: false, rear: false,
+          front_aligned: false, bottom_crossbar: false, rear_crossbar: false,
+          rule: nil, reference: :side_pair, bottom_recess_mm: 0.0
+        }
+        return result unless valid_front? && @depth_axis && @depth_length.to_f > 10.mm
+
+        depth = @depth_length.to_f
+        mid = local_point(@span_u * 0.5, depth * 0.5, @span_v * 0.5)
+        front = local_point(@span_u * 0.5, [depth * 0.04, 3.mm].max, @span_v * 0.5)
+        rear = local_point(@span_u * 0.5, depth * 0.94, @span_v * 0.5)
+
+        side_mid = recognition_pair(mid, @axis_u)
+        side_front = recognition_pair(front, @axis_u)
+        side_rear = recognition_pair(rear, @axis_u)
+        top_bottom_mid = recognition_pair(mid, @axis_v)
+        top_bottom_front = recognition_pair(front, @axis_v)
+        top_bottom_rear = recognition_pair(rear, @axis_v)
+
+        left_mid = !!side_mid[:negative]
+        right_mid = !!side_mid[:positive]
+        result[:sides] = left_mid && right_mid
+        result[:top] = !!top_bottom_mid[:positive]
+        result[:bottom] = !!top_bottom_mid[:negative]
+        result[:front_aligned] = !!(side_front[:negative] && side_front[:positive] && top_bottom_front[:positive])
+
+        # Hau sau: mat chan theo chieu sau, phai co phap tuyen gan song song truc sau.
+        rear_mid_hit = recognition_ray(mid, @depth_axis, 1)
+        result[:rear] = recognition_parallel?(rear_mid_hit, @depth_axis)
+
+        # Xa day / xa sau: chi nhan khi co mat thanh ngang o dau hoac cuoi khoang,
+        # va co mat chan phia sau tai vung thap cua ngan keo.
+        front_bottom_bar = !!top_bottom_front[:negative]
+        rear_bottom_bar = !!top_bottom_rear[:negative]
+        result[:bottom_crossbar] = !result[:bottom] && (front_bottom_bar || rear_bottom_bar)
+        low_z = @span_v * 0.08
+        rear_low_point = local_point(@span_u * 0.5, depth * 0.94, low_z)
+        rear_low_hit = recognition_ray(rear_low_point, @depth_axis, 1)
+        result[:rear_crossbar] = recognition_parallel?(rear_low_hit, @depth_axis) && !result[:rear]
+
+        # Neu tam day nam lui sau mep truoc cua hai hoi va dinh, lay mep tam day lam moc.
+        if result[:bottom] && result[:sides] && result[:top]
+          bottom_hit = top_bottom_mid[:negative]
+          if bottom_hit
+            local_z = @origin.vector_to(bottom_hit[:point]).dot(@axis_v)
+            bottom_front_origin = local_point(@span_u * 0.5, 0, local_z)
+            inset_hit = recognition_ray(bottom_front_origin, @depth_axis, 1)
+            inset = inset_hit ? inset_hit[:distance] - 2.mm : 0.0
+            if inset > 3.mm && inset < depth - 3.mm
+              result[:bottom_recess_mm] = inset.to_mm
+              result[:reference] = :bottom_panel
+            end
+          end
+        end
+
+        # Thu tu uu tien: ket cau day du; du 2 hoi + dinh + day; bien the co xa;
+        # cuoi cung moi chap nhan 2 hoi + dinh.
+        if result[:sides] && result[:top] && result[:bottom] && result[:rear] && result[:front_aligned]
+          result[:rule] = 1
+        elsif result[:sides] && result[:top] && result[:bottom]
+          result[:rule] = 2
+        elsif result[:sides] && result[:top] && result[:bottom_crossbar] && result[:rear_crossbar]
+          result[:rule] = 4
+        elsif result[:sides] && result[:top]
+          result[:rule] = 3
+        end
+
+        # Khi ray quet duoc tam day, lay cap hai hoi lam bo khung nhan dien;
+        # ngoai le day thut lui thi uu tien moc tam day theo quy tac 6.
+        if result[:bottom] && result[:sides] && result[:reference] != :bottom_panel
+          result[:reference] = :side_pair
+        end
+        result[:label] = case result[:rule]
+                         when 1 then 'Nhận diện đủ 2 hồi + đỉnh + đáy + hậu + mép trước thẳng'
+                         when 2 then 'Nhận diện 2 hồi + đỉnh + đáy'
+                         when 3 then 'Nhận diện 2 hồi + đỉnh'
+                         when 4 then 'Nhận diện 2 hồi + đỉnh + xà đáy + xà sau'
+                         else 'Chưa đủ mặt để xác nhận ngăn kéo'
+                         end
+        result[:label] += ' | lấy đáy làm mốc' if result[:reference] == :bottom_panel
+        result[:label] += ' | khung hồi làm mốc' if result[:reference] == :side_pair && result[:bottom]
+        result
+      rescue StandardError => error
+        puts "[TT Drawer recognition] #{error.class}: #{error.message}"
+        result
       end
 
       def preview_parts
@@ -647,7 +781,7 @@ module TranTuanNoiThat
         when 2
           'BẮT 3 ĐIỂM: Click P3 xác định chiều cao và mặt phẳng ngăn kéo.'
         else
-          'TAB mở cài đặt | Click tạo ngăn kéo | ESC vẽ lại.'
+          "TAB mở cài đặt | Click tạo ngăn kéo | ESC vẽ lại. #{@recognition_result && @recognition_result[:label]}"
         end
       end
     end
