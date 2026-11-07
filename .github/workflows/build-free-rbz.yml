@@ -1,0 +1,86 @@
+name: Build TRẦN TUẤN NỘI THẤT FREE RBZ
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'tran_tuan_noi_that_free/**'
+      - '.github/workflows/build-free-rbz.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-free-rbz:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify FREE manifest and source hashes
+        shell: bash
+        run: |
+          set -euo pipefail
+          ruby <<'RUBY'
+          require 'json'
+          require 'digest'
+          root = 'tran_tuan_noi_that_free'
+          manifest = JSON.parse(File.binread(File.join(root, 'update_latest.json')))
+          raise 'Edition mismatch' unless manifest['edition'] == 'no_license'
+          raise 'License must not be required' unless manifest['license_required'] == false
+          raise 'Invalid version' unless manifest['version'].to_s.match?(/\\A\\d+\\.\\d+\\.\\d+\\z/)
+          files = manifest.fetch('files')
+          raise 'Empty manifest' unless files.is_a?(Array) && !files.empty?
+          files.each do |item|
+            path = item.fetch('path')
+            raise "Unsafe path: #{path}" if path.start_with?('/') || path.split('/').include?('..')
+            source = File.join(root, 'files', path)
+            raise "Missing source: #{path}" unless File.file?(source)
+            actual = Digest::SHA256.file(source).hexdigest
+            raise "SHA mismatch: #{path}: #{actual}" unless actual == item.fetch('sha256')
+          end
+          %w[TranTuanNoiThat.rb TT_TranTuan_UpdateLoader.rb tran_tuan_noi_that/bootstrap.rb tran_tuan_noi_that/settings.rb tran_tuan_noi_that/updater.rb tran_tuan_noi_that/slat_wall_tool.rb].each do |path|
+            raise "Manifest missing #{path}" unless files.any? { |x| x['path'] == path }
+          end
+          puts "FREE manifest #{manifest['version']} verified (#{files.length} files)"
+          RUBY
+
+      - name: Validate Ruby syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          find tran_tuan_noi_that_free/files -name '*.rb' -print0 | xargs -0 -n1 ruby -c
+
+      - name: Assemble RBZ
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="$(ruby -rjson -e "puts JSON.parse(File.read('tran_tuan_noi_that_free/update_latest.json'))['version']")"
+          STAGE="$RUNNER_TEMP/tt_free_rbz"
+          rm -rf "$STAGE"
+          mkdir -p "$STAGE"
+          ruby <<'RUBY'
+          require 'json'
+          require 'fileutils'
+          root = 'tran_tuan_noi_that_free'
+          stage = ENV.fetch('STAGE')
+          manifest = JSON.parse(File.binread(File.join(root, 'update_latest.json')))
+          manifest.fetch('files').each do |item|
+            source = File.join(root, 'files', item.fetch('path'))
+            target = File.join(stage, item.fetch('path'))
+            FileUtils.mkdir_p(File.dirname(target))
+            FileUtils.cp(source, target)
+          end
+          RUBY
+          (cd "$STAGE" && zip -qr "$GITHUB_WORKSPACE/TRANTUAN-NOIITHAT-FREE-$VERSION.rbz" .)
+          unzip -t "$GITHUB_WORKSPACE/TRANTUAN-NOIITHAT-FREE-$VERSION.rbz"
+          unzip -l "$GITHUB_WORKSPACE/TRANTUAN-NOIITHAT-FREE-$VERSION.rbz" | grep -F 'tran_tuan_noi_that/slat_wall_tool.rb'
+          echo "Built FREE RBZ version $VERSION"
+
+      - name: Upload FREE RBZ
+        uses: actions/upload-artifact@v4
+        with:
+          name: TRANTUAN-NOIITHAT-FREE
+          path: TRANTUAN-NOIITHAT-FREE-*.rbz
+          if-no-files-found: error
+          retention-days: 30
