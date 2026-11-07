@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.303",
+  "version": "1.9.304",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Khắc phục khởi động: lỗi ở một mô-đun riêng lẻ không còn chặn toàn bộ menu/toolbar; thêm giao diện khôi phục khi nạp mô-đun lỗi; cập nhật bộ nạp Extension lên 1.9.303. Giữ nguyên các công cụ hiện có.",
+  "notes": "Bổ sung bộ nhận diện kết cấu ngăn kéo: ưu tiên 2 hồi + đỉnh + đáy + hậu; nhận diện các biến thể thiếu đáy/hậu và trường hợp xà đáy, xà sau; tự chọn cặp hồi hoặc tấm đáy làm mốc khi đáy thụt vào. Giữ nguyên thông số và cách tạo ngăn kéo.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
