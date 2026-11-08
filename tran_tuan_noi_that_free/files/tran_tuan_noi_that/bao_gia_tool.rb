@@ -28,7 +28,7 @@ module TranTuanNoiThat
   module BaoGiaTool
     extend self
 
-    VERSION = '1.9.150'.freeze
+    VERSION = '1.9.151'.freeze
     ROOT = File.join(TranTuanNoiThat::ROOT, 'data', 'bao_gia').freeze
 
     DEFAULT_DVT = [
@@ -435,6 +435,39 @@ module TranTuanNoiThat
       false
     end
 
+    def capture_selected_group(dialog, row_index)
+      model = Sketchup.active_model
+      selected = model.selection.to_a.select do |entity|
+        entity.is_a?(Sketchup::Group) || entity.is_a?(Sketchup::ComponentInstance)
+      end
+      if selected.empty?
+        UI.messagebox('Hãy chọn ít nhất một Group hoặc Component trong mô hình trước khi lấy ảnh.')
+        return false
+      end
+
+      view = model.active_view
+      original_camera = view.camera
+      ensure_data
+      image_path = File.join(ROOT, "quote_capture_#{Process.pid}_#{Time.now.to_i}_#{rand(1_000_000)}.png")
+      begin
+        view.zoom(selected)
+        view.refresh
+        sleep(0.15)
+        written = view.write_image(image_path)
+        raise 'SketchUp không tạo được ảnh chụp từ khung nhìn.' unless written && File.file?(image_path)
+        data_uri = "data:image/png;base64,#{Base64.strict_encode64(File.binread(image_path))}"
+        dialog.execute_script("window.TT_BG_SET_CAPTURE(#{row_index.to_i}, #{JSON.generate(data_uri)});")
+        true
+      ensure
+        view.camera = original_camera if original_camera
+        File.delete(image_path) if File.file?(image_path)
+        view.invalidate
+      end
+    rescue StandardError => error
+      UI.messagebox("Không lấy được ảnh đối tượng 3D:\\n#{error.message}")
+      false
+    end
+
     def show
       if @dialog && @dialog.visible?
         @dialog.bring_to_front
@@ -451,6 +484,7 @@ module TranTuanNoiThat
         style: UI::HtmlDialog::STYLE_DIALOG
       )
 
+      @dialog.add_action_callback('bg_capture_selected') { |_ctx, row_index| capture_selected_group(@dialog, row_index) }
       @dialog.add_action_callback('bg_save') { |_ctx, payload| save_quote(payload) }
       @dialog.add_action_callback('bg_open') { |_ctx| open_quote(@dialog) }
       @dialog.add_action_callback('bg_bank') { |_ctx, payload| save_bank(payload) }
@@ -608,8 +642,9 @@ module TranTuanNoiThat
               upload.onclick=function(){file.click();};
               file.addEventListener('change',function(){var f=file.files&&file.files[0];if(!f)return;if(!/^image\//.test(f.type)){status('Tệp đã chọn không phải ảnh.',true);return;}var reader=new FileReader();reader.onload=function(){r.anh=String(reader.result||'');render();status('Đã gắn ảnh vào hạng mục '+(i+1)+'.');};reader.onerror=function(){status('Không đọc được ảnh.',true);};reader.readAsDataURL(f);});
               var camera=document.createElement('button');camera.type='button';camera.textContent='CHỤP';camera.className='blue';camera.onclick=function(){openCamera(i);};
+              var modelShot=document.createElement('button');modelShot.type='button';modelShot.textContent='ẢNH 3D';modelShot.className='blue';modelShot.title='Chụp Group/Component đang chọn trong SketchUp';modelShot.onclick=function(){sketchup.bg_capture_selected(i);};
               var clear=document.createElement('button');clear.type='button';clear.textContent='XÓA ẢNH';clear.className='red';clear.disabled=!r.anh;clear.onclick=function(){r.anh='';render();};
-              actions.appendChild(upload);actions.appendChild(camera);actions.appendChild(clear);td.appendChild(actions);td.appendChild(file);tr.appendChild(td);
+              actions.appendChild(upload);actions.appendChild(camera);actions.appendChild(modelShot);actions.appendChild(clear);td.appendChild(actions);td.appendChild(file);tr.appendChild(td);
 
               function addInput(key,ph,cls){
                 var cell=document.createElement('td');
@@ -698,6 +733,7 @@ module TranTuanNoiThat
           function openCamera(index){cameraRowIndex=index;var layer=$('cameraLayer'),video=$('cameraVideo');layer.style.display='flex';if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){$('cameraHint').textContent='Camera không được hỗ trợ trong môi trường SketchUp này. Hãy dùng TẢI ẢNH.';return;}navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'},audio:false}).then(function(stream){cameraStream=stream;video.srcObject=stream;video.play();$('cameraHint').textContent='Canh khung hình rồi bấm CHỤP ẢNH.';}).catch(function(error){$('cameraHint').textContent='Không mở được camera: '+(error&&error.message?error.message:'Không có quyền truy cập')+'. Bạn có thể dùng TẢI ẢNH.';});}
           function capturePhoto(){if(cameraRowIndex<0)return;var video=$('cameraVideo');if(!video.videoWidth||!video.videoHeight){$('cameraHint').textContent='Camera chưa sẵn sàng.';return;}var canvas=document.createElement('canvas');canvas.width=video.videoWidth;canvas.height=video.videoHeight;canvas.getContext('2d').drawImage(video,0,0);rows[cameraRowIndex].anh=canvas.toDataURL('image/jpeg',0.88);var n=cameraRowIndex+1;closeCamera();render();status('Đã chụp ảnh và gắn vào hạng mục '+n+'.');}
           $('takePhoto').onclick=capturePhoto;$('closeCamera').onclick=closeCamera;
+          window.TT_BG_SET_CAPTURE=function(index,dataUri){if(index<0||index>=rows.length)return;rows[index].anh=dataUri;render();status('Đã chụp đối tượng 3D và đưa ảnh vào hạng mục '+(index+1)+'.');};
           function addRow(){rows.push(rowDefault());render();}
           function addDvt(){
             var value=$('newDvt').value.trim();if(!value)return;
