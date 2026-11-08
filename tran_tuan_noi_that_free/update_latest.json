@@ -1,15 +1,15 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.308",
+  "version": "1.9.309",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Vẽ Ngăn Kéo: lấy mặt trên tấm đáy khoang tủ làm mốc; đặt đáy ngăn kéo trong lòng khoang; bỏ thông số offset/tịnh tiến đáy.",
+  "notes": "Báo Giá: thêm chụp ảnh trực tiếp Group/Component đang chọn trong SketchUp vào dòng hàng mục; giữ ảnh gốc. Vẽ Ngăn Kéo: lấy mặt trên tấm đáy khoang tủ làm mốc.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bao_gia_tool.rb",
-      "sha256": "81cc94eec469fc85fffb65a092d6e023f1fafe21c58a233ad62a75c81cc148e2"
+      "sha256": "f9eff29aedd040a57843815d68b1ffa5d3b85c98afad6e492ebf939361b3f8ba"
     },
     {
       "path": "tran_tuan_noi_that/board_tool.rb",
@@ -319,7 +319,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "c505e43f2f78439896d641b856c4ce7222e41f55699876c8d517728ea5411ffb"
+      "sha256": "ef4ed23cea3c07694d8d9ca9705a8c84f527e030bbe376723103825e45865bbb"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
