@@ -28,7 +28,7 @@ module TranTuanNoiThat
   module BaoGiaTool
     extend self
 
-    VERSION = '1.9.151'.freeze
+    VERSION = '1.9.152'.freeze
     ROOT = File.join(TranTuanNoiThat::ROOT, 'data', 'bao_gia').freeze
 
     DEFAULT_DVT = [
@@ -139,7 +139,8 @@ module TranTuanNoiThat
     def new_row
       {
         'anh'=>'',
-        'hang_muc'=>'',
+        'zoom_anh'=>1.0,
+        'hang_muc'=>'
         'mo_ta'=>'',
         'dvt'=>'m²',
         'dai'=>'',
@@ -295,7 +296,8 @@ module TranTuanNoiThat
         row = new_row.merge(raw)
         image_data = row['anh'].to_s
         image_data = '' unless image_data.start_with?('data:image/')
-        image_html = image_data.empty? ? '' : %Q{<img src="#{safe(image_data)}" class="item-photo">}
+        zoom = [[num(row['zoom_anh']), 0.5].max, 3.0].min
+        image_html = image_data.empty? ? '' : %Q{<div class="item-photo-frame"><img src="#{safe(image_data)}" class="item-photo" style="transform:scale(#{zoom})"></div>}
         computed = calc_row(row)
         <<~ROW
           <tr>
@@ -342,7 +344,7 @@ module TranTuanNoiThat
           table{width:100%;border-collapse:collapse;font-size:11px}
           th,td{border:1px solid #999;padding:5px}
           th{background:#eee}
-          .photo-cell{width:72px;text-align:center}.item-photo{max-width:64px;max-height:64px;object-fit:contain}
+          .photo-cell{width:72px;text-align:center}.item-photo-frame{width:64px;height:64px;overflow:hidden;margin:auto;display:flex;align-items:center;justify-content:center}.item-photo{width:64px;height:64px;object-fit:contain;transform-origin:center center}
           .sum{width:360px;margin-left:auto}
           .qrbox{margin-top:20px;border:1px solid #888;padding:15px;display:flex;gap:25px;align-items:center;page-break-inside:avoid}
           .qrimg{width:220px;height:220px}
@@ -521,7 +523,7 @@ module TranTuanNoiThat
           .tablebox{overflow:auto}table{border-collapse:collapse;width:100%;min-width:1280px}
           th,td{border:1px solid #bbb;padding:5px}th{background:#eee;font-size:11px}
           td input,td select{padding:6px}.mini{width:78px;margin:2px}.calc{text-align:right;white-space:nowrap}
-          .photo-cell{min-width:112px;text-align:center}.photo-thumb{width:76px;height:64px;object-fit:contain;display:block;margin:0 auto 5px;border:1px solid #8aa8c5;border-radius:5px;background:#fff}.photo-actions{display:flex;gap:4px;justify-content:center;flex-wrap:wrap}.photo-actions button{font-size:10px;padding:5px 7px}.photo-file{display:none}
+          .photo-cell{min-width:124px;text-align:center}.photo-frame{width:76px;height:64px;overflow:hidden;display:flex;align-items:center;justify-content:center;margin:0 auto 5px;border:1px solid #8aa8c5;border-radius:5px;background:#fff}.photo-thumb{width:100%;height:100%;object-fit:contain;display:block;transform-origin:center center}.photo-zoom{display:flex;gap:5px;justify-content:center;margin:0 auto 5px}.photo-zoom button{font-size:12px;min-width:27px;padding:3px 7px}.photo-zoom span{font-size:10px;align-self:center;min-width:35px}.photo-actions{display:flex;gap:4px;justify-content:center;flex-wrap:wrap}.photo-actions button{font-size:10px;padding:5px 7px}.photo-file{display:none}
           .camera-layer{position:fixed;inset:0;background:#000b;z-index:9999;display:none;align-items:center;justify-content:center;padding:20px}.camera-panel{background:#0b2748;color:#fff;padding:14px;border-radius:10px;max-width:720px;width:100%}.camera-panel video{width:100%;max-height:65vh;background:#000;object-fit:contain}.camera-panel .bar{margin-top:10px}
           .sum{max-width:400px;margin-left:auto}.sum p{display:flex;justify-content:space-between}
           .big{font-size:20px;border-top:2px solid #111;padding-top:8px}
@@ -635,7 +637,14 @@ module TranTuanNoiThat
               var td=document.createElement('td');td.textContent=i+1;tr.appendChild(td);
 
               td=document.createElement('td');td.className='photo-cell';
-              var photo=document.createElement('img');photo.className='photo-thumb';photo.alt='Ảnh hạng mục';photo.src=r.anh||'';photo.style.display=r.anh?'block':'none';td.appendChild(photo);
+              var zoom=Number(r.zoom_anh)||1;r.zoom_anh=Math.max(0.5,Math.min(3,zoom));
+              var frame=document.createElement('div');frame.className='photo-frame';
+              var photo=document.createElement('img');photo.className='photo-thumb';photo.alt='Ảnh hạng mục';photo.src=r.anh||'';photo.style.display=r.anh?'block':'none';photo.style.transform='scale('+r.zoom_anh+')';frame.appendChild(photo);td.appendChild(frame);
+              var zoomBar=document.createElement('div');zoomBar.className='photo-zoom';
+              var zoomOut=document.createElement('button');zoomOut.type='button';zoomOut.textContent='−';zoomOut.title='Thu nhỏ ảnh';zoomOut.disabled=!r.anh||r.zoom_anh<=0.5;zoomOut.onclick=function(){r.zoom_anh=Math.max(0.5,Math.round((r.zoom_anh-0.1)*10)/10);render();};
+              var zoomLabel=document.createElement('span');zoomLabel.textContent=Math.round(r.zoom_anh*100)+'%';
+              var zoomIn=document.createElement('button');zoomIn.type='button';zoomIn.textContent='+';zoomIn.title='Phóng to ảnh';zoomIn.disabled=!r.anh||r.zoom_anh>=3;zoomIn.onclick=function(){r.zoom_anh=Math.min(3,Math.round((r.zoom_anh+0.1)*10)/10);render();};
+              zoomBar.appendChild(zoomOut);zoomBar.appendChild(zoomLabel);zoomBar.appendChild(zoomIn);td.appendChild(zoomBar);
               var actions=document.createElement('div');actions.className='photo-actions';
               var upload=document.createElement('button');upload.type='button';upload.textContent='TẢI ẢNH';upload.className='gray';
               var file=document.createElement('input');file.type='file';file.accept='image/*';file.className='photo-file';
