@@ -140,7 +140,7 @@ module TranTuanNoiThat
       {
         'anh'=>'',
         'zoom_anh'=>1.0,
-        'hang_muc'=>'
+        'hang_muc'=>'',
         'mo_ta'=>'',
         'dvt'=>'m²',
         'dai'=>'',
