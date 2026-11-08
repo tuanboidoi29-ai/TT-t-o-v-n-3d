@@ -1,15 +1,15 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.311",
+  "version": "1.9.312",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Báo Giá: nút XÓA ẢNH xóa ảnh riêng từng dòng, đặt lại mức zoom và giữ nguyên dữ liệu hạng mục; tiếp tục hỗ trợ tải ảnh, chụp camera và chụp Group/Component 3D.",
+  "notes": "Báo Giá: tự tính m² theo (Dài + Cao/Sâu) × Rộng / 1.000.000 với kích thước mm, sau đó nhân đơn giá và số lượng; m³ giữ công thức thể tích cũ.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bao_gia_tool.rb",
-      "sha256": "8449515810e1cc3d75795ad73a6101965a62ebb54bb1d5710f2ff6499dd4ef9e"
+      "sha256": "7a9d030feef67674d8e280fbcb1cfda5c4c5fca78cbc024d3c6cbf51f9de5763"
     },
     {
       "path": "tran_tuan_noi_that/board_tool.rb",
