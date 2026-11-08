@@ -1,15 +1,15 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.310",
+  "version": "1.9.311",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Báo Giá: thêm chụp ảnh trực tiếp Group/Component đang chọn trong SketchUp vào dòng hàng mục; giữ ảnh gốc. Vẽ Ngăn Kéo: lấy mặt trên tấm đáy khoang tủ làm mốc.",
+  "notes": "Báo Giá: nút XÓA ẢNH xóa ảnh riêng từng dòng, đặt lại mức zoom và giữ nguyên dữ liệu hạng mục; tiếp tục hỗ trợ tải ảnh, chụp camera và chụp Group/Component 3D.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bao_gia_tool.rb",
-      "sha256": "69cebdde2451831c89f7bac63373229c5c2978ccd1999f86ff5c36e6618682e3"
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
     },
     {
       "path": "tran_tuan_noi_that/board_tool.rb",
