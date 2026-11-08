@@ -28,7 +28,7 @@ module TranTuanNoiThat
   module BaoGiaTool
     extend self
 
-    VERSION = '1.9.149'.freeze
+    VERSION = '1.9.150'.freeze
     ROOT = File.join(TranTuanNoiThat::ROOT, 'data', 'bao_gia').freeze
 
     DEFAULT_DVT = [
@@ -138,6 +138,7 @@ module TranTuanNoiThat
 
     def new_row
       {
+        'anh'=>'',
         'hang_muc'=>'',
         'mo_ta'=>'',
         'dvt'=>'m²',
@@ -292,10 +293,14 @@ module TranTuanNoiThat
 
       rows = Array(data['rows']).each_with_index.map do |raw, index|
         row = new_row.merge(raw)
+        image_data = row['anh'].to_s
+        image_data = '' unless image_data.start_with?('data:image/')
+        image_html = image_data.empty? ? '' : %Q{<img src="#{safe(image_data)}" class="item-photo">}
         computed = calc_row(row)
         <<~ROW
           <tr>
             <td>#{index + 1}</td>
+            <td class="photo-cell">#{image_html}</td>
             <td>#{safe(row['hang_muc'])}</td>
             <td>#{safe(row['mo_ta'])}</td>
             <td>#{safe(row['dvt'])}</td>
@@ -337,6 +342,7 @@ module TranTuanNoiThat
           table{width:100%;border-collapse:collapse;font-size:11px}
           th,td{border:1px solid #999;padding:5px}
           th{background:#eee}
+          .photo-cell{width:72px;text-align:center}.item-photo{max-width:64px;max-height:64px;object-fit:contain}
           .sum{width:360px;margin-left:auto}
           .qrbox{margin-top:20px;border:1px solid #888;padding:15px;display:flex;gap:25px;align-items:center;page-break-inside:avoid}
           .qrimg{width:220px;height:220px}
@@ -347,7 +353,7 @@ module TranTuanNoiThat
         <p><b>Khách hàng:</b> #{safe(data['khach_hang'])} &nbsp; <b>Điện thoại:</b> #{safe(data['dien_thoai'])}</p>
         <p><b>Địa chỉ:</b> #{safe(data['dia_chi'])}</p>
         <table>
-          <tr><th>STT</th><th>Hạng mục</th><th>Mô tả</th><th>ĐVT</th><th>Dài</th><th>Rộng</th><th>Cao</th><th>SL</th><th>SL tính giá</th><th>Đơn giá</th><th>Thành tiền</th></tr>
+          <tr><th>STT</th><th>Ảnh</th><th>Hạng mục</th><th>Mô tả</th><th>ĐVT</th><th>Dài</th><th>Rộng</th><th>Cao</th><th>SL</th><th>SL tính giá</th><th>Đơn giá</th><th>Thành tiền</th></tr>
           #{rows}
         </table>
         <div class="sum">
@@ -478,9 +484,11 @@ module TranTuanNoiThat
           button{padding:9px 12px;border:0;border-radius:6px;cursor:pointer;font-weight:bold}
           .bar{display:flex;gap:7px;flex-wrap:wrap}.dark{background:#111827;color:#fff}.blue{background:#1d4ed8;color:#fff}
           .green{background:#166534;color:#fff}.gray{background:#e5e7eb}.red{background:#b42318;color:#fff}
-          .tablebox{overflow:auto}table{border-collapse:collapse;width:100%;min-width:1200px}
+          .tablebox{overflow:auto}table{border-collapse:collapse;width:100%;min-width:1280px}
           th,td{border:1px solid #bbb;padding:5px}th{background:#eee;font-size:11px}
           td input,td select{padding:6px}.mini{width:78px;margin:2px}.calc{text-align:right;white-space:nowrap}
+          .photo-cell{min-width:112px;text-align:center}.photo-thumb{width:76px;height:64px;object-fit:contain;display:block;margin:0 auto 5px;border:1px solid #8aa8c5;border-radius:5px;background:#fff}.photo-actions{display:flex;gap:4px;justify-content:center;flex-wrap:wrap}.photo-actions button{font-size:10px;padding:5px 7px}.photo-file{display:none}
+          .camera-layer{position:fixed;inset:0;background:#000b;z-index:9999;display:none;align-items:center;justify-content:center;padding:20px}.camera-panel{background:#0b2748;color:#fff;padding:14px;border-radius:10px;max-width:720px;width:100%}.camera-panel video{width:100%;max-height:65vh;background:#000;object-fit:contain}.camera-panel .bar{margin-top:10px}
           .sum{max-width:400px;margin-left:auto}.sum p{display:flex;justify-content:space-between}
           .big{font-size:20px;border-top:2px solid #111;padding-top:8px}
           .pay{display:grid;grid-template-columns:1fr 260px;gap:15px}
@@ -513,13 +521,15 @@ module TranTuanNoiThat
             </div>
             <div class="tablebox"><table>
               <thead><tr>
-                <th>STT</th><th>Hạng mục</th><th>Mô tả</th><th>ĐVT</th>
+                <th>STT</th><th>Ảnh</th><th>Hạng mục</th><th>Mô tả</th><th>ĐVT</th>
                 <th>Dài</th><th>Rộng</th><th>Cao</th><th>SL</th>
                 <th>SL tính giá</th><th>Đơn giá</th><th>Thành tiền</th><th>Xóa</th>
               </tr></thead>
               <tbody id="rows"></tbody>
             </table></div>
           </div>
+
+          <div class="camera-layer" id="cameraLayer"><div class="camera-panel"><h3>CHỤP ẢNH HẠNG MỤC</h3><video id="cameraVideo" autoplay playsinline></video><div class="bar"><button id="takePhoto" class="green">CHỤP ẢNH</button><button id="closeCamera" class="red">ĐÓNG</button></div><small id="cameraHint">Cho phép SketchUp truy cập camera nếu được hỏi.</small></div></div>
 
           <div class="card"><div class="sum">
             <p><span>Tạm tính</span><b id="sub">0 ₫</b></p>
@@ -571,7 +581,7 @@ module TranTuanNoiThat
             var n=Number(s); return isFinite(n)?n:0;
           }
           function money(v){return Math.round(num(v)).toLocaleString('vi-VN')+' ₫';}
-          function rowDefault(){return {hang_muc:'',mo_ta:'',dvt:'m²',dai:'',rong:'',cao:'',so_luong:'1',don_gia:'0'};}
+          function rowDefault(){return {anh:'',hang_muc:'',mo_ta:'',dvt:'m²',dai:'',rong:'',cao:'',so_luong:'1',don_gia:'0'};}
           function calc(r){
             var d=num(r.dai),w=num(r.rong),h=num(r.cao),q=num(r.so_luong);
             if(r.dvt==='m²'||r.dvt==='m³')return d*w*h/1000000000*q;
@@ -589,6 +599,17 @@ module TranTuanNoiThat
               r=Object.assign(rowDefault(),r);rows[i]=r;
               var tr=document.createElement('tr');
               var td=document.createElement('td');td.textContent=i+1;tr.appendChild(td);
+
+              td=document.createElement('td');td.className='photo-cell';
+              var photo=document.createElement('img');photo.className='photo-thumb';photo.alt='Ảnh hạng mục';photo.src=r.anh||'';photo.style.display=r.anh?'block':'none';td.appendChild(photo);
+              var actions=document.createElement('div');actions.className='photo-actions';
+              var upload=document.createElement('button');upload.type='button';upload.textContent='TẢI ẢNH';upload.className='gray';
+              var file=document.createElement('input');file.type='file';file.accept='image/*';file.className='photo-file';
+              upload.onclick=function(){file.click();};
+              file.addEventListener('change',function(){var f=file.files&&file.files[0];if(!f)return;if(!/^image\\//.test(f.type)){status('Tệp đã chọn không phải ảnh.',true);return;}var reader=new FileReader();reader.onload=function(){r.anh=String(reader.result||'');render();status('Đã gắn ảnh vào hạng mục '+(i+1)+'.');};reader.onerror=function(){status('Không đọc được ảnh.',true);};reader.readAsDataURL(f);});
+              var camera=document.createElement('button');camera.type='button';camera.textContent='CHỤP';camera.className='blue';camera.onclick=function(){openCamera(i);};
+              var clear=document.createElement('button');clear.type='button';clear.textContent='XÓA ẢNH';clear.className='red';clear.disabled=!r.anh;clear.onclick=function(){r.anh='';render();};
+              actions.appendChild(upload);actions.appendChild(camera);actions.appendChild(clear);td.appendChild(actions);td.appendChild(file);tr.appendChild(td);
 
               function addInput(key,ph,cls){
                 var cell=document.createElement('td');
@@ -672,6 +693,11 @@ module TranTuanNoiThat
             img.onerror=function(){$('qr').innerHTML='<span>Không tải được QR. Kiểm tra ngân hàng / mạng.</span>';};
             $('qr').appendChild(img);
           }
+          var cameraStream=null,cameraRowIndex=-1;
+          function closeCamera(){if(cameraStream){cameraStream.getTracks().forEach(function(track){track.stop();});cameraStream=null;}$('cameraVideo').srcObject=null;$('cameraLayer').style.display='none';cameraRowIndex=-1;}
+          function openCamera(index){cameraRowIndex=index;var layer=$('cameraLayer'),video=$('cameraVideo');layer.style.display='flex';if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){$('cameraHint').textContent='Camera không được hỗ trợ trong môi trường SketchUp này. Hãy dùng TẢI ẢNH.';return;}navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'},audio:false}).then(function(stream){cameraStream=stream;video.srcObject=stream;video.play();$('cameraHint').textContent='Canh khung hình rồi bấm CHỤP ẢNH.';}).catch(function(error){$('cameraHint').textContent='Không mở được camera: '+(error&&error.message?error.message:'Không có quyền truy cập')+'. Bạn có thể dùng TẢI ẢNH.';});}
+          function capturePhoto(){if(cameraRowIndex<0)return;var video=$('cameraVideo');if(!video.videoWidth||!video.videoHeight){$('cameraHint').textContent='Camera chưa sẵn sàng.';return;}var canvas=document.createElement('canvas');canvas.width=video.videoWidth;canvas.height=video.videoHeight;canvas.getContext('2d').drawImage(video,0,0);rows[cameraRowIndex].anh=canvas.toDataURL('image/jpeg',0.88);var n=cameraRowIndex+1;closeCamera();render();status('Đã chụp ảnh và gắn vào hạng mục '+n+'.');}
+          $('takePhoto').onclick=capturePhoto;$('closeCamera').onclick=closeCamera;
           function addRow(){rows.push(rowDefault());render();}
           function addDvt(){
             var value=$('newDvt').value.trim();if(!value)return;
