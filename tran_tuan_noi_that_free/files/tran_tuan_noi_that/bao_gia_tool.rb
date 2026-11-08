@@ -606,7 +606,7 @@ module TranTuanNoiThat
               var upload=document.createElement('button');upload.type='button';upload.textContent='TẢI ẢNH';upload.className='gray';
               var file=document.createElement('input');file.type='file';file.accept='image/*';file.className='photo-file';
               upload.onclick=function(){file.click();};
-              file.addEventListener('change',function(){var f=file.files&&file.files[0];if(!f)return;if(!/^image\\//.test(f.type)){status('Tệp đã chọn không phải ảnh.',true);return;}var reader=new FileReader();reader.onload=function(){r.anh=String(reader.result||'');render();status('Đã gắn ảnh vào hạng mục '+(i+1)+'.');};reader.onerror=function(){status('Không đọc được ảnh.',true);};reader.readAsDataURL(f);});
+              file.addEventListener('change',function(){var f=file.files&&file.files[0];if(!f)return;if(!/^image\//.test(f.type)){status('Tệp đã chọn không phải ảnh.',true);return;}var reader=new FileReader();reader.onload=function(){r.anh=String(reader.result||'');render();status('Đã gắn ảnh vào hạng mục '+(i+1)+'.');};reader.onerror=function(){status('Không đọc được ảnh.',true);};reader.readAsDataURL(f);});
               var camera=document.createElement('button');camera.type='button';camera.textContent='CHỤP';camera.className='blue';camera.onclick=function(){openCamera(i);};
               var clear=document.createElement('button');clear.type='button';clear.textContent='XÓA ẢNH';clear.className='red';clear.disabled=!r.anh;clear.onclick=function(){r.anh='';render();};
               actions.appendChild(upload);actions.appendChild(camera);actions.appendChild(clear);td.appendChild(actions);td.appendChild(file);tr.appendChild(td);
