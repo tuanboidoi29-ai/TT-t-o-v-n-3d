@@ -249,7 +249,7 @@ module TranTuanNoiThat
       end
 
       def onKeyDown(key, _repeat, _flags, view)
-        return unless key == TAB && ready?
+        return unless key == TAB
         Drawer.show_settings(self)
         view.invalidate
       end
