@@ -27,7 +27,7 @@ jobs:
           require 'digest'
           root = 'tran_tuan_noi_that_free'
           manifest = JSON.parse(File.read(File.join(root, 'update_latest.json')))
-          raise 'manifest version mismatch' unless manifest['version'] == '1.9.310'
+          raise 'manifest version mismatch' unless manifest['version'] == '1.9.311'
           raise 'manifest edition mismatch' unless manifest['edition'] == 'no_license' && manifest['license_required'] == false
           required = %w[TranTuanNoiThat.rb TT_TranTuan_UpdateLoader.rb tran_tuan_noi_that/bootstrap.rb tran_tuan_noi_that/settings.rb tran_tuan_noi_that/updater.rb tran_tuan_noi_that/layout_stats_v110_layout_only_dim_dedupe.rb]
           entries = Array(manifest['files']).to_h { |item| [item['path'], item] }
@@ -40,7 +40,7 @@ jobs:
             expected_url = "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/#{root}/files/#{path}"
             raise "manifest URL mismatch #{path}" unless item['url'] == expected_url
           end
-          puts 'FREE 1.9.310 UPDATE MANIFEST OK'
+          puts 'FREE 1.9.311 UPDATE MANIFEST OK'
           RUBY
           test ! -e tran_tuan_noi_that_free/files/tran_tuan_noi_that/cabinet_door_tool.rb
           test ! -e tran_tuan_noi_that_free/files/tran_tuan_noi_that/icons/cabinet_door.svg
@@ -49,9 +49,9 @@ jobs:
           test ! -e tran_tuan_noi_that_free/tests/vector_cnc_test.rb
           ! grep -Fq "install_vector_cnc_ui" tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb
           ! grep -Eq "^[[:space:]]*vector_cnc_tool[[:space:]]*$" tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb
-          grep -Fq "VERSION = '1.9.310'" tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb
+          grep -Fq "VERSION = '1.9.311'" tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb
           grep -Fq "VERSION = '1.9.146'" tran_tuan_noi_that_free/files/tran_tuan_noi_that/tam_pro.rb
-          grep -Fq "ext.version = '1.9.310'" tran_tuan_noi_that_free/files/TranTuanNoiThat.rb
+          grep -Fq "ext.version = '1.9.311'" tran_tuan_noi_that_free/files/TranTuanNoiThat.rb
           ruby tran_tuan_noi_that_free/tests/layout_fast_pages_test.rb
           # Legacy slat-wall / LED / contact geometry scripts depend on an outdated
           # SketchUp mock API and include retired tools; they are not release gates.
