@@ -1,6 +1,6 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.309",
+  "version": "1.9.310",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
@@ -9,7 +9,7 @@
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bao_gia_tool.rb",
-      "sha256": "f9eff29aedd040a57843815d68b1ffa5d3b85c98afad6e492ebf939361b3f8ba"
+      "sha256": "e4da9dbd8c2b1b11a9d0e3145157cc0d9b00a5a6e39caa5bb7eaa04119e81c7c"
     },
     {
       "path": "tran_tuan_noi_that/board_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "e5b23c7c428f45e32fccaae96fe41fe271d06598bee438e7b924c9d28b5292ed"
+      "sha256": "21d5db83c5c492044feeacfb11ef58d2e09f309560acf9fb1789fffafd200c0b"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -319,7 +319,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "ef4ed23cea3c07694d8d9ca9705a8c84f527e030bbe376723103825e45865bbb"
+      "sha256": "a3cec3f106ac9f39d4117133c5467b40abf01cb8bed08677666e3e3d1bdf14ae"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -470,5 +470,5 @@
     "tran_tuan_noi_that/cnc_profile_tool.rb",
     "tran_tuan_noi_that/icons/cnc_profile.svg"
   ],
-  "release_notes": "1.9.308: Phím Tab mở bảng tùy chỉnh ngăn kéo ngay cả khi đang rê chuột nhận diện lòng tủ."
+  "release_notes": "1.9.310: Bảng Báo Giá bổ sung nút ZOOM + / ZOOM − để phóng to, thu nhỏ ảnh mẫu riêng từng hạng mục; giữ nguyên ảnh gốc."
 }
