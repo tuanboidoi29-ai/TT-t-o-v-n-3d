@@ -28,7 +28,7 @@ module TranTuanNoiThat
   module BaoGiaTool
     extend self
 
-    VERSION = '1.9.152'.freeze
+    VERSION = '1.9.311'.freeze
     ROOT = File.join(TranTuanNoiThat::ROOT, 'data', 'bao_gia').freeze
 
     DEFAULT_DVT = [
@@ -652,7 +652,7 @@ module TranTuanNoiThat
               file.addEventListener('change',function(){var f=file.files&&file.files[0];if(!f)return;if(!/^image\//.test(f.type)){status('Tệp đã chọn không phải ảnh.',true);return;}var reader=new FileReader();reader.onload=function(){r.anh=String(reader.result||'');render();status('Đã gắn ảnh vào hạng mục '+(i+1)+'.');};reader.onerror=function(){status('Không đọc được ảnh.',true);};reader.readAsDataURL(f);});
               var camera=document.createElement('button');camera.type='button';camera.textContent='CHỤP';camera.className='blue';camera.onclick=function(){openCamera(i);};
               var modelShot=document.createElement('button');modelShot.type='button';modelShot.textContent='ẢNH 3D';modelShot.className='blue';modelShot.title='Chụp Group/Component đang chọn trong SketchUp';modelShot.onclick=function(){sketchup.bg_capture_selected(i);};
-              var clear=document.createElement('button');clear.type='button';clear.textContent='XÓA ẢNH';clear.className='red';clear.disabled=!r.anh;clear.onclick=function(){r.anh='';render();};
+              var clear=document.createElement('button');clear.type='button';clear.textContent='XÓA ẢNH';clear.className='red';clear.disabled=!r.anh;clear.onclick=function(){r.anh='';r.zoom_anh=1;file.value='';render();status('Đã xóa ảnh của hạng mục '+(i+1)+'.');};
               actions.appendChild(upload);actions.appendChild(camera);actions.appendChild(modelShot);actions.appendChild(clear);td.appendChild(actions);td.appendChild(file);tr.appendChild(td);
 
               function addInput(key,ph,cls){
