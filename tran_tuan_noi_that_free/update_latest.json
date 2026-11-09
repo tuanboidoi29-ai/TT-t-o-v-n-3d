@@ -1,6 +1,6 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.320",
+  "version": "1.9.321",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "3fefe8ac1cb7277eb1503cec6b57bcc732380b2048109bcc9eaca037f3b982b4"
+      "sha256": "0d4f865d7ab274357163bd919054871a0c52ea70bd56eebf87348c3ba60f9315"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -319,7 +319,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "32210d14d0ddfee52a9889bae4a06c5f3b528fa0616ad1420fd7458c945311b0"
+      "sha256": "df49d85fa13b2c6d512c9b9e86167f49393791e997be11277cd8184dc01f6438"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -459,7 +459,7 @@
     {
       "path": "tran_tuan_noi_that/gcode_export_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/gcode_export_tool.rb",
-      "sha256": "ce4fa0236233013c2e766b354a25ac33c79adf159b2bf296c14ddef238a7110c"
+      "sha256": "c04fbd8a30be50b5dd069e31c948c03cde7d22613fbb18641cab15419914de9f"
     },
     {
       "path": "tran_tuan_noi_that/icons/gcode_export.svg",
@@ -485,5 +485,5 @@
     "tran_tuan_noi_that/cnc_profile_tool.rb",
     "tran_tuan_noi_that/icons/cnc_profile.svg"
   ],
-  "release_notes": "1.9.320: Bổ sung nhận diện biên dạng ngang nhiều cao độ; thống kê diện tích, chu vi, số điểm; đánh dấu ứng viên đáy hốc/bậc để rà soát. Chưa tự động xuất các ứng viên chưa xác minh thành G-code."
+  "release_notes": "1.9.321: Chuyển toàn bộ nút điều khiển mô phỏng CNC lên thanh công cụ cố định ngay đầu cửa sổ; giữ nguyên callback chạy, tạm dừng, chạy lại, cập nhật mô phỏng và xuất .NC."
 }
