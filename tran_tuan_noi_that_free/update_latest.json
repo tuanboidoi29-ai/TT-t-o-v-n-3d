@@ -1,6 +1,6 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.324",
+  "version": "1.9.325",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "2449366cfcf8de2745b4f9fbadea5154494c35abadc7d1ab38f4b7b76989ee1e"
+      "sha256": "093a1cbd85d66cce18cba610f3b4733897d1d75fff2577121028a421ec63dc55"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -319,7 +319,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "57a908a5b3f37836116460d08e259c784ecfb471b555417d9a502bfa6bffccfd"
+      "sha256": "3d19558a0f6ada956e95a59ff8db5b40b549dd57a257b31634f590edf336b1dc"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -474,7 +474,7 @@
     {
       "path": "tran_tuan_noi_that/duc_khung_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/duc_khung_tool.rb",
-      "sha256": "529092bb6411e85a12ca073a369dd0dfce57ab2b4ace3a4de8587559da78a435"
+      "sha256": "01520307eafdd6093ed175a64c28336697572107122af53c96ebb9b1196cd899"
     },
     {
       "path": "tran_tuan_noi_that/icons/duc_khung.svg",
@@ -495,5 +495,5 @@
     "tran_tuan_noi_that/cnc_profile_tool.rb",
     "tran_tuan_noi_that/icons/cnc_profile.svg"
   ],
-  "release_notes": "1.9.322: Thêm công cụ ĐỤC KHUNG với thư viện biên dạng, thông số rộng/sâu, Tag ABF_, tên Instance, màu Preview và mô phỏng trực tiếp khi rê chuột trên Face."
+  "release_notes": "1.9.325: Sửa lỗi khiến preview đường biên ĐỤC KHUNG không hiện do biến tọa độ trong bị tham chiếu sai; làm rõ offset đo vào trong Face. Giữ tùy chọn đục khung thật/chỉ tạo đường biên, góc vuông/vát/bo cong, rộng hèm và độ sâu hạ nền."
 }
