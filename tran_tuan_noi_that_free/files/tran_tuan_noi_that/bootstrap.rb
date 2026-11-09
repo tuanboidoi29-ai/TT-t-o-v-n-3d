@@ -18,7 +18,7 @@ module TranTuanNoiThat
   }.freeze unless const_defined?(:LOCKED_FEATURE_BASELINES, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.321'.freeze
+  VERSION = '1.9.322'.freeze
 
   class << self
     def setting(key, default = nil)
@@ -142,6 +142,7 @@ module TranTuanNoiThat
         board_tool
         gcode_export_tool
         gcode_feature_scan
+        duc_khung_tool
         wine_rack
         door_standard_tool
         rename_ui
@@ -423,6 +424,7 @@ module TranTuanNoiThat
       install_scale_corner_lock_ui
       install_slat_wall_ui
       install_round_ui
+      install_duc_khung_ui
       install_stretch_mode_ui
       install_grain_ui
       install_material_reset_ui
@@ -757,6 +759,16 @@ module TranTuanNoiThat
       true
     rescue StandardError => error
       puts "[TT UI Grain] #{error.class}: #{error.message}"
+      false
+    end
+
+    def install_duc_khung_ui
+      return false unless defined?(TranTuanNoiThat::DucKhung)
+      @duc_khung_cmd ||= command('ĐỤC KHUNG', 'duc_khung.svg', 'Chọn biên dạng hèm/rãnh quanh Face · Preview trực tiếp khi rê chuột · click tạo hình.') { DucKhung.activate }
+      add_feature_command_once(@duc_khung_cmd, :duc_khung_menu_installed)
+      true
+    rescue StandardError => error
+      puts "[TT UI DucKhung] #{error.class}: #{error.message}"
       false
     end
 
