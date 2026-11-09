@@ -260,8 +260,8 @@ module TranTuanNoiThat
         profile_group.set_attribute(PREF,'board_thickness_mm',c[:thickness])
         profile_group.set_attribute(PREF,'corner_radius_mm',@cfg['radius'])
         profile_entities=profile_group.entities
-        outer=profile_entities.add_edges(c[:local_outer]+[c[:local_outer.first]])
-        inner=profile_entities.add_edges(c[:local_inner]+[c[:local_inner.first]])
+        outer=profile_entities.add_edges(c[:local_outer]+[c[:local_outer].first])
+        inner=profile_entities.add_edges(c[:local_inner]+[c[:local_inner].first])
         raise 'Không tạo được đường biên dạng. Hãy giảm Offset/Bề rộng/Bán kính.' if outer.nil? || inner.nil? || outer.empty? || inner.empty?
         (outer+inner).uniq.each{|edge| edge.layer=layer if edge.valid?}
         model.commit_operation
