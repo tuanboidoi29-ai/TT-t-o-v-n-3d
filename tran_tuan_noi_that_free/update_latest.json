@@ -4,7 +4,7 @@
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "1.9.322: Thêm công cụ ĐỤC KHUNG: thư viện biên dạng, thông số rộng/sâu, Tag ABF_, tên Instance, màu Preview, biên dạng góc vát, rà soát callback và transform và mô phỏng trực tiếp khi rê chuột trên Face.",
+  "notes": "1.9.322: Thêm công cụ ĐỤC KHUNG với thư viện biên dạng, thông số rộng/sâu, Tag ABF_, tên Instance, màu Preview và mô phỏng trực tiếp khi rê chuột trên Face.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "b8ece9f4ba6a955d615c90c1c5658adad4f838a221b3148190a54b70b722c2c9"
+      "sha256": "e45b333de2cf7b2f7d4931f5510cc2f8b28d20aa243ff69d8a6285555e4e6ca6"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -474,7 +474,7 @@
     {
       "path": "tran_tuan_noi_that/duc_khung_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/duc_khung_tool.rb",
-      "sha256": "0426bdad891ab126543b5a08b4ec0590f9a79a858290334061263d840d342059"
+      "sha256": "0ce50e9a3513992c44bce47313eb67dc2f0575f20d5ca1bb979e29426659e227"
     },
     {
       "path": "tran_tuan_noi_that/icons/duc_khung.svg",
@@ -495,5 +495,5 @@
     "tran_tuan_noi_that/cnc_profile_tool.rb",
     "tran_tuan_noi_that/icons/cnc_profile.svg"
   ],
-  "release_notes": "1.9.322: Thêm công cụ ĐỤC KHUNG: thư viện biên dạng, thông số rộng/sâu, Tag ABF_, tên Instance, màu Preview, biên dạng góc vát, rà soát callback và transform và mô phỏng trực tiếp khi rê chuột trên Face."
+  "release_notes": "1.9.322: Thêm công cụ ĐỤC KHUNG với thư viện biên dạng, thông số rộng/sâu, Tag ABF_, tên Instance, màu Preview và mô phỏng trực tiếp khi rê chuột trên Face."
 }
