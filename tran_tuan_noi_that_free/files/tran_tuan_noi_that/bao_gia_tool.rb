@@ -4,7 +4,8 @@
 # Công thức tính:
 # - m² = (Dài + Cao/Sâu) x Rộng / 1e6 (kích thước mm) x Số lượng
 # - m³ = Dài x Rộng x Cao / 1e9 x Số lượng
-# - m và các ĐVT khác = Số lượng
+# - m = Dài (mm) / 1000 x Số lượng
+# - các ĐVT đếm khác = Số lượng
 #
 # Chức năng:
 # - Thêm/xóa hạng mục
@@ -29,7 +30,7 @@ module TranTuanNoiThat
   module BaoGiaTool
     extend self
 
-    VERSION = '1.9.312'.freeze
+    VERSION = '1.9.313'.freeze
     ROOT = File.join(TranTuanNoiThat::ROOT, 'data', 'bao_gia').freeze
 
     DEFAULT_DVT = [
@@ -165,7 +166,7 @@ module TranTuanNoiThat
       when 'm³'
         (length * width * height / 1_000_000_000.0) * qty
       when 'm'
-        qty
+        (length / 1000.0) * qty
       else
         qty
       end
@@ -625,7 +626,7 @@ module TranTuanNoiThat
             var d=num(r.dai),w=num(r.rong),h=num(r.cao),q=num(r.so_luong);
             if(r.dvt==='m²')return (d+h)*w/1000000*q;
             if(r.dvt==='m³')return d*w*h/1000000000*q;
-            if(r.dvt==='m')return q;
+            if(r.dvt==='m')return d/1000*q;
             return q;
           }
           function field(value,placeholder,onchange){
@@ -659,9 +660,16 @@ module TranTuanNoiThat
               var clear=document.createElement('button');clear.type='button';clear.textContent='XÓA ẢNH';clear.className='red';clear.disabled=!r.anh;clear.onclick=function(){r.anh='';r.zoom_anh=1;file.value='';render();status('Đã xóa ảnh của hạng mục '+(i+1)+'.');};
               actions.appendChild(upload);actions.appendChild(camera);actions.appendChild(modelShot);actions.appendChild(clear);td.appendChild(actions);td.appendChild(file);tr.appendChild(td);
 
+              var calcCell=null,amountCell=null;
               function addInput(key,ph,cls){
                 var cell=document.createElement('td');
-                var input=field(r[key],ph,function(){r[key]=input.value;totals();});
+                var input=field(r[key],ph,function(){
+                  r[key]=input.value;
+                  var computed=calc(r);
+                  if(calcCell)calcCell.textContent=computed.toFixed(3)+' '+r.dvt;
+                  if(amountCell)amountCell.textContent=money(computed*num(r.don_gia));
+                  totals();
+                });
                 if(cls)input.className=cls;cell.appendChild(input);tr.appendChild(cell);
               }
               addInput('hang_muc','');
@@ -682,10 +690,10 @@ module TranTuanNoiThat
               addInput('cao','mm','mini');
               addInput('so_luong','SL','mini');
 
-              td=document.createElement('td');td.className='calc';td.textContent=calc(r).toFixed(3);tr.appendChild(td);
+              td=document.createElement('td');td.className='calc';calcCell=td;td.textContent=calc(r).toFixed(3)+' '+r.dvt;tr.appendChild(td);
               addInput('don_gia','0');
 
-              td=document.createElement('td');td.className='calc';td.textContent=money(calc(r)*num(r.don_gia));tr.appendChild(td);
+              td=document.createElement('td');td.className='calc';amountCell=td;td.textContent=money(calc(r)*num(r.don_gia));tr.appendChild(td);
 
               td=document.createElement('td');
               var del=document.createElement('button');del.className='red';del.textContent='X';
