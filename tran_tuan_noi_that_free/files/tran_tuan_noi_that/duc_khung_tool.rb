@@ -7,12 +7,12 @@ module TranTuanNoiThat
   module DucKhung
     extend self
     PREF = 'TT_DUC_KHUNG'.freeze
-    DEFAULTS = { 'profile_name'=>'Hèm kính', 'width'=>12.0, 'depth'=>5.0, 'corner'=>'square', 'color'=>'#18A957', 'tag'=>'ABF_Hem_kinh', 'instance'=>'Hem_kinh_01' }.freeze
+    DEFAULTS = { 'profile_name'=>'Hèm kính', 'width'=>8.0, 'offset'=>12.0, 'depth'=>5.0, 'mode'=>'cut', 'corner'=>'square', 'color'=>'#18A957', 'tag'=>'ABF_Hem_kinh', 'instance'=>'Hem_kinh_01' }.freeze
     PRESETS = {
-      'Hèm kính' => { 'width'=>12.0, 'depth'=>5.0, 'corner'=>'square' },
-      'Rãnh U' => { 'width'=>8.0, 'depth'=>4.0, 'corner'=>'square' },
-      'Rãnh rộng' => { 'width'=>18.0, 'depth'=>6.0, 'corner'=>'square' },
-      'Khung vát góc' => { 'width'=>12.0, 'depth'=>5.0, 'corner'=>'chamfer' }
+      'Hèm kính' => { 'width'=>8.0, 'offset'=>12.0, 'depth'=>5.0, 'corner'=>'square' },
+      'Rãnh U' => { 'width'=>6.0, 'offset'=>8.0, 'depth'=>4.0, 'corner'=>'square' },
+      'Rãnh rộng' => { 'width'=>12.0, 'offset'=>18.0, 'depth'=>6.0, 'corner'=>'square' },
+      'Khung vát góc' => { 'width'=>8.0, 'offset'=>12.0, 'depth'=>5.0, 'corner'=>'chamfer' }
     }.freeze
 
     def config
@@ -46,17 +46,18 @@ module TranTuanNoiThat
         .hint{color:#66736b;font-size:12px;line-height:1.4}.swatch{height:24px;border-radius:5px;border:1px solid #ccd}
         </style><body><h2>ĐỤC KHUNG — Biên dạng quanh Face</h2>
         <label>Thư viện biên dạng</label><select id="preset">#{options}<option value="custom">Biên dạng tùy chỉnh</option></select>
-        <div class="grid"><div><label>Tên biên dạng</label><input id="name" value="#{cfg['profile_name']}"></div><div><label>Chiều rộng (mm)</label><input id="width" type="number" min="0.5" max="100" step="0.5" value="#{cfg['width']}"></div>
-        <div><label>Chiều sâu (mm)</label><input id="depth" type="number" min="0.5" max="50" step="0.5" value="#{cfg['depth']}"></div><div><label>Kiểu góc</label><select id="corner"><option value="square">Góc vuông</option><option value="chamfer">Vát góc nhẹ</option></select></div>
+        <div class="grid"><div><label>Tên biên dạng</label><input id="name" value="#{cfg['profile_name']}"></div><div><label>Offset từ mép mặt (mm)</label><input id="offset" type="number" min="0" max="500" step="0.5" value="#{cfg['offset']}"></div>
+        <div><label>Bề rộng hèm (mm)</label><input id="width" type="number" min="0.5" max="100" step="0.5" value="#{cfg['width']}"></div><div><label>Độ sâu hạ nền hèm (mm)</label><input id="depth" type="number" min="0.5" max="50" step="0.5" value="#{cfg['depth']}"></div>
+        <div><label>Kiểu tạo</label><select id="mode"><option value="cut">Đục khung thật</option><option value="boundary">Chỉ tạo đường biên</option></select></div><div><label>Kiểu góc</label><select id="corner"><option value="square">Góc vuông</option><option value="chamfer">Góc vát</option><option value="round">Góc bo cong</option></select></div>
         <div><label>Tag / Layer (ABF_)</label><input id="tag" value="#{cfg['tag']}"></div><div><label>Tên Instance</label><input id="instance" value="#{cfg['instance']}"></div>
         <div><label>Màu Preview</label><input id="color" type="color" value="#{cfg['color']}"></div><div><label>Thư viện đã lưu</label><select id="saved"><option value="">Chọn mẫu đã lưu</option></select></div></div>
-        <p class="hint">Rê chuột lên Face để xem trước trực tiếp. Click Face để tạo rãnh lõm. Hỗ trợ Face phẳng, biên dạng lồi, một vòng biên khép kín. Bản đầu hỗ trợ rãnh chữ nhật và góc vát.</p>
+        <p class="hint">Rê chuột lên Face để xem trước. Chọn Đục khung thật để tạo hèm lõm dạng vòng; hoặc Chỉ tạo đường biên. Offset là khoảng cách từ mép Face đến mép hèm; Bề rộng là bề dày vòng hèm; Độ sâu là chiều hạ nền. Hỗ trợ góc vuông, vát và bo cong.</p>
         <div class="bar"><button onclick="save()">Lưu biên dạng</button><button onclick="start()">Bắt đầu mô phỏng</button><button class="alt" onclick="closeDlg()">Đóng</button></div><div id="msg"></div>
         <script>
         const $=id=>document.getElementById(id);
-        function payload(){return {name:$('name').value,width:$('width').value,depth:$('depth').value,corner:$('corner').value,tag:$('tag').value,instance:$('instance').value,color:$('color').value};}
-        function apply(p){$('name').value=p.name||'';$('width').value=p.width||12;$('depth').value=p.depth||5;$('corner').value=p.corner||'square';$('tag').value=p.tag||'ABF_Hem_kinh';$('instance').value=p.instance||'Hem_kinh_01';$('color').value=p.color||'#18a957';}
-        $('preset').onchange=()=>{const p=#{JSON.generate(PRESETS)}[$('preset').value];if(p){$('width').value=p.width;$('depth').value=p.depth;$('corner').value=p.corner;$('name').value=$('preset').value;}};
+        function payload(){return {name:$('name').value,width:$('width').value,offset:$('offset').value,depth:$('depth').value,mode:$('mode').value,corner:$('corner').value,tag:$('tag').value,instance:$('instance').value,color:$('color').value};}
+        function apply(p){$('name').value=p.name||'';$('width').value=p.width||8;$('offset').value=p.offset||12;$('depth').value=p.depth||5;$('mode').value=p.mode||'cut';$('corner').value=p.corner||'square';$('tag').value=p.tag||'ABF_Hem_kinh';$('instance').value=p.instance||'Hem_kinh_01';$('color').value=p.color||'#18a957';}
+        $('preset').onchange=()=>{const p=#{JSON.generate(PRESETS)}[$('preset').value];if(p){$('width').value=p.width;$('offset').value=p.offset;$('depth').value=p.depth;$('corner').value=p.corner;$('name').value=$('preset').value;}};
         function refresh(){ $('saved').innerHTML='<option value="">Chọn mẫu đã lưu</option>'; const a=#{JSON.generate(library)};a.forEach((p,i)=>{let o=document.createElement('option');o.value=i;o.textContent=p.name;$('saved').appendChild(o);});}
         $('saved').onchange=()=>{const a=#{JSON.generate(library)};if(a[$('saved').value])apply(a[$('saved').value]);};
         function save(){sketchup.save_profile(JSON.stringify(payload()));}
@@ -66,7 +67,7 @@ module TranTuanNoiThat
         </script></body></html>
       HTML
       @dialog.close if @dialog && @dialog.visible?
-      @dialog = UI::HtmlDialog.new(dialog_title:'TRẦN TUẤN — ĐỤC KHUNG',preferences_key:'TT_DUC_KHUNG',scrollable:true,resizable:true,width:430,height:610,style:UI::HtmlDialog::STYLE_DIALOG)
+      @dialog = UI::HtmlDialog.new(dialog_title:'TRẦN TUẤN — ĐỤC KHUNG',preferences_key:'TT_DUC_KHUNG',scrollable:true,resizable:true,width:460,height:700,style:UI::HtmlDialog::STYLE_DIALOG)
       @dialog.set_html(html)
       @dialog.add_action_callback('save_profile') { |_d,json| save_profile(json) }
       @dialog.add_action_callback('start_tool') { |_d,json| start_tool(json) }
@@ -75,14 +76,15 @@ module TranTuanNoiThat
     end
     def normalize(raw)
       p = raw.is_a?(String) ? JSON.parse(raw) : raw
-      width = Float(p['width']); depth = Float(p['depth'])
-      raise 'Chiều rộng phải từ 0.5 đến 100 mm.' unless width.between?(0.5,100)
+      width = Float(p['width']); offset = Float(p.fetch('offset',12)); depth = Float(p['depth'])
+      raise 'Bề rộng hèm phải từ 0.5 đến 100 mm.' unless width.between?(0.5,100)
+      raise 'Offset phải từ 0 đến 500 mm.' unless offset.between?(0,500)
       raise 'Chiều sâu phải từ 0.5 đến 50 mm.' unless depth.between?(0.5,50)
       tag = p['tag'].to_s.strip
       tag = "ABF_#{tag}" unless tag.start_with?('ABF_')
       raise 'Hãy nhập tên Tag/Layer.' if tag == 'ABF_'
       { 'name'=>p['name'].to_s.strip.empty? ? 'Biên dạng mới' : p['name'].to_s.strip,
-        'width'=>width,'depth'=>depth,'corner'=>p['corner'].to_s=='chamfer' ? 'chamfer' : 'square',
+        'width'=>width,'offset'=>offset,'depth'=>depth,'mode'=>p['mode'].to_s=='boundary' ? 'boundary' : 'cut','corner'=>%w[square chamfer round].include?(p['corner'].to_s) ? p['corner'].to_s : 'square',
         'tag'=>tag,'instance'=>p['instance'].to_s.strip.empty? ? 'Duc_Khung' : p['instance'].to_s.strip,
         'color'=>p['color'].to_s.match?(/\A#[0-9a-fA-F]{6}\z/) ? p['color'] : '#18A957' }
     end
@@ -120,14 +122,14 @@ module TranTuanNoiThat
             @candidate=candidate; break
           end
         end
-        view.tooltip=@candidate ? "ĐỤC KHUNG #{@cfg['name']} · rộng #{@cfg['width']} mm · sâu #{@cfg['depth']} mm" : 'Chọn Face phẳng, khép kín'
+        view.tooltip=@candidate ? "ĐỤC KHUNG #{@cfg['name']} · offset #{@cfg['offset']} · rộng #{@cfg['width']} · sâu #{@cfg['depth']} mm" : 'Chọn Face phẳng, khép kín'
         view.invalidate
       rescue StandardError=>e
         @candidate=nil; puts "[TT DucKhung hover] #{e.class}: #{e.message}"; view.invalidate
       end
       def draw(view)
         return unless @candidate
-        pts=@candidate[:outer]; inner=@candidate[:inner]
+        pts=@candidate[:groove_outer]; inner=@candidate[:groove_inner]
         c=@cfg['color']; rgb=[c[1,2].to_i(16),c[3,2].to_i(16),c[5,2].to_i(16)]
         view.drawing_color=Sketchup::Color.new(*rgb,210)
         view.line_width=3
@@ -153,14 +155,24 @@ module TranTuanNoiThat
         yaxis=normal.cross(xaxis); yaxis.normalize!
         origin=pts[0]
         coords=pts.map{|p| v=p-origin; [v.dot(xaxis),v.dot(yaxis)]}
-        inner2=offset_polygon(coords,@cfg['width']/25.4)
+        outer2=offset_polygon(coords,@cfg['offset']/25.4)
+        inner2=offset_polygon(coords,(@cfg['offset']+@cfg['width'])/25.4)
         return nil unless inner2 && inner2.length>=3
-        inner2=chamfer_polygon(inner2,[@cfg['width']/25.4*0.2,2.0/25.4].min) if @cfg['corner']=='chamfer'
-        inner=inner2.map{|x,y| origin.offset(xaxis,x).offset(yaxis,y)}
+        if @cfg['corner']=='chamfer'
+          outer2=chamfer_polygon(outer2,[@cfg['width']/25.4*0.2,2.0/25.4].min)
+          inner2=chamfer_polygon(inner2,[@cfg['width']/25.4*0.2,2.0/25.4].min)
+        elsif @cfg['corner']=='round'
+          radius=[@cfg['width']/25.4*0.35,3.0/25.4].min
+          outer2=round_polygon(outer2,radius); inner2=round_polygon(inner2,radius)
+        end
+        groove_outer=outer2.map{|x,y| origin.offset(xaxis,x).offset(yaxis,y)}
+        groove_inner=inner2.map{|x,y| origin.offset(xaxis,x).offset(yaxis,y)}
+        inner=groove_inner
         return nil unless inner.all?{|p| [Sketchup::Face::PointInside,Sketchup::Face::PointOnEdge].include?(face.classify_point(p))}
         outer_world=pts.map{|p| p.transform(tr)}
-        inner_world=inner.map{|p| p.transform(tr)}
-        {face:face,transform:tr,outer:outer_world,inner:inner_world,local_inner:inner,normal:normal}
+        groove_outer_world=groove_outer.map{|p| p.transform(tr)}
+        groove_inner_world=groove_inner.map{|p| p.transform(tr)}
+        {face:face,transform:tr,outer:outer_world,inner:inner_world,groove_outer:groove_outer_world,groove_inner:groove_inner_world,local_outer:groove_outer,local_inner:groove_inner,normal:normal}
       rescue StandardError
         nil
       end
@@ -184,6 +196,23 @@ module TranTuanNoiThat
         return nil if result.each_with_index.any?{|p,i| Math.hypot(p[0]-result[(i+1)%result.length][0],p[1]-result[(i+1)%result.length][1])<0.001}
         result
       end
+      def round_polygon(poly,radius)
+        return poly if radius<=0.0001
+        out=[]
+        poly.each_with_index do |p,i|
+          prev=poly[(i-1)%poly.length]; nxt=poly[(i+1)%poly.length]
+          v1=[prev[0]-p[0],prev[1]-p[1]]; v2=[nxt[0]-p[0],nxt[1]-p[1]]
+          l1=Math.hypot(v1[0],v1[1]); l2=Math.hypot(v2[0],v2[1])
+          return poly if [l1,l2].min<=radius*2
+          a=[p[0]+v1[0]/l1*radius,p[1]+v1[1]/l1*radius]
+          b=[p[0]+v2[0]/l2*radius,p[1]+v2[1]/l2*radius]
+          6.times do |j|
+            t=j/5.0; u=1.0-t
+            out << [u*u*a[0]+2*u*t*p[0]+t*t*b[0],u*u*a[1]+2*u*t*p[1]+t*t*b[1]]
+          end
+        end
+        out
+      end
       def chamfer_polygon(poly,d)
         return poly if d<=0.0001
         out=[]
@@ -206,22 +235,25 @@ module TranTuanNoiThat
         before_entities=ents.to_a
         layer_name=@cfg['tag']
         layer=model.layers[layer_name] || model.layers.add(layer_name)
-        points=c[:local_inner]
-        new_face=ents.add_face(points)
-        raise 'Không tạo được mặt trong. Kiểm tra chiều rộng hoặc biên dạng Face.' unless new_face && new_face.valid?
-        new_face.reverse! if new_face.normal.dot(face.normal)<0
-        new_face.layer=layer
-        new_face.set_attribute(PREF,'profile_name',@cfg['name'])
-        new_face.set_attribute(PREF,'instance_name',@cfg['instance'])
-        new_face.set_attribute(PREF,'width_mm',@cfg['width'])
-        new_face.set_attribute(PREF,'depth_mm',@cfg['depth'])
-        new_face.set_attribute(PREF,'corner',@cfg['corner'])
-        material_name="TT_DUC_KHUNG_#{@cfg['name'].gsub(/[^A-Za-z0-9_]/,'_')}"
-        material=model.materials[material_name] || model.materials.add(material_name)
-        color=@cfg['color']
-        material.color=Sketchup::Color.new(color[1,2].to_i(16),color[3,2].to_i(16),color[5,2].to_i(16))
-        new_face.material=material
-        new_face.pushpull(-(@cfg['depth']/25.4),false)
+        points_outer=c[:local_outer]
+        points_inner=c[:local_inner]
+        if @cfg['mode']=='boundary'
+          ents.add_edges(points_outer + [points_outer.first])
+          ents.add_edges(points_inner + [points_inner.first])
+        else
+          outer_face=ents.add_face(points_outer)
+          raise 'Không tạo được biên ngoài của hèm.' unless outer_face && outer_face.valid?
+          outer_face.reverse! if outer_face.normal.dot(face.normal)<0
+          inner_face=ents.add_face(points_inner)
+          raise 'Không tạo được biên trong. Offset hoặc bề rộng hèm quá lớn.' unless inner_face && inner_face.valid?
+          sample=points_outer[0].lerp(points_inner[0],0.5)
+          ring_face=ents.grep(Sketchup::Face).select do |f|
+            f.valid? && f.normal.parallel?(face.normal) && [Sketchup::Face::PointInside,Sketchup::Face::PointOnEdge].include?(f.classify_point(sample))
+          end.min_by(&:area)
+          raise 'Không xác định được mặt vòng hèm để hạ nền. Hãy giảm offset/bề rộng hoặc chọn Face đơn giản hơn.' unless ring_face
+          ring_face.reverse! if ring_face.normal.dot(face.normal)<0
+          ring_face.pushpull(-(@cfg['depth']/25.4),false)
+        end
         created=ents.to_a-before_entities
         created.each do |entity|
           next unless entity.valid? && (entity.is_a?(Sketchup::Face)||entity.is_a?(Sketchup::Edge))
