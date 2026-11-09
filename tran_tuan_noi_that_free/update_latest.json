@@ -1,6 +1,6 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.318",
+  "version": "1.9.319",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "5193d299e3a9628a107ed811aa02853d9aac0c60b6e0e708fd7f5b227cfb739f"
+      "sha256": "c0bd9f49dbf522211529419d8fa48737eb060e4da87191b22f6bf458caafc681"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -319,7 +319,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "db54bd178b728d86dca7de79a1bc7eb186f9de6d99d4169225391c7b0404fbb6"
+      "sha256": "175df931e93d82504ffbada5ab3f0d19e844b6827e2393cd24472ab4627490c8"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -459,7 +459,7 @@
     {
       "path": "tran_tuan_noi_that/gcode_export_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/gcode_export_tool.rb",
-      "sha256": "f65214d0e2f8db56a99e81c1ce418e732867f4a0c07e02c3386273322ce455b3"
+      "sha256": "bcbed1145372fafe282553ab2ec80bc992f70ec390ec12746dfcbb1666763430"
     },
     {
       "path": "tran_tuan_noi_that/icons/gcode_export.svg",
@@ -480,5 +480,5 @@
     "tran_tuan_noi_that/cnc_profile_tool.rb",
     "tran_tuan_noi_that/icons/cnc_profile.svg"
   ],
-  "release_notes": "1.9.317: Giao diện HTML thiết lập CNC và mô phỏng đường chạy dao 2D trước khi xuất NCStudio."
+  "release_notes": "1.9.319: Mô phỏng đường chạy dao 3D phối cảnh; quét và hiển thị tất cả biên dạng trên các mặt phẳng ngang tìm thấy trong Group/Component lồng nhau; đồng bộ gốc G54 và thống kê vùng quét."
 }
