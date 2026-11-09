@@ -7,7 +7,7 @@ module TranTuanNoiThat
   module DucKhung
     extend self
     PREF = 'TT_DUC_KHUNG'.freeze
-    DEFAULTS = { 'profile_name'=>'Hèm kính', 'width'=>8.0, 'offset'=>12.0, 'radius'=>3.0, 'corner'=>'round', 'color'=>'#18A957', 'tag'=>'ABF_Hem_kinh', 'instance'=>'ABF_Hem_kinh_01', 'simulate'=>true }.freeze
+    DEFAULTS = { 'profile_name'=>'Hèm kính', 'width'=>8.0, 'offset'=>12.0, 'radius'=>3.0, 'corner'=>'round', 'color'=>'#18A957', 'tag'=>'ABF_Hem_kinh', 'instance'=>'ABF_Hem_kinh_01', 'simulate'=>true, 'offset_direction'=>'inside' }.freeze
     PRESETS = {
       'Hèm kính' => { 'width'=>8.0, 'offset'=>12.0, 'radius'=>3.0, 'corner'=>'round' },
       'Rãnh U' => { 'width'=>6.0, 'offset'=>8.0, 'radius'=>2.0, 'corner'=>'square' },
@@ -46,8 +46,8 @@ module TranTuanNoiThat
         .hint{color:#66736b;font-size:12px;line-height:1.4}.swatch{height:24px;border-radius:5px;border:1px solid #ccd}
         </style><body><h2>ĐỤC KHUNG — TẠO BIÊN DẠNG ABF</h2>
         <label>Thư viện biên dạng</label><select id="preset">#{options}<option value="custom">Biên dạng tùy chỉnh</option></select>
-        <div class="grid"><div><label>Tên biên dạng</label><input id="name" value="#{cfg['profile_name']}"></div><div><label>Offset vào trong từ mép Face (mm)</label><input id="offset" type="number" min="0" max="500" step="0.5" value="#{cfg['offset']}"></div>
-        <div><label>Bề rộng biên dạng (mm)</label><input id="width" type="number" min="0.5" max="100" step="0.5" value="#{cfg['width']}"></div><div><label>Bán kính bo góc (mm)</label><input id="radius" type="number" min="0" max="100" step="0.5" value="#{cfg['radius']}"></div>
+        <div class="grid"><div><label>Tên biên dạng</label><input id="name" value="#{cfg['profile_name']}"></div><div><label>Offset từ mép Face (mm)</label><input id="offset" type="number" min="0" max="500" step="0.5" value="#{cfg['offset']}"></div>
+        <div><label>Hướng Offset</label><select id="offset_direction"><option value="inside">Vào trong Face</option><option value="outside">Ra ngoài Face</option></select></div><div><label>Bề rộng biên dạng (mm)</label><input id="width" type="number" min="0.5" max="100" step="0.5" value="#{cfg['width']}"></div><div><label>Bán kính bo góc (mm)</label><input id="radius" type="number" min="0" max="100" step="0.5" value="#{cfg['radius']}"></div>
         <div><label>Mô phỏng</label><select id="simulate"><option value="true">Bật mô phỏng</option><option value="false">Tắt mô phỏng</option></select></div><div><label>Kiểu góc</label><select id="corner"><option value="square">Góc vuông</option><option value="chamfer">Góc vát</option><option value="round">Góc bo cong</option></select></div>
         <div><label>Tag / Layer (ABF_)</label><input id="tag" value="#{cfg['tag']}"></div><div><label>Tên Instance (tự thêm ABF_)</label><input id="instance" value="#{cfg['instance']}"></div>
         <div><label>Màu Preview</label><input id="color" type="color" value="#{cfg['color']}"></div><div><label>Thư viện đã lưu</label><select id="saved"><option value="">Chọn mẫu đã lưu</option></select></div></div>
@@ -55,8 +55,8 @@ module TranTuanNoiThat
         <div class="bar"><button onclick="save()">Lưu biên dạng</button><button onclick="start()">Bắt đầu mô phỏng</button><button class="alt" onclick="closeDlg()">Đóng</button></div><div id="msg"></div>
         <script>
         const $=id=>document.getElementById(id);
-        function payload(){return {name:$('name').value,width:$('width').value,offset:$('offset').value,radius:$('radius').value,corner:$('corner').value,tag:$('tag').value,instance:$('instance').value,color:$('color').value,simulate:$('simulate').value};}
-        function apply(p){$('name').value=p.name||'';$('width').value=p.width||8;$('offset').value=p.offset||12;$('radius').value=p.radius||3;$('corner').value=p.corner||'round';$('tag').value=p.tag||'ABF_Hem_kinh';$('instance').value=p.instance||'ABF_Hem_kinh_01';$('color').value=p.color||'#18a957';$('simulate').value=String(p.simulate!==false);}
+        function payload(){return {name:$('name').value,width:$('width').value,offset:$('offset').value,offset_direction:$('offset_direction').value,radius:$('radius').value,corner:$('corner').value,tag:$('tag').value,instance:$('instance').value,color:$('color').value,simulate:$('simulate').value};}
+        function apply(p){$('name').value=p.name||'';$('width').value=p.width||8;$('offset').value=p.offset||12;$('offset_direction').value=p.offset_direction||'inside';$('radius').value=p.radius||3;$('corner').value=p.corner||'round';$('tag').value=p.tag||'ABF_Hem_kinh';$('instance').value=p.instance||'ABF_Hem_kinh_01';$('color').value=p.color||'#18a957';$('simulate').value=String(p.simulate!==false);}
         $('preset').onchange=()=>{const p=#{JSON.generate(PRESETS)}[$('preset').value];if(p){$('width').value=p.width;$('offset').value=p.offset;$('radius').value=p.radius;$('corner').value=p.corner;$('name').value=$('preset').value;}};
         function refresh(){ $('saved').innerHTML='<option value="">Chọn mẫu đã lưu</option>'; const a=#{JSON.generate(library)};a.forEach((p,i)=>{let o=document.createElement('option');o.value=i;o.textContent=p.name;$('saved').appendChild(o);});}
         $('saved').onchange=()=>{const a=#{JSON.generate(library)};if(a[$('saved').value])apply(a[$('saved').value]);};
@@ -76,7 +76,7 @@ module TranTuanNoiThat
     end
     def normalize(raw)
       p = raw.is_a?(String) ? JSON.parse(raw) : raw
-      width = Float(p['width']); offset = Float(p.fetch('offset',12)); radius = Float(p.fetch('radius',3))
+      width = Float(p['width']); offset = Float(p.fetch('offset',12)); radius = Float(p.fetch('radius',3)); offset_direction = p.fetch('offset_direction','inside').to_s
       raise 'Bề rộng hèm phải từ 0.5 đến 100 mm.' unless width.between?(0.5,100)
       raise 'Offset phải từ 0 đến 500 mm.' unless offset.between?(0,500)
       raise 'Bán kính bo góc phải từ 0 đến 100 mm.' unless radius.between?(0,100)
@@ -84,7 +84,7 @@ module TranTuanNoiThat
       tag = "ABF_#{tag}" unless tag.start_with?('ABF_')
       raise 'Hãy nhập tên Tag/Layer.' if tag == 'ABF_'
       { 'name'=>p['name'].to_s.strip.empty? ? 'Biên dạng mới' : p['name'].to_s.strip,
-        'width'=>width,'offset'=>offset,'radius'=>radius,'corner'=>%w[square chamfer round].include?(p['corner'].to_s) ? p['corner'].to_s : 'round',
+        'width'=>width,'offset'=>offset,'offset_direction'=>(%w[inside outside].include?(offset_direction) ? offset_direction : 'inside'),'radius'=>radius,'corner'=>%w[square chamfer round].include?(p['corner'].to_s) ? p['corner'].to_s : 'round',
         'tag'=>tag,'instance'=>(p['instance'].to_s.strip.empty? ? 'ABF_Bien_Dang' : (p['instance'].to_s.strip.start_with?('ABF_') ? p['instance'].to_s.strip : "ABF_#{p['instance'].to_s.strip}")), 'simulate'=>p['simulate'].to_s!='false',
         'color'=>p['color'].to_s.match?(/\A#[0-9a-fA-F]{6}\z/) ? p['color'] : '#18A957' }
     end
@@ -93,7 +93,7 @@ module TranTuanNoiThat
     end
     def save_profile(raw)
       p=normalize(raw); persist(p); save_library(p)
-      @dialog.execute_script("document.getElementById('msg').textContent='Đã lưu biên dạng: '+#{JSON.generate(p['name'])};")
+      @dialog.execute_script("document.getElementById('msg').textContent='Đã lưu biên dạng: '+#{JSON.generate(p['name'])}; refresh(); document.getElementById('saved').value=String(document.getElementById('saved').options.length-1);")
     rescue StandardError=>e
       @dialog.execute_script("document.getElementById('msg').textContent=#{JSON.generate(e.message)};")
     end
@@ -122,7 +122,7 @@ module TranTuanNoiThat
             @candidate=candidate; break
           end
         end
-        view.tooltip=@candidate ? "ABF #{@cfg['name']} · dày ván #{@candidate[:thickness]} mm · offset #{@cfg['offset']} · rộng #{@cfg['width']} mm" : 'Chọn Face trong Group/Component'
+        view.tooltip=@candidate ? "ABF #{@cfg['name']} · dày ván #{@candidate[:thickness]} mm · offset #{@cfg['offset']} mm (#{@cfg['offset_direction']=='outside' ? 'ra ngoài' : 'vào trong'}) · rộng #{@cfg['width']} mm" : 'Chọn Face trong Group/Component'
         view.invalidate
       rescue StandardError=>e
         @candidate=nil; puts "[TT DucKhung hover] #{e.class}: #{e.message}"; view.invalidate
@@ -155,8 +155,9 @@ module TranTuanNoiThat
         yaxis=normal.cross(xaxis); yaxis.normalize!
         origin=pts[0]
         coords=pts.map{|p| v=p-origin; [v.dot(xaxis),v.dot(yaxis)]}
-        outer2=offset_polygon(coords,@cfg['offset']/25.4)
-        inner2=offset_polygon(coords,(@cfg['offset']+@cfg['width'])/25.4)
+        offset_sign=@cfg['offset_direction']=='outside' ? -1.0 : 1.0
+        outer2=offset_polygon(coords,offset_sign*@cfg['offset']/25.4)
+        inner2=offset_polygon(coords,offset_sign*(@cfg['offset']+@cfg['width'])/25.4)
         return nil unless outer2 && outer2.length>=3 && inner2 && inner2.length>=3
         if @cfg['corner']=='chamfer'
           outer2=chamfer_polygon(outer2,[@cfg['width']/25.4*0.2,2.0/25.4].min)
