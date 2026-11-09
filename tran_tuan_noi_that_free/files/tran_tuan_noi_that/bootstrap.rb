@@ -18,7 +18,7 @@ module TranTuanNoiThat
   }.freeze unless const_defined?(:LOCKED_FEATURE_BASELINES, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.331'.freeze
+  VERSION = '1.9.332'.freeze
 
   class << self
     def setting(key, default = nil)
@@ -57,6 +57,7 @@ module TranTuanNoiThat
     rescue StandardError, ScriptError => error
       @last_runtime_error = "#{stem}: #{error.class}: #{error.message}"
       puts "[TT runtime_load #{stem}] #{error.class}: #{error.message}"
+      log_runtime_diagnostic('MODULE', @last_runtime_error) if respond_to?(:log_runtime_diagnostic)
       false
     end
 
@@ -126,20 +127,48 @@ module TranTuanNoiThat
       end
     end
 
-    def reload_runtime
-      # Xóa lỗi của lần nạp trước; chỉ đánh giá lỗi phát sinh trong lần nạp hiện tại.
-      @runtime_load_errors = []
-      @last_runtime_error = nil
-      cleanup_retired_chatgpt
-      cleanup_retired_wine_rack_data
-      CadWalls.close if const_defined?(:CadWalls, false) && CadWalls.respond_to?(:close)
-      cleanup_retired_led_contact
-      if const_defined?(:TamPro, false)
-        TamPro.clear_highlight if TamPro.respond_to?(:clear_highlight)
-        dialog = TamPro.instance_variable_get(:@dialog_thickness)
-        dialog.close if dialog
+    # Lỗi khi đóng công cụ cũ không được phép chặn nạp các mô-đun mới.
+    def safe_cleanup(label)
+      yield
+      true
+    rescue StandardError, ScriptError => error
+      message = "#{label}: #{error.class}: #{error.message}"
+      (@runtime_warnings ||= []) << message
+      puts "[TT cleanup warning] #{message}"
+      log_runtime_diagnostic('CLEANUP', message) if respond_to?(:log_runtime_diagnostic)
+      false
+    end
+
+    def log_runtime_diagnostic(kind, message)
+      folder = File.join(ROOT, 'data')
+      FileUtils.mkdir_p(folder)
+      File.open(File.join(folder, 'runtime_diagnostics.log'), 'a:UTF-8') do |file|
+        file.puts("[#{Time.now.strftime('%Y-%m-%d %H:%M:%S')}] #{kind}: #{message}")
       end
-      reset_layout_runtime
+      true
+    rescue StandardError => error
+      puts "[TT diagnostic log] #{error.class}: #{error.message}"
+      false
+    end
+
+    def reload_runtime
+      @runtime_load_errors = []
+      @runtime_warnings = []
+      @last_runtime_error = nil
+      safe_cleanup('Dọn ChatGPT cũ') { cleanup_retired_chatgpt }
+      safe_cleanup('Dọn dữ liệu kệ rượu cũ') { cleanup_retired_wine_rack_data }
+      safe_cleanup('Đóng CAD Walls') do
+        CadWalls.close if const_defined?(:CadWalls, false) && CadWalls.respond_to?(:close)
+      end
+      safe_cleanup('Dọn công cụ LED/liên hệ cũ') { cleanup_retired_led_contact }
+      if const_defined?(:TamPro, false)
+        safe_cleanup('Xóa highlight TamPro') { TamPro.clear_highlight if TamPro.respond_to?(:clear_highlight) }
+        safe_cleanup('Đóng hộp thoại TamPro') do
+          dialog = TamPro.instance_variable_get(:@dialog_thickness)
+          dialog.close if dialog
+        end
+      end
+      safe_cleanup('Đặt lại Layout runtime') { reset_layout_runtime }
       %w[
         board_tool
         gcode_export_tool
@@ -180,7 +209,6 @@ module TranTuanNoiThat
         layout_stats_v040_compat
         layout_stats_v040_patch
         layout_stats_v110_layout_only_dim_dedupe
-        layout_stats_v040_compat
         settings
         grain_board_auto
         updater
