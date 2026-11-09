@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "a8ce64c61f0b3682fa298686d443c722a5d381b12cad869d09c7e553b934947d"
+      "sha256": "f68713bd7cc66dbb2dd169c6bdbd34bcfcaa55f87c6580c76b719304d9337d00"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -314,12 +314,12 @@
     {
       "path": "tran_tuan_noi_that/updater.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/updater.rb",
-      "sha256": "125f3736fdeea173cbda4967e6ef23f170a50ea775d3ca3f083607d5f64995b4"
+      "sha256": "27c76ae942be8bd879ded09e0006ab8778624ff053b7202eb242c32021505bb8"
     },
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "eb38aa6ed6b56b3d4f5832f35c8586fae34c97a1e54184a98fa388f6f85f93c1"
+      "sha256": "5e872a680eb82340536bac5e8ea6151cf59f2cad9f719253510cd8080ee811eb"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
