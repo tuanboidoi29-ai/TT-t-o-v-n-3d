@@ -27,15 +27,15 @@ module TranTuanNoiThat
         if entity.is_a?(Sketchup::Face)
           normal = entity.normal.transform(transform)
           next unless normal.z > 0.999
-          points = entity.outer_loop.vertices.map { |v| v.position.transform(transform) }
-          next if points.length < 3
-          z_values = points.map(&:z)
-          next unless (z_values.max - z_values.min).abs < 0.001
-          loops = [entity.outer_loop] + entity.loops.reject { |lp| lp == entity.outer_loop }
-          loops.each do |loop|
-            pts = loop.vertices.map { |v| v.position.transform(transform) }
-            output << pts if pts.length >= 3 && pts.first.distance(pts.last) > 0.001
+          loops = [entity.outer_loop] + entity.loops.reject(&:outer?)
+          loop_points = loops.map do |loop|
+            loop.vertices.map { |vertex| vertex.position.transform(transform) }
           end
+          outer_points = loop_points.first
+          next if outer_points.length < 3
+          z_values = outer_points.map(&:z)
+          next unless (z_values.max - z_values.min).abs < 0.001
+          output << [z_values.sum / z_values.length, loop_points]
         elsif entity.is_a?(Sketchup::Group)
           collect_faces(entity.entities, transform * entity.transformation, output)
         elsif entity.is_a?(Sketchup::ComponentInstance)
@@ -45,14 +45,22 @@ module TranTuanNoiThat
     end
 
     def selected_contours(model)
-      roots = model.selection.to_a.select { |e| e.is_a?(Sketchup::Group) || e.is_a?(Sketchup::ComponentInstance) }
+      roots = model.selection.to_a.select { |entity| entity.is_a?(Sketchup::Group) || entity.is_a?(Sketchup::ComponentInstance) }
       raise 'Hãy chọn ít nhất một Group hoặc Component chứa tấm ván.' if roots.empty?
 
       contours = []
       roots.each do |root|
-        before = contours.length
-        collect_faces(root.is_a?(Sketchup::Group) ? root.entities : root.definition.entities, root.transformation, contours)
-        raise "Không tìm thấy mặt phẳng ngang hợp lệ trong: #{root.name}." if contours.length == before
+        faces = []
+        entities = root.is_a?(Sketchup::Group) ? root.entities : root.definition.entities
+        collect_faces(entities, root.transformation, faces)
+        raise "Không tìm thấy mặt phẳng ngang hợp lệ trong: #{root.name}." if faces.empty?
+        top_z = faces.map(&:first).max
+        top_faces = faces.select { |face| (face[0] - top_z).abs < 0.001 }
+        top_faces.each do |_z, loops|
+          loops.each do |points|
+            contours << points if points.length >= 3
+          end
+        end
       end
       contours
     end
