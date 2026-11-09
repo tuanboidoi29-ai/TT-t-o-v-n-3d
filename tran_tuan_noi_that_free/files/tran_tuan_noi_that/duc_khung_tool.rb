@@ -203,6 +203,7 @@ module TranTuanNoiThat
         ents=face.parent
         raise 'Không xác định được bộ chứa hình học.' unless ents.respond_to?(:add_face)
         model.start_operation('ĐỤC KHUNG',true)
+        before_entities=ents.to_a
         layer_name=@cfg['tag']
         layer=model.layers[layer_name] || model.layers.add(layer_name)
         points=c[:local_inner]
@@ -215,8 +216,20 @@ module TranTuanNoiThat
         new_face.set_attribute(PREF,'width_mm',@cfg['width'])
         new_face.set_attribute(PREF,'depth_mm',@cfg['depth'])
         new_face.set_attribute(PREF,'corner',@cfg['corner'])
+        material_name="TT_DUC_KHUNG_#{@cfg['name'].gsub(/[^A-Za-z0-9_]/,'_')}"
+        material=model.materials[material_name] || model.materials.add(material_name)
+        color=@cfg['color']
+        material.color=Sketchup::Color.new(color[1,2].to_i(16),color[3,2].to_i(16),color[5,2].to_i(16))
+        new_face.material=material
         new_face.pushpull(-(@cfg['depth']/25.4),false)
-        ents.to_a.each{|e| e.layer=layer if e.valid? && (e.is_a?(Sketchup::Face)||e.is_a?(Sketchup::Edge)) && e.get_attribute(PREF,'profile_name')==@cfg['name']}
+        created=ents.to_a-before_entities
+        created.each do |entity|
+          next unless entity.valid? && (entity.is_a?(Sketchup::Face)||entity.is_a?(Sketchup::Edge))
+          entity.layer=layer
+          entity.material=material if entity.is_a?(Sketchup::Face)
+          entity.set_attribute(PREF,'profile_name',@cfg['name'])
+          entity.set_attribute(PREF,'instance_name',@cfg['instance'])
+        end
         model.commit_operation
         UI.messagebox("Đã tạo ĐỤC KHUNG: #{@cfg['name']}\nTag: #{layer_name}\nInstance: #{@cfg['instance']}\nLưu ý: kiểm tra kết quả Solid và Undo nếu mặt nằm trên khối phức tạp.")
       rescue StandardError
