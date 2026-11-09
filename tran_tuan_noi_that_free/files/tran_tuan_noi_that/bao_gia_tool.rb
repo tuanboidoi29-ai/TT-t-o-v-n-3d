@@ -182,7 +182,7 @@ module TranTuanNoiThat
 
     def totals(data)
       subtotal = Array(data['rows']).inject(0.0) do |sum, row|
-        sum + calc_row(row) * num(row['don_gia'])
+        sum + calc_row(row)
       end
       discount = subtotal * num(data['chiet_khau']) / 100.0
       after_discount = subtotal - discount
@@ -317,7 +317,8 @@ module TranTuanNoiThat
           text = [detail['mo_ta'], detail['dvt'], detail['dai'], detail['rong'], detail['cao'], detail['so_luong']].map { |v| safe(v) }.join(' · ')
           %Q{<div>#{detail_index + 1}. #{text} · SL tính: #{format('%.3f', measured)} · Đơn giá: #{money(detail['don_gia'])} · Thành tiền: #{money(measured * num(detail['don_gia']))}</div>}
         end.join
-        computed = calc_row(row)
+        computed = details.inject(0.0) { |sum, detail| sum + calc_measure(detail) }
+        total_amount = calc_row(row)
         <<~ROW
           <tr>
             <td>#{index + 1}</td>
@@ -331,7 +332,7 @@ module TranTuanNoiThat
             <td>#{safe(row['so_luong'])}</td>
             <td>#{format('%.3f', computed)}</td>
             <td>#{money(row['don_gia'])}</td>
-            <td>#{money(computed * num(row['don_gia']))}</td>
+            <td>#{money(total_amount)}</td>
           </tr>
         ROW
       end.join
@@ -542,7 +543,6 @@ module TranTuanNoiThat
           .tablebox{overflow:auto}table{border-collapse:collapse;width:100%;min-width:1280px}
           th,td{border:1px solid #bbb;padding:5px}th{background:#eee;font-size:11px}
           td input,td select{padding:6px}.mini{width:78px;margin:2px}.calc{text-align:right;white-space:nowrap}
-          .tablebox table>thead th:nth-child(n+5):nth-child(-n+11),.tablebox tbody td:nth-child(n+5):nth-child(-n+11){display:none}
           .detail-wrap{min-width:480px;display:flex;flex-direction:column;gap:6px}
           .detail-line,.detail-head{display:grid;grid-template-columns:minmax(120px,2fr) 68px 58px 58px 58px 48px 82px 86px 30px;gap:4px;align-items:center}
           .detail-line{padding:5px;border:1px solid #416b91;border-radius:6px}
@@ -584,9 +584,7 @@ module TranTuanNoiThat
             </div>
             <div class="tablebox"><table>
               <thead><tr>
-                <th>STT</th><th>Ảnh</th><th>Hạng mục</th><th>Mô tả</th><th>ĐVT</th>
-                <th>Dài</th><th>Rộng</th><th>Cao</th><th>SL</th>
-                <th>SL tính giá</th><th>Đơn giá</th><th>Thành tiền</th><th>Xóa</th>
+                <th>STT</th><th>Ảnh</th><th>Hạng mục</th><th>Mô tả chi tiết</th><th>SL tính tổng</th><th>Thành tiền</th><th>Xóa</th>
               </tr></thead>
               <tbody id="rows"></tbody>
             </table></div>
@@ -700,9 +698,6 @@ module TranTuanNoiThat
                 var cell=document.createElement('td');
                 var input=field(r[key],ph,function(){
                   r[key]=input.value;
-                  var computed=calc(r);
-                  if(calcCell)calcCell.textContent=computed.toFixed(3)+' '+r.dvt;
-                  if(amountCell)amountCell.textContent=money(computed*num(r.don_gia));
                   totals();
                 });
                 if(cls)input.className=cls;cell.appendChild(input);tr.appendChild(cell);
