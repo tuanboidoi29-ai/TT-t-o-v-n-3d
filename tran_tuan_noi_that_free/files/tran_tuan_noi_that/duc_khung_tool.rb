@@ -157,7 +157,7 @@ module TranTuanNoiThat
         coords=pts.map{|p| v=p-origin; [v.dot(xaxis),v.dot(yaxis)]}
         outer2=offset_polygon(coords,@cfg['offset']/25.4)
         inner2=offset_polygon(coords,(@cfg['offset']+@cfg['width'])/25.4)
-        return nil unless inner2 && inner2.length>=3
+        return nil unless outer2 && outer2.length>=3 && inner2 && inner2.length>=3
         if @cfg['corner']=='chamfer'
           outer2=chamfer_polygon(outer2,[@cfg['width']/25.4*0.2,2.0/25.4].min)
           inner2=chamfer_polygon(inner2,[@cfg['width']/25.4*0.2,2.0/25.4].min)
@@ -235,6 +235,10 @@ module TranTuanNoiThat
         before_entities=ents.to_a
         layer_name=@cfg['tag']
         layer=model.layers[layer_name] || model.layers.add(layer_name)
+        material_name="TT_DUC_KHUNG_#{@cfg['name'].gsub(/[^A-Za-z0-9_]/,'_')}"
+        material=model.materials[material_name] || model.materials.add(material_name)
+        color=@cfg['color']
+        material.color=Sketchup::Color.new(color[1,2].to_i(16),color[3,2].to_i(16),color[5,2].to_i(16))
         points_outer=c[:local_outer]
         points_inner=c[:local_inner]
         if @cfg['mode']=='boundary'
