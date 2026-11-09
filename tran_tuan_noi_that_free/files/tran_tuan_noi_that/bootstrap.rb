@@ -18,7 +18,7 @@ module TranTuanNoiThat
   }.freeze unless const_defined?(:LOCKED_FEATURE_BASELINES, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.315'.freeze
+  VERSION = '1.9.316'.freeze
 
   class << self
     def setting(key, default = nil)
@@ -140,6 +140,7 @@ module TranTuanNoiThat
       reset_layout_runtime
       %w[
         board_tool
+        gcode_export_tool
         wine_rack
         door_standard_tool
         rename_ui
@@ -435,6 +436,7 @@ module TranTuanNoiThat
       install_divide_boards_ui
       install_layout_stats_ui
       install_dimensions_ui
+      install_gcode_export_ui
       refresh_feature_commands
       @toolbar.restore if @toolbar
       @toolbar.show if @toolbar
@@ -754,6 +756,20 @@ module TranTuanNoiThat
       true
     rescue StandardError => error
       puts "[TT UI Grain] #{error.class}: #{error.message}"
+      false
+    end
+
+    def install_gcode_export_ui
+      return false unless defined?(TranTuanNoiThat::GCodeExport)
+      @gcode_export_cmd ||= command(
+        'Xuất G-code NCStudio',
+        'gcode_export.svg',
+        'Quét Group/Component đã chọn · dao Ø6 mm mặc định · xem thông tin và xuất .NC'
+      ) { GCodeExport.run }
+      add_feature_command_once(@gcode_export_cmd, :gcode_export_menu_installed)
+      true
+    rescue StandardError => error
+      puts "[TT UI G-code] #{error.class}: #{error.message}"
       false
     end
 
