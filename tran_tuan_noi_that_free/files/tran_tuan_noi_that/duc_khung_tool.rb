@@ -252,17 +252,18 @@ module TranTuanNoiThat
         model.start_operation('TẠO BIÊN DẠNG ABF',true)
         tag_name=@cfg['tag'].to_s.start_with?('ABF_') ? @cfg['tag'] : "ABF_#{@cfg['tag']}"
         layer=model.layers[tag_name] || model.layers.add(tag_name)
-        outer=ents.add_edges(c[:local_outer]+[c[:local_outer].first])
-        inner=ents.add_edges(c[:local_inner]+[c[:local_inner].first])
+        profile_group=ents.add_group
+        profile_group.name=@cfg['instance']
+        profile_group.layer=layer
+        profile_group.set_attribute(PREF,'profile_name',@cfg['name'])
+        profile_group.set_attribute(PREF,'instance_name',@cfg['instance'])
+        profile_group.set_attribute(PREF,'board_thickness_mm',c[:thickness])
+        profile_group.set_attribute(PREF,'corner_radius_mm',@cfg['radius'])
+        profile_entities=profile_group.entities
+        outer=profile_entities.add_edges(c[:local_outer]+[c[:local_outer.first]])
+        inner=profile_entities.add_edges(c[:local_inner]+[c[:local_inner.first]])
         raise 'Không tạo được đường biên dạng. Hãy giảm Offset/Bề rộng/Bán kính.' if outer.nil? || inner.nil? || outer.empty? || inner.empty?
-        (outer+inner).uniq.each do |edge|
-          next unless edge.valid?
-          edge.layer=layer
-          edge.set_attribute(PREF,'profile_name',@cfg['name'])
-          edge.set_attribute(PREF,'instance_name',@cfg['instance'])
-          edge.set_attribute(PREF,'board_thickness_mm',c[:thickness])
-          edge.set_attribute(PREF,'corner_radius_mm',@cfg['radius'])
-        end
+        (outer+inner).uniq.each{|edge| edge.layer=layer if edge.valid?}
         model.commit_operation
         UI.messagebox("Đã tạo biên dạng ABF: #{@cfg['name']}\\nInstance: #{@cfg['instance']}\\nTag: #{tag_name}\\nĐộ dày nhận diện: #{c[:thickness]} mm\\nKhông khoét sâu.")
       rescue StandardError
