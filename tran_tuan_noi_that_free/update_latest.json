@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.323",
+  "version": "1.9.324",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "1.9.323: Sửa độ ổn định cập nhật GitHub; tăng thời gian kết nối 15 giây/đọc dữ liệu 45 giây để phù hợp mạng chậm, giữ cơ chế xác minh SHA256, tải dự phòng API và sao lưu/rollback.",
+  "notes": "1.9.324: ĐỤC KHUNG bổ sung chế độ tạo đường biên hoặc đục hèm vòng thật; offset mép, bề rộng hèm, độ sâu hạ nền; góc vuông, vát và bo cong; xem trước trực tiếp.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "ae1ceb48e3807d6b7a95b6a5029911f8b68f401e183465770ee5728aaa3e978b"
+      "sha256": "2449366cfcf8de2745b4f9fbadea5154494c35abadc7d1ab38f4b7b76989ee1e"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -319,7 +319,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "e2d1bf85c416622108d17efe1bd91f015dad03b9fd4483b5fbab9239ab37f0dc"
+      "sha256": "57a908a5b3f37836116460d08e259c784ecfb471b555417d9a502bfa6bffccfd"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -474,7 +474,7 @@
     {
       "path": "tran_tuan_noi_that/duc_khung_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/duc_khung_tool.rb",
-      "sha256": "37c0e2915dd9d771d5949378bb3042f27e694a1422622d5e6a73a28fb8cf4c3a"
+      "sha256": "529092bb6411e85a12ca073a369dd0dfce57ab2b4ace3a4de8587559da78a435"
     },
     {
       "path": "tran_tuan_noi_that/icons/duc_khung.svg",
