@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.315",
+  "version": "1.9.316",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Báo Giá: cho phép thêm nhiều dòng mô tả trong mỗi hạng mục; từng dòng có ĐVT, kích thước, số lượng, đơn giá và tự tính thành tiền; tổng hạng mục cộng các dòng chi tiết.",
+  "notes": "1.9.316: Thêm công cụ xuất G-code NCStudio; G54 góc dưới-trái, X dài, Y rộng, Z âm, mm/G90; dao Ø6 mm mặc định có thể chỉnh.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "bfed6dbcae11def0aee5b9998c16dd0d24ce56389b336141408193b8d68004ab"
+      "sha256": "eb987a925ec6ad599e1439ce532e475a20e183015f33b2de35a4afd1a9bfbe0c"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -319,7 +319,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "acf1979a3b77d66b3093de33db7b7b8fd4945a8a70fbc9d97712a26eb9d38fa7"
+      "sha256": "ecf2f55174347b1b082a845c6a596aef52ac582f5b2f8d7416429b6ada7da3f6"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -455,6 +455,16 @@
       "path": "tran_tuan_noi_that/icons/delete_faces.svg",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/icons/delete_faces.svg",
       "sha256": "fd38696c2d4256e19ee6e76f7010cfed5a510a63f640dc565162293510a38e66"
+    },
+    {
+      "path": "tran_tuan_noi_that/gcode_export_tool.rb",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/gcode_export_tool.rb",
+      "sha256": "29cd74486d89ea3039f7c9c0de3adb1906b6fa25c27c945f63d2953f758f4b8f"
+    },
+    {
+      "path": "tran_tuan_noi_that/icons/gcode_export.svg",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/icons/gcode_export.svg",
+      "sha256": "303c867c2e6cf0fbb7abd24a6ca916fd42e4ed74df49255b32ceb05358357486"
     }
   ],
   "stretch_mode_version": "1.0.1",
@@ -470,5 +480,5 @@
     "tran_tuan_noi_that/cnc_profile_tool.rb",
     "tran_tuan_noi_that/icons/cnc_profile.svg"
   ],
-  "release_notes": "1.9.314: Sửa công thức tính m² theo xác nhận: (Dài × Rộng + Chiều cao) / 1.000.000 × Số lượng."
+  "release_notes": "1.9.316: Thêm công cụ xuất G-code NCStudio; G54 góc dưới-trái, X dài, Y rộng, Z âm, mm/G90; dao Ø6 mm mặc định có thể chỉnh."
 }
