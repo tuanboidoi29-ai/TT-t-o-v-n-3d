@@ -84,11 +84,12 @@ module TranTuanNoiThat
       raise 'Không tìm thấy đường bao trên cùng để tạo đường chạy dao.' if tool_contours.empty?
 
       all_points = faces.flat_map { |face| face[:loops].flatten }
+      scan_bounds_points = all_points + raw_edges.flatten
       origin_points = tool_contours.flatten
       min_x = origin_points.map(&:x).min
       min_y = origin_points.map(&:y).min
-      max_scan_x = all_points.map(&:x).max
-      max_scan_y = all_points.map(&:y).max
+      max_scan_x = scan_bounds_points.map(&:x).max
+      max_scan_y = scan_bounds_points.map(&:y).max
       scan_edges = raw_edges.map do |a, b|
         [
           [mm(a.x - min_x), mm(a.y - min_y), mm(a.z - top_z)],
@@ -111,9 +112,10 @@ module TranTuanNoiThat
         scan_edges: scan_edges,
         scan_width: mm(max_scan_x - min_x),
         scan_height: mm(max_scan_y - min_y),
-        scan_depth: mm(top_z - all_points.map(&:z).min),
+        scan_depth: mm(top_z - scan_bounds_points.map(&:z).min),
         scan_face_count: faces.length,
         scan_profile_count: scan_profiles.length,
+        scan_edge_count: scan_edges.length,
         scan_vertex_count: scan_profiles.inject(0) { |sum, item| sum + item[:points].length }
       }
     end
@@ -285,6 +287,7 @@ module TranTuanNoiThat
           const zmin=Math.min(-Number(DATA.scan_depth||0),-Number(DATA.config.depth||0),-1);
           const raw=[];
           all.forEach(profile=>profile.points.forEach(p=>raw.push(project3d(p[0],p[1],profile.z))));
+          (DATA.scan_edges||[]).forEach(edge=>edge.forEach(p=>raw.push(project3d(p[0],p[1],p[2]))));
           const stockX=Number(DATA.scan_width||DATA.length),stockY=Number(DATA.scan_height||DATA.width);
           raw.push(project3d(0,0,0),project3d(stockX,stockY,zmin));
           const xs=raw.map(p=>p[0]),ys=raw.map(p=>p[1]);
@@ -319,7 +322,7 @@ module TranTuanNoiThat
           }
           if(moves.length){const m=moves[Math.min(index,moves.length-1)],p=map(project3d(m.x,m.y,m.z));ctx3d.fillStyle='#e04b36';ctx3d.beginPath();ctx3d.arc(p[0],p[1],9,0,Math.PI*2);ctx3d.fill();}
           ctx3d.fillStyle='#42564a';ctx3d.font='15px Arial';ctx3d.fillText('X: chiều dài',25,h-48);ctx3d.fillText('Y: chiều rộng',25,h-28);ctx3d.fillText('Z: chiều sâu âm',160,h-28);
-          ctx3d.fillText('Biên dạng quét: '+all.length+' · Mặt ngang: '+(DATA.scan_face_count||0),w-360,28);
+          ctx3d.fillText('Biên dạng 2D: '+all.length+' · Mặt: '+(DATA.scan_face_count||0)+' · Cạnh 3D: '+(DATA.scan_edge_count||0),w-470,28);
         }
         canvas3d.addEventListener('mousedown',e=>{drag3d={x:e.offsetX,y:e.offsetY,az:camera3d.azimuth,el:camera3d.elevation};});
         canvas3d.addEventListener('mousemove',e=>{if(!drag3d)return;camera3d.azimuth=drag3d.az+(e.offsetX-drag3d.x)*0.009;camera3d.elevation=Math.max(-1.2,Math.min(1.2,drag3d.el+(e.offsetY-drag3d.y)*0.009));draw3d();});
@@ -378,6 +381,7 @@ module TranTuanNoiThat
       @scan_profiles = geometry[:scan_profiles]
       @scan_edges = geometry[:scan_edges]
       @scan_face_count = geometry[:scan_face_count]
+      @scan_edge_count = geometry[:scan_edge_count]
       @scan_depth = geometry[:scan_depth]
       @scan_width = geometry[:scan_width]
       @scan_height = geometry[:scan_height]
@@ -392,6 +396,7 @@ module TranTuanNoiThat
         scan_profiles: geometry[:scan_profiles],
         scan_edges: geometry[:scan_edges],
         scan_face_count: geometry[:scan_face_count],
+        scan_edge_count: geometry[:scan_edge_count],
         scan_width: geometry[:scan_width],
         scan_height: geometry[:scan_height],
         scan_depth: geometry[:scan_depth],
@@ -413,6 +418,7 @@ module TranTuanNoiThat
           sim_data[:scan_profiles] = @scan_profiles
           sim_data[:scan_edges] = @scan_edges
           sim_data[:scan_face_count] = @scan_face_count
+          sim_data[:scan_edge_count] = @scan_edge_count
           sim_data[:scan_depth] = @scan_depth
           sim_data[:scan_width] = @scan_width
           sim_data[:scan_height] = @scan_height
