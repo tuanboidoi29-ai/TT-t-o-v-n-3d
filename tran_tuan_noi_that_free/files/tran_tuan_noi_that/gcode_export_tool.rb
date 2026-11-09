@@ -68,8 +68,11 @@ module TranTuanNoiThat
       raise 'Không tìm thấy đường bao trên cùng để tạo đường chạy dao.' if tool_contours.empty?
 
       all_points = faces.flat_map { |face| face[:loops].flatten }
-      min_x = all_points.map(&:x).min
-      min_y = all_points.map(&:y).min
+      origin_points = tool_contours.flatten
+      min_x = origin_points.map(&:x).min
+      min_y = origin_points.map(&:y).min
+      max_scan_x = all_points.map(&:x).max
+      max_scan_y = all_points.map(&:y).max
       scan_profiles = faces.flat_map do |face|
         face[:loops].filter_map do |points|
           next if points.length < 3
@@ -83,8 +86,8 @@ module TranTuanNoiThat
       {
         tool_contours: tool_contours,
         scan_profiles: scan_profiles,
-        scan_width: mm(all_points.map(&:x).max - min_x),
-        scan_height: mm(all_points.map(&:y).max - min_y),
+        scan_width: mm(max_scan_x - min_x),
+        scan_height: mm(max_scan_y - min_y),
         scan_depth: mm(top_z - all_points.map(&:z).min),
         scan_face_count: faces.length,
         scan_profile_count: scan_profiles.length,
@@ -259,7 +262,8 @@ module TranTuanNoiThat
           const zmin=Math.min(-Number(DATA.scan_depth||0),-Number(DATA.config.depth||0),-1);
           const raw=[];
           all.forEach(profile=>profile.points.forEach(p=>raw.push(project3d(p[0],p[1],profile.z))));
-          raw.push(project3d(0,0,0),project3d(DATA.length,DATA.width,zmin));
+          const stockX=Number(DATA.scan_width||DATA.length),stockY=Number(DATA.scan_height||DATA.width);
+          raw.push(project3d(0,0,0),project3d(stockX,stockY,zmin));
           const xs=raw.map(p=>p[0]),ys=raw.map(p=>p[1]);
           const rangeX=Math.max(Math.max(...xs)-Math.min(...xs),1),rangeY=Math.max(Math.max(...ys)-Math.min(...ys),1);
           const scale=Math.min((w-150)/rangeX,(h-120)/rangeY)*camera3d.zoom;
@@ -268,7 +272,7 @@ module TranTuanNoiThat
           const map=p=>[ox+p[0]*scale,oy-p[1]*scale];
           function line3(a,b,color,width,dash){const p=map(project3d(a[0],a[1],a[2])),q=map(project3d(b[0],b[1],b[2]));ctx3d.strokeStyle=color;ctx3d.lineWidth=width;ctx3d.setLineDash(dash||[]);ctx3d.beginPath();ctx3d.moveTo(p[0],p[1]);ctx3d.lineTo(q[0],q[1]);ctx3d.stroke();ctx3d.setLineDash([]);}
           // Wireframe stock envelope based on the scanned selection.
-          const box=[[0,0,0],[DATA.length,0,0],[DATA.length,DATA.width,0],[0,DATA.width,0],[0,0,zmin],[DATA.length,0,zmin],[DATA.length,DATA.width,zmin],[0,DATA.width,zmin]];
+          const box=[[0,0,0],[stockX,0,0],[stockX,stockY,0],[0,stockY,0],[0,0,zmin],[stockX,0,zmin],[stockX,stockY,zmin],[0,stockY,zmin]];
           [[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]].forEach(([a,b])=>line3(box[a],box[b],'#9aaba0',1.2,[4,4]));
           // Every horizontal profile detected in the selected Groups/Components.
           all.forEach(profile=>{
@@ -345,6 +349,8 @@ module TranTuanNoiThat
       @scan_profiles = geometry[:scan_profiles]
       @scan_face_count = geometry[:scan_face_count]
       @scan_depth = geometry[:scan_depth]
+      @scan_width = geometry[:scan_width]
+      @scan_height = geometry[:scan_height]
       @dialog.close if @dialog && @dialog.visible?
       cfg = default_config
       sim = simulation_moves(@contours, cfg)
@@ -355,6 +361,8 @@ module TranTuanNoiThat
         gcode_text: preview_gcode,
         scan_profiles: geometry[:scan_profiles],
         scan_face_count: geometry[:scan_face_count],
+        scan_width: geometry[:scan_width],
+        scan_height: geometry[:scan_height],
         scan_depth: geometry[:scan_depth],
         scan_width: geometry[:scan_width],
         scan_height: geometry[:scan_height]
@@ -374,6 +382,8 @@ module TranTuanNoiThat
           sim_data[:scan_profiles] = @scan_profiles
           sim_data[:scan_face_count] = @scan_face_count
           sim_data[:scan_depth] = @scan_depth
+          sim_data[:scan_width] = @scan_width
+          sim_data[:scan_height] = @scan_height
           @dialog.execute_script("window.loadSimulation(#{JSON.generate(sim_data)})") if @dialog
         rescue StandardError => error
           UI.messagebox("Thông số chưa hợp lệ: #{error.message}")
