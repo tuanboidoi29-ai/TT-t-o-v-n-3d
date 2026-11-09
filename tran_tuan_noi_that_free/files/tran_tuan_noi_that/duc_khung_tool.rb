@@ -105,7 +105,7 @@ module TranTuanNoiThat
     class Tool
       def initialize(cfg); @cfg=cfg; @ip=Sketchup::InputPoint.new; @candidate=nil; end
       def activate
-        Sketchup.status_text='ĐỤC KHUNG: rê chuột lên Face để mô phỏng trực tiếp · click tạo rãnh · ESC thoát'
+        Sketchup.set_status_text('ĐỤC KHUNG: rê chuột lên Face để mô phỏng trực tiếp · click tạo rãnh · ESC thoát', SB_PROMPT)
       end
       def onCancel(_reason,view); Sketchup.active_model.select_tool(nil); view.invalidate; end
       def onMouseMove(_flags,x,y,view)
@@ -114,7 +114,7 @@ module TranTuanNoiThat
         ph.count.times do |i|
           face=ph.leaf_at(i)
           next unless face.is_a?(Sketchup::Face) && face.valid?
-          tr=Sketchup.active_model.edit_transform * ph.transformation_at(i)
+          tr=Sketchup.active_model.edit_transform * (ph.transformation_at(i) || Geom::Transformation.new)
           candidate=build_preview(face,tr)
           if candidate
             @candidate=candidate; break
