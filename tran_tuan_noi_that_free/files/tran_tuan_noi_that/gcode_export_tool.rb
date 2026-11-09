@@ -45,25 +45,51 @@ module TranTuanNoiThat
       end
     end
 
-    def selected_contours(model)
+    def selected_geometry(model)
       roots = model.selection.to_a.select { |entity| entity.is_a?(Sketchup::Group) || entity.is_a?(Sketchup::ComponentInstance) }
-      raise 'Hãy chọn ít nhất một Group hoặc Component chứa tấm ván.' if roots.empty?
+      raise 'Hãy chọn ít nhất một Group hoặc Component chứa chi tiết gia công.' if roots.empty?
 
-      contours = []
+      faces = []
       roots.each do |root|
-        faces = []
+        found = []
         entities = root.is_a?(Sketchup::Group) ? root.entities : root.definition.entities
-        collect_faces(entities, root.transformation, faces)
-        raise "Không tìm thấy mặt phẳng ngang hợp lệ trong: #{root.name}." if faces.empty?
-        top_z = faces.map(&:first).max
-        top_faces = faces.select { |face| (face[0] - top_z).abs < 0.001 }
-        top_faces.each do |_z, loops|
-          loops.each do |points|
-            contours << points if points.length >= 3
-          end
+        collect_faces(entities, root.transformation, found)
+        raise "Không tìm thấy mặt phẳng ngang hợp lệ trong: #{root.name}." if found.empty?
+        found.each do |z, loops|
+          faces << { z: z, loops: loops, name: (root.name.to_s.empty? ? root.definition.name : root.name.to_s) }
         end
       end
-      contours
+
+      top_z = faces.map { |face| face[:z] }.max
+      tool_contours = []
+      faces.select { |face| (face[:z] - top_z).abs < 0.001 }.each do |face|
+        face[:loops].each { |points| tool_contours << points if points.length >= 3 }
+      end
+      raise 'Không tìm thấy đường bao trên cùng để tạo đường chạy dao.' if tool_contours.empty?
+
+      all_points = faces.flat_map { |face| face[:loops].flatten }
+      min_x = all_points.map(&:x).min
+      min_y = all_points.map(&:y).min
+      scan_profiles = faces.flat_map do |face|
+        face[:loops].filter_map do |points|
+          next if points.length < 3
+          {
+            name: face[:name],
+            z: mm(face[:z] - top_z),
+            points: points.map { |p| [mm(p.x - min_x), mm(p.y - min_y)] }
+          }
+        end
+      end
+      {
+        tool_contours: tool_contours,
+        scan_profiles: scan_profiles,
+        scan_width: mm(all_points.map(&:x).max - min_x),
+        scan_height: mm(all_points.map(&:y).max - min_y),
+        scan_depth: mm(top_z - all_points.map(&:z).min),
+        scan_face_count: faces.length,
+        scan_profile_count: scan_profiles.length,
+        scan_vertex_count: scan_profiles.inject(0) { |sum, item| sum + item[:points].length }
+      }
     end
 
     def default_config
@@ -156,6 +182,8 @@ module TranTuanNoiThat
         label{display:block;font-size:11px;color:#526258}input{width:100%;padding:7px;margin-top:4px;border:1px solid #cbd8cf;border-radius:5px;font-size:13px}
         .field-full{grid-column:1/-1}.hint{font-size:10px;color:#718077;margin-top:8px;line-height:1.45}
         canvas{width:100%;height:330px;background:#f9fbfa;border:1px solid #dce6df;border-radius:6px;display:block}
+        #view3d{height:390px;background:linear-gradient(#f8fbf9,#eaf1ed);cursor:grab}
+        .viewtitle{display:flex;justify-content:space-between;align-items:center;margin:12px 0 7px}
         .stats{display:flex;gap:7px;flex-wrap:wrap;margin:9px 0}.stat{background:#eef5f0;border-radius:5px;padding:7px 9px;flex:1;min-width:90px}
         .stat small{display:block;color:#627168;font-size:10px}.stat b{font-size:13px}
         .controls{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}button{border:0;border-radius:5px;padding:8px 11px;background:#176b3a;color:#fff;font-weight:600;cursor:pointer}
@@ -183,7 +211,9 @@ module TranTuanNoiThat
             <div class="warning"><b>CẢNH BÁO AN TOÀN</b><br>Bản thử nghiệm hiện chạy đường tâm biên dạng, chưa bù bán kính dao. Chưa xác minh va chạm, đồ gá, chiều sâu phôi và mã M riêng của máy. Không đưa thẳng ra máy thật.</div>
           </section>
           <section class="panel">
-            <h3>MÔ PHỎNG ĐƯỜNG CHẠY DAO 2D</h3>
+            <div class="viewtitle"><h3>MÔ PHỎNG ĐƯỜNG CHẠY DAO 3D</h3><span class="hint">Phối cảnh trục X · Y · Z</span></div>
+            <canvas id="view3d" width="1200" height="650"></canvas>
+            <div class="viewtitle"><h3>HÌNH CHIẾU ĐƯỜNG CHẠY DAO 2D</h3><span class="hint">Kiểm tra tọa độ G54</span></div>
             <canvas id="view" width="1000" height="560"></canvas>
             <div class="legend"><span><i class="dot" style="background:#16834a"></i>Đường cắt</span><span><i class="dot" style="background:#9aa9a0"></i>Chạy nhanh</span><span><i class="dot" style="background:#e04b36"></i>Vị trí dao</span></div>
             <div class="stats">
@@ -214,6 +244,54 @@ module TranTuanNoiThat
         const ids=['tool_diameter','spindle','feed','plunge','depth','stepdown','safe_z'];
         const $=id=>document.getElementById(id);let moves=DATA.moves||[],index=0,timer=null,scaleInfo=null;
         const canvas=$('view'),ctx=canvas.getContext('2d');
+        const canvas3d=$('view3d'),ctx3d=canvas3d.getContext('2d');
+        let camera3d={azimuth:-0.72,elevation:0.52,zoom:1},drag3d=null;
+        function project3d(x,y,z){
+          const a=camera3d.azimuth,e=camera3d.elevation;
+          const ca=Math.cos(a),sa=Math.sin(a),ce=Math.cos(e),se=Math.sin(e);
+          const rx=x*ca-y*sa, ry=x*sa+y*ca;
+          return [rx, ry*ce-z*se, ry*se+z*ce];
+        }
+        function draw3d(){
+          const w=canvas3d.width,h=canvas3d.height;
+          ctx3d.clearRect(0,0,w,h);ctx3d.fillStyle='#f7faf8';ctx3d.fillRect(0,0,w,h);
+          const all=DATA.scan_profiles||[];
+          const zmin=Math.min(-Number(DATA.scan_depth||0),-Number(DATA.config.depth||0),-1);
+          const raw=[];
+          all.forEach(profile=>profile.points.forEach(p=>raw.push(project3d(p[0],p[1],profile.z))));
+          raw.push(project3d(0,0,0),project3d(DATA.length,DATA.width,zmin));
+          const xs=raw.map(p=>p[0]),ys=raw.map(p=>p[1]);
+          const rangeX=Math.max(Math.max(...xs)-Math.min(...xs),1),rangeY=Math.max(Math.max(...ys)-Math.min(...ys),1);
+          const scale=Math.min((w-150)/rangeX,(h-120)/rangeY)*camera3d.zoom;
+          const ox=(w-(Math.max(...xs)-Math.min(...xs))*scale)/2-Math.min(...xs)*scale+35;
+          const oy=(h-(Math.max(...ys)-Math.min(...ys))*scale)/2+Math.max(...ys)*scale+25;
+          const map=p=>[ox+p[0]*scale,oy-p[1]*scale];
+          function line3(a,b,color,width,dash){const p=map(project3d(a[0],a[1],a[2])),q=map(project3d(b[0],b[1],b[2]));ctx3d.strokeStyle=color;ctx3d.lineWidth=width;ctx3d.setLineDash(dash||[]);ctx3d.beginPath();ctx3d.moveTo(p[0],p[1]);ctx3d.lineTo(q[0],q[1]);ctx3d.stroke();ctx3d.setLineDash([]);}
+          // Wireframe stock envelope based on the scanned selection.
+          const box=[[0,0,0],[DATA.length,0,0],[DATA.length,DATA.width,0],[0,DATA.width,0],[0,0,zmin],[DATA.length,0,zmin],[DATA.length,DATA.width,zmin],[0,DATA.width,zmin]];
+          [[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]].forEach(([a,b])=>line3(box[a],box[b],'#9aaba0',1.2,[4,4]));
+          // Every horizontal profile detected in the selected Groups/Components.
+          all.forEach(profile=>{
+            const pts=profile.points;
+            if(pts.length<3)return;
+            ctx3d.strokeStyle=profile.z===0?'#16834a':'#6d8fa5';ctx3d.lineWidth=profile.z===0?2.5:1.6;
+            ctx3d.beginPath();pts.forEach((p,i)=>{const q=map(project3d(p[0],p[1],profile.z));if(i===0)ctx3d.moveTo(q[0],q[1]);else ctx3d.lineTo(q[0],q[1]);});ctx3d.closePath();ctx3d.stroke();
+          });
+          // Tool center path, with Z height taken from the current simulation move.
+          let prev=null;
+          for(let i=0;i<=Math.min(index,moves.length-1);i++){
+            const m=moves[i];if(!m)continue;const now=[m.x,m.y,m.z];
+            if(prev)line3(prev,now,m.type==='rapid'?'#aab6ae':'#e07b22',m.type==='rapid'?1.4:2.8,m.type==='rapid'?[5,4]:[]);
+            prev=now;
+          }
+          if(moves.length){const m=moves[Math.min(index,moves.length-1)],p=map(project3d(m.x,m.y,m.z));ctx3d.fillStyle='#e04b36';ctx3d.beginPath();ctx3d.arc(p[0],p[1],9,0,Math.PI*2);ctx3d.fill();}
+          ctx3d.fillStyle='#42564a';ctx3d.font='15px Arial';ctx3d.fillText('X: chiều dài',25,h-48);ctx3d.fillText('Y: chiều rộng',25,h-28);ctx3d.fillText('Z: chiều sâu âm',160,h-28);
+          ctx3d.fillText('Biên dạng quét: '+all.length+' · Mặt ngang: '+(DATA.scan_face_count||0),w-360,28);
+        }
+        canvas3d.addEventListener('mousedown',e=>{drag3d={x:e.offsetX,y:e.offsetY,az:camera3d.azimuth,el:camera3d.elevation};});
+        canvas3d.addEventListener('mousemove',e=>{if(!drag3d)return;camera3d.azimuth=drag3d.az+(e.offsetX-drag3d.x)*0.009;camera3d.elevation=Math.max(-1.2,Math.min(1.2,drag3d.el+(e.offsetY-drag3d.y)*0.009));draw3d();});
+        window.addEventListener('mouseup',()=>{drag3d=null;});
+        canvas3d.addEventListener('wheel',e=>{e.preventDefault();camera3d.zoom=Math.max(0.35,Math.min(3,camera3d.zoom*(e.deltaY<0?1.1:0.9)));draw3d();},{passive:false});
         function cfg(){const o={};ids.forEach(k=>o[k]=Number($(k).value));return o}
         function send(action,payload){if(window.sketchup&&window.sketchup[action])window.sketchup[action](JSON.stringify(payload||{}))}
         function stop(){if(timer){clearInterval(timer);timer=null}}
@@ -234,6 +312,7 @@ module TranTuanNoiThat
           if(moves.length){const m=moves[Math.min(index,moves.length-1)],p=mapPoint(m.x,m.y);ctx.fillStyle='#e04b36';ctx.beginPath();ctx.arc(p[0],p[1],8,0,Math.PI*2);ctx.fill();$('znow').textContent=m.z.toFixed(2)+' mm';}
           else $('znow').textContent='-';
           $('progress').max=Math.max(moves.length-1,1);$('progress').value=index;
+          draw3d();
           $('status').textContent='Tiến trình: '+(moves.length?Math.round(index/Math.max(moves.length-1,1)*100):0)+'% · Bước '+(index+1)+'/'+moves.length;
         }
         function renderDetails(sim){
@@ -244,7 +323,7 @@ module TranTuanNoiThat
           $('vertices').textContent=Number(m.vertex_count||0);
           $('ncpreview').value=sim.gcode_text||'Chưa có dữ liệu G-code.';
         }
-        window.loadSimulation=function(sim){DATA.moves=sim.moves;DATA.length=sim.length;DATA.width=sim.width;DATA.passes=sim.passes;moves=sim.moves;index=0;$('size').textContent=sim.length.toFixed(1)+' × '+sim.width.toFixed(1)+' mm';$('passes').textContent=sim.passes.length;$('count').textContent=moves.length;renderDetails(sim);draw();$('status').textContent='Đã cập nhật đường chạy dao và nội dung G-code. Chạy mô phỏng lại để kiểm tra.';};
+        window.loadSimulation=function(sim){DATA.moves=sim.moves;DATA.length=sim.length;DATA.width=sim.width;DATA.passes=sim.passes;moves=sim.moves;index=0;$('size').textContent=sim.length.toFixed(1)+' × '+sim.width.toFixed(1)+' mm';$('passes').textContent=sim.passes.length;$('count').textContent=moves.length;renderDetails(sim);draw();draw3d();$('status').textContent='Đã cập nhật đường chạy dao và nội dung G-code. Chạy mô phỏng lại để kiểm tra.';};
         function play(){if(!moves.length)return;stop();if(index>=moves.length-1)index=0;timer=setInterval(()=>{index=Math.min(index+1,moves.length-1);draw();if(index>=moves.length-1)stop()},35)}
         function rebuild(){stop();send('update_config',cfg())}
         $('play').onclick=play;$('pause').onclick=stop;$('reset').onclick=()=>{stop();index=0;draw()};
@@ -254,19 +333,32 @@ module TranTuanNoiThat
         ids.forEach(k=>$(k).value=DATA.config[k]);
         $('size').textContent=DATA.length.toFixed(1)+' × '+DATA.width.toFixed(1)+' mm';
         $('passes').textContent=DATA.passes.length;$('count').textContent=moves.length;
-        renderDetails(DATA);draw();$('status').textContent='Đã nạp '+DATA.contours+' đường bao. Chạy mô phỏng để kiểm tra trình tự.';
+        renderDetails(DATA);draw();draw3d();$('status').textContent='Đã quét '+(DATA.scan_profiles||[]).length+' biên dạng trên '+(DATA.scan_face_count||0)+' mặt ngang. Đường dao hiện dùng biên dạng mặt trên.';
         </script></body></html>
       HTML
     end
 
     def show_dialog
       model = Sketchup.active_model
-      @contours = selected_contours(model)
+      geometry = selected_geometry(model)
+      @contours = geometry[:tool_contours]
+      @scan_profiles = geometry[:scan_profiles]
+      @scan_face_count = geometry[:scan_face_count]
+      @scan_depth = geometry[:scan_depth]
       @dialog.close if @dialog && @dialog.visible?
       cfg = default_config
       sim = simulation_moves(@contours, cfg)
       preview_gcode = gcode(@contours, cfg)[0]
-      payload = sim.merge(config: cfg, contours: @contours.length, gcode_text: preview_gcode)
+      payload = sim.merge(
+        config: cfg,
+        contours: @contours.length,
+        gcode_text: preview_gcode,
+        scan_profiles: geometry[:scan_profiles],
+        scan_face_count: geometry[:scan_face_count],
+        scan_depth: geometry[:scan_depth],
+        scan_width: geometry[:scan_width],
+        scan_height: geometry[:scan_height]
+      )
       @dialog = UI::HtmlDialog.new(
         dialog_title: 'TRẦN TUẤN - CNC NCStudio',
         preferences_key: 'TranTuanNoiThat_GCode_NCStudio',
@@ -279,6 +371,9 @@ module TranTuanNoiThat
           new_cfg = validate_config(JSON.parse(json))
           sim_data = simulation_moves(@contours, new_cfg)
           sim_data[:gcode_text] = gcode(@contours, new_cfg)[0]
+          sim_data[:scan_profiles] = @scan_profiles
+          sim_data[:scan_face_count] = @scan_face_count
+          sim_data[:scan_depth] = @scan_depth
           @dialog.execute_script("window.loadSimulation(#{JSON.generate(sim_data)})") if @dialog
         rescue StandardError => error
           UI.messagebox("Thông số chưa hợp lệ: #{error.message}")
