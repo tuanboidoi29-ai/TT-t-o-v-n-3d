@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.331",
+  "version": "1.9.332",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "1.9.331: sửa lỗi giữ sót danh sách lỗi nạp mô-đun khiến cập nhật hợp lệ bị rollback; gia cố quy trình nạp lại an toàn. Bản cũ được sao lưu và phục hồi khi có lỗi.",
+  "notes": "1.9.332: cập nhật an toàn không hot-reload trong phiên đang chạy; xác minh phiên bản trước thay thế; ghi log lỗi mô-đun; cô lập lỗi dọn dẹp; bỏ nạp trùng layout_stats_v040_compat.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "9b56172a629cd7368826f59d5a8a1a1a09c62d0b7addc0b2baba000ca954f1a1"
+      "sha256": "c8cbf50aeeb9b0953b73bbeb057e6014a96101019bc874751d8cf6ec2f7f8069"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -314,12 +314,12 @@
     {
       "path": "tran_tuan_noi_that/updater.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/updater.rb",
-      "sha256": "27cef05106eea555f41a760a61931733443e9143152e7366c415fad03c5073a7"
+      "sha256": "cc87536bd7564e084d810a2e2722c2d3539c0924cfe680b7821da6ba11c8deff"
     },
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "847cb85f74791e6f2473a2f96c00d7d43ea3b5f1b68815f7a871fbd80e2f01fe"
+      "sha256": "aa8074c9e34e05df25e8d0b3c47124eac9a8c063a70d621ae2d9ffbd821efc71"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
