@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.321",
+  "version": "1.9.322",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "1.9.318: Hiển thị chi tiết G-code NCStudio từ biên dạng 2D; tính chiều dài cắt, chạy nhanh, hành trình Z và số điểm biên; mô phỏng và xem trước cùng dữ liệu xuất.",
+  "notes": "1.9.322: Thêm công cụ ĐỤC KHUNG: thư viện biên dạng, thông số rộng/sâu, Tag ABF_, tên Instance, màu Preview và mô phỏng trực tiếp khi rê chuột trên Face.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "0d4f865d7ab274357163bd919054871a0c52ea70bd56eebf87348c3ba60f9315"
+      "sha256": "b8ece9f4ba6a955d615c90c1c5658adad4f838a221b3148190a54b70b722c2c9"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -470,6 +470,16 @@
       "path": "tran_tuan_noi_that/gcode_feature_scan.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/gcode_feature_scan.rb",
       "sha256": "2ebc3a0d6b5bc78308b319f0916c842b0430d69f88948b24383289fd9d1b0fe1"
+    },
+    {
+      "path": "tran_tuan_noi_that/duc_khung_tool.rb",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/duc_khung_tool.rb",
+      "sha256": "1c8b7a9a02b9985d2d07ae944d6c4c6b95dab5c8d1dada831de0c86178c0ee67"
+    },
+    {
+      "path": "tran_tuan_noi_that/icons/duc_khung.svg",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/icons/duc_khung.svg",
+      "sha256": "7db7d3a71cdb3e47378d3084c2d67adbe52e6a5bbfcd940e8e88ef8424869914"
     }
   ],
   "stretch_mode_version": "1.0.1",
@@ -485,5 +495,5 @@
     "tran_tuan_noi_that/cnc_profile_tool.rb",
     "tran_tuan_noi_that/icons/cnc_profile.svg"
   ],
-  "release_notes": "1.9.321: Chuyển toàn bộ nút điều khiển mô phỏng CNC lên thanh công cụ cố định ngay đầu cửa sổ; giữ nguyên callback chạy, tạm dừng, chạy lại, cập nhật mô phỏng và xuất .NC."
+  "release_notes": "1.9.322: Thêm công cụ ĐỤC KHUNG: thư viện biên dạng, thông số rộng/sâu, Tag ABF_, tên Instance, màu Preview và mô phỏng trực tiếp khi rê chuột trên Face."
 }
