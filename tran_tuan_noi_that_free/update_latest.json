@@ -1,15 +1,15 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.314",
+  "version": "1.9.315",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "Báo Giá: cập nhật công thức m² theo xác nhận: (Dài × Rộng + Chiều cao) / 1.000.000 × Số lượng; các đơn vị khác giữ nguyên.",
+  "notes": "Báo Giá: cho phép thêm nhiều dòng mô tả trong mỗi hạng mục; từng dòng có ĐVT, kích thước, số lượng, đơn giá và tự tính thành tiền; tổng hạng mục cộng các dòng chi tiết.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bao_gia_tool.rb",
-      "sha256": "b30ed0322acf0b40169cf3fe7886c6354bfea922788f92876a043f1be3a9d61f"
+      "sha256": "13ae956a4e7af2c58f28f033446593ad7734deb181f2a8f1a7f8255ac77e19aa"
     },
     {
       "path": "tran_tuan_noi_that/board_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "c084488cf127e80412507c8c7b1cadd441225c3eb357bf7344546e1c188b5993"
+      "sha256": "bfed6dbcae11def0aee5b9998c16dd0d24ce56389b336141408193b8d68004ab"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
