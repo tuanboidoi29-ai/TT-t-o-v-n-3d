@@ -2,7 +2,7 @@
 # TRẦN TUẤN NỘI THẤT - BẢNG BÁO GIÁ
 # Tích hợp từ file baogia.rb do người dùng cung cấp.
 # Công thức tính:
-# - m² = (Dài + Cao/Sâu) x Rộng / 1e6 (kích thước mm) x Số lượng
+# - m² = (Dài x Rộng + Cao/Sâu) / 1e6 x Số lượng
 # - m³ = Dài x Rộng x Cao / 1e9 x Số lượng
 # - m = Dài (mm) / 1000 x Số lượng
 # - các ĐVT đếm khác = Số lượng
@@ -30,7 +30,7 @@ module TranTuanNoiThat
   module BaoGiaTool
     extend self
 
-    VERSION = '1.9.313'.freeze
+    VERSION = '1.9.314'.freeze
     ROOT = File.join(TranTuanNoiThat::ROOT, 'data', 'bao_gia').freeze
 
     DEFAULT_DVT = [
@@ -153,7 +153,7 @@ module TranTuanNoiThat
       }
     end
 
-    # Trả về số lượng tính giá; với m² dùng (Dài + Cao/Sâu) x Rộng, kích thước nhập bằng mm.
+    # Trả về số lượng tính giá; m² = (Dài x Rộng + Cao/Sâu) / 1e6 theo công thức người dùng xác nhận.
     def calc_row(row)
       length = num(row['dai'])
       width  = num(row['rong'])
@@ -162,7 +162,7 @@ module TranTuanNoiThat
 
       case row['dvt'].to_s
       when 'm²'
-        ((length + height) * width / 1_000_000.0) * qty
+        ((length * width) + height) / 1_000_000.0 * qty
       when 'm³'
         (length * width * height / 1_000_000_000.0) * qty
       when 'm'
@@ -624,7 +624,7 @@ module TranTuanNoiThat
           function rowDefault(){return {anh:'',hang_muc:'',mo_ta:'',dvt:'m²',dai:'',rong:'',cao:'',so_luong:'1',don_gia:'0'};}
           function calc(r){
             var d=num(r.dai),w=num(r.rong),h=num(r.cao),q=num(r.so_luong);
-            if(r.dvt==='m²')return (d+h)*w/1000000*q;
+            if(r.dvt==='m²')return (d*w+h)/1000000*q;
             if(r.dvt==='m³')return d*w*h/1000000000*q;
             if(r.dvt==='m')return d/1000*q;
             return q;
