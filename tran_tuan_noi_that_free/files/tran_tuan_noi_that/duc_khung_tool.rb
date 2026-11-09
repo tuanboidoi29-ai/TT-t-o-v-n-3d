@@ -46,12 +46,12 @@ module TranTuanNoiThat
         .hint{color:#66736b;font-size:12px;line-height:1.4}.swatch{height:24px;border-radius:5px;border:1px solid #ccd}
         </style><body><h2>ĐỤC KHUNG — Biên dạng quanh Face</h2>
         <label>Thư viện biên dạng</label><select id="preset">#{options}<option value="custom">Biên dạng tùy chỉnh</option></select>
-        <div class="grid"><div><label>Tên biên dạng</label><input id="name" value="#{cfg['profile_name']}"></div><div><label>Offset từ mép mặt (mm)</label><input id="offset" type="number" min="0" max="500" step="0.5" value="#{cfg['offset']}"></div>
+        <div class="grid"><div><label>Tên biên dạng</label><input id="name" value="#{cfg['profile_name']}"></div><div><label>Offset vào trong từ mép Face (mm)</label><input id="offset" type="number" min="0" max="500" step="0.5" value="#{cfg['offset']}"></div>
         <div><label>Bề rộng hèm (mm)</label><input id="width" type="number" min="0.5" max="100" step="0.5" value="#{cfg['width']}"></div><div><label>Độ sâu hạ nền hèm (mm)</label><input id="depth" type="number" min="0.5" max="50" step="0.5" value="#{cfg['depth']}"></div>
         <div><label>Kiểu tạo</label><select id="mode"><option value="cut">Đục khung thật</option><option value="boundary">Chỉ tạo đường biên</option></select></div><div><label>Kiểu góc</label><select id="corner"><option value="square">Góc vuông</option><option value="chamfer">Góc vát</option><option value="round">Góc bo cong</option></select></div>
         <div><label>Tag / Layer (ABF_)</label><input id="tag" value="#{cfg['tag']}"></div><div><label>Tên Instance</label><input id="instance" value="#{cfg['instance']}"></div>
         <div><label>Màu Preview</label><input id="color" type="color" value="#{cfg['color']}"></div><div><label>Thư viện đã lưu</label><select id="saved"><option value="">Chọn mẫu đã lưu</option></select></div></div>
-        <p class="hint">Rê chuột lên Face để xem trước. Chọn Đục khung thật để tạo hèm lõm dạng vòng; hoặc Chỉ tạo đường biên. Offset là khoảng cách từ mép Face đến mép hèm; Bề rộng là bề dày vòng hèm; Độ sâu là chiều hạ nền. Hỗ trợ góc vuông, vát và bo cong.</p>
+        <p class="hint">Rê chuột lên Face để xem trước. Chọn Đục khung thật để tạo hèm lõm dạng vòng; hoặc Chỉ tạo đường biên. Offset là khoảng cách đo vào trong từ mép Face đến mép ngoài của hèm; Bề rộng là bề dày vòng hèm; Độ sâu là chiều hạ nền. Hỗ trợ góc vuông, vát và bo cong.</p>
         <div class="bar"><button onclick="save()">Lưu biên dạng</button><button onclick="start()">Bắt đầu mô phỏng</button><button class="alt" onclick="closeDlg()">Đóng</button></div><div id="msg"></div>
         <script>
         const $=id=>document.getElementById(id);
@@ -172,7 +172,7 @@ module TranTuanNoiThat
         outer_world=pts.map{|p| p.transform(tr)}
         groove_outer_world=groove_outer.map{|p| p.transform(tr)}
         groove_inner_world=groove_inner.map{|p| p.transform(tr)}
-        {face:face,transform:tr,outer:outer_world,inner:inner_world,groove_outer:groove_outer_world,groove_inner:groove_inner_world,local_outer:groove_outer,local_inner:groove_inner,normal:normal}
+        {face:face,transform:tr,outer:outer_world,inner:groove_inner_world,groove_outer:groove_outer_world,groove_inner:groove_inner_world,local_outer:groove_outer,local_inner:groove_inner,normal:normal}
       rescue StandardError
         nil
       end
