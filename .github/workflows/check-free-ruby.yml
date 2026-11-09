@@ -59,9 +59,12 @@ jobs:
           entry = File.read(File.join(root, 'files/TranTuanNoiThat.rb'))
           raise 'Bootstrap version mismatch' unless bootstrap.include?("VERSION = '#{version}'")
           raise 'Extension version mismatch' unless entry.include?("ext.version = '#{version}'")
-          match = bootstrap.match(/      %w\[(.*?)\]\.each do \|stem\|/m)
-          raise 'Cannot read runtime module list' unless match
-          stems = match[1].scan(/[a-z0-9_]+/)
+          marker = "      %w[\n        board_tool"
+          start = bootstrap.index(marker)
+          finish = bootstrap.index("      ].each do |stem|", start || 0)
+          raise 'Cannot read runtime module list' unless start && finish
+          body = bootstrap[(start + marker.length)...finish]
+          stems = ['board_tool'] + body.lines.map(&:strip).select { |line| line.match?(/\A[a-z0-9_]+\z/) }
           raise 'Duplicate runtime module entry' unless stems.uniq.length == stems.length
           stems.each do |stem|
             raise "Runtime module missing: #{stem}" unless entries.key?("tran_tuan_noi_that/#{stem}.rb")
