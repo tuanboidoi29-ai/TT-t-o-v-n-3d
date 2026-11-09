@@ -203,7 +203,7 @@ module TranTuanNoiThat
         *{box-sizing:border-box}body{margin:0;background:#f3f6f4;color:#1d2922;font:13px Arial,sans-serif}
         header{background:#176b3a;color:#fff;padding:13px 17px;display:flex;justify-content:space-between;align-items:center}
         header b{font-size:17px}header span{font-size:11px;opacity:.85}
-        .wrap{padding:12px;display:grid;grid-template-columns:285px 1fr;gap:12px}
+        .top-controls{position:sticky;top:0;z-index:50;background:#fff;border-bottom:1px solid #d6e2da;box-shadow:0 3px 9px #173b2414;padding:8px 14px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}.top-controls-label{font-size:11px;font-weight:700;color:#176b3a;letter-spacing:.4px}.top-controls .controls{margin:0}.wrap{padding:12px;display:grid;grid-template-columns:285px 1fr;gap:12px}
         .panel{background:#fff;border:1px solid #dce6df;border-radius:9px;padding:12px;min-width:0}
         h3{font-size:13px;margin:0 0 10px;color:#176b3a}
         .fields{display:grid;grid-template-columns:1fr 1fr;gap:8px}
@@ -222,8 +222,8 @@ module TranTuanNoiThat
         .legend{display:flex;gap:12px;font-size:10px;color:#607066;margin-top:7px}.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px}
         @media(max-width:720px){.wrap{grid-template-columns:1fr}canvas{height:270px}}
         </style></head><body>
-        <header><div><b>TRẦN TUẤN · CNC NCStudio</b><br><span>THIẾT LẬP · MÔ PHỎNG · XUẤT CHƯƠNG TRÌNH</span></div><span>v1.9.319</span></header>
-        <div class="wrap">
+        <header><div><b>TRẦN TUẤN · CNC NCStudio</b><br><span>THIẾT LẬP · MÔ PHỎNG · XUẤT CHƯƠNG TRÌNH</span></div><span>v1.9.321</span></header>
+        <div class="top-controls"><div class="top-controls-label">ĐIỀU KHIỂN MÔ PHỎNG CNC</div><div id="status"></div><div class="wrap">
           <section class="panel">
             <h3>THÔNG SỐ GIA CÔNG</h3>
             <div class="fields">
