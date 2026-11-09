@@ -1,6 +1,6 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.329",
+  "version": "1.9.330",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
@@ -474,7 +474,7 @@
     {
       "path": "tran_tuan_noi_that/duc_khung_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/duc_khung_tool.rb",
-      "sha256": "da59743511bc5a229295802541aa95d17b8a6ee339fef6eb9bc28f7c2c40197c"
+      "sha256": "6d9136c11162e55a24ad7c1b1f06a4ff1075346157543934c7e19fffe1b8dedd"
     },
     {
       "path": "tran_tuan_noi_that/icons/duc_khung.svg",
@@ -495,5 +495,5 @@
     "tran_tuan_noi_that/cnc_profile_tool.rb",
     "tran_tuan_noi_that/icons/cnc_profile.svg"
   ],
-  "release_notes": "1.9.329: Bổ sung hướng Offset vào trong/ra ngoài Face; lưu biên dạng tùy chỉnh và tự cập nhật danh sách mẫu; đồng bộ phiên bản bộ nạp và manifest."
+  "release_notes": "1.9.330: Sửa đồng bộ thư viện biên dạng ABF: lưu mẫu mới và cập nhật ngay danh sách; hỗ trợ Offset vào trong/ra ngoài; đồng bộ bộ nạp và manifest."
 }
