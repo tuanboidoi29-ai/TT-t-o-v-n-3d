@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.327",
+  "version": "1.9.328",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "1.9.327: tạo đường biên dạng ABF thật trong Group/Component; bỏ PushPull/khoét sâu; thư viện mẫu, Instance và Tag ABF_, bán kính bo góc, nhận diện độ dày, bật/tắt mô phỏng.",
+  "notes": "1.9.328: gia cố updater; sao lưu/khôi phục cả thư mục khi rollback; kiểm tra lỗi nạp mô-đun trước khi xác nhận cập nhật. ĐỤC KHUNG ABF 1.9.327 giữ nguyên.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "26fb3c62f8db89d93f6657fcf6ed9037f8566fc12f507a552926da631f98f56a"
+      "sha256": "a8ce64c61f0b3682fa298686d443c722a5d381b12cad869d09c7e553b934947d"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -314,12 +314,12 @@
     {
       "path": "tran_tuan_noi_that/updater.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/updater.rb",
-      "sha256": "43c3fc775499c54246e05af2e6d9fc2b516344b2bbf4805707321d69ac221d78"
+      "sha256": "125f3736fdeea173cbda4967e6ef23f170a50ea775d3ca3f083607d5f64995b4"
     },
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "fd19e0b647414fec07aa1123faf41336a66c3b776b322e4e2e615a577f5a86c8"
+      "sha256": "eb38aa6ed6b56b3d4f5832f35c8586fae34c97a1e54184a98fa388f6f85f93c1"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
