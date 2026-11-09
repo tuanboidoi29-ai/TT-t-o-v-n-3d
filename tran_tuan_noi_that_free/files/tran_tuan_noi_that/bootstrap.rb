@@ -18,7 +18,7 @@ module TranTuanNoiThat
   }.freeze unless const_defined?(:LOCKED_FEATURE_BASELINES, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.330'.freeze
+  VERSION = '1.9.331'.freeze
 
   class << self
     def setting(key, default = nil)
@@ -127,6 +127,8 @@ module TranTuanNoiThat
     end
 
     def reload_runtime
+      # Xóa lỗi của lần nạp trước; chỉ đánh giá lỗi phát sinh trong lần nạp hiện tại.
+      @runtime_load_errors = []
       @last_runtime_error = nil
       cleanup_retired_chatgpt
       cleanup_retired_wine_rack_data
