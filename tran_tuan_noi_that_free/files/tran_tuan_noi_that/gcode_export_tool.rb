@@ -166,7 +166,7 @@ module TranTuanNoiThat
         .legend{display:flex;gap:12px;font-size:10px;color:#607066;margin-top:7px}.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px}
         @media(max-width:720px){.wrap{grid-template-columns:1fr}canvas{height:270px}}
         </style></head><body>
-        <header><div><b>TRẦN TUẤN · CNC NCStudio</b><br><span>THIẾT LẬP · MÔ PHỎNG · XUẤT CHƯƠNG TRÌNH</span></div><span>v1.9.317</span></header>
+        <header><div><b>TRẦN TUẤN · CNC NCStudio</b><br><span>THIẾT LẬP · MÔ PHỎNG · XUẤT CHƯƠNG TRÌNH</span></div><span>v1.9.318</span></header>
         <div class="wrap">
           <section class="panel">
             <h3>THÔNG SỐ GIA CÔNG</h3>
