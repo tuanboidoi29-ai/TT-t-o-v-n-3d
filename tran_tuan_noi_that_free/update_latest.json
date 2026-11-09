@@ -4,7 +4,7 @@
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "1.9.322: Thêm công cụ ĐỤC KHUNG: thư viện biên dạng, thông số rộng/sâu, Tag ABF_, tên Instance, màu Preview và mô phỏng trực tiếp khi rê chuột trên Face.",
+  "notes": "1.9.322: Thêm công cụ ĐỤC KHUNG: thư viện biên dạng, thông số rộng/sâu, Tag ABF_, tên Instance, màu Preview, biên dạng góc vát và mô phỏng trực tiếp khi rê chuột trên Face.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -474,7 +474,7 @@
     {
       "path": "tran_tuan_noi_that/duc_khung_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/duc_khung_tool.rb",
-      "sha256": "1c8b7a9a02b9985d2d07ae944d6c4c6b95dab5c8d1dada831de0c86178c0ee67"
+      "sha256": "74ebd82b60f179630dfc061ff366b9557f6b5a7eae9930b1b842d827c7a660c8"
     },
     {
       "path": "tran_tuan_noi_that/icons/duc_khung.svg",
@@ -495,5 +495,5 @@
     "tran_tuan_noi_that/cnc_profile_tool.rb",
     "tran_tuan_noi_that/icons/cnc_profile.svg"
   ],
-  "release_notes": "1.9.322: Thêm công cụ ĐỤC KHUNG: thư viện biên dạng, thông số rộng/sâu, Tag ABF_, tên Instance, màu Preview và mô phỏng trực tiếp khi rê chuột trên Face."
+  "release_notes": "1.9.322: Thêm công cụ ĐỤC KHUNG: thư viện biên dạng, thông số rộng/sâu, Tag ABF_, tên Instance, màu Preview, biên dạng góc vát và mô phỏng trực tiếp khi rê chuột trên Face."
 }
