@@ -181,9 +181,9 @@ module TranTuanNoiThat
         function mapPoint(x,y){return [scaleInfo.ox+x*scaleInfo.s,scaleInfo.oy+scaleInfo.h-y*scaleInfo.s]}
         function draw(){
           const w=canvas.width,h=canvas.height;ctx.clearRect(0,0,w,h);ctx.fillStyle='#f9fbfa';ctx.fillRect(0,0,w,h);
-          const pad=55, sx=(w-pad*2)/Math.max(DATA.width,1),sy=(h-pad*2)/Math.max(DATA.length,1);
-          const s=Math.min(sx,sy);scaleInfo={s,ox:(w-DATA.width*s)/2,h:(h+DATA.length*s)/2};
-          ctx.strokeStyle='#aab8af';ctx.lineWidth=2;ctx.strokeRect(scaleInfo.ox,scaleInfo.h-DATA.length*s,DATA.width*s,DATA.length*s);
+          const pad=55, sx=(w-pad*2)/Math.max(DATA.length,1),sy=(h-pad*2)/Math.max(DATA.width,1);
+          const s=Math.min(sx,sy);scaleInfo={s,ox:(w-DATA.length*s)/2,h:(h+DATA.width*s)/2};
+          ctx.strokeStyle='#aab8af';ctx.lineWidth=2;ctx.strokeRect(scaleInfo.ox,scaleInfo.h-DATA.width*s,DATA.length*s,DATA.width*s);
           ctx.fillStyle='#63736a';ctx.font='15px Arial';ctx.fillText('G54  X0 Y0',scaleInfo.ox,scaleInfo.h+24);
           let last=null;
           for(let i=0;i<=Math.min(index,moves.length-1);i++){
@@ -306,5 +306,6 @@ module TranTuanNoiThat
       show_dialog
     rescue StandardError => error
       UI.messagebox("Xuất G-code thất bại:\n#{error.class}: #{error.message}")
-    end  end
+    end
+  end
 end
