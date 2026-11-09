@@ -317,7 +317,7 @@ module TranTuanNoiThat
           text = [detail['mo_ta'], detail['dvt'], detail['dai'], detail['rong'], detail['cao'], detail['so_luong']].map { |v| safe(v) }.join(' · ')
           %Q{<div>#{detail_index + 1}. #{text} · SL tính: #{format('%.3f', measured)} · Đơn giá: #{money(detail['don_gia'])} · Thành tiền: #{money(measured * num(detail['don_gia']))}</div>}
         end.join
-        computed = details.inject(0.0) { |sum, detail| sum + calc_measure(detail) }
+        detail_count = details.length
         total_amount = calc_row(row)
         <<~ROW
           <tr>
@@ -330,7 +330,7 @@ module TranTuanNoiThat
             <td>#{safe(row['rong'])}</td>
             <td>#{safe(row['cao'])}</td>
             <td>#{safe(row['so_luong'])}</td>
-            <td>#{format('%.3f', computed)}</td>
+            <td>#{detail_count} dòng</td>
             <td>#{money(row['don_gia'])}</td>
             <td>#{money(total_amount)}</td>
           </tr>
@@ -375,7 +375,7 @@ module TranTuanNoiThat
         <p><b>Khách hàng:</b> #{safe(data['khach_hang'])} &nbsp; <b>Điện thoại:</b> #{safe(data['dien_thoai'])}</p>
         <p><b>Địa chỉ:</b> #{safe(data['dia_chi'])}</p>
         <table>
-          <tr><th>STT</th><th>Ảnh</th><th>Hạng mục</th><th>Mô tả</th><th>ĐVT</th><th>Dài</th><th>Rộng</th><th>Cao</th><th>SL</th><th>SL tính giá</th><th>Đơn giá</th><th>Thành tiền</th></tr>
+          <tr><th>STT</th><th>Ảnh</th><th>Hạng mục</th><th>Mô tả</th><th>ĐVT</th><th>Dài</th><th>Rộng</th><th>Cao</th><th>SL</th><th>Số dòng</th><th>Đơn giá</th><th>Thành tiền</th></tr>
           #{rows}
         </table>
         <div class="sum">
@@ -738,10 +738,10 @@ module TranTuanNoiThat
               function updateParent(){
                 var sum=r.chi_tiet.reduce(function(total,d){return total+calcMeasure(d)*num(d.don_gia);},0);
                 if(amountCell)amountCell.textContent=money(sum);
-                if(calcCell)calcCell.textContent='Tổng '+sum.toFixed(3);
+                if(calcCell)calcCell.textContent=r.chi_tiet.length+' dòng';
                 totals();
               }
-              td=document.createElement('td');td.className='calc';calcCell=td;td.textContent='Tổng '+calc(r).toFixed(3);tr.appendChild(td);
+              td=document.createElement('td');td.className='calc';calcCell=td;td.textContent=r.chi_tiet.length+' dòng';tr.appendChild(td);
               td=document.createElement('td');td.className='calc';amountCell=td;td.textContent=money(calc(r));tr.appendChild(td);
 
               td=document.createElement('td');
