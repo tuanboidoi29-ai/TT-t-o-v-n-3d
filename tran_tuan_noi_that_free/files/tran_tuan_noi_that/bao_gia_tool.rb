@@ -30,7 +30,7 @@ module TranTuanNoiThat
   module BaoGiaTool
     extend self
 
-    VERSION = '1.9.314'.freeze
+    VERSION = '1.9.315'.freeze
     ROOT = File.join(TranTuanNoiThat::ROOT, 'data', 'bao_gia').freeze
 
     DEFAULT_DVT = [
@@ -154,13 +154,12 @@ module TranTuanNoiThat
     end
 
     # Trả về số lượng tính giá; m² = (Dài x Rộng + Cao/Sâu) / 1e6 theo công thức người dùng xác nhận.
-    def calc_row(row)
-      length = num(row['dai'])
-      width  = num(row['rong'])
-      height = num(row['cao'])
-      qty    = num(row['so_luong'])
-
-      case row['dvt'].to_s
+    def calc_measure(detail)
+      length = num(detail['dai'])
+      width  = num(detail['rong'])
+      height = num(detail['cao'])
+      qty    = num(detail['so_luong'])
+      case detail['dvt'].to_s
       when 'm²'
         ((length * width) + height) / 1_000_000.0 * qty
       when 'm³'
@@ -169,6 +168,15 @@ module TranTuanNoiThat
         (length / 1000.0) * qty
       else
         qty
+      end
+    end
+
+    def calc_row(row)
+      details = row['chi_tiet']
+      if details.is_a?(Array) && !details.empty?
+        details.inject(0.0) { |sum, detail| sum + calc_measure(detail) * num(detail['don_gia']) }
+      else
+        calc_measure(row) * num(row['don_gia'])
       end
     end
 
@@ -302,13 +310,20 @@ module TranTuanNoiThat
         image_data = '' unless image_data.start_with?('data:image/')
         zoom = [[num(row['zoom_anh']), 0.5].max, 3.0].min
         image_html = image_data.empty? ? '' : %Q{<div class="item-photo-frame"><img src="#{safe(image_data)}" class="item-photo" style="transform:scale(#{zoom})"></div>}
+        details = row['chi_tiet'].is_a?(Array) && !row['chi_tiet'].empty? ? row['chi_tiet'] : [row]
+        detail_html = details.each_with_index.map do |detail, detail_index|
+          detail = detail.is_a?(Hash) ? detail : {}
+          measured = calc_measure(detail)
+          text = [detail['mo_ta'], detail['dvt'], detail['dai'], detail['rong'], detail['cao'], detail['so_luong']].map { |v| safe(v) }.join(' · ')
+          %Q{<div>#{detail_index + 1}. #{text} · SL tính: #{format('%.3f', measured)} · Đơn giá: #{money(detail['don_gia'])} · Thành tiền: #{money(measured * num(detail['don_gia']))}</div>}
+        end.join
         computed = calc_row(row)
         <<~ROW
           <tr>
             <td>#{index + 1}</td>
             <td class="photo-cell">#{image_html}</td>
             <td>#{safe(row['hang_muc'])}</td>
-            <td>#{safe(row['mo_ta'])}</td>
+            <td>#{detail_html}</td>
             <td>#{safe(row['dvt'])}</td>
             <td>#{safe(row['dai'])}</td>
             <td>#{safe(row['rong'])}</td>
@@ -527,6 +542,14 @@ module TranTuanNoiThat
           .tablebox{overflow:auto}table{border-collapse:collapse;width:100%;min-width:1280px}
           th,td{border:1px solid #bbb;padding:5px}th{background:#eee;font-size:11px}
           td input,td select{padding:6px}.mini{width:78px;margin:2px}.calc{text-align:right;white-space:nowrap}
+          .tablebox table>thead th:nth-child(n+5):nth-child(-n+11),.tablebox tbody td:nth-child(n+5):nth-child(-n+11){display:none}
+          .detail-wrap{min-width:480px;display:flex;flex-direction:column;gap:6px}
+          .detail-line,.detail-head{display:grid;grid-template-columns:minmax(120px,2fr) 68px 58px 58px 58px 48px 82px 86px 30px;gap:4px;align-items:center}
+          .detail-line{padding:5px;border:1px solid #416b91;border-radius:6px}
+          .detail-line input,.detail-line select{min-width:0;width:100%;padding:5px;font-size:11px}
+          .detail-result{font-size:10px;white-space:nowrap;text-align:right}
+          .detail-head{font-size:10px;color:#b9d8f5}
+          .detail-actions{display:flex;gap:5px;align-items:center}.detail-actions button{padding:5px 8px;font-size:10px}
           .photo-cell{min-width:124px;text-align:center}.photo-frame{width:76px;height:64px;overflow:hidden;display:flex;align-items:center;justify-content:center;margin:0 auto 5px;border:1px solid #8aa8c5;border-radius:5px;background:#fff}.photo-thumb{width:100%;height:100%;object-fit:contain;display:block;transform-origin:center center}.photo-zoom{display:flex;gap:5px;justify-content:center;margin:0 auto 5px}.photo-zoom button{font-size:12px;min-width:27px;padding:3px 7px}.photo-zoom span{font-size:10px;align-self:center;min-width:35px}.photo-actions{display:flex;gap:4px;justify-content:center;flex-wrap:wrap}.photo-actions button{font-size:10px;padding:5px 7px}.photo-file{display:none}
           .camera-layer{position:fixed;inset:0;background:#000b;z-index:9999;display:none;align-items:center;justify-content:center;padding:20px}.camera-panel{background:#0b2748;color:#fff;padding:14px;border-radius:10px;max-width:720px;width:100%}.camera-panel video{width:100%;max-height:65vh;background:#000;object-fit:contain}.camera-panel .bar{margin-top:10px}
           .sum{max-width:400px;margin-left:auto}.sum p{display:flex;justify-content:space-between}
@@ -621,13 +644,25 @@ module TranTuanNoiThat
             var n=Number(s); return isFinite(n)?n:0;
           }
           function money(v){return Math.round(num(v)).toLocaleString('vi-VN')+' ₫';}
-          function rowDefault(){return {anh:'',hang_muc:'',mo_ta:'',dvt:'m²',dai:'',rong:'',cao:'',so_luong:'1',don_gia:'0'};}
-          function calc(r){
+          function detailDefault(){return {mo_ta:'',dvt:'m²',dai:'',rong:'',cao:'',so_luong:'1',don_gia:'0'};}
+          function rowDefault(){return {anh:'',hang_muc:'',mo_ta:'',dvt:'m²',dai:'',rong:'',cao:'',so_luong:'1',don_gia:'0',chi_tiet:[detailDefault()]};}
+          function calcMeasure(r){
             var d=num(r.dai),w=num(r.rong),h=num(r.cao),q=num(r.so_luong);
             if(r.dvt==='m²')return (d*w+h)/1000000*q;
             if(r.dvt==='m³')return d*w*h/1000000000*q;
             if(r.dvt==='m')return d/1000*q;
             return q;
+          }
+          function calc(r){
+            var details=Array.isArray(r.chi_tiet)&&r.chi_tiet.length?r.chi_tiet:[r];
+            return details.reduce(function(sum,d){return sum+calcMeasure(d)*num(d.don_gia);},0);
+          }
+          function normalizeRow(r){
+            r=Object.assign(rowDefault(),r||{});
+            if(!Array.isArray(r.chi_tiet)||!r.chi_tiet.length){
+              r.chi_tiet=[{mo_ta:r.mo_ta||'',dvt:r.dvt||'m²',dai:r.dai||'',rong:r.rong||'',cao:r.cao||'',so_luong:r.so_luong||'1',don_gia:r.don_gia||'0'}];
+            }else{r.chi_tiet=r.chi_tiet.map(function(d){return Object.assign(detailDefault(),d||{});});}
+            return r;
           }
           function field(value,placeholder,onchange){
             var x=document.createElement('input');
@@ -637,7 +672,7 @@ module TranTuanNoiThat
           function render(){
             var body=$('rows');body.innerHTML='';
             rows.forEach(function(r,i){
-              r=Object.assign(rowDefault(),r);rows[i]=r;
+              r=normalizeRow(r);rows[i]=r;
               var tr=document.createElement('tr');
               var td=document.createElement('td');td.textContent=i+1;tr.appendChild(td);
 
@@ -673,27 +708,46 @@ module TranTuanNoiThat
                 if(cls)input.className=cls;cell.appendChild(input);tr.appendChild(cell);
               }
               addInput('hang_muc','');
-              addInput('mo_ta','');
-
               td=document.createElement('td');
-              var select=document.createElement('select');
-              dvt.forEach(function(unit){
-                var option=document.createElement('option');
-                option.value=unit;option.textContent=unit;option.selected=unit===r.dvt;
-                select.appendChild(option);
+              var detailWrap=document.createElement('div');detailWrap.className='detail-wrap';
+              var detailHead=document.createElement('div');detailHead.className='detail-head';
+              ['Mô tả','ĐVT','Dài','Rộng','Cao','SL','SL tính / ĐG','Thành tiền',''].forEach(function(t){var x=document.createElement('span');x.textContent=t;detailHead.appendChild(x);});
+              detailWrap.appendChild(detailHead);
+              r.chi_tiet.forEach(function(detail,di){
+                var line=document.createElement('div');line.className='detail-line';
+                function detailInput(key,placeholder){
+                  var inp=field(detail[key],placeholder,function(){
+                    detail[key]=inp.value;
+                    result.textContent=calcMeasure(detail).toFixed(3)+' '+detail.dvt;
+                    amount.textContent=money(calcMeasure(detail)*num(detail.don_gia));
+                    updateParent();
+                  });line.appendChild(inp);return inp;
+                }
+                detailInput('mo_ta','Mô tả');
+                var unit=document.createElement('select');
+                dvt.forEach(function(value){var opt=document.createElement('option');opt.value=value;opt.textContent=value;opt.selected=value===detail.dvt;unit.appendChild(opt);});
+                unit.onchange=function(){detail.dvt=unit.value;render();};line.appendChild(unit);
+                detailInput('dai','Dài mm');detailInput('rong','Rộng mm');detailInput('cao','Cao mm');detailInput('so_luong','SL');
+                var result=document.createElement('span');result.className='detail-result';result.textContent=calcMeasure(detail).toFixed(3)+' '+detail.dvt;line.appendChild(result);
+                detailInput('don_gia','Đơn giá');
+                var amount=document.createElement('span');amount.className='detail-result';amount.textContent=money(calcMeasure(detail)*num(detail.don_gia));line.appendChild(amount);
+                var remove=document.createElement('button');remove.type='button';remove.className='red';remove.textContent='×';remove.title='Xóa dòng';remove.disabled=r.chi_tiet.length===1;
+                remove.onclick=function(){r.chi_tiet.splice(di,1);render();};line.appendChild(remove);
+                detailWrap.appendChild(line);
               });
-              select.addEventListener('change',function(){r.dvt=select.value;render();});
-              td.appendChild(select);tr.appendChild(td);
+              var actions=document.createElement('div');actions.className='detail-actions';
+              var addDetail=document.createElement('button');addDetail.type='button';addDetail.className='blue';addDetail.textContent='＋ THÊM DÒNG MÔ TẢ';
+              addDetail.onclick=function(){r.chi_tiet.push(detailDefault());render();};actions.appendChild(addDetail);detailWrap.appendChild(actions);
+              td.appendChild(detailWrap);tr.appendChild(td);
 
-              addInput('dai','mm','mini');
-              addInput('rong','mm','mini');
-              addInput('cao','mm','mini');
-              addInput('so_luong','SL','mini');
-
-              td=document.createElement('td');td.className='calc';calcCell=td;td.textContent=calc(r).toFixed(3)+' '+r.dvt;tr.appendChild(td);
-              addInput('don_gia','0');
-
-              td=document.createElement('td');td.className='calc';amountCell=td;td.textContent=money(calc(r)*num(r.don_gia));tr.appendChild(td);
+              function updateParent(){
+                var sum=r.chi_tiet.reduce(function(total,d){return total+calcMeasure(d)*num(d.don_gia);},0);
+                if(amountCell)amountCell.textContent=money(sum);
+                if(calcCell)calcCell.textContent='Tổng '+sum.toFixed(3);
+                totals();
+              }
+              td=document.createElement('td');td.className='calc';calcCell=td;td.textContent='Tổng '+calc(r).toFixed(3);tr.appendChild(td);
+              td=document.createElement('td');td.className='calc';amountCell=td;td.textContent=money(calc(r));tr.appendChild(td);
 
               td=document.createElement('td');
               var del=document.createElement('button');del.className='red';del.textContent='X';
@@ -705,7 +759,7 @@ module TranTuanNoiThat
           }
           function totals(){
             var sub=0;
-            rows.forEach(function(r){sub+=calc(r)*num(r.don_gia);});
+            rows.forEach(function(r){sub+=calc(r);});
             var discount=sub*num($('discount').value)/100;
             var after=sub-discount;
             var vat=after*num($('vat').value)/100;
@@ -739,7 +793,7 @@ module TranTuanNoiThat
           function updateQr(){
             var bank=bankId($('bank').value),account=$('account').value.replace(/\s/g,'');
             if(!bank||!account){$('qr').innerHTML='<span>Nhập ngân hàng + số tài khoản để tạo QR</span>';return;}
-            var sub=0;rows.forEach(function(r){sub+=calc(r)*num(r.don_gia);});
+            var sub=0;rows.forEach(function(r){sub+=calc(r);});
             var dis=sub*num($('discount').value)/100,after=sub-dis,vat=after*num($('vat').value)/100,total=after+vat;
             var note=$('note').value||$('ma').value||'THANH TOAN';
             var owner=$('owner').value||'';
@@ -768,7 +822,7 @@ module TranTuanNoiThat
             $('discount').value=data.chiet_khau||'0';$('vat').value=data.vat||'0';
             $('bank').value=data.bankName||'';$('account').value=data.accountNo||'';
             $('owner').value=data.accountName||'';$('branch').value=data.branch||'';
-            $('note').value=data.transferNote||'';rows=Array.isArray(data.rows)?data.rows:[];
+            $('note').value=data.transferNote||'';rows=Array.isArray(data.rows)?data.rows.map(normalizeRow):[];
             render();status('Đã mở báo giá.');
           };
 
