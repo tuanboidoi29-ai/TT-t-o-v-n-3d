@@ -1,6 +1,6 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.328",
+  "version": "1.9.329",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
@@ -474,7 +474,7 @@
     {
       "path": "tran_tuan_noi_that/duc_khung_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/duc_khung_tool.rb",
-      "sha256": "3a40ca2a484795e04df60e9ce1773689d1de97639b190946cad4abbaf573f823"
+      "sha256": "da59743511bc5a229295802541aa95d17b8a6ee339fef6eb9bc28f7c2c40197c"
     },
     {
       "path": "tran_tuan_noi_that/icons/duc_khung.svg",
@@ -495,5 +495,5 @@
     "tran_tuan_noi_that/cnc_profile_tool.rb",
     "tran_tuan_noi_that/icons/cnc_profile.svg"
   ],
-  "release_notes": "1.9.326: Fix xác định bộ chứa hình học khi Face nằm trong Group/Component hoặc Model; tạo đường biên/đục hèm trong đúng Entities của Face."
+  "release_notes": "1.9.329: Bổ sung hướng Offset vào trong/ra ngoài Face; lưu biên dạng tùy chỉnh và tự cập nhật danh sách mẫu; đồng bộ phiên bản bộ nạp và manifest."
 }
