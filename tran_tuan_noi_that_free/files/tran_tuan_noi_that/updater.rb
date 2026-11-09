@@ -14,8 +14,8 @@ module TranTuanNoiThat
     extend self
     RAW_MANIFEST_URL = 'https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/update_latest.json'.freeze unless const_defined?(:RAW_MANIFEST_URL, false)
     API_MANIFEST_URL = 'https://api.github.com/repos/tuanboidoi29-ai/TT-t-o-v-n-3d/contents/tran_tuan_noi_that_free/update_latest.json?ref=main'.freeze unless const_defined?(:API_MANIFEST_URL, false)
-    OPEN_TIMEOUT = 3 unless const_defined?(:OPEN_TIMEOUT, false)
-    READ_TIMEOUT = 8 unless const_defined?(:READ_TIMEOUT, false)
+    OPEN_TIMEOUT = 15 unless const_defined?(:OPEN_TIMEOUT, false)
+    READ_TIMEOUT = 45 unless const_defined?(:READ_TIMEOUT, false)
 
     def check(interactive = true)
       return false if @busy
@@ -344,8 +344,8 @@ module TranTuanNoiThat
         uri.host,
         uri.port,
         use_ssl: true,
-        open_timeout: OPEN_TIMEOUT,
-        read_timeout: READ_TIMEOUT
+        open_timeout: 15,
+        read_timeout: 45
       ) { |http| http.request(request) }
 
       if response.is_a?(Net::HTTPRedirection)
