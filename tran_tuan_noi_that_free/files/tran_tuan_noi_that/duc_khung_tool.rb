@@ -133,8 +133,6 @@ module TranTuanNoiThat
         view.line_width=3
         view.draw(GL_LINE_LOOP,pts)
         view.draw(GL_LINE_LOOP,inner)
-        view.drawing_color=Sketchup::Color.new(255,145,20,110)
-        view.draw(GL_QUADS,@candidate[:band])
       end
       def onLButtonDown(_flags,x,y,view)
         onMouseMove(0,x,y,view)
@@ -157,16 +155,12 @@ module TranTuanNoiThat
         coords=pts.map{|p| v=p-origin; [v.dot(xaxis),v.dot(yaxis)]}
         inner2=offset_polygon(coords,@cfg['width']/25.4)
         return nil unless inner2 && inner2.length>=3
+        inner2=chamfer_polygon(inner2,[@cfg['width']/25.4*0.2,2.0/25.4].min) if @cfg['corner']=='chamfer'
         inner=inner2.map{|x,y| origin.offset(xaxis,x).offset(yaxis,y)}
         return nil unless inner.all?{|p| [Sketchup::Face::PointInside,Sketchup::Face::PointOnEdge].include?(face.classify_point(p))}
         outer_world=pts.map{|p| p.transform(tr)}
         inner_world=inner.map{|p| p.transform(tr)}
-        band=[]
-        pts.each_with_index do |p,i|
-          j=(i+1)%pts.length
-          band.concat([p.transform(tr),pts[j].transform(tr),inner[j].transform(tr),inner[i].transform(tr)])
-        end
-        {face:face,transform:tr,outer:outer_world,inner:inner_world,band:band,local_inner:inner,normal:normal}
+        {face:face,transform:tr,outer:outer_world,inner:inner_world,local_inner:inner,normal:normal}
       rescue StandardError
         nil
       end
@@ -189,6 +183,19 @@ module TranTuanNoiThat
         end
         return nil if result.each_with_index.any?{|p,i| Math.hypot(p[0]-result[(i+1)%result.length][0],p[1]-result[(i+1)%result.length][1])<0.001}
         result
+      end
+      def chamfer_polygon(poly,d)
+        return poly if d<=0.0001
+        out=[]
+        poly.each_with_index do |p,i|
+          prev=poly[(i-1)%poly.length]; nxt=poly[(i+1)%poly.length]
+          v1=[prev[0]-p[0],prev[1]-p[1]]; v2=[nxt[0]-p[0],nxt[1]-p[1]]
+          l1=Math.hypot(v1[0],v1[1]); l2=Math.hypot(v2[0],v2[1])
+          return poly if [l1,l2].min<=d*2
+          out << [p[0]+v1[0]/l1*d,p[1]+v1[1]/l1*d]
+          out << [p[0]+v2[0]/l2*d,p[1]+v2[1]/l2*d]
+        end
+        out
       end
       def commit(c)
         model=Sketchup.active_model; face=c[:face]
