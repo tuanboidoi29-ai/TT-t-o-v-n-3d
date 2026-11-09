@@ -1,5 +1,5 @@
 # encoding: UTF-8
-# TT - ĐỤC KHUNG: preview biên dạng âm quanh Face và tạo hèm/rãnh chữ nhật.
+# TT - ĐỤC KHUNG: tạo biên dạng ABF thật bên trong Group/Component; không khoét sâu.
 require 'sketchup.rb'
 require 'json'
 
@@ -7,12 +7,12 @@ module TranTuanNoiThat
   module DucKhung
     extend self
     PREF = 'TT_DUC_KHUNG'.freeze
-    DEFAULTS = { 'profile_name'=>'Hèm kính', 'width'=>8.0, 'offset'=>12.0, 'depth'=>5.0, 'mode'=>'cut', 'corner'=>'square', 'color'=>'#18A957', 'tag'=>'ABF_Hem_kinh', 'instance'=>'Hem_kinh_01' }.freeze
+    DEFAULTS = { 'profile_name'=>'Hèm kính', 'width'=>8.0, 'offset'=>12.0, 'radius'=>3.0, 'corner'=>'round', 'color'=>'#18A957', 'tag'=>'ABF_Hem_kinh', 'instance'=>'ABF_Hem_kinh_01', 'simulate'=>true }.freeze
     PRESETS = {
-      'Hèm kính' => { 'width'=>8.0, 'offset'=>12.0, 'depth'=>5.0, 'corner'=>'square' },
-      'Rãnh U' => { 'width'=>6.0, 'offset'=>8.0, 'depth'=>4.0, 'corner'=>'square' },
-      'Rãnh rộng' => { 'width'=>12.0, 'offset'=>18.0, 'depth'=>6.0, 'corner'=>'square' },
-      'Khung vát góc' => { 'width'=>8.0, 'offset'=>12.0, 'depth'=>5.0, 'corner'=>'chamfer' }
+      'Hèm kính' => { 'width'=>8.0, 'offset'=>12.0, 'radius'=>3.0, 'corner'=>'round' },
+      'Rãnh U' => { 'width'=>6.0, 'offset'=>8.0, 'radius'=>2.0, 'corner'=>'square' },
+      'Rãnh rộng' => { 'width'=>12.0, 'offset'=>18.0, 'radius'=>4.0, 'corner'=>'round' },
+      'Khung vát góc' => { 'width'=>8.0, 'offset'=>12.0, 'radius'=>2.0, 'corner'=>'chamfer' }
     }.freeze
 
     def config
@@ -44,20 +44,20 @@ module TranTuanNoiThat
         button{border:0;border-radius:6px;padding:10px 12px;background:#16894b;color:white;font-weight:600;cursor:pointer}
         button.alt{background:#53635a}#msg{margin-top:10px;color:#12683a;min-height:18px}
         .hint{color:#66736b;font-size:12px;line-height:1.4}.swatch{height:24px;border-radius:5px;border:1px solid #ccd}
-        </style><body><h2>ĐỤC KHUNG — Biên dạng quanh Face</h2>
+        </style><body><h2>ĐỤC KHUNG — TẠO BIÊN DẠNG ABF</h2>
         <label>Thư viện biên dạng</label><select id="preset">#{options}<option value="custom">Biên dạng tùy chỉnh</option></select>
         <div class="grid"><div><label>Tên biên dạng</label><input id="name" value="#{cfg['profile_name']}"></div><div><label>Offset vào trong từ mép Face (mm)</label><input id="offset" type="number" min="0" max="500" step="0.5" value="#{cfg['offset']}"></div>
-        <div><label>Bề rộng hèm (mm)</label><input id="width" type="number" min="0.5" max="100" step="0.5" value="#{cfg['width']}"></div><div><label>Độ sâu hạ nền hèm (mm)</label><input id="depth" type="number" min="0.5" max="50" step="0.5" value="#{cfg['depth']}"></div>
-        <div><label>Kiểu tạo</label><select id="mode"><option value="cut">Đục khung thật</option><option value="boundary">Chỉ tạo đường biên</option></select></div><div><label>Kiểu góc</label><select id="corner"><option value="square">Góc vuông</option><option value="chamfer">Góc vát</option><option value="round">Góc bo cong</option></select></div>
-        <div><label>Tag / Layer (ABF_)</label><input id="tag" value="#{cfg['tag']}"></div><div><label>Tên Instance</label><input id="instance" value="#{cfg['instance']}"></div>
+        <div><label>Bề rộng biên dạng (mm)</label><input id="width" type="number" min="0.5" max="100" step="0.5" value="#{cfg['width']}"></div><div><label>Bán kính bo góc (mm)</label><input id="radius" type="number" min="0" max="100" step="0.5" value="#{cfg['radius']}"></div>
+        <div><label>Mô phỏng</label><select id="simulate"><option value="true">Bật mô phỏng</option><option value="false">Tắt mô phỏng</option></select></div><div><label>Kiểu góc</label><select id="corner"><option value="square">Góc vuông</option><option value="chamfer">Góc vát</option><option value="round">Góc bo cong</option></select></div>
+        <div><label>Tag / Layer (ABF_)</label><input id="tag" value="#{cfg['tag']}"></div><div><label>Tên Instance (tự thêm ABF_)</label><input id="instance" value="#{cfg['instance']}"></div>
         <div><label>Màu Preview</label><input id="color" type="color" value="#{cfg['color']}"></div><div><label>Thư viện đã lưu</label><select id="saved"><option value="">Chọn mẫu đã lưu</option></select></div></div>
-        <p class="hint">Rê chuột lên Face để xem trước. Chọn Đục khung thật để tạo hèm lõm dạng vòng; hoặc Chỉ tạo đường biên. Offset là khoảng cách đo vào trong từ mép Face đến mép ngoài của hèm; Bề rộng là bề dày vòng hèm; Độ sâu là chiều hạ nền. Hỗ trợ góc vuông, vát và bo cong.</p>
+        <p class="hint">Rê chuột lên Face bên trong Group/Component để mô phỏng. Xác nhận sẽ tạo các cạnh biên dạng thật ngay trong bộ chứa Face; không Push/Pull, không khoét sâu. Độ dày ván được nhận diện tự động khi có mặt đối song song.</p>
         <div class="bar"><button onclick="save()">Lưu biên dạng</button><button onclick="start()">Bắt đầu mô phỏng</button><button class="alt" onclick="closeDlg()">Đóng</button></div><div id="msg"></div>
         <script>
         const $=id=>document.getElementById(id);
-        function payload(){return {name:$('name').value,width:$('width').value,offset:$('offset').value,depth:$('depth').value,mode:$('mode').value,corner:$('corner').value,tag:$('tag').value,instance:$('instance').value,color:$('color').value};}
-        function apply(p){$('name').value=p.name||'';$('width').value=p.width||8;$('offset').value=p.offset||12;$('depth').value=p.depth||5;$('mode').value=p.mode||'cut';$('corner').value=p.corner||'square';$('tag').value=p.tag||'ABF_Hem_kinh';$('instance').value=p.instance||'Hem_kinh_01';$('color').value=p.color||'#18a957';}
-        $('preset').onchange=()=>{const p=#{JSON.generate(PRESETS)}[$('preset').value];if(p){$('width').value=p.width;$('offset').value=p.offset;$('depth').value=p.depth;$('corner').value=p.corner;$('name').value=$('preset').value;}};
+        function payload(){return {name:$('name').value,width:$('width').value,offset:$('offset').value,radius:$('radius').value,corner:$('corner').value,tag:$('tag').value,instance:$('instance').value,color:$('color').value,simulate:$('simulate').value};}
+        function apply(p){$('name').value=p.name||'';$('width').value=p.width||8;$('offset').value=p.offset||12;$('radius').value=p.radius||3;$('corner').value=p.corner||'round';$('tag').value=p.tag||'ABF_Hem_kinh';$('instance').value=p.instance||'ABF_Hem_kinh_01';$('color').value=p.color||'#18a957';$('simulate').value=String(p.simulate!==false);}
+        $('preset').onchange=()=>{const p=#{JSON.generate(PRESETS)}[$('preset').value];if(p){$('width').value=p.width;$('offset').value=p.offset;$('radius').value=p.radius;$('corner').value=p.corner;$('name').value=$('preset').value;}};
         function refresh(){ $('saved').innerHTML='<option value="">Chọn mẫu đã lưu</option>'; const a=#{JSON.generate(library)};a.forEach((p,i)=>{let o=document.createElement('option');o.value=i;o.textContent=p.name;$('saved').appendChild(o);});}
         $('saved').onchange=()=>{const a=#{JSON.generate(library)};if(a[$('saved').value])apply(a[$('saved').value]);};
         function save(){sketchup.save_profile(JSON.stringify(payload()));}
@@ -76,16 +76,16 @@ module TranTuanNoiThat
     end
     def normalize(raw)
       p = raw.is_a?(String) ? JSON.parse(raw) : raw
-      width = Float(p['width']); offset = Float(p.fetch('offset',12)); depth = Float(p['depth'])
+      width = Float(p['width']); offset = Float(p.fetch('offset',12)); radius = Float(p.fetch('radius',3))
       raise 'Bề rộng hèm phải từ 0.5 đến 100 mm.' unless width.between?(0.5,100)
       raise 'Offset phải từ 0 đến 500 mm.' unless offset.between?(0,500)
-      raise 'Chiều sâu phải từ 0.5 đến 50 mm.' unless depth.between?(0.5,50)
+      raise 'Bán kính bo góc phải từ 0 đến 100 mm.' unless radius.between?(0,100)
       tag = p['tag'].to_s.strip
       tag = "ABF_#{tag}" unless tag.start_with?('ABF_')
       raise 'Hãy nhập tên Tag/Layer.' if tag == 'ABF_'
       { 'name'=>p['name'].to_s.strip.empty? ? 'Biên dạng mới' : p['name'].to_s.strip,
-        'width'=>width,'offset'=>offset,'depth'=>depth,'mode'=>p['mode'].to_s=='boundary' ? 'boundary' : 'cut','corner'=>%w[square chamfer round].include?(p['corner'].to_s) ? p['corner'].to_s : 'square',
-        'tag'=>tag,'instance'=>p['instance'].to_s.strip.empty? ? 'Duc_Khung' : p['instance'].to_s.strip,
+        'width'=>width,'offset'=>offset,'radius'=>radius,'corner'=>%w[square chamfer round].include?(p['corner'].to_s) ? p['corner'].to_s : 'round',
+        'tag'=>tag,'instance'=>(p['instance'].to_s.strip.empty? ? 'ABF_Bien_Dang' : (p['instance'].to_s.strip.start_with?('ABF_') ? p['instance'].to_s.strip : "ABF_#{p['instance'].to_s.strip}")), 'simulate'=>p['simulate'].to_s!='false',
         'color'=>p['color'].to_s.match?(/\A#[0-9a-fA-F]{6}\z/) ? p['color'] : '#18A957' }
     end
     def persist(p)
@@ -122,13 +122,13 @@ module TranTuanNoiThat
             @candidate=candidate; break
           end
         end
-        view.tooltip=@candidate ? "ĐỤC KHUNG #{@cfg['name']} · offset #{@cfg['offset']} · rộng #{@cfg['width']} · sâu #{@cfg['depth']} mm" : 'Chọn Face phẳng, khép kín'
+        view.tooltip=@candidate ? "ABF #{@cfg['name']} · dày ván #{@candidate[:thickness]} mm · offset #{@cfg['offset']} · rộng #{@cfg['width']} mm" : 'Chọn Face trong Group/Component'
         view.invalidate
       rescue StandardError=>e
         @candidate=nil; puts "[TT DucKhung hover] #{e.class}: #{e.message}"; view.invalidate
       end
       def draw(view)
-        return unless @candidate
+        return unless @candidate && @cfg['simulate']
         pts=@candidate[:groove_outer]; inner=@candidate[:groove_inner]
         c=@cfg['color']; rgb=[c[1,2].to_i(16),c[3,2].to_i(16),c[5,2].to_i(16)]
         view.drawing_color=Sketchup::Color.new(*rgb,210)
@@ -162,7 +162,7 @@ module TranTuanNoiThat
           outer2=chamfer_polygon(outer2,[@cfg['width']/25.4*0.2,2.0/25.4].min)
           inner2=chamfer_polygon(inner2,[@cfg['width']/25.4*0.2,2.0/25.4].min)
         elsif @cfg['corner']=='round'
-          radius=[@cfg['width']/25.4*0.35,3.0/25.4].min
+          radius=@cfg['radius']/25.4
           outer2=round_polygon(outer2,radius); inner2=round_polygon(inner2,radius)
         end
         groove_outer=outer2.map{|x,y| origin.offset(xaxis,x).offset(yaxis,y)}
@@ -172,7 +172,7 @@ module TranTuanNoiThat
         outer_world=pts.map{|p| p.transform(tr)}
         groove_outer_world=groove_outer.map{|p| p.transform(tr)}
         groove_inner_world=groove_inner.map{|p| p.transform(tr)}
-        {face:face,transform:tr,outer:outer_world,inner:groove_inner_world,groove_outer:groove_outer_world,groove_inner:groove_inner_world,local_outer:groove_outer,local_inner:groove_inner,normal:normal}
+        {face:face,transform:tr,outer:outer_world,inner:groove_inner_world,groove_outer:groove_outer_world,groove_inner:groove_inner_world,local_outer:groove_outer,local_inner:groove_inner,normal:normal,thickness:detect_thickness(face)}
       rescue StandardError
         nil
       end
@@ -226,55 +226,45 @@ module TranTuanNoiThat
         end
         out
       end
-      def commit(c)
-        model=Sketchup.active_model; face=c[:face]
-        raise 'Face đã thay đổi hoặc bị xóa.' unless face.valid?
+      def detect_thickness(face)
         parent=face.parent
-        ents = if parent.respond_to?(:add_face) && parent.respond_to?(:add_edges)
-          parent
-        elsif parent.respond_to?(:entities)
-          parent.entities
-        elsif parent.is_a?(Sketchup::Model)
-          parent.entities
+        ents=parent.respond_to?(:grep) ? parent : (parent.respond_to?(:entities) ? parent.entities : nil)
+        return 0.0 unless ents
+        n=face.normal
+        base=face.vertices.map(&:position).map{|pt| pt.dot(n)}.sum / face.vertices.length
+        candidates=ents.grep(Sketchup::Face).select{|f| f.valid? && f!=face && f.normal.parallel?(n)}
+        distances=candidates.map{|f| f.vertices.map(&:position).map{|pt| (pt.dot(n)-base).abs}.min}.select{|d| d>0.01}
+        distances.empty? ? 0.0 : (distances.min*25.4).round(2)
+      rescue StandardError
+        0.0
+      end
+      def commit(c)
+        model=Sketchup.active_model
+        face=c[:face]
+        raise 'Face đã thay đổi hoặc bị xóa.' unless face && face.valid?
+        parent=face.parent
+        ents=parent.respond_to?(:add_edges) ? parent : (parent.respond_to?(:entities) ? parent.entities : nil)
+        raise 'Không xác định được bộ chứa Face. Hãy mở Group/Component để chỉnh sửa rồi thử lại.' unless ents && ents.respond_to?(:add_edges)
+        definition=parent if parent.respond_to?(:instances)
+        if definition && definition.instances.length>1
+          raise 'Component đang dùng chung nhiều bản sao. Hãy Make Unique trước khi tạo biên dạng.'
         end
-        raise 'Không xác định được bộ chứa hình học của Face. Hãy thoát khỏi chế độ chỉnh sửa lồng nhau rồi thử lại.' unless ents && ents.respond_to?(:add_face) && ents.respond_to?(:add_edges)
-        model.start_operation('ĐỤC KHUNG',true)
-        before_entities=ents.to_a
-        layer_name=@cfg['tag']
-        layer=model.layers[layer_name] || model.layers.add(layer_name)
-        material_name="TT_DUC_KHUNG_#{@cfg['name'].gsub(/[^A-Za-z0-9_]/,'_')}"
-        material=model.materials[material_name] || model.materials.add(material_name)
-        color=@cfg['color']
-        material.color=Sketchup::Color.new(color[1,2].to_i(16),color[3,2].to_i(16),color[5,2].to_i(16))
-        points_outer=c[:local_outer]
-        points_inner=c[:local_inner]
-        if @cfg['mode']=='boundary'
-          ents.add_edges(points_outer + [points_outer.first])
-          ents.add_edges(points_inner + [points_inner.first])
-        else
-          outer_face=ents.add_face(points_outer)
-          raise 'Không tạo được biên ngoài của hèm.' unless outer_face && outer_face.valid?
-          outer_face.reverse! if outer_face.normal.dot(face.normal)<0
-          inner_face=ents.add_face(points_inner)
-          raise 'Không tạo được biên trong. Offset hoặc bề rộng hèm quá lớn.' unless inner_face && inner_face.valid?
-          sample=points_outer[0].lerp(points_inner[0],0.5)
-          ring_face=ents.grep(Sketchup::Face).select do |f|
-            f.valid? && f.normal.parallel?(face.normal) && [Sketchup::Face::PointInside,Sketchup::Face::PointOnEdge].include?(f.classify_point(sample))
-          end.min_by(&:area)
-          raise 'Không xác định được mặt vòng hèm để hạ nền. Hãy giảm offset/bề rộng hoặc chọn Face đơn giản hơn.' unless ring_face
-          ring_face.reverse! if ring_face.normal.dot(face.normal)<0
-          ring_face.pushpull(-(@cfg['depth']/25.4),false)
-        end
-        created=ents.to_a-before_entities
-        created.each do |entity|
-          next unless entity.valid? && (entity.is_a?(Sketchup::Face)||entity.is_a?(Sketchup::Edge))
-          entity.layer=layer
-          entity.material=material if entity.is_a?(Sketchup::Face)
-          entity.set_attribute(PREF,'profile_name',@cfg['name'])
-          entity.set_attribute(PREF,'instance_name',@cfg['instance'])
+        model.start_operation('TẠO BIÊN DẠNG ABF',true)
+        tag_name=@cfg['tag'].to_s.start_with?('ABF_') ? @cfg['tag'] : "ABF_#{@cfg['tag']}"
+        layer=model.layers[tag_name] || model.layers.add(tag_name)
+        outer=ents.add_edges(c[:local_outer]+[c[:local_outer].first])
+        inner=ents.add_edges(c[:local_inner]+[c[:local_inner].first])
+        raise 'Không tạo được đường biên dạng. Hãy giảm Offset/Bề rộng/Bán kính.' if outer.nil? || inner.nil? || outer.empty? || inner.empty?
+        (outer+inner).uniq.each do |edge|
+          next unless edge.valid?
+          edge.layer=layer
+          edge.set_attribute(PREF,'profile_name',@cfg['name'])
+          edge.set_attribute(PREF,'instance_name',@cfg['instance'])
+          edge.set_attribute(PREF,'board_thickness_mm',c[:thickness])
+          edge.set_attribute(PREF,'corner_radius_mm',@cfg['radius'])
         end
         model.commit_operation
-        UI.messagebox("Đã tạo ĐỤC KHUNG: #{@cfg['name']}\nTag: #{layer_name}\nInstance: #{@cfg['instance']}\nLưu ý: kiểm tra kết quả Solid và Undo nếu mặt nằm trên khối phức tạp.")
+        UI.messagebox("Đã tạo biên dạng ABF: #{@cfg['name']}\\nInstance: #{@cfg['instance']}\\nTag: #{tag_name}\\nĐộ dày nhận diện: #{c[:thickness]} mm\\nKhông khoét sâu.")
       rescue StandardError
         model.abort_operation if model && model.respond_to?(:abort_operation)
         raise
