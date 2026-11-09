@@ -45,15 +45,31 @@ module TranTuanNoiThat
       end
     end
 
+    def collect_edges(entities, transform, output)
+      entities.each do |entity|
+        if entity.is_a?(Sketchup::Edge)
+          a = entity.start.position.transform(transform)
+          b = entity.end.position.transform(transform)
+          output << [a, b]
+        elsif entity.is_a?(Sketchup::Group)
+          collect_edges(entity.entities, transform * entity.transformation, output)
+        elsif entity.is_a?(Sketchup::ComponentInstance)
+          collect_edges(entity.definition.entities, transform * entity.transformation, output)
+        end
+      end
+    end
+
     def selected_geometry(model)
       roots = model.selection.to_a.select { |entity| entity.is_a?(Sketchup::Group) || entity.is_a?(Sketchup::ComponentInstance) }
       raise 'Hãy chọn ít nhất một Group hoặc Component chứa chi tiết gia công.' if roots.empty?
 
       faces = []
+      raw_edges = []
       roots.each do |root|
         found = []
         entities = root.is_a?(Sketchup::Group) ? root.entities : root.definition.entities
         collect_faces(entities, root.transformation, found)
+        collect_edges(entities, root.transformation, raw_edges)
         raise "Không tìm thấy mặt phẳng ngang hợp lệ trong: #{root.name}." if found.empty?
         found.each do |z, loops|
           faces << { z: z, loops: loops, name: (root.name.to_s.empty? ? root.definition.name : root.name.to_s) }
@@ -73,6 +89,12 @@ module TranTuanNoiThat
       min_y = origin_points.map(&:y).min
       max_scan_x = all_points.map(&:x).max
       max_scan_y = all_points.map(&:y).max
+      scan_edges = raw_edges.map do |a, b|
+        [
+          [mm(a.x - min_x), mm(a.y - min_y), mm(a.z - top_z)],
+          [mm(b.x - min_x), mm(b.y - min_y), mm(b.z - top_z)]
+        ]
+      end
       scan_profiles = faces.flat_map do |face|
         face[:loops].filter_map do |points|
           next if points.length < 3
@@ -86,6 +108,7 @@ module TranTuanNoiThat
       {
         tool_contours: tool_contours,
         scan_profiles: scan_profiles,
+        scan_edges: scan_edges,
         scan_width: mm(max_scan_x - min_x),
         scan_height: mm(max_scan_y - min_y),
         scan_depth: mm(top_z - all_points.map(&:z).min),
@@ -274,6 +297,12 @@ module TranTuanNoiThat
           // Wireframe stock envelope based on the scanned selection.
           const box=[[0,0,0],[stockX,0,0],[stockX,stockY,0],[0,stockY,0],[0,0,zmin],[stockX,0,zmin],[stockX,stockY,zmin],[0,stockY,zmin]];
           [[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]].forEach(([a,b])=>line3(box[a],box[b],'#9aaba0',1.2,[4,4]));
+          // All SketchUp edges from selected Groups/Components, including vertical and curved-part facets.
+          (DATA.scan_edges||[]).forEach(edge=>{
+            const a=map(project3d(edge[0][0],edge[0][1],edge[0][2]));
+            const b=map(project3d(edge[1][0],edge[1][1],edge[1][2]));
+            ctx3d.strokeStyle='#a8b6ad';ctx3d.lineWidth=0.9;ctx3d.beginPath();ctx3d.moveTo(a[0],a[1]);ctx3d.lineTo(b[0],b[1]);ctx3d.stroke();
+          });
           // Every horizontal profile detected in the selected Groups/Components.
           all.forEach(profile=>{
             const pts=profile.points;
@@ -347,6 +376,7 @@ module TranTuanNoiThat
       geometry = selected_geometry(model)
       @contours = geometry[:tool_contours]
       @scan_profiles = geometry[:scan_profiles]
+      @scan_edges = geometry[:scan_edges]
       @scan_face_count = geometry[:scan_face_count]
       @scan_depth = geometry[:scan_depth]
       @scan_width = geometry[:scan_width]
@@ -360,6 +390,7 @@ module TranTuanNoiThat
         contours: @contours.length,
         gcode_text: preview_gcode,
         scan_profiles: geometry[:scan_profiles],
+        scan_edges: geometry[:scan_edges],
         scan_face_count: geometry[:scan_face_count],
         scan_width: geometry[:scan_width],
         scan_height: geometry[:scan_height],
@@ -380,6 +411,7 @@ module TranTuanNoiThat
           sim_data = simulation_moves(@contours, new_cfg)
           sim_data[:gcode_text] = gcode(@contours, new_cfg)[0]
           sim_data[:scan_profiles] = @scan_profiles
+          sim_data[:scan_edges] = @scan_edges
           sim_data[:scan_face_count] = @scan_face_count
           sim_data[:scan_depth] = @scan_depth
           sim_data[:scan_width] = @scan_width
