@@ -229,8 +229,15 @@ module TranTuanNoiThat
       def commit(c)
         model=Sketchup.active_model; face=c[:face]
         raise 'Face đã thay đổi hoặc bị xóa.' unless face.valid?
-        ents=face.parent
-        raise 'Không xác định được bộ chứa hình học.' unless ents.respond_to?(:add_face)
+        parent=face.parent
+        ents = if parent.respond_to?(:add_face) && parent.respond_to?(:add_edges)
+          parent
+        elsif parent.respond_to?(:entities)
+          parent.entities
+        elsif parent.is_a?(Sketchup::Model)
+          parent.entities
+        end
+        raise 'Không xác định được bộ chứa hình học của Face. Hãy thoát khỏi chế độ chỉnh sửa lồng nhau rồi thử lại.' unless ents && ents.respond_to?(:add_face) && ents.respond_to?(:add_edges)
         model.start_operation('ĐỤC KHUNG',true)
         before_entities=ents.to_a
         layer_name=@cfg['tag']
