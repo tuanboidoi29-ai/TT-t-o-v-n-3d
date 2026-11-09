@@ -109,7 +109,36 @@ module TranTuanNoiThat
           moves << { type: 'rapid', z: cfg['safe_z'], x: xy[0][0], y: xy[0][1] }
         end
       end
-      { moves: moves, length: mm(points.map(&:x).max - min_x), width: mm(points.map(&:y).max - min_y), passes: passes }
+      cut_length = 0.0
+      rapid_length = 0.0
+      plunge_distance = 0.0
+      previous = nil
+      moves.each do |move|
+        if previous
+          dx = move[:x].to_f - previous[:x].to_f
+          dy = move[:y].to_f - previous[:y].to_f
+          distance = Math.sqrt(dx * dx + dy * dy)
+          cut_length += distance if move[:type] == 'cut'
+          rapid_length += distance if move[:type] == 'rapid'
+        end
+        plunge_distance += move[:z].to_f.abs if move[:type] == 'plunge'
+        previous = move
+      end
+      {
+        moves: moves,
+        length: mm(points.map(&:x).max - min_x),
+        width: mm(points.map(&:y).max - min_y),
+        passes: passes,
+        metrics: {
+          contour_count: contours.length,
+          vertex_count: contours.inject(0) { |sum, contour| sum + contour.length },
+          cut_length: cut_length,
+          rapid_length: rapid_length,
+          plunge_distance: plunge_distance,
+          rapid_count: moves.count { |move| move[:type] == 'rapid' },
+          linear_count: moves.count { |move| move[:type] == 'cut' || move[:type] == 'plunge' }
+        }
+      }
     end
 
     def html
@@ -133,6 +162,7 @@ module TranTuanNoiThat
         button.secondary{background:#e5eee8;color:#245437}button.export{background:#174f9b}button:disabled{opacity:.45;cursor:not-allowed}
         input[type=range]{padding:0}#status{font-size:11px;color:#516257;margin-top:8px;min-height:15px}
         .warning{background:#fff5df;border:1px solid #efd69c;border-radius:6px;padding:9px;margin-top:10px;color:#76521a;font-size:11px;line-height:1.45}
+        #ncpreview{width:100%;height:230px;margin-top:8px;padding:10px;border:1px solid #cbd8cf;border-radius:6px;background:#101a14;color:#d7f4df;font:11px/1.5 Consolas,monospace;white-space:pre;overflow:auto;resize:vertical}
         .legend{display:flex;gap:12px;font-size:10px;color:#607066;margin-top:7px}.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px}
         @media(max-width:720px){.wrap{grid-template-columns:1fr}canvas{height:270px}}
         </style></head><body>
@@ -162,12 +192,21 @@ module TranTuanNoiThat
               <div class="stat"><small>LỆNH CHUYỂN ĐỘNG</small><b id="count">-</b></div>
               <div class="stat"><small>ĐỘ SÂU HIỆN TẠI</small><b id="znow">-</b></div>
             </div>
+            <div class="stats">
+              <div class="stat"><small>ĐƯỜNG CẮT XY</small><b id="cutlength">-</b></div>
+              <div class="stat"><small>CHẠY NHANH XY</small><b id="raplength">-</b></div>
+              <div class="stat"><small>HÀNH TRÌNH XUỐNG Z</small><b id="plungelength">-</b></div>
+              <div class="stat"><small>ĐIỂM BIÊN 2D</small><b id="vertices">-</b></div>
+            </div>
             <input id="progress" type="range" min="0" max="1" value="0">
             <div class="controls">
               <button id="play">▶ Chạy mô phỏng</button><button id="pause" class="secondary">Ⅱ Tạm dừng</button>
               <button id="reset" class="secondary">↺ Chạy lại</button><button id="rebuild" class="secondary">Cập nhật mô phỏng</button>
               <button id="export" class="export">Xuất tệp .NC</button>
             </div><div id="status">Đang nạp dữ liệu hình học…</div>
+            <h3 style="margin-top:15px">CHI TIẾT G-CODE SẼ XUẤT</h3>
+            <div class="hint">Nội dung bên dưới được tạo từ cùng dữ liệu đường chạy dao đang mô phỏng. Có thể rà soát từng lệnh G00/G01, tọa độ X/Y/Z và tốc độ F trước khi lưu .NC.</div>
+            <textarea id="ncpreview" readonly spellcheck="false"></textarea>
           </section>
         </div>
         <script>
@@ -197,7 +236,15 @@ module TranTuanNoiThat
           $('progress').max=Math.max(moves.length-1,1);$('progress').value=index;
           $('status').textContent='Tiến trình: '+(moves.length?Math.round(index/Math.max(moves.length-1,1)*100):0)+'% · Bước '+(index+1)+'/'+moves.length;
         }
-        window.loadSimulation=function(sim){DATA.moves=sim.moves;DATA.length=sim.length;DATA.width=sim.width;DATA.passes=sim.passes;moves=sim.moves;index=0;$('size').textContent=sim.length.toFixed(1)+' × '+sim.width.toFixed(1)+' mm';$('passes').textContent=sim.passes.length;$('count').textContent=moves.length;draw();$('status').textContent='Đã cập nhật đường chạy dao. Chạy mô phỏng lại để kiểm tra.';};
+        function renderDetails(sim){
+          const m=sim.metrics||{};
+          $('cutlength').textContent=Number(m.cut_length||0).toFixed(1)+' mm';
+          $('raplength').textContent=Number(m.rapid_length||0).toFixed(1)+' mm';
+          $('plungelength').textContent=Number(m.plunge_distance||0).toFixed(1)+' mm';
+          $('vertices').textContent=Number(m.vertex_count||0);
+          $('ncpreview').value=sim.gcode_text||'Chưa có dữ liệu G-code.';
+        }
+        window.loadSimulation=function(sim){DATA.moves=sim.moves;DATA.length=sim.length;DATA.width=sim.width;DATA.passes=sim.passes;moves=sim.moves;index=0;$('size').textContent=sim.length.toFixed(1)+' × '+sim.width.toFixed(1)+' mm';$('passes').textContent=sim.passes.length;$('count').textContent=moves.length;renderDetails(sim);draw();$('status').textContent='Đã cập nhật đường chạy dao và nội dung G-code. Chạy mô phỏng lại để kiểm tra.';};
         function play(){if(!moves.length)return;stop();if(index>=moves.length-1)index=0;timer=setInterval(()=>{index=Math.min(index+1,moves.length-1);draw();if(index>=moves.length-1)stop()},35)}
         function rebuild(){stop();send('update_config',cfg())}
         $('play').onclick=play;$('pause').onclick=stop;$('reset').onclick=()=>{stop();index=0;draw()};
@@ -207,7 +254,7 @@ module TranTuanNoiThat
         ids.forEach(k=>$(k).value=DATA.config[k]);
         $('size').textContent=DATA.length.toFixed(1)+' × '+DATA.width.toFixed(1)+' mm';
         $('passes').textContent=DATA.passes.length;$('count').textContent=moves.length;
-        draw();$('status').textContent='Đã nạp '+DATA.contours+' đường bao. Chạy mô phỏng để kiểm tra trình tự.';
+        renderDetails(DATA);draw();$('status').textContent='Đã nạp '+DATA.contours+' đường bao. Chạy mô phỏng để kiểm tra trình tự.';
         </script></body></html>
       HTML
     end
@@ -218,7 +265,8 @@ module TranTuanNoiThat
       @dialog.close if @dialog && @dialog.visible?
       cfg = default_config
       sim = simulation_moves(@contours, cfg)
-      payload = sim.merge(config: cfg, contours: @contours.length)
+      preview_gcode = gcode(@contours, cfg)[0]
+      payload = sim.merge(config: cfg, contours: @contours.length, gcode_text: preview_gcode)
       @dialog = UI::HtmlDialog.new(
         dialog_title: 'TRẦN TUẤN - CNC NCStudio',
         preferences_key: 'TranTuanNoiThat_GCode_NCStudio',
@@ -230,6 +278,7 @@ module TranTuanNoiThat
         begin
           new_cfg = validate_config(JSON.parse(json))
           sim_data = simulation_moves(@contours, new_cfg)
+          sim_data[:gcode_text] = gcode(@contours, new_cfg)[0]
           @dialog.execute_script("window.loadSimulation(#{JSON.generate(sim_data)})") if @dialog
         rescue StandardError => error
           UI.messagebox("Thông số chưa hợp lệ: #{error.message}")
@@ -265,7 +314,7 @@ module TranTuanNoiThat
       lines = []
       lines << '(TRẦN TUẤN - NCStudio)'
       lines << '(G54: bottom-left | X: length | Y: width | Z: negative)'
-      lines << '(UNITS: mm | ABSOLUTE | TOOLPATH: CONTOUR CENTERLINE - NO TOOL RADIUS COMPENSATION)'
+      lines << '(UNITS: mm | ABSOLUTE | TOOLPATH: 2D CONTOUR CENTERLINE - NO TOOL RADIUS COMPENSATION)'
       lines << 'G21'
       lines << 'G17'
       lines << 'G90'
@@ -281,9 +330,16 @@ module TranTuanNoiThat
         depth += cfg['stepdown']
       end
       passes << cfg['depth']
-      contours.each do |contour|
+      contours.each_with_index do |contour, contour_index|
         xy = contour.map { |p| [mm(p.x - min_x), mm(p.y - min_y)] }
         next if xy.length < 3
+        perimeter = xy.each_with_index.inject(0.0) do |sum, (point, index)|
+          following = xy[(index + 1) % xy.length]
+          dx = following[0] - point[0]
+          dy = following[1] - point[1]
+          sum + Math.sqrt(dx * dx + dy * dy)
+        end
+        lines << "(CONTOUR #{contour_index + 1} | POINTS #{xy.length} | PERIMETER #{format('%.3f', perimeter)} MM)"
         passes.each do |cut_depth|
           lines << "(PASS Z-#{format('%.3f', cut_depth)})"
           lines << "G00 Z#{format('%.3f', cfg['safe_z'])}"
@@ -297,7 +353,7 @@ module TranTuanNoiThat
         end
       end
       lines << 'M05'
-      lines << 'G00 Z20.000'
+      lines << "G00 Z#{format('%.3f', cfg['safe_z'])}"
       lines << 'M30'
       [lines.join("\n") + "\n", mm(max_x - min_x), mm(max_y - min_y), passes.length]
     end
