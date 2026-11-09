@@ -27,7 +27,10 @@ jobs:
           require 'digest'
           root = 'tran_tuan_noi_that_free'
           manifest = JSON.parse(File.read(File.join(root, 'update_latest.json')))
-          raise 'manifest version mismatch' unless manifest['version'] == '1.9.311'
+          version = manifest.fetch('version').to_s
+          raise 'invalid manifest version' unless version.match?(/^[0-9]+[.][0-9]+[.][0-9]+$/)
+          raise 'bootstrap version mismatch' unless File.read(File.join(root, 'files/tran_tuan_noi_that/bootstrap.rb')).include?("VERSION = '#{version}'")
+          raise 'extension version mismatch' unless File.read(File.join(root, 'files/TranTuanNoiThat.rb')).include?("ext.version = '#{version}'")
           raise 'manifest edition mismatch' unless manifest['edition'] == 'no_license' && manifest['license_required'] == false
           required = %w[TranTuanNoiThat.rb TT_TranTuan_UpdateLoader.rb tran_tuan_noi_that/bootstrap.rb tran_tuan_noi_that/settings.rb tran_tuan_noi_that/updater.rb tran_tuan_noi_that/layout_stats_v110_layout_only_dim_dedupe.rb]
           entries = Array(manifest['files']).to_h { |item| [item['path'], item] }
@@ -40,7 +43,9 @@ jobs:
             expected_url = "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/#{root}/files/#{path}"
             raise "manifest URL mismatch #{path}" unless item['url'] == expected_url
           end
-          puts 'FREE 1.9.311 UPDATE MANIFEST OK'
+          raise 'G-code module missing from manifest' unless entries.key?('tran_tuan_noi_that/gcode_export_tool.rb')
+          raise 'G-code icon missing from manifest' unless entries.key?('tran_tuan_noi_that/icons/gcode_export.svg')
+          puts "FREE #{version} UPDATE MANIFEST OK (#{entries.length} files)"
           RUBY
           test ! -e tran_tuan_noi_that_free/files/tran_tuan_noi_that/cabinet_door_tool.rb
           test ! -e tran_tuan_noi_that_free/files/tran_tuan_noi_that/icons/cabinet_door.svg
@@ -49,9 +54,9 @@ jobs:
           test ! -e tran_tuan_noi_that_free/tests/vector_cnc_test.rb
           ! grep -Fq "install_vector_cnc_ui" tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb
           ! grep -Eq "^[[:space:]]*vector_cnc_tool[[:space:]]*$" tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb
-          grep -Fq "VERSION = '1.9.311'" tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb
+          grep -Fq "gcode_export_tool" tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb
           grep -Fq "VERSION = '1.9.146'" tran_tuan_noi_that_free/files/tran_tuan_noi_that/tam_pro.rb
-          grep -Fq "ext.version = '1.9.311'" tran_tuan_noi_that_free/files/TranTuanNoiThat.rb
+          grep -Fq "install_gcode_export_ui" tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb
           ruby tran_tuan_noi_that_free/tests/layout_fast_pages_test.rb
           # Legacy slat-wall / LED / contact geometry scripts depend on an outdated
           # SketchUp mock API and include retired tools; they are not release gates.
