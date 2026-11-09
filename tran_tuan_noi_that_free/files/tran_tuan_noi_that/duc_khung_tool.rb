@@ -58,7 +58,7 @@ module TranTuanNoiThat
         function payload(){return {name:$('name').value,width:$('width').value,offset:$('offset').value,offset_direction:$('offset_direction').value,radius:$('radius').value,corner:$('corner').value,tag:$('tag').value,instance:$('instance').value,color:$('color').value,simulate:$('simulate').value};}
         function apply(p){$('name').value=p.name||'';$('width').value=p.width||8;$('offset').value=p.offset||12;$('offset_direction').value=p.offset_direction||'inside';$('radius').value=p.radius||3;$('corner').value=p.corner||'round';$('tag').value=p.tag||'ABF_Hem_kinh';$('instance').value=p.instance||'ABF_Hem_kinh_01';$('color').value=p.color||'#18a957';$('simulate').value=String(p.simulate!==false);}
         $('preset').onchange=()=>{const p=#{JSON.generate(PRESETS)}[$('preset').value];if(p){$('width').value=p.width;$('offset').value=p.offset;$('radius').value=p.radius;$('corner').value=p.corner;$('name').value=$('preset').value;}};
-        function refresh(){ $('saved').innerHTML='<option value="">Chọn mẫu đã lưu</option>'; const a=#{JSON.generate(library)};a.forEach((p,i)=>{let o=document.createElement('option');o.value=i;o.textContent=p.name;$('saved').appendChild(o);});}
+        function refresh(list){ $('saved').innerHTML='<option value="">Chọn mẫu đã lưu</option>'; const a=list||#{JSON.generate(library)};a.forEach((p,i)=>{let o=document.createElement('option');o.value=i;o.textContent=p.name;$('saved').appendChild(o);});}
         $('saved').onchange=()=>{const a=#{JSON.generate(library)};if(a[$('saved').value])apply(a[$('saved').value]);};
         function save(){sketchup.save_profile(JSON.stringify(payload()));}
         function start(){sketchup.start_tool(JSON.stringify(payload()));}
@@ -93,7 +93,7 @@ module TranTuanNoiThat
     end
     def save_profile(raw)
       p=normalize(raw); persist(p); save_library(p)
-      @dialog.execute_script("document.getElementById('msg').textContent='Đã lưu biên dạng: '+#{JSON.generate(p['name'])}; refresh(); document.getElementById('saved').value=String(document.getElementById('saved').options.length-1);")
+      @dialog.execute_script("document.getElementById('msg').textContent='Đã lưu biên dạng: '+#{JSON.generate(p['name'])}; refresh(#{JSON.generate(library)}); document.getElementById('saved').value=String(document.getElementById('saved').options.length-1);")
     rescue StandardError=>e
       @dialog.execute_script("document.getElementById('msg').textContent=#{JSON.generate(e.message)};")
     end
