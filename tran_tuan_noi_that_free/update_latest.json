@@ -1,6 +1,6 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.325",
+  "version": "1.9.326",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "282262e3ddb4cfc4a073e4b425e9c7051ea4102f35caff481bf7b10bb0e9f0e1"
+      "sha256": "26fb3c62f8db89d93f6657fcf6ed9037f8566fc12f507a552926da631f98f56a"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -319,7 +319,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "7087a73f17291d17ea476e9c21a5432598416c767635dc7fcba99e802001bb76"
+      "sha256": "fd19e0b647414fec07aa1123faf41336a66c3b776b322e4e2e615a577f5a86c8"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -474,7 +474,7 @@
     {
       "path": "tran_tuan_noi_that/duc_khung_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/duc_khung_tool.rb",
-      "sha256": "0db44b9f0aa271b2fb522f6888c146c243e4efdc25738da8a2ff59c7d7c7a894"
+      "sha256": "19358fcd9e3843c744662ebea9dd52d6d678798c8c7e0594a8ab209a3a1b6bf5"
     },
     {
       "path": "tran_tuan_noi_that/icons/duc_khung.svg",
@@ -495,5 +495,5 @@
     "tran_tuan_noi_that/cnc_profile_tool.rb",
     "tran_tuan_noi_that/icons/cnc_profile.svg"
   ],
-  "release_notes": "1.9.325: Sửa lỗi khiến preview đường biên ĐỤC KHUNG không hiện do biến tọa độ trong bị tham chiếu sai; làm rõ offset đo vào trong Face. Giữ tùy chọn đục khung thật/chỉ tạo đường biên, góc vuông/vát/bo cong, rộng hèm và độ sâu hạ nền."
+  "release_notes": "1.9.326: Fix xác định bộ chứa hình học khi Face nằm trong Group/Component hoặc Model; tạo đường biên/đục hèm trong đúng Entities của Face."
 }
