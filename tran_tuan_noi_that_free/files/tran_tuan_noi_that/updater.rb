@@ -21,6 +21,10 @@ module TranTuanNoiThat
       return false if @busy
       @busy = true
       begin
+        if TranTuanNoiThat.respond_to?(:restart_required?) && TranTuanNoiThat.restart_required?
+          UI.messagebox('Bản cập nhật đã được cài. Hãy đóng và mở lại SketchUp trước khi kiểm tra cập nhật lần nữa.') if interactive
+          return false
+        end
         manifest = fetch_manifest
         validate_manifest(manifest)
         latest = manifest.fetch('version')
@@ -211,36 +215,16 @@ module TranTuanNoiThat
           FileUtils.rm_rf(target)
         end
 
-        # Reload bootstrap too: its UI callbacks and version may have changed.
-        load(File.join(TranTuanNoiThat::ROOT, 'bootstrap.rb'))
-        actual_version = TranTuanNoiThat.current_version.to_s
-        expected_version = manifest['version'].to_s
-        unless actual_version == expected_version
-          raise "Phiên bản sau nạp không khớp: đang #{actual_version}, cần #{expected_version}."
-        end
-        runtime_errors = TranTuanNoiThat.last_runtime_error.to_s if TranTuanNoiThat.respond_to?(:last_runtime_error)
-        unless runtime_errors.to_s.empty?
-          raise "Bản cập nhật đã nạp nhưng có mô-đun lỗi, hủy cập nhật để bảo toàn hệ thống:\\n#{runtime_errors}"
-        end
+        # Không hot-reload Ruby trong phiên SketchUp đang chạy.
+        # Các dialog/tool đang mở có thể giữ callback và constant cũ; chỉ nạp sau khi khởi động lại.
+        verify_release_version(manifest, stage)
         TranTuanNoiThat.save_setting('installed_version', manifest['version'])
-        TranTuanNoiThat::Settings.sync if defined?(TranTuanNoiThat::Settings) && TranTuanNoiThat::Settings.instance_variable_get(:@dialog)
-        retired = !Array(manifest['remove_files']).empty? || !Array(manifest['remove_dirs']).empty?
-        restart_needed =
-          TranTuanNoiThat.respond_to?(:restart_required?) &&
-          TranTuanNoiThat.restart_required?
-
-        extra =
-          if restart_needed
-            "\n\nTệp mới đã được giữ. Hãy ĐÓNG SketchUp và MỞ LẠI một lần để nạp sạch hệ thống."
-          elsif retired
-            "\nĐã xóa sạch tính năng cũ. Hãy đóng và mở lại SketchUp để toolbar làm sạch hoàn toàn."
-          else
-            ''
-          end
-
+        TranTuanNoiThat.instance_variable_set(:@restart_required, true)
         UI.messagebox(
-          "Đã cập nhật #{manifest['version']} từ GitHub.\n" \
-          "Không yêu cầu kích hoạt bản quyền.#{extra}"
+          "Đã cập nhật an toàn phiên bản #{manifest['version']} từ GitHub.\n" \
+          "Tất cả tệp đã được xác minh SHA256 và lưu bản sao lưu.\n\n" \
+          "Hãy ĐÓNG SketchUp và MỞ LẠI để nạp các mô-đun mới trong phiên sạch.\n" \
+          "Không cần gỡ plugin hoặc xóa dữ liệu."
         )
         true
       rescue StandardError, ScriptError => error
@@ -272,6 +256,21 @@ module TranTuanNoiThat
       ensure
         FileUtils.remove_entry(stage) if stage && File.directory?(stage)
       end
+    end
+
+    def verify_release_version(manifest, stage)
+      version = manifest.fetch('version').to_s
+      checks = {
+        'tran_tuan_noi_that/bootstrap.rb' => /VERSION\s*=\s*['"]#{Regexp.escape(version)}['"]/,
+        'TranTuanNoiThat.rb' => /ext\.version\s*=\s*['"]#{Regexp.escape(version)}['"]/
+      }
+      checks.each do |relative, pattern|
+        staged = File.join(stage, relative)
+        source = File.file?(staged) ? staged : install_path(relative)
+        raise "Thiếu tệp kiểm tra phiên bản #{relative}." unless File.file?(source)
+        raise "Phiên bản trong #{relative} không khớp #{version}." unless pattern.match?(File.read(source))
+      end
+      true
     end
 
     def normalize(version)
