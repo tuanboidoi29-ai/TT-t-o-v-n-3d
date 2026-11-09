@@ -203,7 +203,12 @@ module TranTuanNoiThat
 
         Array(manifest['remove_dirs']).each do |relative|
           target = remove_dir_path(relative)
-          FileUtils.rm_rf(target) if File.directory?(target)
+          next unless File.directory?(target)
+          backup = File.join(backup_root, relative)
+          FileUtils.mkdir_p(File.dirname(backup))
+          FileUtils.cp_r(target, backup)
+          backups << [target, backup, true, :directory]
+          FileUtils.rm_rf(target)
         end
 
         # Reload bootstrap too: its UI callbacks and version may have changed.
@@ -212,6 +217,10 @@ module TranTuanNoiThat
         expected_version = manifest['version'].to_s
         unless actual_version == expected_version
           raise "Phiên bản sau nạp không khớp: đang #{actual_version}, cần #{expected_version}."
+        end
+        runtime_errors = TranTuanNoiThat.last_runtime_error.to_s if TranTuanNoiThat.respond_to?(:last_runtime_error)
+        unless runtime_errors.to_s.empty?
+          raise "Bản cập nhật đã nạp nhưng có mô-đun lỗi, hủy cập nhật để bảo toàn hệ thống:\\n#{runtime_errors}"
         end
         TranTuanNoiThat.save_setting('installed_version', manifest['version'])
         TranTuanNoiThat::Settings.sync if defined?(TranTuanNoiThat::Settings) && TranTuanNoiThat::Settings.instance_variable_get(:@dialog)
@@ -236,11 +245,19 @@ module TranTuanNoiThat
         true
       rescue StandardError, ScriptError => error
         rollback_errors = []
-        backups.reverse_each do |target, backup, existed|
+        backups.reverse_each do |target, backup, existed, kind|
           begin
-            existed ? FileUtils.cp(backup, target) : FileUtils.rm_f(target)
+            if kind == :directory
+              FileUtils.rm_rf(target)
+              if existed && File.directory?(backup)
+                FileUtils.mkdir_p(File.dirname(target))
+                FileUtils.cp_r(backup, target)
+              end
+            else
+              existed ? FileUtils.cp(backup, target) : FileUtils.rm_f(target)
+            end
           rescue StandardError => rollback_error
-            rollback_errors << rollback_error.message
+            rollback_errors << "#{target}: #{rollback_error.message}"
           end
         end
         unless backups.empty?
@@ -330,7 +347,7 @@ module TranTuanNoiThat
       raise 'Máy chủ cập nhật không hợp lệ.' unless %w[raw.githubusercontent.com api.github.com].include?(uri.host)
 
       headers = {
-        'User-Agent' => 'TranTuanNoiThat-SketchUp/1.9.278',
+        'User-Agent' => 'TranTuanNoiThat-SketchUp/1.9.328',
         'Cache-Control' => 'no-cache, no-store, max-age=0',
         'Pragma' => 'no-cache'
       }
