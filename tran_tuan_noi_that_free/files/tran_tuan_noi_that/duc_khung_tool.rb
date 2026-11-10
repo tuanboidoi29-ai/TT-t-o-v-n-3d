@@ -26,7 +26,8 @@ module TranTuanNoiThat
       'Khung nổi nhiều cấp' => { 'width'=>18.0, 'offset'=>24.0, 'radius'=>3.0, 'corner'=>'round', 'tracks'=>[0.0,0.16,0.32,0.68,0.84,1.0] },
       'Khung tối giản' => { 'width'=>5.0, 'offset'=>8.0, 'radius'=>1.0, 'corner'=>'square', 'tracks'=>[0.0,1.0] }
     }.freeze
-\n    def config    def config
+
+    def config
       DEFAULTS.each_with_object({}) { |(k,v),h| h[k] = TranTuanNoiThat.setting("duc_khung_#{k}",v) }
     end
     def html_attr(value)
@@ -178,7 +179,8 @@ module TranTuanNoiThat
         view.drawing_color=Sketchup::Color.new(*rgb,210)
         view.line_width=3
         @candidate[:paths_world].each { |path| view.draw(GL_LINE_LOOP,path) }
-      end\n      def onLButtonDown      def onLButtonDown(_flags,x,y,view)
+      end
+      def onLButtonDown      def onLButtonDown(_flags,x,y,view)
         onMouseMove(0,x,y,view)
         raise 'Hãy rê chuột lên một Face hợp lệ.' unless @candidate
         commit(@candidate)
