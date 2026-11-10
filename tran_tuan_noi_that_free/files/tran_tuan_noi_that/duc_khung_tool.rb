@@ -362,7 +362,7 @@ module TranTuanNoiThat
         end
         raise 'Không tạo được đường biên dạng. Hãy giảm Offset/Bề rộng/Bán kính.' if created_edges.any? { |edges| edges.nil? || edges.empty? }
         created_edges.flatten.uniq.each { |edge| edge.layer=layer if edge.valid? }
-        model.commit_operation        model.commit_operation
+        model.commit_operation
         UI.messagebox("Đã tạo biên dạng ABF: #{@cfg['name']}\\nInstance: #{@cfg['instance']}\\nTag: #{tag_name}\\nĐộ dày nhận diện: #{c[:thickness]} mm\\nKhông khoét sâu.")
       rescue StandardError
         model.abort_operation if model && model.respond_to?(:abort_operation)
