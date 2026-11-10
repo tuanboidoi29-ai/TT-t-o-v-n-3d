@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.336",
+  "version": "1.9.337",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "1.9.336: hoàn thiện nạp nóng sau cập nhật; trước khi reload sẽ đóng hộp thoại ĐỤC KHUNG và thoát Tool ĐỤC KHUNG đang hoạt động để tránh callback cũ. Giữ xác minh SHA256, sao lưu và rollback nếu nạp lỗi.",
+  "notes": "1.9.337: mở rộng thư viện ĐỤC KHUNG với 16 mẫu biên dạng có hình xem trước; chọn mẫu để mô phỏng trực tiếp và tạo đủ các đường biên thật trong Group/Component. Giữ thư viện mẫu tự lưu và nạp nóng sau cập nhật.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -319,7 +319,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "8d07e61bd9678934d9783e97768886216c885bcb2d349b42555e2f31eefb1507"
+      "sha256": "bfb1a8f59402fd7c62c609acd7b41f918abe2dd5ea687b51c3bfa669cc472ce2"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -474,7 +474,7 @@
     {
       "path": "tran_tuan_noi_that/duc_khung_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/duc_khung_tool.rb",
-      "sha256": "7d7e2c3a1301e300d8d4eb9feff9320ee6e6f35d62ccd7b283094919f0163cb0"
+      "sha256": "36cb0319eaa7d6973129ed2d29eecc92e713c3d42336685120bf609bd2311f96"
     },
     {
       "path": "tran_tuan_noi_that/icons/duc_khung.svg",
@@ -495,5 +495,5 @@
     "tran_tuan_noi_that/cnc_profile_tool.rb",
     "tran_tuan_noi_that/icons/cnc_profile.svg"
   ],
-  "release_notes": "1.9.330: Sửa đồng bộ thư viện biên dạng ABF: lưu mẫu mới và cập nhật ngay danh sách; hỗ trợ Offset vào trong/ra ngoài; đồng bộ bộ nạp và manifest."
+  "release_notes": "1.9.337: Thêm thư viện 16 biên dạng ĐỤC KHUNG có preview hình học; hỗ trợ mẫu nhiều đường chỉ, rãnh đôi/ba, khung cổ điển và nhiều cấp. Mẫu được dùng đồng nhất cho preview và Group ABF thật."
 }
