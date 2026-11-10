@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.335",
+  "version": "1.9.336",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "1.9.335: cập nhật GitHub được xác minh SHA256, sao lưu, nạp nóng bootstrap và toàn bộ module ngay trong phiên SketchUp hiện tại; kiểm tra lỗi sau nạp và khôi phục file cũ nếu nạp thất bại. Các lần cập nhật tiếp theo không yêu cầu khởi động lại.",
+  "notes": "1.9.336: hoàn thiện nạp nóng sau cập nhật; trước khi reload sẽ đóng hộp thoại ĐỤC KHUNG và thoát Tool ĐỤC KHUNG đang hoạt động để tránh callback cũ. Giữ xác minh SHA256, sao lưu và rollback nếu nạp lỗi.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "7f478220a9eef60ac78064945748d13ec1c115edd48adfc459adb224b1f49184"
+      "sha256": "4552e78e13c00d15093cfdb2ac9b774d2bb1c34b79c673dca815e0fc6b5ab47e"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -319,7 +319,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "9b2de9f8a6547a9c0a298f8de98c05847c6dd43a5d3be03a5535c0bab9c42305"
+      "sha256": "979f4d3f83f1d9c1ee12518286dfb36e5517297a8a12d90f97b14f4e86c767bc"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
