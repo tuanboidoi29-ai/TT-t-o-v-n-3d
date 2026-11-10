@@ -7,7 +7,7 @@ module TranTuanNoiThat
   module DucKhung
     extend self
     PREF = 'TT_DUC_KHUNG'.freeze
-    DEFAULTS = { 'profile_name'=>'Hèm kính', 'width'=>8.0, 'offset'=>12.0, 'radius'=>3.0, 'corner'=>'round', 'color'=>'#18A957', 'tag'=>'ABF_Hem_kinh', 'instance'=>'ABF_Hem_kinh_01', 'simulate'=>true, 'offset_direction'=>'inside' }.freeze
+    DEFAULTS = { 'profile_name'=>'Hèm kính', 'width'=>8.0, 'offset'=>12.0, 'radius'=>3.0, 'corner'=>'round', 'color'=>'#18A957', 'tag'=>'ABF_Hem_kinh', 'instance'=>'ABF_Hem_kinh_01', 'simulate'=>true, 'offset_direction'=>'inside', 'decorative_border'=>false, 'pattern_shape'=>'triangle', 'arrangement'=>'straight', 'symbol_size'=>8.0, 'symbol_spacing'=>24.0 }.freeze
     PRESETS = {
       'Hèm kính' => { 'width'=>8.0, 'offset'=>12.0, 'radius'=>3.0, 'corner'=>'round', 'tracks'=>[0.0,1.0] },
       'Rãnh U' => { 'width'=>6.0, 'offset'=>8.0, 'radius'=>2.0, 'corner'=>'square', 'tracks'=>[0.0,1.0] },
@@ -76,6 +76,12 @@ module TranTuanNoiThat
         </style><body><h2>ĐỤC KHUNG — THƯ VIỆN BIÊN DẠNG</h2>
         <p class="sub">Chọn mẫu bằng hình xem trước. Có 16 mẫu dựng sẵn và thư viện mẫu tự lưu.</p>
         <div class="gallery" id="gallery">#{gallery}</div>
+        <div class="section">Viền trang trí · Preview trực tiếp</div>
+        <label><input id="decorative_border" type="checkbox" style="width:auto"> Bật biên dạng viền trang trí</label>
+        <div style="background:#fff;border:1px solid #d6dfd9;border-radius:8px;padding:8px;margin:6px 0">
+          <svg id="livePreview" viewBox="0 0 320 150" style="width:100%;height:130px"><rect x="18" y="12" width="284" height="126" rx="8" fill="#f8faf8" stroke="#87958b"/><rect x="38" y="30" width="244" height="90" rx="4" fill="none" stroke="#16894b" stroke-width="2"/></svg>
+          <div class="hint" id="previewInfo">Xem trước mẫu viền đang chọn</div>
+        </div>
         <div class="section">Thông số mẫu đang chọn</div>
         <div class="grid">
           <div><label>Tên biên dạng</label><input id="name" value="#{html_attr(cfg['profile_name'])}"></div>
@@ -89,14 +95,20 @@ module TranTuanNoiThat
           <div><label>Tên Instance (tự thêm ABF_)</label><input id="instance" value="#{html_attr(cfg['instance'])}"></div>
           <div><label>Màu Preview</label><input id="color" type="color" value="#{cfg['color']}"></div>
           <div><label>Mẫu đã lưu</label><select id="saved"><option value="">Chọn mẫu đã lưu</option></select></div>
+          <div><label>Hình trang trí</label><select id="pattern_shape"><option value="triangle">Tam giác</option><option value="circle">Tròn</option><option value="square">Vuông</option><option value="diamond">Thoi</option><option value="dentil">Răng đinh</option><option value="semicircle">Nửa tròn</option><option value="zigzag">Zíc zắc</option></select></div>
+          <div><label>Cách sắp xếp</label><select id="arrangement"><option value="straight">Thẳng / đều</option><option value="staggered">So le</option><option value="random">Ngẫu nhiên</option><option value="symmetric">Đối xứng</option><option value="cycle">Theo chu kỳ</option></select></div>
+          <div><label>Kích thước hình (mm)</label><input id="symbol_size" type="number" min="1" max="100" step="0.5" value="8"></div>
+          <div><label>Khoảng cách hình (mm)</label><input id="symbol_spacing" type="number" min="2" max="300" step="1" value="24"></div>
         </div>
         <p class="hint">Preview trên Face hiển thị toàn bộ đường biên theo mẫu đã chọn. Click để tạo Group ABF thật bên trong bộ chứa Face; không Push/Pull, không khoét sâu.</p>
         <div class="bar"><button onclick="save()">Lưu biên dạng hiện tại</button><button onclick="start()">Bắt đầu mô phỏng trên Face</button><button class="alt" onclick="closeDlg()">Đóng</button></div><div id="msg"></div>
         <script>
         const $=id=>document.getElementById(id), PRESETS=#{presets_json};
         let selectedTracks=[0,1], savedProfiles=#{saved_profiles_json};
-        function payload(){return {name:$('name').value,width:$('width').value,offset:$('offset').value,offset_direction:$('offset_direction').value,radius:$('radius').value,corner:$('corner').value,tracks:selectedTracks,tag:$('tag').value,instance:$('instance').value,color:$('color').value,simulate:$('simulate').value};}
-        function apply(p){$('name').value=p.name||'';$('width').value=p.width||8;$('offset').value=p.offset||12;$('offset_direction').value=p.offset_direction||'inside';$('radius').value=p.radius||3;$('corner').value=p.corner||'round';$('tag').value=p.tag||'ABF_Hem_kinh';$('instance').value=p.instance||'ABF_Hem_kinh_01';$('color').value=p.color||'#18a957';$('simulate').value=String(p.simulate!==false);selectedTracks=Array.isArray(p.tracks)?p.tracks:[0,1];}
+        function payload(){return {name:$('name').value,width:$('width').value,offset:$('offset').value,offset_direction:$('offset_direction').value,radius:$('radius').value,corner:$('corner').value,tracks:selectedTracks,tag:$('tag').value,instance:$('instance').value,color:$('color').value,simulate:$('simulate').value,decorative_border:$('decorative_border').checked,pattern_shape:$('pattern_shape').value,arrangement:$('arrangement').value,symbol_size:$('symbol_size').value,symbol_spacing:$('symbol_spacing').value};}
+        function drawLive(){const svg=$('livePreview'),on=$('decorative_border').checked,shape=$('pattern_shape').value,sz=Math.max(2,Math.min(10,Number($('symbol_size').value)||8)),gap=Math.max(14,Math.min(42,(Number($('symbol_spacing').value)||24)*1.15));let a=['<rect x="18" y="12" width="284" height="126" rx="8" fill="#f8faf8" stroke="#87958b"/>','<rect x="38" y="30" width="244" height="90" rx="4" fill="none" stroke="#16894b" stroke-width="2"/>'];if(on){for(let x=45;x<=275;x+=gap){let y=22;if(shape==='circle')a.push('<circle cx="'+x+'" cy="'+y+'" r="'+sz/2+'" fill="#18a957"/>');else a.push('<polygon points="'+(x)+','+(y-sz)+' '+(x+sz)+','+(y+sz)+' '+(x-sz)+','+(y+sz)+'" fill="#18a957"/>');if(shape==='circle')a.push('<circle cx="'+x+'" cy="128" r="'+sz/2+'" fill="#18a957"/>');else a.push('<polygon points="'+x+', '+(128-sz)+' '+(x+sz)+', '+(128+sz)+' '+(x-sz)+', '+(128+sz)+'" fill="#18a957"/>');}for(let y=42;y<=112;y+=gap){a.push('<circle cx="28" cy="'+y+'" r="'+sz/2+'" fill="#18a957"/><circle cx="292" cy="'+y+'" r="'+sz/2+'" fill="#18a957"/>');}}svg.innerHTML=a.join('');$('previewInfo').textContent=on?'Đang bật viền trang trí · '+shape+' · '+$('arrangement').value+' · cỡ '+$('symbol_size').value+' mm · cách '+$('symbol_spacing').value+' mm · offset '+$('offset').value+' mm':'Đang tắt viền trang trí';}
+        ['decorative_border','pattern_shape','arrangement','symbol_size','symbol_spacing','offset','width'].forEach(id=>$(id).addEventListener('input',drawLive));
+        function apply(p){$('decorative_border').checked=p.decorative_border===true;$('pattern_shape').value=p.pattern_shape||'triangle';$('arrangement').value=p.arrangement||'straight';$('symbol_size').value=p.symbol_size||8;$('symbol_spacing').value=p.symbol_spacing||24;$('name').value=p.name||'';$('width').value=p.width||8;$('offset').value=p.offset||12;$('offset_direction').value=p.offset_direction||'inside';$('radius').value=p.radius||3;$('corner').value=p.corner||'round';$('tag').value=p.tag||'ABF_Hem_kinh';$('instance').value=p.instance||'ABF_Hem_kinh_01';$('color').value=p.color||'#18a957';$('simulate').value=String(p.simulate!==false);selectedTracks=Array.isArray(p.tracks)?p.tracks:[0,1];}
         function choose(name){const p=PRESETS[name];if(!p)return;apply(Object.assign({name:name},p));document.querySelectorAll('.profile-card').forEach(el=>el.classList.toggle('active',el.dataset.profile===name));}
         document.querySelectorAll('.profile-card').forEach(el=>el.addEventListener('click',()=>choose(el.dataset.profile)));
         function refresh(list){if(Array.isArray(list))savedProfiles=list;$('saved').innerHTML='<option value="">Chọn mẫu đã lưu</option>';savedProfiles.forEach((p,i)=>{let o=document.createElement('option');o.value=String(i);o.textContent=String(p.name||'Mẫu không tên');$('saved').appendChild(o);});}
@@ -105,7 +117,7 @@ module TranTuanNoiThat
         function save(){sketchup.save_profile(JSON.stringify(payload()));}
         function start(){sketchup.start_tool(JSON.stringify(payload()));}
         function closeDlg(){sketchup.close_dialog();}
-        refresh();choose(Object.keys(PRESETS)[0]);
+        refresh();choose(Object.keys(PRESETS)[0]);drawLive();
         </script></body></html>
       HTML
       @dialog.close if @dialog && @dialog.visible?
@@ -129,9 +141,14 @@ module TranTuanNoiThat
       tracks = [0.0,1.0] unless tracks.length.between?(2,8)
       tracks[0] = 0.0
       tracks[-1] = 1.0
+      symbol_size=Float(p.fetch('symbol_size',8)); symbol_spacing=Float(p.fetch('symbol_spacing',24))
+      raise 'Kích thước hình trang trí phải từ 1 đến 100 mm.' unless symbol_size.between?(1,100)
+      raise 'Khoảng cách hình phải từ 2 đến 300 mm.' unless symbol_spacing.between?(2,300)
+      pattern_shape=p.fetch('pattern_shape','triangle').to_s
+      arrangement=p.fetch('arrangement','straight').to_s
       { 'name'=>p['name'].to_s.strip.empty? ? 'Biên dạng mới' : p['name'].to_s.strip,
         'width'=>width,'offset'=>offset,'offset_direction'=>(%w[inside outside].include?(offset_direction) ? offset_direction : 'inside'),'radius'=>radius,'corner'=>%w[square chamfer round].include?(p['corner'].to_s) ? p['corner'].to_s : 'round',
-        'tracks'=>tracks,'tag'=>tag,'instance'=>(p['instance'].to_s.strip.empty? ? 'ABF_Bien_Dang' : (p['instance'].to_s.strip.start_with?('ABF_') ? p['instance'].to_s.strip : "ABF_#{p['instance'].to_s.strip}")), 'simulate'=>p['simulate'].to_s!='false',
+        'tracks'=>tracks,'decorative_border'=>p['decorative_border']==true || p['decorative_border'].to_s=='true','pattern_shape'=>(%w[triangle circle square diamond dentil semicircle zigzag].include?(pattern_shape) ? pattern_shape : 'triangle'),'arrangement'=>(%w[straight staggered random symmetric cycle].include?(arrangement) ? arrangement : 'straight'),'symbol_size'=>symbol_size,'symbol_spacing'=>symbol_spacing,'tag'=>tag,'instance'=>(p['instance'].to_s.strip.empty? ? 'ABF_Bien_Dang' : (p['instance'].to_s.strip.start_with?('ABF_') ? p['instance'].to_s.strip : "ABF_#{p['instance'].to_s.strip}")), 'simulate'=>p['simulate'].to_s!='false',
         'color'=>p['color'].to_s.match?(/\A#[0-9a-fA-F]{6}\z/) ? p['color'] : '#18A957' }
     end
     def persist(p)
@@ -213,12 +230,48 @@ module TranTuanNoiThat
           poly.map{|x,y| origin.offset(xaxis,x).offset(yaxis,y)}
         end
         return nil if paths.any?(&:nil?)
+        if @cfg['decorative_border']
+          center=offset_polygon(coords,offset_sign*(@cfg['offset']+@cfg['width']*0.5)/25.4)
+          return nil unless center
+          paths.concat(decorative_paths(center,@cfg['pattern_shape'],@cfg['symbol_size']/25.4,@cfg['symbol_spacing']/25.4,@cfg['arrangement']))
+        end
         return nil unless paths.all? { |path| path.all? { |point| [Sketchup::Face::PointInside,Sketchup::Face::PointOnEdge].include?(face.classify_point(point)) } }
         outer_world=pts.map{|p| p.transform(tr)}
         paths_world=paths.map{|path| path.map{|point| point.transform(tr)}}
         {face:face,transform:tr,outer:outer_world,paths_world:paths_world,local_paths:paths,normal:normal,thickness:detect_thickness(face)}
       rescue StandardError
         nil
+      end
+      def decorative_paths(poly,shape,size,spacing,arrangement)
+        lengths=[]; total=0.0
+        poly.each_with_index do |a,i|
+          b=poly[(i+1)%poly.length]; len=Math.hypot(b[0]-a[0],b[1]-a[1])
+          lengths << [total,len,a,b]; total+=len
+        end
+        return [] if total<=size*2 || spacing<=0
+        count=[[((total/spacing).floor),500].min,1].max
+        result=[]
+        count.times do |idx|
+          distance=case arrangement
+          when 'staggered' then (idx*spacing+(idx.odd? ? spacing*0.5 : 0.0))%total
+          when 'random' then ((idx*0.61803398875+((idx*37)%17)/17.0)*total)%total
+          when 'symmetric' then count<=1 ? total*0.5 : (idx.to_f/(count-1))*total
+          else idx*spacing
+          end
+          seg=lengths.find{|entry| distance>=entry[0] && distance<=entry[0]+entry[1]} || lengths.last
+          base,len,a,b=seg; next if len<size*1.4
+          t=[[((distance-base)/len),0.0].max,1.0].min
+          cx=a[0]+(b[0]-a[0])*t; cy=a[1]+(b[1]-a[1])*t
+          tx=(b[0]-a[0])/len; ty=(b[1]-a[1])/len; nx=-ty; ny=tx; radius=size*0.5
+          sides=shape=='circle' ? 12 : (shape=='triangle' ? 3 : 4)
+          pts=sides.times.map do |j|
+            angle=2.0*Math::PI*j/sides+(shape=='diamond' ? Math::PI/4.0 : 0.0)
+            along=Math.cos(angle)*radius; across=Math.sin(angle)*radius
+            [cx+tx*along+nx*across,cy+ty*along+ny*across]
+          end
+          result << pts
+        end
+        result
       end
       def offset_polygon(poly,d)
         area=poly.each_with_index.sum{|p,i| q=poly[(i+1)%poly.length];p[0]*q[1]-q[0]*p[1]} / 2.0
