@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.333",
+  "version": "1.9.334",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "1.9.333: sửa thứ tự nạp chuỗi Layout v0.5–v1.1; bảo đảm các hàm preview/stream/document được định nghĩa trước bản vá Layout-only và DIM dedupe.",
+  "notes": "1.9.334: sửa thư viện biên dạng ĐỤC KHUNG; chọn đúng mẫu vừa lưu, nạp danh sách mẫu cập nhật ngay, lọc dữ liệu thư viện không hợp lệ và an toàn hóa tên biên dạng/Tag/Instance.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "dadfe3362ad88d8ff3938516df0f6016f50116b31ea6981d4dedf3ad7c85d93a"
+      "sha256": "5af3a3e5222b2c32eab45b321a69039d084ee0ecf9aee05a8a528f3cb9ee0fbd"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -319,7 +319,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "9d4fe62e5df061a337887d3998ee45e3fb1136ac8bed634ab112b13e8499eb94"
+      "sha256": "662827d4393fa3ee84fa9bdb7543aa69134b2165c6014b9034362d875df7cf63"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -474,7 +474,7 @@
     {
       "path": "tran_tuan_noi_that/duc_khung_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/duc_khung_tool.rb",
-      "sha256": "6d9136c11162e55a24ad7c1b1f06a4ff1075346157543934c7e19fffe1b8dedd"
+      "sha256": "7d7e2c3a1301e300d8d4eb9feff9320ee6e6f35d62ccd7b283094919f0163cb0"
     },
     {
       "path": "tran_tuan_noi_that/icons/duc_khung.svg",
