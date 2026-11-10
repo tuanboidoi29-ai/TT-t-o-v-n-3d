@@ -21,10 +21,7 @@ module TranTuanNoiThat
       return false if @busy
       @busy = true
       begin
-        if TranTuanNoiThat.respond_to?(:restart_required?) && TranTuanNoiThat.restart_required?
-          UI.messagebox('Bản cập nhật đã được cài. Hãy đóng và mở lại SketchUp trước khi kiểm tra cập nhật lần nữa.') if interactive
-          return false
-        end
+        # 1.9.335: cập nhật được nạp nóng sau khi xác minh và thay file an toàn.
         manifest = fetch_manifest
         validate_manifest(manifest)
         latest = manifest.fetch('version')
@@ -215,16 +212,24 @@ module TranTuanNoiThat
           FileUtils.rm_rf(target)
         end
 
-        # Không hot-reload Ruby trong phiên SketchUp đang chạy.
-        # Các dialog/tool đang mở có thể giữ callback và constant cũ; chỉ nạp sau khi khởi động lại.
         verify_release_version(manifest, stage)
+
+        # Nạp nóng trong phiên hiện tại: bootstrap reset runtime cũ, load lại module
+        # theo thứ tự và đồng bộ menu/toolbar đang tồn tại.
+        load(File.join(TranTuanNoiThat::ROOT, 'bootstrap.rb'))
+        loaded_version = TranTuanNoiThat.current_version.to_s
+        raise "Bootstrap sau cập nhật đang ở #{loaded_version}, mong đợi #{manifest['version']}." unless loaded_version == manifest['version'].to_s
+        runtime_error = TranTuanNoiThat.last_runtime_error.to_s
+        raise "Nạp nóng gặp lỗi mô-đun: #{runtime_error}" unless runtime_error.empty?
+        raise 'Không nạp được module ĐỤC KHUNG.' unless TranTuanNoiThat.const_defined?(:DucKhung, false)
+        raise 'Không nạp được Updater mới.' unless TranTuanNoiThat.const_defined?(:Updater, false)
+
         TranTuanNoiThat.save_setting('installed_version', manifest['version'])
-        TranTuanNoiThat.instance_variable_set(:@restart_required, true)
+        TranTuanNoiThat.instance_variable_set(:@restart_required, false)
         UI.messagebox(
-          "Đã cập nhật an toàn phiên bản #{manifest['version']} từ GitHub.\n" \
-          "Tất cả tệp đã được xác minh SHA256 và lưu bản sao lưu.\n\n" \
-          "Hãy ĐÓNG SketchUp và MỞ LẠI để nạp các mô-đun mới trong phiên sạch.\n" \
-          "Không cần gỡ plugin hoặc xóa dữ liệu."
+          "Đã cập nhật và NẠP NGAY phiên bản #{manifest['version']} trong SketchUp đang mở.\n" \
+          "Đã xác minh SHA256, sao lưu bản cũ và nạp lại mô-đun/menu/toolbar.\n" \
+          "Không cần đóng SketchUp hoặc gỡ plugin."
         )
         true
       rescue StandardError, ScriptError => error
