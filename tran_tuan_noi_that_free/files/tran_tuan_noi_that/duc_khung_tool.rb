@@ -18,10 +18,13 @@ module TranTuanNoiThat
     def config
       DEFAULTS.each_with_object({}) { |(k,v),h| h[k] = TranTuanNoiThat.setting("duc_khung_#{k}",v) }
     end
+    def html_attr(value)
+      value.to_s.gsub('&', '&amp;').gsub('"', '&quot;').gsub('<', '&lt;').gsub('>', '&gt;')
+    end
     def library
       raw = TranTuanNoiThat.setting('duc_khung_library','[]').to_s
       data = JSON.parse(raw) rescue []
-      data.is_a?(Array) ? data : []
+      data.is_a?(Array) ? data.select { |item| item.is_a?(Hash) && !item['name'].to_s.strip.empty? } : []
     end
     def save_library(profile)
       list = library.reject { |p| p.is_a?(Hash) && p['name'].to_s == profile['name'].to_s }
@@ -33,6 +36,7 @@ module TranTuanNoiThat
     end
     def show_dialog
       cfg = config
+      saved_profiles_json = JSON.generate(library).gsub('</', '<\\/')
       presets = PRESETS.keys
       options = presets.map { |x| "<option>#{x}</option>" }.join
       html = <<~HTML
@@ -46,10 +50,10 @@ module TranTuanNoiThat
         .hint{color:#66736b;font-size:12px;line-height:1.4}.swatch{height:24px;border-radius:5px;border:1px solid #ccd}
         </style><body><h2>ĐỤC KHUNG — TẠO BIÊN DẠNG ABF</h2>
         <label>Thư viện biên dạng</label><select id="preset">#{options}<option value="custom">Biên dạng tùy chỉnh</option></select>
-        <div class="grid"><div><label>Tên biên dạng</label><input id="name" value="#{cfg['profile_name']}"></div><div><label>Offset từ mép Face (mm)</label><input id="offset" type="number" min="0" max="500" step="0.5" value="#{cfg['offset']}"></div>
+        <div class="grid"><div><label>Tên biên dạng</label><input id="name" value="#{html_attr(cfg['profile_name'])}"></div><div><label>Offset từ mép Face (mm)</label><input id="offset" type="number" min="0" max="500" step="0.5" value="#{cfg['offset']}"></div>
         <div><label>Hướng Offset</label><select id="offset_direction"><option value="inside">Vào trong Face</option><option value="outside">Ra ngoài Face</option></select></div><div><label>Bề rộng biên dạng (mm)</label><input id="width" type="number" min="0.5" max="100" step="0.5" value="#{cfg['width']}"></div><div><label>Bán kính bo góc (mm)</label><input id="radius" type="number" min="0" max="100" step="0.5" value="#{cfg['radius']}"></div>
         <div><label>Mô phỏng</label><select id="simulate"><option value="true">Bật mô phỏng</option><option value="false">Tắt mô phỏng</option></select></div><div><label>Kiểu góc</label><select id="corner"><option value="square">Góc vuông</option><option value="chamfer">Góc vát</option><option value="round">Góc bo cong</option></select></div>
-        <div><label>Tag / Layer (ABF_)</label><input id="tag" value="#{cfg['tag']}"></div><div><label>Tên Instance (tự thêm ABF_)</label><input id="instance" value="#{cfg['instance']}"></div>
+        <div><label>Tag / Layer (ABF_)</label><input id="tag" value="#{html_attr(cfg['tag'])}"></div><div><label>Tên Instance (tự thêm ABF_)</label><input id="instance" value="#{html_attr(cfg['instance'])}"></div>
         <div><label>Màu Preview</label><input id="color" type="color" value="#{cfg['color']}"></div><div><label>Thư viện đã lưu</label><select id="saved"><option value="">Chọn mẫu đã lưu</option></select></div></div>
         <p class="hint">Rê chuột lên Face bên trong Group/Component để mô phỏng. Xác nhận sẽ tạo các cạnh biên dạng thật ngay trong bộ chứa Face; không Push/Pull, không khoét sâu. Độ dày ván được nhận diện tự động khi có mặt đối song song.</p>
         <div class="bar"><button onclick="save()">Lưu biên dạng</button><button onclick="start()">Bắt đầu mô phỏng</button><button class="alt" onclick="closeDlg()">Đóng</button></div><div id="msg"></div>
@@ -58,8 +62,9 @@ module TranTuanNoiThat
         function payload(){return {name:$('name').value,width:$('width').value,offset:$('offset').value,offset_direction:$('offset_direction').value,radius:$('radius').value,corner:$('corner').value,tag:$('tag').value,instance:$('instance').value,color:$('color').value,simulate:$('simulate').value};}
         function apply(p){$('name').value=p.name||'';$('width').value=p.width||8;$('offset').value=p.offset||12;$('offset_direction').value=p.offset_direction||'inside';$('radius').value=p.radius||3;$('corner').value=p.corner||'round';$('tag').value=p.tag||'ABF_Hem_kinh';$('instance').value=p.instance||'ABF_Hem_kinh_01';$('color').value=p.color||'#18a957';$('simulate').value=String(p.simulate!==false);}
         $('preset').onchange=()=>{const p=#{JSON.generate(PRESETS)}[$('preset').value];if(p){$('width').value=p.width;$('offset').value=p.offset;$('radius').value=p.radius;$('corner').value=p.corner;$('name').value=$('preset').value;}};
-        function refresh(list){ $('saved').innerHTML='<option value="">Chọn mẫu đã lưu</option>'; const a=list||#{JSON.generate(library)};a.forEach((p,i)=>{let o=document.createElement('option');o.value=i;o.textContent=p.name;$('saved').appendChild(o);});}
-        $('saved').onchange=()=>{const a=#{JSON.generate(library)};if(a[$('saved').value])apply(a[$('saved').value]);};
+        let savedProfiles=#{saved_profiles_json};
+        function refresh(list){ if(Array.isArray(list)) savedProfiles=list; $('saved').innerHTML='<option value="">Chọn mẫu đã lưu</option>'; savedProfiles.forEach((p,i)=>{let o=document.createElement('option');o.value=String(i);o.textContent=String(p.name||'Mẫu không tên');$('saved').appendChild(o);});}
+        $('saved').onchange=()=>{const value=$('saved').value;if(value==='')return;const index=Number(value);if(Number.isInteger(index)&&savedProfiles[index])apply(savedProfiles[index]);};
         function save(){sketchup.save_profile(JSON.stringify(payload()));}
         function start(){sketchup.start_tool(JSON.stringify(payload()));}
         function closeDlg(){sketchup.close_dialog();}
