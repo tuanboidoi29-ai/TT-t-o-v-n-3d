@@ -1,6 +1,6 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.337",
+  "version": "1.9.338",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "c1a277ad1fc95409c1d14bd851106b0a537099470dbea75949e9b112fed3dd5f"
+      "sha256": "cbb3ca06fcee34a8d17a375bbecdd3c1a47a07e971483998f8c0073a6c30946d"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -319,7 +319,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "bfb1a8f59402fd7c62c609acd7b41f918abe2dd5ea687b51c3bfa669cc472ce2"
+      "sha256": "a52890fef59c51261b3a1837a52eeafe04d1c0ccb30fbfb788e37dbd3e2bcf23"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -474,7 +474,7 @@
     {
       "path": "tran_tuan_noi_that/duc_khung_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/duc_khung_tool.rb",
-      "sha256": "f8d3891a4280d378960433fe30470e62fef0649a7338df7322f236237fa108ac"
+      "sha256": "660f489ba9bfd3bdfb0afc22b6dc0837d508b5c59b47cc2911ac45567bc0641b"
     },
     {
       "path": "tran_tuan_noi_that/icons/duc_khung.svg",
@@ -495,5 +495,5 @@
     "tran_tuan_noi_that/cnc_profile_tool.rb",
     "tran_tuan_noi_that/icons/cnc_profile.svg"
   ],
-  "release_notes": "1.9.337: Thêm thư viện 16 biên dạng ĐỤC KHUNG có preview hình học; hỗ trợ mẫu nhiều đường chỉ, rãnh đôi/ba, khung cổ điển và nhiều cấp. Mẫu được dùng đồng nhất cho preview và Group ABF thật."
+  "release_notes": "1.9.338: Thêm chế độ bật/tắt VIỀN TRANG TRÍ trong ĐỤC KHUNG, Preview trong giao diện, tùy chỉnh hình họa tiết, cách bố trí, kích thước, khoảng cách và offset mép. Preview trên Face và tạo đường biên ABF thật trong Group."
 }
