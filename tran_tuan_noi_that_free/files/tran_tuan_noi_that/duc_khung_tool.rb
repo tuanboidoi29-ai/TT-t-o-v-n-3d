@@ -116,7 +116,7 @@ module TranTuanNoiThat
       @dialog.add_action_callback('close_dialog') { |_d| @dialog.close }
       @dialog.show
     end
-    def normalize(raw)    def normalize(raw)
+    def normalize(raw)
       p = raw.is_a?(String) ? JSON.parse(raw) : raw
       width = Float(p['width']); offset = Float(p.fetch('offset',12)); radius = Float(p.fetch('radius',3)); offset_direction = p.fetch('offset_direction','inside').to_s
       raise 'Bề rộng hèm phải từ 0.5 đến 100 mm.' unless width.between?(0.5,100)
@@ -134,7 +134,7 @@ module TranTuanNoiThat
         'tracks'=>tracks,'tag'=>tag,'instance'=>(p['instance'].to_s.strip.empty? ? 'ABF_Bien_Dang' : (p['instance'].to_s.strip.start_with?('ABF_') ? p['instance'].to_s.strip : "ABF_#{p['instance'].to_s.strip}")), 'simulate'=>p['simulate'].to_s!='false',
         'color'=>p['color'].to_s.match?(/\A#[0-9a-fA-F]{6}\z/) ? p['color'] : '#18A957' }
     end
-    def persist(p)    def persist(p)
+    def persist(p)
       p.each { |k,v| TranTuanNoiThat.save_setting("duc_khung_#{k}",v) }
     end
     def save_profile(raw)
@@ -180,7 +180,7 @@ module TranTuanNoiThat
         view.line_width=3
         @candidate[:paths_world].each { |path| view.draw(GL_LINE_LOOP,path) }
       end
-      def onLButtonDown      def onLButtonDown(_flags,x,y,view)
+      def onLButtonDown(_flags,x,y,view)
         onMouseMove(0,x,y,view)
         raise 'Hãy rê chuột lên một Face hợp lệ.' unless @candidate
         commit(@candidate)
@@ -220,7 +220,7 @@ module TranTuanNoiThat
       rescue StandardError
         nil
       end
-      def offset_polygon(poly,d)      def offset_polygon(poly,d)
+      def offset_polygon(poly,d)
         area=poly.each_with_index.sum{|p,i| q=poly[(i+1)%poly.length];p[0]*q[1]-q[0]*p[1]} / 2.0
         return nil if area.abs<1e-8
         sign=area>0 ? 1.0 : -1.0
