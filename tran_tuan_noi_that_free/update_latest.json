@@ -1,6 +1,6 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.338",
+  "version": "1.9.339",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
@@ -474,7 +474,7 @@
     {
       "path": "tran_tuan_noi_that/duc_khung_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/duc_khung_tool.rb",
-      "sha256": "660f489ba9bfd3bdfb0afc22b6dc0837d508b5c59b47cc2911ac45567bc0641b"
+      "sha256": "c61f4cb1be38a23b4f029c855e72d31bc9d7cf9ba6e45b96e0654adf7522d74a"
     },
     {
       "path": "tran_tuan_noi_that/icons/duc_khung.svg",
@@ -495,5 +495,5 @@
     "tran_tuan_noi_that/cnc_profile_tool.rb",
     "tran_tuan_noi_that/icons/cnc_profile.svg"
   ],
-  "release_notes": "1.9.338: Thêm chế độ bật/tắt VIỀN TRANG TRÍ trong ĐỤC KHUNG, Preview trong giao diện, tùy chỉnh hình họa tiết, cách bố trí, kích thước, khoảng cách và offset mép. Preview trên Face và tạo đường biên ABF thật trong Group."
+  "release_notes": "1.9.339: Hoàn thiện quy trình cập nhật VIỀN TRANG TRÍ ĐỤC KHUNG; đồng bộ manifest SHA256 và sửa thao tác commit Undo để không commit operation hai lần."
 }
