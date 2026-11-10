@@ -18,7 +18,7 @@ module TranTuanNoiThat
   }.freeze unless const_defined?(:LOCKED_FEATURE_BASELINES, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.332'.freeze
+  VERSION = '1.9.333'.freeze
 
   class << self
     def setting(key, default = nil)
@@ -208,6 +208,13 @@ module TranTuanNoiThat
         layout_stats_v030_patch
         layout_stats_v040_compat
         layout_stats_v040_patch
+        layout_stats_v050_stable_preview
+        layout_stats_v060_compact_scope
+        layout_stats_v070_export_split
+        layout_stats_v080_five_pages
+        layout_stats_v081_cut_offset_fix
+        layout_stats_v090_technical_dim
+        layout_stats_v101_fast_pages
         layout_stats_v110_layout_only_dim_dedupe
         settings
         grain_board_auto
