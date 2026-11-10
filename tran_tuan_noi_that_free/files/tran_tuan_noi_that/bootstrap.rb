@@ -18,7 +18,7 @@ module TranTuanNoiThat
   }.freeze unless const_defined?(:LOCKED_FEATURE_BASELINES, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.335'.freeze
+  VERSION = '1.9.336'.freeze
 
   class << self
     def setting(key, default = nil)
@@ -159,6 +159,17 @@ module TranTuanNoiThat
       safe_cleanup('Dọn dữ liệu kệ rượu cũ') { cleanup_retired_wine_rack_data }
       safe_cleanup('Đóng CAD Walls') do
         CadWalls.close if const_defined?(:CadWalls, false) && CadWalls.respond_to?(:close)
+      end
+      safe_cleanup('Đóng hộp thoại ĐỤC KHUNG') do
+        if const_defined?(:DucKhung, false)
+          dialog = DucKhung.instance_variable_get(:@dialog)
+          dialog.close if dialog && dialog.respond_to?(:close)
+          model = Sketchup.active_model
+          active_tool = model.tools.active_tool if model && model.respond_to?(:tools) && model.tools.respond_to?(:active_tool)
+          if active_tool && DucKhung.const_defined?(:Tool, false) && active_tool.is_a?(DucKhung.const_get(:Tool))
+            model.select_tool(nil)
+          end
+        end
       end
       safe_cleanup('Dọn công cụ LED/liên hệ cũ') { cleanup_retired_led_contact }
       if const_defined?(:TamPro, false)
