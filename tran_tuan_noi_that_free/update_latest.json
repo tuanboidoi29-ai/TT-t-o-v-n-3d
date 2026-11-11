@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.339",
+  "version": "1.9.340",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "1.9.337: mở rộng thư viện ĐỤC KHUNG với 16 mẫu biên dạng có hình xem trước; chọn mẫu để mô phỏng trực tiếp và tạo đủ các đường biên thật trong Group/Component. Giữ thư viện mẫu tự lưu và nạp nóng sau cập nhật.",
+  "notes": "1.9.340: đổi tên chức năng thành BIÊN DẠNG MẪU; bổ sung thư viện viền tròn đều, bán nguyệt, cánh hoa, hạt ngọc và sóng tròn; giữ mẫu khung và biên dạng tự lưu.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "5f455bdce441024908de3e4a10f0063909ff676dec11c09208429af1e91efdcd"
+      "sha256": "cd3d4d1ae6ad613cfdf8c2186572f16e4f9611ba15e2d3edeee29a4f386ad5b3"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -474,7 +474,7 @@
     {
       "path": "tran_tuan_noi_that/duc_khung_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/duc_khung_tool.rb",
-      "sha256": "c61f4cb1be38a23b4f029c855e72d31bc9d7cf9ba6e45b96e0654adf7522d74a"
+      "sha256": "d99ae50e3819384135ed4817e03f34cc3abc6ce1be165ab3c328560b43344c42"
     },
     {
       "path": "tran_tuan_noi_that/icons/duc_khung.svg",
