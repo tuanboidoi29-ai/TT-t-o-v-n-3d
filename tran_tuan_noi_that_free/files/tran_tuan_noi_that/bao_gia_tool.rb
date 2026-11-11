@@ -30,7 +30,7 @@ module TranTuanNoiThat
   module BaoGiaTool
     extend self
 
-    VERSION = '1.9.315'.freeze
+    VERSION = '1.9.341'.freeze
     ROOT = File.join(TranTuanNoiThat::ROOT, 'data', 'bao_gia').freeze
 
     DEFAULT_DVT = [
@@ -99,6 +99,24 @@ module TranTuanNoiThat
     def bank
       value = read_json('ngan_hang.json', {})
       value.is_a?(Hash) ? value : {}
+    end
+
+    def product_prices
+      value = read_json('gia_san_pham.json', [])
+      value.is_a?(Array) ? value.select { |item| item.is_a?(Hash) } : []
+    end
+
+    def save_product_prices(text)
+      values = JSON.parse(text.to_s)
+      values = [] unless values.is_a?(Array)
+      values = values.map do |item|
+        item = {} unless item.is_a?(Hash)
+        { 'ten' => item['ten'].to_s.strip, 'gia' => item['gia'].to_s.strip, 'dvt' => item['dvt'].to_s.strip }
+      end.reject { |item| item['ten'].empty? }
+      write_json('gia_san_pham.json', values)
+    rescue StandardError => error
+      UI.messagebox("Lỗi lưu giá sản phẩm:\\n#{error.message}")
+      false
     end
 
     def num(value)
@@ -325,13 +343,6 @@ module TranTuanNoiThat
             <td class="photo-cell">#{image_html}</td>
             <td>#{safe(row['hang_muc'])}</td>
             <td>#{detail_html}</td>
-            <td>#{safe(row['dvt'])}</td>
-            <td>#{safe(row['dai'])}</td>
-            <td>#{safe(row['rong'])}</td>
-            <td>#{safe(row['cao'])}</td>
-            <td>#{safe(row['so_luong'])}</td>
-            <td>#{detail_count} dòng</td>
-            <td>#{money(row['don_gia'])}</td>
             <td>#{money(total_amount)}</td>
           </tr>
         ROW
@@ -375,7 +386,7 @@ module TranTuanNoiThat
         <p><b>Khách hàng:</b> #{safe(data['khach_hang'])} &nbsp; <b>Điện thoại:</b> #{safe(data['dien_thoai'])}</p>
         <p><b>Địa chỉ:</b> #{safe(data['dia_chi'])}</p>
         <table>
-          <tr><th>STT</th><th>Ảnh</th><th>Hạng mục</th><th>Mô tả</th><th>ĐVT</th><th>Dài</th><th>Rộng</th><th>Cao</th><th>SL</th><th>Số dòng</th><th>Đơn giá</th><th>Thành tiền</th></tr>
+          <tr><th>STT</th><th>Ảnh</th><th>Hạng mục</th><th>Mô tả chi tiết / Đơn giá / Thành tiền</th><th>Thành tiền hạng mục</th></tr>
           #{rows}
         </table>
         <div class="sum">
@@ -511,6 +522,7 @@ module TranTuanNoiThat
       @dialog.add_action_callback('bg_open') { |_ctx| open_quote(@dialog) }
       @dialog.add_action_callback('bg_bank') { |_ctx, payload| save_bank(payload) }
       @dialog.add_action_callback('bg_dvt') { |_ctx, payload| save_dvt(payload) }
+      @dialog.add_action_callback('bg_products') { |_ctx| open_product_prices }
       @dialog.add_action_callback('bg_qr') { |_ctx, url| open_qr(url) }
       @dialog.add_action_callback('bg_pdf') { |_ctx, payload| export_pdf(payload) }
       @dialog.add_action_callback('bg_zalo') { |_ctx, payload| share_zalo(payload) }
@@ -521,6 +533,58 @@ module TranTuanNoiThat
       @dialog.center
     rescue StandardError => error
       UI.messagebox("Không mở được Bảng Báo Giá:\n#{error.message}")
+    end
+
+    def open_product_prices
+      if @product_dialog && @product_dialog.visible?
+        @product_dialog.bring_to_front
+        return
+      end
+      @product_dialog = UI::HtmlDialog.new(
+        dialog_title: 'TRẦN TUẤN - Lưu giá sản phẩm',
+        preferences_key: 'TranTuanNoiThat.BaoGia.ProductPrices',
+        scrollable: true, resizable: true, width: 560, height: 620,
+        style: UI::HtmlDialog::STYLE_DIALOG
+      )
+      @product_dialog.add_action_callback('bg_products_save') { |_ctx, payload| save_product_prices(payload) }
+      @product_dialog.add_action_callback('bg_products_apply') do |_ctx, payload|
+        @dialog.execute_script("window.TT_BG_APPLY_PRODUCT(#{JSON.generate(JSON.parse(payload.to_s))});") if @dialog
+      rescue StandardError => error
+        UI.messagebox("Không áp dụng được sản phẩm:\\n#{error.message}")
+      end
+      @product_dialog.set_html(product_dialog_html)
+      @product_dialog.set_on_closed { @product_dialog = nil }
+      @product_dialog.show
+      @product_dialog.center
+    rescue StandardError => error
+      UI.messagebox("Không mở được thư viện giá sản phẩm:\\n#{error.message}")
+    end
+
+    def product_dialog_html
+      products = JSON.generate(product_prices).gsub('</', '<\\/')
+      <<~'HTML'.sub('__PRODUCTS__', products)
+        <!doctype html><html lang="vi"><head><meta charset="utf-8"><style>
+        *{box-sizing:border-box}body{margin:0;padding:14px;background:#eef2f5;font:14px Arial;color:#222}
+        .head,.card{background:white;border-radius:10px;padding:14px;margin-bottom:12px}.head{background:#111827;color:white}
+        h3{margin:0 0 8px}.bar{display:flex;gap:7px;flex-wrap:wrap;margin:10px 0}
+        button{border:0;border-radius:6px;padding:9px 12px;font-weight:bold;cursor:pointer}
+        .blue{background:#1d4ed8;color:white}.green{background:#166534;color:white}.red{background:#b42318;color:white}
+        table{width:100%;border-collapse:collapse}th,td{padding:6px;border:1px solid #bbb}th{background:#eee}
+        input{width:100%;padding:8px;border:1px solid #bbb;border-radius:5px}.status{font-size:12px;color:#166534}
+        </style></head><body>
+        <div class="head"><h3>THƯ VIỆN GIÁ SẢN PHẨM</h3><small>Tên sản phẩm · Giá · Đơn vị tính</small></div>
+        <div class="card"><div class="bar"><button class="blue" id="add">＋ THÊM SẢN PHẨM</button><button class="green" id="save">💾 LƯU THƯ VIỆN</button></div>
+        <table><thead><tr><th>Tên sản phẩm</th><th>Giá</th><th>Đơn vị tính</th><th>Thao tác</th></tr></thead><tbody id="items"></tbody></table>
+        <p class="status" id="status">Bấm DÙNG để đưa sản phẩm vào dòng đang chọn trong bảng báo giá.</p></div>
+        <script>(function(){var products=__PRODUCTS__;function $(id){return document.getElementById(id);}
+        function draw(){var body=$('items');body.innerHTML='';products.forEach(function(p,i){var tr=document.createElement('tr');
+        function cell(k,ph){var td=document.createElement('td'),x=document.createElement('input');x.value=p[k]||'';x.placeholder=ph;x.oninput=function(){p[k]=x.value;};td.appendChild(x);tr.appendChild(td);}
+        cell('ten','Tên sản phẩm');cell('gia','Đơn giá');cell('dvt','ĐVT');
+        var td=document.createElement('td'),use=document.createElement('button');use.className='blue';use.textContent='DÙNG';use.onclick=function(){sketchup.bg_products_apply(JSON.stringify(p));};
+        var del=document.createElement('button');del.className='red';del.textContent='X';del.onclick=function(){products.splice(i,1);draw();};td.appendChild(use);td.appendChild(del);tr.appendChild(td);body.appendChild(tr);});}
+        $('add').onclick=function(){products.push({ten:'',gia:'0',dvt:'Cái'});draw();};
+        $('save').onclick=function(){sketchup.bg_products_save(JSON.stringify(products));$('status').textContent='Đã gửi lưu thư viện.';};draw();})();</script></body></html>
+      HTML
     end
 
     def dialog_html
@@ -577,6 +641,7 @@ module TranTuanNoiThat
           <div class="card">
             <div class="bar">
               <button id="add" class="dark">＋ THÊM HẠNG MỤC</button>
+              <button id="products" class="green">▤ GIÁ SẢN PHẨM</button>
               <button id="save" class="blue">💾 LƯU</button>
               <button id="open" class="gray">📂 MỞ</button>
               <button id="pdf" class="green">📄 XUẤT PDF</button>
@@ -584,7 +649,7 @@ module TranTuanNoiThat
             </div>
             <div class="tablebox"><table>
               <thead><tr>
-                <th>STT</th><th>Ảnh</th><th>Hạng mục</th><th>Mô tả chi tiết</th><th>SL tính tổng</th><th>Thành tiền</th><th>Xóa</th>
+                <th>STT</th><th>Ảnh</th><th>Hạng mục</th><th>Mô tả chi tiết</th><th>Thành tiền</th><th>Xóa</th>
               </tr></thead>
               <tbody id="rows"></tbody>
             </table></div>
@@ -623,6 +688,7 @@ module TranTuanNoiThat
         (function(){
           'use strict';
           var rows=[];
+          var activeDetail=null;
           var dvt=__DVT__;
 
           function $(id){return document.getElementById(id);}
@@ -693,7 +759,7 @@ module TranTuanNoiThat
               var clear=document.createElement('button');clear.type='button';clear.textContent='XÓA ẢNH';clear.className='red';clear.disabled=!r.anh;clear.onclick=function(){r.anh='';r.zoom_anh=1;file.value='';render();status('Đã xóa ảnh của hạng mục '+(i+1)+'.');};
               actions.appendChild(upload);actions.appendChild(camera);actions.appendChild(modelShot);actions.appendChild(clear);td.appendChild(actions);td.appendChild(file);tr.appendChild(td);
 
-              var calcCell=null,amountCell=null;
+              var amountCell=null;
               function addInput(key,ph,cls){
                 var cell=document.createElement('td');
                 var input=field(r[key],ph,function(){
@@ -706,7 +772,7 @@ module TranTuanNoiThat
               td=document.createElement('td');
               var detailWrap=document.createElement('div');detailWrap.className='detail-wrap';
               var detailHead=document.createElement('div');detailHead.className='detail-head';
-              ['Mô tả','ĐVT','Dài','Rộng','Cao','SL','SL tính / ĐG','Thành tiền',''].forEach(function(t){var x=document.createElement('span');x.textContent=t;detailHead.appendChild(x);});
+              ['Mô tả','ĐVT','Dài','Rộng','Cao','SL','SL tính','Đơn giá','Thành tiền',''].forEach(function(t){var x=document.createElement('span');x.textContent=t;detailHead.appendChild(x);});
               detailWrap.appendChild(detailHead);
               r.chi_tiet.forEach(function(detail,di){
                 var line=document.createElement('div');line.className='detail-line';
@@ -716,12 +782,12 @@ module TranTuanNoiThat
                     result.textContent=calcMeasure(detail).toFixed(3)+' '+detail.dvt;
                     amount.textContent=money(calcMeasure(detail)*num(detail.don_gia));
                     updateParent();
-                  });line.appendChild(inp);return inp;
+                  });inp.addEventListener('focus',function(){activeDetail=detail;});line.appendChild(inp);return inp;
                 }
                 detailInput('mo_ta','Mô tả');
                 var unit=document.createElement('select');
                 dvt.forEach(function(value){var opt=document.createElement('option');opt.value=value;opt.textContent=value;opt.selected=value===detail.dvt;unit.appendChild(opt);});
-                unit.onchange=function(){detail.dvt=unit.value;render();};line.appendChild(unit);
+                unit.onfocus=function(){activeDetail=detail;};unit.onchange=function(){detail.dvt=unit.value;activeDetail=detail;render();};line.appendChild(unit);
                 detailInput('dai','Dài mm');detailInput('rong','Rộng mm');detailInput('cao','Cao mm');detailInput('so_luong','SL');
                 var result=document.createElement('span');result.className='detail-result';result.textContent=calcMeasure(detail).toFixed(3)+' '+detail.dvt;line.appendChild(result);
                 detailInput('don_gia','Đơn giá');
@@ -738,10 +804,8 @@ module TranTuanNoiThat
               function updateParent(){
                 var sum=r.chi_tiet.reduce(function(total,d){return total+calcMeasure(d)*num(d.don_gia);},0);
                 if(amountCell)amountCell.textContent=money(sum);
-                if(calcCell)calcCell.textContent=r.chi_tiet.length+' dòng';
                 totals();
               }
-              td=document.createElement('td');td.className='calc';calcCell=td;td.textContent=r.chi_tiet.length+' dòng';tr.appendChild(td);
               td=document.createElement('td');td.className='calc';amountCell=td;td.textContent=money(calc(r));tr.appendChild(td);
 
               td=document.createElement('td');
@@ -821,6 +885,15 @@ module TranTuanNoiThat
             render();status('Đã mở báo giá.');
           };
 
+          window.TT_BG_APPLY_PRODUCT=function(product){
+            if(!product)return;
+            if(!activeDetail){if(!rows.length)rows.push(rowDefault());rows[0]=normalizeRow(rows[0]);activeDetail=rows[0].chi_tiet[0];}
+            activeDetail.mo_ta=product.ten||activeDetail.mo_ta;
+            activeDetail.don_gia=product.gia||'0';
+            if(product.dvt){activeDetail.dvt=product.dvt;if(dvt.indexOf(product.dvt)<0)dvt.push(product.dvt);}
+            render();status('Đã áp dụng '+(product.ten||'sản phẩm')+' vào dòng báo giá.');
+          };
+          $('products').onclick=function(){sketchup.bg_products();};
           $('add').onclick=addRow;
           $('save').onclick=function(){sketchup.bg_save(JSON.stringify(collect()));};
           $('open').onclick=function(){sketchup.bg_open();};
