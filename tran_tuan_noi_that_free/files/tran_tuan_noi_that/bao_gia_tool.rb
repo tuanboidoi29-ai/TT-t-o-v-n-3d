@@ -30,7 +30,7 @@ module TranTuanNoiThat
   module BaoGiaTool
     extend self
 
-    VERSION = '1.9.341'.freeze
+    VERSION = '1.9.342'.freeze
     ROOT = File.join(TranTuanNoiThat::ROOT, 'data', 'bao_gia').freeze
 
     DEFAULT_DVT = [
@@ -380,7 +380,7 @@ module TranTuanNoiThat
           .qrbox{margin-top:20px;border:1px solid #888;padding:15px;display:flex;gap:25px;align-items:center;page-break-inside:avoid}
           .qrimg{width:220px;height:220px}
           .qrinfo{line-height:1.8}
-        </style><style id="tt-blue-white-theme">/*TT_BLUE_WHITE_THEME_v1*/:root{--bg:#06182d;--panel:#0b2748;--blue:#1677e8;--white:#f7fbff;--muted:#b9d8f5;--border:#2d6ea7}html,body{background:var(--bg)!important;color:var(--white)!important}body{font-family:Arial,"Segoe UI",sans-serif!important}h1,h2,h3,h4,h5,h6,label,legend,strong,b,.title,.name{color:#fff!important}p,.muted,.hint,.sub,.note,.help,.desc,.description,.small{color:var(--muted)!important}a{color:#8dccff!important}.top,.header,.head,.titlebar,.page-header,.app-header,.hero,.banner,.brand,.header-bar{background:linear-gradient(135deg,#0a4f9b,#147ce5)!important;color:#fff!important;border-color:#51a9ff!important}.panel,.card,.box,.section,.group,.pane,.sidebar,.content,.settings-card,.toolbar,.controls,.form-section,.block,.item,.row-card{background:var(--panel)!important;color:#fff!important;border-color:var(--border)!important}button,.btn,input[type=button],input[type=submit]{background:linear-gradient(180deg,#2188f3,#0c63be)!important;color:#fff!important;border:1px solid #53aaff!important;border-radius:7px!important}.primary,.go,.active,.selected,.danger,.warning,.secondary{background:#0f75dc!important;color:#fff!important;border-color:#68b8ff!important}input,select,textarea{background:#071d35!important;color:#fff!important;border:1px solid #3f7fb5!important;border-radius:6px!important}table{background:#09223f!important;color:#fff!important;border-color:#2c6595!important}th{background:#0e4f8d!important;color:#fff!important;border-color:#397caf!important}td{border-color:#244f74!important;color:#eaf5ff!important}tr:nth-child(even){background:#0a294a!important}tr:hover{background:#123d68!important}.badge,.pill,.tag,.chip{background:#0d5fae!important;color:#fff!important;border-color:#61b3ff!important}.ok,.success{color:#a9d9ff!important}.err,.error{color:#ffd9eb!important}hr{border-color:#2c628f!important}</style></head><body>
+        </style><style id="tt-blue-white-theme">/*TT_WHITE_THEME_v2*/:root{color-scheme:light;--bg:#f5f6f8;--panel:#fff;--ink:#202733;--muted:#667085;--border:#d8dee7}html,body{background:#f5f6f8!important;color:#202733!important}body{font-family:Arial,"Segoe UI",sans-serif!important}h1,h2,h3,h4,h5,h6,label,legend,strong,b,.title,.name{color:#202733!important}p,.muted,.hint,.sub,.note,.help,.desc,.description,.small{color:#667085!important}a{color:#1d4ed8!important}.top,.header,.head,.titlebar,.page-header,.app-header,.hero,.banner,.brand,.header-bar{background:#fff!important;color:#202733!important;border-color:#d8dee7!important}.panel,.card,.box,.section,.group,.pane,.sidebar,.content,.settings-card,.toolbar,.controls,.form-section,.block,.item,.row-card{background:#fff!important;color:#202733!important;border-color:#d8dee7!important}button,.btn,input[type=button],input[type=submit]{background:#f3f6fb!important;color:#243247!important;border:1px solid #cbd5e1!important;border-radius:7px!important}.primary,.go,.active,.selected{background:#2563eb!important;color:#fff!important;border-color:#2563eb!important}.danger,.red{background:#fff1f2!important;color:#b42318!important;border-color:#fecdd3!important}input,select,textarea{background:#fff!important;color:#202733!important;border:1px solid #cbd5e1!important;border-radius:6px!important}table{background:#fff!important;color:#202733!important;border-color:#d8dee7!important}th{background:#f1f4f8!important;color:#344054!important;border-color:#d8dee7!important}td{border-color:#e2e7ee!important;color:#202733!important}tr:nth-child(even){background:#fafbfd!important}tr:hover{background:#f3f7fc!important}.badge,.pill,.tag,.chip{background:#eef2f7!important;color:#344054!important;border-color:#d8dee7!important}.ok,.success{color:#167647!important}.err,.error{color:#b42318!important}hr{border-color:#e2e7ee!important}</style></head><body>
         <h1>BẢNG BÁO GIÁ NỘI THẤT</h1>
         <p><b>Mã:</b> #{safe(data['ma_bao_gia'])} &nbsp; <b>Ngày:</b> #{safe(data['ngay'])}</p>
         <p><b>Khách hàng:</b> #{safe(data['khach_hang'])} &nbsp; <b>Điện thoại:</b> #{safe(data['dien_thoai'])}</p>
@@ -512,8 +512,8 @@ module TranTuanNoiThat
         preferences_key: 'TranTuanNoiThat.BaoGia.128',
         scrollable: true,
         resizable: true,
-        width: 1180,
-        height: 820,
+        width: 1160,
+        height: 780,
         style: UI::HtmlDialog::STYLE_DIALOG
       )
 
@@ -543,7 +543,7 @@ module TranTuanNoiThat
       @product_dialog = UI::HtmlDialog.new(
         dialog_title: 'TRẦN TUẤN - Lưu giá sản phẩm',
         preferences_key: 'TranTuanNoiThat.BaoGia.ProductPrices',
-        scrollable: true, resizable: true, width: 560, height: 620,
+        scrollable: true, resizable: true, width: 640, height: 620,
         style: UI::HtmlDialog::STYLE_DIALOG
       )
       @product_dialog.add_action_callback('bg_products_save') { |_ctx, payload| save_product_prices(payload) }
@@ -564,13 +564,13 @@ module TranTuanNoiThat
       products = JSON.generate(product_prices).gsub('</', '<\\/')
       <<~'HTML'.sub('__PRODUCTS__', products)
         <!doctype html><html lang="vi"><head><meta charset="utf-8"><style>
-        *{box-sizing:border-box}body{margin:0;padding:14px;background:#eef2f5;font:14px Arial;color:#222}
-        .head,.card{background:white;border-radius:10px;padding:14px;margin-bottom:12px}.head{background:#111827;color:white}
+        *{box-sizing:border-box}body{margin:0;padding:14px;background:#f5f6f8;font:14px Arial;color:#202733}
+        .head,.card{background:#fff;border:1px solid #e2e7ee;border-radius:10px;padding:14px;margin-bottom:12px}.head{background:#fff;color:#202733}
         h3{margin:0 0 8px}.bar{display:flex;gap:7px;flex-wrap:wrap;margin:10px 0}
-        button{border:0;border-radius:6px;padding:9px 12px;font-weight:bold;cursor:pointer}
-        .blue{background:#1d4ed8;color:white}.green{background:#166534;color:white}.red{background:#b42318;color:white}
-        table{width:100%;border-collapse:collapse}th,td{padding:6px;border:1px solid #bbb}th{background:#eee}
-        input{width:100%;padding:8px;border:1px solid #bbb;border-radius:5px}.status{font-size:12px;color:#166534}
+        button{border:1px solid #cbd5e1;border-radius:6px;padding:9px 12px;font-weight:bold;cursor:pointer;background:#f3f6fb;color:#243247}
+        .blue{background:#2563eb;color:white;border-color:#2563eb}.green{background:#eaf7ef;color:#167647;border-color:#b7e4c7}.red{background:#fff1f2;color:#b42318;border-color:#fecdd3}
+        table{width:100%;border-collapse:collapse;table-layout:auto}th,td{padding:6px;border:1px solid #d8dee7}th{background:#f1f4f8;color:#344054}
+        input{width:100%;min-width:0;padding:8px;border:1px solid #cbd5e1;border-radius:5px;background:#fff;color:#202733}.status{font-size:12px;color:#167647}
         </style></head><body>
         <div class="head"><h3>THƯ VIỆN GIÁ SẢN PHẨM</h3><small>Tên sản phẩm · Giá · Đơn vị tính</small></div>
         <div class="card"><div class="bar"><button class="blue" id="add">＋ THÊM SẢN PHẨM</button><button class="green" id="save">💾 LƯU THƯ VIỆN</button></div>
@@ -595,35 +595,35 @@ module TranTuanNoiThat
         <html lang="vi"><head><meta charset="utf-8">
         <style>
           *{box-sizing:border-box}
-          body{margin:0;background:#eef2f5;font-family:Arial;color:#222}
-          .wrap{padding:14px}.head,.card{background:#fff;border-radius:10px;padding:14px;margin-bottom:12px}
-          .head{background:#111827;color:#fff}.head h2{margin:0}
-          .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+          body{margin:0;background:#f5f6f8;font-family:Arial;color:#202733}
+          .wrap{padding:12px;max-width:100%}.head,.card{background:#fff;border:1px solid #e2e7ee;border-radius:10px;padding:12px;margin-bottom:10px}
+          .head{background:#fff;color:#202733}.head h2{margin:0}
+          .grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
           label{font-size:12px;font-weight:bold;display:block;margin-bottom:4px}
           input,select{width:100%;padding:8px;border:1px solid #bbb;border-radius:6px}
           button{padding:9px 12px;border:0;border-radius:6px;cursor:pointer;font-weight:bold}
           .bar{display:flex;gap:7px;flex-wrap:wrap}.dark{background:#111827;color:#fff}.blue{background:#1d4ed8;color:#fff}
           .green{background:#166534;color:#fff}.gray{background:#e5e7eb}.red{background:#b42318;color:#fff}
-          .tablebox{overflow:auto}table{border-collapse:collapse;width:100%;min-width:1280px}
+          .tablebox{width:100%;max-width:100%;overflow-x:auto;border:1px solid #e2e7ee;border-radius:8px}table{border-collapse:collapse;width:100%;min-width:980px;table-layout:auto}
           th,td{border:1px solid #bbb;padding:5px}th{background:#eee;font-size:11px}
           td input,td select{padding:6px}.mini{width:78px;margin:2px}.calc{text-align:right;white-space:nowrap}
-          .detail-wrap{min-width:480px;display:flex;flex-direction:column;gap:6px}
-          .detail-line,.detail-head{display:grid;grid-template-columns:minmax(120px,2fr) 68px 58px 58px 58px 48px 82px 86px 30px;gap:4px;align-items:center}
-          .detail-line{padding:5px;border:1px solid #416b91;border-radius:6px}
+          .detail-wrap{min-width:0;width:100%;display:flex;flex-direction:column;gap:6px}
+          .detail-line,.detail-head{display:grid;grid-template-columns:minmax(100px,2fr) repeat(5,minmax(38px,.7fr)) minmax(70px,1fr) minmax(76px,1fr) 28px;gap:4px;align-items:center}
+          .detail-line{padding:5px;border:1px solid #d8dee7;border-radius:6px;background:#fff}
           .detail-line input,.detail-line select{min-width:0;width:100%;padding:5px;font-size:11px}
           .detail-result{font-size:10px;white-space:nowrap;text-align:right}
-          .detail-head{font-size:10px;color:#b9d8f5}
+          .detail-head{font-size:10px;color:#667085}
           .detail-actions{display:flex;gap:5px;align-items:center}.detail-actions button{padding:5px 8px;font-size:10px}
           .photo-cell{min-width:124px;text-align:center}.photo-frame{width:76px;height:64px;overflow:hidden;display:flex;align-items:center;justify-content:center;margin:0 auto 5px;border:1px solid #8aa8c5;border-radius:5px;background:#fff}.photo-thumb{width:100%;height:100%;object-fit:contain;display:block;transform-origin:center center}.photo-zoom{display:flex;gap:5px;justify-content:center;margin:0 auto 5px}.photo-zoom button{font-size:12px;min-width:27px;padding:3px 7px}.photo-zoom span{font-size:10px;align-self:center;min-width:35px}.photo-actions{display:flex;gap:4px;justify-content:center;flex-wrap:wrap}.photo-actions button{font-size:10px;padding:5px 7px}.photo-file{display:none}
-          .camera-layer{position:fixed;inset:0;background:#000b;z-index:9999;display:none;align-items:center;justify-content:center;padding:20px}.camera-panel{background:#0b2748;color:#fff;padding:14px;border-radius:10px;max-width:720px;width:100%}.camera-panel video{width:100%;max-height:65vh;background:#000;object-fit:contain}.camera-panel .bar{margin-top:10px}
+          .camera-layer{position:fixed;inset:0;background:#000b;z-index:9999;display:none;align-items:center;justify-content:center;padding:20px}.camera-panel{background:#fff;color:#202733;padding:14px;border-radius:10px;max-width:720px;width:100%}.camera-panel video{width:100%;max-height:65vh;background:#000;object-fit:contain}.camera-panel .bar{margin-top:10px}
           .sum{max-width:400px;margin-left:auto}.sum p{display:flex;justify-content:space-between}
           .big{font-size:20px;border-top:2px solid #111;padding-top:8px}
-          .pay{display:grid;grid-template-columns:1fr 260px;gap:15px}
+          .pay{display:grid;grid-template-columns:minmax(0,1fr) 260px;gap:15px}
           .qr{min-height:260px;border:1px dashed #999;background:#fff;display:flex;align-items:center;justify-content:center;text-align:center}
           .qr img{width:235px;height:235px}
           .status{padding:9px;border-radius:6px;background:#dcfce7;color:#166534;margin-bottom:10px}
           .err{background:#fee2e2;color:#145c9e}
-        </style><style id="tt-blue-white-theme">/*TT_BLUE_WHITE_THEME_v1*/:root{--bg:#06182d;--panel:#0b2748;--blue:#1677e8;--white:#f7fbff;--muted:#b9d8f5;--border:#2d6ea7}html,body{background:var(--bg)!important;color:var(--white)!important}body{font-family:Arial,"Segoe UI",sans-serif!important}h1,h2,h3,h4,h5,h6,label,legend,strong,b,.title,.name{color:#fff!important}p,.muted,.hint,.sub,.note,.help,.desc,.description,.small{color:var(--muted)!important}a{color:#8dccff!important}.top,.header,.head,.titlebar,.page-header,.app-header,.hero,.banner,.brand,.header-bar{background:linear-gradient(135deg,#0a4f9b,#147ce5)!important;color:#fff!important;border-color:#51a9ff!important}.panel,.card,.box,.section,.group,.pane,.sidebar,.content,.settings-card,.toolbar,.controls,.form-section,.block,.item,.row-card{background:var(--panel)!important;color:#fff!important;border-color:var(--border)!important}button,.btn,input[type=button],input[type=submit]{background:linear-gradient(180deg,#2188f3,#0c63be)!important;color:#fff!important;border:1px solid #53aaff!important;border-radius:7px!important}.primary,.go,.active,.selected,.danger,.warning,.secondary{background:#0f75dc!important;color:#fff!important;border-color:#68b8ff!important}input,select,textarea{background:#071d35!important;color:#fff!important;border:1px solid #3f7fb5!important;border-radius:6px!important}table{background:#09223f!important;color:#fff!important;border-color:#2c6595!important}th{background:#0e4f8d!important;color:#fff!important;border-color:#397caf!important}td{border-color:#244f74!important;color:#eaf5ff!important}tr:nth-child(even){background:#0a294a!important}tr:hover{background:#123d68!important}.badge,.pill,.tag,.chip{background:#0d5fae!important;color:#fff!important;border-color:#61b3ff!important}.ok,.success{color:#a9d9ff!important}.err,.error{color:#ffd9eb!important}hr{border-color:#2c628f!important}</style></head><body><div class="wrap">
+        </style><style id="tt-blue-white-theme">/*TT_WHITE_THEME_v2*/:root{color-scheme:light;--bg:#f5f6f8;--panel:#fff;--ink:#202733;--muted:#667085;--border:#d8dee7}html,body{background:#f5f6f8!important;color:#202733!important}body{font-family:Arial,"Segoe UI",sans-serif!important}h1,h2,h3,h4,h5,h6,label,legend,strong,b,.title,.name{color:#202733!important}p,.muted,.hint,.sub,.note,.help,.desc,.description,.small{color:#667085!important}a{color:#1d4ed8!important}.top,.header,.head,.titlebar,.page-header,.app-header,.hero,.banner,.brand,.header-bar{background:#fff!important;color:#202733!important;border-color:#d8dee7!important}.panel,.card,.box,.section,.group,.pane,.sidebar,.content,.settings-card,.toolbar,.controls,.form-section,.block,.item,.row-card{background:#fff!important;color:#202733!important;border-color:#d8dee7!important}button,.btn,input[type=button],input[type=submit]{background:#f3f6fb!important;color:#243247!important;border:1px solid #cbd5e1!important;border-radius:7px!important}.primary,.go,.active,.selected{background:#2563eb!important;color:#fff!important;border-color:#2563eb!important}.danger,.red{background:#fff1f2!important;color:#b42318!important;border-color:#fecdd3!important}input,select,textarea{background:#fff!important;color:#202733!important;border:1px solid #cbd5e1!important;border-radius:6px!important}table{background:#fff!important;color:#202733!important;border-color:#d8dee7!important}th{background:#f1f4f8!important;color:#344054!important;border-color:#d8dee7!important}td{border-color:#e2e7ee!important;color:#202733!important}tr:nth-child(even){background:#fafbfd!important}tr:hover{background:#f3f7fc!important}.badge,.pill,.tag,.chip{background:#eef2f7!important;color:#344054!important;border-color:#d8dee7!important}.ok,.success{color:#167647!important}.err,.error{color:#b42318!important}hr{border-color:#e2e7ee!important}</style></head><body><div class="wrap">
           <div class="head"><h2>TRẦN TUẤN — BẢNG BÁO GIÁ</h2><small>Lưu/Mở · QR · PDF · Zalo</small></div>
           <div id="status" class="status">Đang khởi tạo...</div>
 
