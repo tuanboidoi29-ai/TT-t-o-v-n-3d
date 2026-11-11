@@ -18,7 +18,7 @@ module TranTuanNoiThat
   }.freeze unless const_defined?(:LOCKED_FEATURE_BASELINES, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.339'.freeze
+  VERSION = '1.9.340'.freeze
 
   class << self
     def setting(key, default = nil)
@@ -812,7 +812,7 @@ module TranTuanNoiThat
 
     def install_duc_khung_ui
       return false unless defined?(TranTuanNoiThat::DucKhung)
-      @duc_khung_cmd ||= command('ĐỤC KHUNG', 'duc_khung.svg', 'Chọn biên dạng hèm/rãnh quanh Face · Preview trực tiếp khi rê chuột · click tạo hình.') { DucKhung.activate }
+      @duc_khung_cmd ||= command('BIÊN DẠNG MẪU', 'duc_khung.svg', 'Thư viện biên dạng khung, viền tròn và họa tiết trang trí · Preview trực tiếp trên Face.') { DucKhung.activate }
       add_feature_command_once(@duc_khung_cmd, :duc_khung_menu_installed)
       true
     rescue StandardError => error
