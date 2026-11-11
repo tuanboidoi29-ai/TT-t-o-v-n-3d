@@ -970,3 +970,5 @@ end
 TranTuanNoiThat.boot
 
 # 1.9.340: BIEN DANG MAU UI label and round-profile library.
+
+# 1.9.340: updater manifest checksum prepared before build trigger.
