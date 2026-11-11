@@ -18,7 +18,7 @@ module TranTuanNoiThat
   }.freeze unless const_defined?(:LOCKED_FEATURE_BASELINES, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.340'.freeze
+  VERSION = '1.9.341'.freeze
 
   class << self
     def setting(key, default = nil)
@@ -969,6 +969,6 @@ end
 
 TranTuanNoiThat.boot
 
-# 1.9.340: BIEN DANG MAU UI label and round-profile library.
+# 1.9.341: BIEN DANG MAU UI label and round-profile library.
 
-# 1.9.340: updater manifest checksum prepared before build trigger.
+# 1.9.341: updater manifest checksum prepared before build trigger.
