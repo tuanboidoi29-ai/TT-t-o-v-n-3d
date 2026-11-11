@@ -1,15 +1,15 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.340",
+  "version": "1.9.341",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "1.9.340: đổi tên chức năng thành BIÊN DẠNG MẪU; bổ sung thư viện viền tròn đều, bán nguyệt, cánh hoa, hạt ngọc và sóng tròn; giữ mẫu khung và biên dạng tự lưu.",
+  "notes": "1.9.341: bảng báo giá tự tính thành tiền từng dòng và tổng toàn bộ; bỏ cột số dòng tính tổng; tách rõ SL tính, đơn giá, thành tiền; thêm cửa sổ thư viện giá sản phẩm lưu tên, giá, đơn vị tính và áp dụng song song.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bao_gia_tool.rb",
-      "sha256": "713f5c2c454cec2448540c3d347fdd46951931a04358c7616c42eac62131affc"
+      "sha256": "5debf56bc828c14755a6d05e91f2938aadcaf60562bb124e80b9fab4cd9dd615"
     },
     {
       "path": "tran_tuan_noi_that/board_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "31e96cb8db85a04cc5ce97d93ed534cb51928d98359eae29551499c3e72789fe"
+      "sha256": "69530005ca4b0f80f9e8d1937bc9072a6535627d5a03f5bdb2c68009f42eb739"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -319,7 +319,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "640d19d64b510d2e23b4c3294b5eac9e0d29c6f0b785d0bd28517bde45073e53"
+      "sha256": "81e9edb347524dcd61552a9a923b0ae3b3043c10e8f3f9747d5c16388472ac07"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
