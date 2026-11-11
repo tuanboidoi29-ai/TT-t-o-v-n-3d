@@ -968,3 +968,5 @@ module TranTuanNoiThat
 end
 
 TranTuanNoiThat.boot
+
+# 1.9.340: BIEN DANG MAU UI label and round-profile library.
