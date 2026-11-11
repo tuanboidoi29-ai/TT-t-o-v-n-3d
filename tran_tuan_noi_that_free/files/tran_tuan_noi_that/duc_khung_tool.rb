@@ -24,7 +24,12 @@ module TranTuanNoiThat
       'Khung trang trí 3 chỉ' => { 'width'=>16.0, 'offset'=>22.0, 'radius'=>3.0, 'corner'=>'round', 'tracks'=>[0.0,0.12,0.5,0.88,1.0] },
       'Rãnh V đôi' => { 'width'=>10.0, 'offset'=>12.0, 'radius'=>0.0, 'corner'=>'chamfer', 'tracks'=>[0.0,0.5,1.0] },
       'Khung nổi nhiều cấp' => { 'width'=>18.0, 'offset'=>24.0, 'radius'=>3.0, 'corner'=>'round', 'tracks'=>[0.0,0.16,0.32,0.68,0.84,1.0] },
-      'Khung tối giản' => { 'width'=>5.0, 'offset'=>8.0, 'radius'=>1.0, 'corner'=>'square', 'tracks'=>[0.0,1.0] }
+      'Khung tối giản' => { 'width'=>5.0, 'offset'=>8.0, 'radius'=>1.0, 'corner'=>'square', 'tracks'=>[0.0,1.0] },
+      'Viền tròn đều' => { 'width'=>8.0, 'offset'=>14.0, 'radius'=>3.0, 'corner'=>'round', 'tracks'=>[0.0,1.0], 'decorative_border'=>true, 'pattern_shape'=>'circle', 'symbol_size'=>9.0, 'symbol_spacing'=>22.0 },
+      'Viền bán nguyệt' => { 'width'=>8.0, 'offset'=>14.0, 'radius'=>3.0, 'corner'=>'round', 'tracks'=>[0.0,1.0], 'decorative_border'=>true, 'pattern_shape'=>'semicircle', 'symbol_size'=>12.0, 'symbol_spacing'=>20.0 },
+      'Viền cánh hoa' => { 'width'=>9.0, 'offset'=>16.0, 'radius'=>4.0, 'corner'=>'round', 'tracks'=>[0.0,1.0], 'decorative_border'=>true, 'pattern_shape'=>'rosette', 'symbol_size'=>12.0, 'symbol_spacing'=>24.0 },
+      'Viền hạt ngọc' => { 'width'=>7.0, 'offset'=>12.0, 'radius'=>3.0, 'corner'=>'round', 'tracks'=>[0.0,1.0], 'decorative_border'=>true, 'pattern_shape'=>'oval', 'symbol_size'=>10.0, 'symbol_spacing'=>18.0 },
+      'Viền sóng tròn' => { 'width'=>8.0, 'offset'=>15.0, 'radius'=>3.0, 'corner'=>'round', 'tracks'=>[0.0,1.0], 'decorative_border'=>true, 'pattern_shape'=>'scallop', 'symbol_size'=>11.0, 'symbol_spacing'=>18.0 }
     }.freeze
 
     def config
@@ -73,8 +78,8 @@ module TranTuanNoiThat
         .bar button{border:0;border-radius:6px;padding:10px 12px;background:#16894b;color:white;font-weight:600;cursor:pointer}
         .bar button.alt{background:#53635a}#msg{margin-top:9px;color:#12683a;min-height:18px}
         .hint{color:#66736b;font-size:11px;line-height:1.4}.section{font-weight:700;margin:12px 0 6px;color:#33463a}
-        </style><body><h2>ĐỤC KHUNG — THƯ VIỆN BIÊN DẠNG</h2>
-        <p class="sub">Chọn mẫu bằng hình xem trước. Có 16 mẫu dựng sẵn và thư viện mẫu tự lưu.</p>
+        </style><body><h2>ĐỤC KHUNG — THƯ VIỆN BIÊN DẠNG MẪU</h2>
+        <p class="sub">Chọn mẫu bằng hình xem trước. Có 21 mẫu dựng sẵn và thư viện mẫu tự lưu.</p>
         <div class="gallery" id="gallery">#{gallery}</div>
         <div class="section">Viền trang trí · Preview trực tiếp</div>
         <label><input id="decorative_border" type="checkbox" style="width:auto"> Bật biên dạng viền trang trí</label>
@@ -95,7 +100,7 @@ module TranTuanNoiThat
           <div><label>Tên Instance (tự thêm ABF_)</label><input id="instance" value="#{html_attr(cfg['instance'])}"></div>
           <div><label>Màu Preview</label><input id="color" type="color" value="#{cfg['color']}"></div>
           <div><label>Mẫu đã lưu</label><select id="saved"><option value="">Chọn mẫu đã lưu</option></select></div>
-          <div><label>Hình trang trí</label><select id="pattern_shape"><option value="triangle">Tam giác</option><option value="circle">Tròn</option><option value="square">Vuông</option><option value="diamond">Thoi</option><option value="dentil">Răng đinh</option><option value="semicircle">Nửa tròn</option><option value="zigzag">Zíc zắc</option></select></div>
+          <div><label>Hình trang trí</label><select id="pattern_shape"><option value="triangle">Tam giác</option><option value="circle">Tròn</option><option value="square">Vuông</option><option value="diamond">Thoi</option><option value="dentil">Răng đinh</option><option value="semicircle">Nửa tròn</option><option value="zigzag">Zíc zắc</option><option value="semicircle">Bán nguyệt</option><option value="rosette">Cánh hoa</option><option value="oval">Hạt ngọc / Oval</option><option value="scallop">Sóng tròn</option></select></div>
           <div><label>Cách sắp xếp</label><select id="arrangement"><option value="straight">Thẳng / đều</option><option value="staggered">So le</option><option value="random">Ngẫu nhiên</option><option value="symmetric">Đối xứng</option><option value="cycle">Theo chu kỳ</option></select></div>
           <div><label>Kích thước hình (mm)</label><input id="symbol_size" type="number" min="1" max="100" step="0.5" value="8"></div>
           <div><label>Khoảng cách hình (mm)</label><input id="symbol_spacing" type="number" min="2" max="300" step="1" value="24"></div>
@@ -121,7 +126,7 @@ module TranTuanNoiThat
         </script></body></html>
       HTML
       @dialog.close if @dialog && @dialog.visible?
-      @dialog = UI::HtmlDialog.new(dialog_title:'TRẦN TUẤN — ĐỤC KHUNG',preferences_key:'TT_DUC_KHUNG',scrollable:true,resizable:true,width:560,height:850,style:UI::HtmlDialog::STYLE_DIALOG)
+      @dialog = UI::HtmlDialog.new(dialog_title:'TRẦN TUẤN — BIÊN DẠNG MẪU',preferences_key:'TT_DUC_KHUNG',scrollable:true,resizable:true,width:560,height:850,style:UI::HtmlDialog::STYLE_DIALOG)
       @dialog.set_html(html)
       @dialog.add_action_callback('save_profile') { |_d,json| save_profile(json) }
       @dialog.add_action_callback('start_tool') { |_d,json| start_tool(json) }
@@ -148,7 +153,7 @@ module TranTuanNoiThat
       arrangement=p.fetch('arrangement','straight').to_s
       { 'name'=>p['name'].to_s.strip.empty? ? 'Biên dạng mới' : p['name'].to_s.strip,
         'width'=>width,'offset'=>offset,'offset_direction'=>(%w[inside outside].include?(offset_direction) ? offset_direction : 'inside'),'radius'=>radius,'corner'=>%w[square chamfer round].include?(p['corner'].to_s) ? p['corner'].to_s : 'round',
-        'tracks'=>tracks,'decorative_border'=>p['decorative_border']==true || p['decorative_border'].to_s=='true','pattern_shape'=>(%w[triangle circle square diamond dentil semicircle zigzag].include?(pattern_shape) ? pattern_shape : 'triangle'),'arrangement'=>(%w[straight staggered random symmetric cycle].include?(arrangement) ? arrangement : 'straight'),'symbol_size'=>symbol_size,'symbol_spacing'=>symbol_spacing,'tag'=>tag,'instance'=>(p['instance'].to_s.strip.empty? ? 'ABF_Bien_Dang' : (p['instance'].to_s.strip.start_with?('ABF_') ? p['instance'].to_s.strip : "ABF_#{p['instance'].to_s.strip}")), 'simulate'=>p['simulate'].to_s!='false',
+        'tracks'=>tracks,'decorative_border'=>p['decorative_border']==true || p['decorative_border'].to_s=='true','pattern_shape'=>(%w[triangle circle square diamond dentil semicircle zigzag rosette oval scallop].include?(pattern_shape) ? pattern_shape : 'triangle'),'arrangement'=>(%w[straight staggered random symmetric cycle].include?(arrangement) ? arrangement : 'straight'),'symbol_size'=>symbol_size,'symbol_spacing'=>symbol_spacing,'tag'=>tag,'instance'=>(p['instance'].to_s.strip.empty? ? 'ABF_Bien_Dang' : (p['instance'].to_s.strip.start_with?('ABF_') ? p['instance'].to_s.strip : "ABF_#{p['instance'].to_s.strip}")), 'simulate'=>p['simulate'].to_s!='false',
         'color'=>p['color'].to_s.match?(/\A#[0-9a-fA-F]{6}\z/) ? p['color'] : '#18A957' }
     end
     def persist(p)
@@ -256,18 +261,44 @@ module TranTuanNoiThat
           when 'staggered' then (idx*spacing+(idx.odd? ? spacing*0.5 : 0.0))%total
           when 'random' then ((idx*0.61803398875+((idx*37)%17)/17.0)*total)%total
           when 'symmetric' then count<=1 ? total*0.5 : (idx.to_f/(count-1))*total
+          when 'cycle' then ((idx*spacing)%total)
           else idx*spacing
           end
           seg=lengths.find{|entry| distance>=entry[0] && distance<=entry[0]+entry[1]} || lengths.last
           base,len,a,b=seg; next if len<size*1.4
           t=[[((distance-base)/len),0.0].max,1.0].min
           cx=a[0]+(b[0]-a[0])*t; cy=a[1]+(b[1]-a[1])*t
-          tx=(b[0]-a[0])/len; ty=(b[1]-a[1])/len; nx=-ty; ny=tx; radius=size*0.5
-          sides=shape=='circle' ? 12 : (shape=='triangle' ? 3 : 4)
-          pts=sides.times.map do |j|
-            angle=2.0*Math::PI*j/sides+(shape=='diamond' ? Math::PI/4.0 : 0.0)
-            along=Math.cos(angle)*radius; across=Math.sin(angle)*radius
-            [cx+tx*along+nx*across,cy+ty*along+ny*across]
+          tx=(b[0]-a[0])/len; ty=(b[1]-a[1])/len; nx=-ty; ny=tx
+          radius=size*0.5
+          pts=case shape
+          when 'circle','oval','scallop'
+            sides=shape=='circle' ? 24 : 20
+            sides.times.map do |j|
+              angle=2.0*Math::PI*j/sides
+              along=Math.cos(angle)*radius*(shape=='oval' ? 1.35 : 1.0)
+              across=Math.sin(angle)*radius*(shape=='oval' ? 0.72 : 1.0)
+              [cx+tx*along+nx*across,cy+ty*along+ny*across]
+            end
+          when 'semicircle'
+            (0..12).map do |j|
+              angle=Math::PI*j/12.0
+              along=Math.cos(angle)*radius
+              across=Math.sin(angle)*radius
+              [cx+tx*along+nx*across,cy+ty*along+ny*across]
+            end + [[cx-tx*radius,cy-ny*radius]]
+          when 'rosette'
+            24.times.map do |j|
+              angle=2.0*Math::PI*j/24.0
+              r=radius*(j.even? ? 1.0 : 0.58)
+              [cx+tx*Math.cos(angle)*r+nx*Math.sin(angle)*r,cy+ty*Math.cos(angle)*r+ny*Math.sin(angle)*r]
+            end
+          else
+            sides=shape=='triangle' ? 3 : (shape=='dentil' ? 8 : 4)
+            sides.times.map do |j|
+              angle=2.0*Math::PI*j/sides+(shape=='diamond' ? Math::PI/4.0 : 0.0)
+              along=Math.cos(angle)*radius; across=Math.sin(angle)*radius
+              [cx+tx*along+nx*across,cy+ty*along+ny*across]
+            end
           end
           result << pts
         end
