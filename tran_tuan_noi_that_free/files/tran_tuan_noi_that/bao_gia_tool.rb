@@ -688,7 +688,7 @@ module TranTuanNoiThat
         (function(){
           'use strict';
           var rows=[];
-          var activeDetail=null;
+          var activeRowIndex=0,activeDetailIndex=0;
           var dvt=__DVT__;
 
           function $(id){return document.getElementById(id);}
@@ -782,12 +782,12 @@ module TranTuanNoiThat
                     result.textContent=calcMeasure(detail).toFixed(3)+' '+detail.dvt;
                     amount.textContent=money(calcMeasure(detail)*num(detail.don_gia));
                     updateParent();
-                  });inp.addEventListener('focus',function(){activeDetail=detail;});line.appendChild(inp);return inp;
+                  });inp.addEventListener('focus',function(){activeRowIndex=i;activeDetailIndex=di;});line.appendChild(inp);return inp;
                 }
                 detailInput('mo_ta','Mô tả');
                 var unit=document.createElement('select');
                 dvt.forEach(function(value){var opt=document.createElement('option');opt.value=value;opt.textContent=value;opt.selected=value===detail.dvt;unit.appendChild(opt);});
-                unit.onfocus=function(){activeDetail=detail;};unit.onchange=function(){detail.dvt=unit.value;activeDetail=detail;render();};line.appendChild(unit);
+                unit.onfocus=function(){activeRowIndex=i;activeDetailIndex=di;};unit.onchange=function(){detail.dvt=unit.value;render();};line.appendChild(unit);
                 detailInput('dai','Dài mm');detailInput('rong','Rộng mm');detailInput('cao','Cao mm');detailInput('so_luong','SL');
                 var result=document.createElement('span');result.className='detail-result';result.textContent=calcMeasure(detail).toFixed(3)+' '+detail.dvt;line.appendChild(result);
                 detailInput('don_gia','Đơn giá');
@@ -887,10 +887,14 @@ module TranTuanNoiThat
 
           window.TT_BG_APPLY_PRODUCT=function(product){
             if(!product)return;
-            if(!activeDetail){if(!rows.length)rows.push(rowDefault());rows[0]=normalizeRow(rows[0]);activeDetail=rows[0].chi_tiet[0];}
-            activeDetail.mo_ta=product.ten||activeDetail.mo_ta;
-            activeDetail.don_gia=product.gia||'0';
-            if(product.dvt){activeDetail.dvt=product.dvt;if(dvt.indexOf(product.dvt)<0)dvt.push(product.dvt);}
+            if(!rows.length)rows.push(rowDefault());
+            activeRowIndex=Math.max(0,Math.min(activeRowIndex,rows.length-1));
+            rows[activeRowIndex]=normalizeRow(rows[activeRowIndex]);
+            var target=rows[activeRowIndex].chi_tiet;
+            activeDetailIndex=Math.max(0,Math.min(activeDetailIndex,target.length-1));
+            target[activeDetailIndex].mo_ta=product.ten||target[activeDetailIndex].mo_ta;
+            target[activeDetailIndex].don_gia=product.gia||'0';
+            if(product.dvt){target[activeDetailIndex].dvt=product.dvt;if(dvt.indexOf(product.dvt)<0)dvt.push(product.dvt);}
             render();status('Đã áp dụng '+(product.ten||'sản phẩm')+' vào dòng báo giá.');
           };
           $('products').onclick=function(){sketchup.bg_products();};
