@@ -484,7 +484,7 @@
     {
       "path": "tran_tuan_noi_that/material_catalog_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/material_catalog_tool.rb",
-      "sha256": "f16d62713359b70dcad41ce6df999b6b49a3134590a2da0f05d65fdf2bc94255"
+      "sha256": "1ab241eb775977577845238cf5eab698190cf060f25da6cabde6ccb6457aac53"
     },
     {
       "path": "tran_tuan_noi_that/icons/material_catalog.svg",
@@ -494,7 +494,7 @@
     {
       "path": "tran_tuan_noi_that/material_catalog_seed.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/material_catalog_seed.rb",
-      "sha256": "c4dadff5f3c246eaedf5e1b528354922e878d5f6396099a7f2fa69ad898e856f"
+      "sha256": "0c10530d2f819caf9841f3d864b2ec479a823febbae5988bb3a3240ca3a8f778"
     }
   ],
   "stretch_mode_version": "1.0.1",
