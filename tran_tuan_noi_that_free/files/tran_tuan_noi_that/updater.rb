@@ -109,7 +109,7 @@ module TranTuanNoiThat
 
     def safe_path(path)
       clean = path.to_s
-      valid = ['TranTuanNoiThat.rb', 'TT_TranTuan_UpdateLoader.rb'].include?(clean) || clean.match?(/\Atran_tuan_noi_that\/(?:[a-z0-9_]+\.rb|icons\/[a-z0-9_]+\.svg|ui\/[a-z0-9_]+\.html)\z/)
+      valid = ['TranTuanNoiThat.rb', 'TT_TranTuan_UpdateLoader.rb', 'tran_tuan_noi_that/data/material_catalog.json'].include?(clean) || clean.match?(/\Atran_tuan_noi_that\/(?:[a-z0-9_]+\.rb|icons\/[a-z0-9_]+\.svg|ui\/[a-z0-9_]+\.html)\z/)
       raise 'Đường dẫn cập nhật không hợp lệ.' unless valid
       raise 'Gói cập nhật có tệp cấp phép thương mại.' if clean.match?(/licen[sc]e|commercial|payment|owner_admin/i)
       clean
