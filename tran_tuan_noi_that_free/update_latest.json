@@ -484,7 +484,7 @@
     {
       "path": "tran_tuan_noi_that/material_catalog_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/material_catalog_tool.rb",
-      "sha256": "3cb4f699c7aedf2d6103d1b78ece806572fa372de639f8d1e897af837fcd3a81"
+      "sha256": "f16d62713359b70dcad41ce6df999b6b49a3134590a2da0f05d65fdf2bc94255"
     },
     {
       "path": "tran_tuan_noi_that/icons/material_catalog.svg",
@@ -492,9 +492,9 @@
       "sha256": "0c822e6eb676e9272ca8f85dd7d22b5ef29b0c43ee11cfd07baa2ced1e36867a"
     },
     {
-      "path": "tran_tuan_noi_that/data/material_catalog.json",
-      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/data/material_catalog.json",
-      "sha256": "77b0c4022e16707a9166f1518f448b0db00ff9e59145d4c22d6624e8a33bac60"
+      "path": "tran_tuan_noi_that/material_catalog_seed.rb",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/material_catalog_seed.rb",
+      "sha256": "c4dadff5f3c246eaedf5e1b528354922e878d5f6396099a7f2fa69ad898e856f"
     }
   ],
   "stretch_mode_version": "1.0.1",
