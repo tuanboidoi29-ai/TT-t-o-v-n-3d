@@ -4,7 +4,7 @@
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "1.9.343: thêm Thư viện vật liệu & thiết bị nội thất, tra cứu, quản lý sản phẩm và nhà cung cấp.",
+  "notes": "1.9.343: Thư viện vật liệu & thiết bị nội thất; bổ sung dữ liệu mẫu có nguồn chính thức An Cường và Blum.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -490,6 +490,11 @@
       "path": "tran_tuan_noi_that/icons/material_catalog.svg",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/icons/material_catalog.svg",
       "sha256": "0c822e6eb676e9272ca8f85dd7d22b5ef29b0c43ee11cfd07baa2ced1e36867a"
+    },
+    {
+      "path": "tran_tuan_noi_that/data/material_catalog.json",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/data/material_catalog.json",
+      "sha256": "77b0c4022e16707a9166f1518f448b0db00ff9e59145d4c22d6624e8a33bac60"
     }
   ],
   "stretch_mode_version": "1.0.1",
