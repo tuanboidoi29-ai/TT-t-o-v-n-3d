@@ -1,0 +1,125 @@
+# encoding: UTF-8
+require 'json'
+
+module TranTuanNoiThat
+  module MaterialCatalogSeed
+    RECORDS = JSON.parse(<<'JSON').freeze
+[
+  {
+    "id": "seed_ac_mel_mdf",
+    "name": "Ván MDF phủ Melamine",
+    "code": "",
+    "brand": "An Cường",
+    "category": "Gỗ công nghiệp",
+    "color": "Theo mã màu hãng",
+    "surface": "Melamine",
+    "length": "2440",
+    "width": "1220",
+    "thickness": "9 / 12 / 17 / 25",
+    "unit": "tấm",
+    "price": "",
+    "price_note": "Chưa nhập giá; xác nhận theo mã màu và đại lý",
+    "image": "",
+    "url": "https://ancuong.com/melamine-panel/303000145-en.html",
+    "notes": "Dữ liệu thông số tham khảo từ trang An Cường. Kích thước 1220×2440 mm; độ dày 9, 12, 17, 25 mm. Hãng lưu ý kích thước thay đổi theo mã sản phẩm. Nguồn kiểm tra: 15/11/2026.",
+    "suppliers": []
+  },
+  {
+    "id": "seed_ac_mr_mdf",
+    "name": "Ván MDF chống ẩm phủ Melamine",
+    "code": "",
+    "brand": "An Cường",
+    "category": "Gỗ công nghiệp",
+    "color": "Theo mã màu hãng",
+    "surface": "Melamine chống ẩm",
+    "length": "2440",
+    "width": "1220",
+    "thickness": "3 / 6 / 9 / 12 / 15 / 17 / 25",
+    "unit": "tấm",
+    "price": "",
+    "price_note": "Chưa nhập giá; xác nhận theo mã màu và đại lý",
+    "image": "",
+    "url": "https://ancuong.com/melamine-panel/303000145-en.html",
+    "notes": "Trang hãng mô tả dòng MDF phủ Melamine chống ẩm, có lựa chọn V313. Bảng quy cách có khổ 1220×2440 mm với các độ dày 3, 6, 9, 12, 15, 17, 25 mm; khổ khác tùy mã. Nguồn kiểm tra: 15/11/2026.",
+    "suppliers": []
+  },
+  {
+    "id": "seed_ac_acrylic",
+    "name": "Tấm Acrylic panel",
+    "code": "",
+    "brand": "An Cường",
+    "category": "Ván phủ bề mặt",
+    "color": "Theo mã màu hãng",
+    "surface": "Acrylic bóng gương",
+    "length": "2440",
+    "width": "1220",
+    "thickness": "0.7 / 0.8 / 0.9 / 0.95 / 1.0",
+    "unit": "tấm",
+    "price": "",
+    "price_note": "Chưa nhập giá; cần xác nhận theo mã và quy cách",
+    "image": "",
+    "url": "https://ancuong.com/acrylic/303004319.html",
+    "notes": "Thông số trang hãng: khổ 1220×2440 mm có các độ dày 0.7, 0.8, 0.9, 0.95, 1.0 mm; các khổ khác có thể có theo độ dày. Không nhầm với tấm MDF phủ Acrylic hoàn thiện. Nguồn kiểm tra: 15/11/2026.",
+    "suppliers": []
+  },
+  {
+    "id": "seed_ac_mdf_acrylic",
+    "name": "Ván MDF phủ Acrylic",
+    "code": "",
+    "brand": "An Cường",
+    "category": "Ván phủ bề mặt",
+    "color": "Theo mã màu hãng",
+    "surface": "Acrylic bóng gương",
+    "length": "2440",
+    "width": "1220",
+    "thickness": "6 / 9 / 12 / 15 / 17 / 18 / 25",
+    "unit": "tấm",
+    "price": "",
+    "price_note": "Chưa nhập giá; xác nhận theo mã sản phẩm",
+    "image": "",
+    "url": "https://ancuong.com/acrylic/303004332.html",
+    "notes": "Trang hãng công bố khổ 1220×2440 mm và các độ dày 6, 9, 12, 15, 17, 18, 25 mm. Thông số có thể thay đổi theo mã sản phẩm; dòng chống ẩm có quy cách riêng. Nguồn kiểm tra: 15/11/2026.",
+    "suppliers": []
+  },
+  {
+    "id": "seed_blum_cliptop",
+    "name": "Hệ bản lề CLIP top BLUMOTION",
+    "code": "",
+    "brand": "Blum",
+    "category": "Phụ kiện",
+    "color": "Nhiều lựa chọn",
+    "surface": "Bản lề âm giảm chấn",
+    "length": "",
+    "width": "",
+    "thickness": "",
+    "unit": "bộ",
+    "price": "",
+    "price_note": "Tham khảo bảng giá Blum Việt Nam 2025–2026; giá/mã chi tiết cần tra theo cấu hình",
+    "image": "",
+    "url": "https://publications.blum.com/2025/price-lists/bvn/vi/",
+    "notes": "Nhóm sản phẩm có trong bảng giá chính thức Blum Việt Nam 2025–2026. Cần chọn mã bản lề, góc mở, kiểu đế và phụ kiện tương ứng trước khi báo giá.",
+    "suppliers": []
+  },
+  {
+    "id": "seed_blum_legrabox",
+    "name": "Hệ thống ngăn kéo LEGRABOX",
+    "code": "",
+    "brand": "Blum",
+    "category": "Phụ kiện",
+    "color": "Nhiều màu hoàn thiện",
+    "surface": "Ray hộp ngăn kéo",
+    "length": "",
+    "width": "",
+    "thickness": "",
+    "unit": "bộ",
+    "price": "",
+    "price_note": "Tham khảo bảng giá Blum Việt Nam 2025–2026; giá/mã chi tiết cần tra theo cấu hình",
+    "image": "",
+    "url": "https://publications.blum.com/2025/price-lists/bvn/vi/",
+    "notes": "Nhóm hệ thống ray hộp LEGRABOX có trong bảng giá Blum Việt Nam 2025–2026. Chiều dài danh định, chiều cao hông và phụ kiện phải xác định theo mã cấu hình.",
+    "suppliers": []
+  }
+]
+JSON
+  end
+end
