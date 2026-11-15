@@ -1,6 +1,7 @@
 # encoding: UTF-8
 require 'json'
 require 'fileutils'
+require_relative 'material_catalog_seed'
 
 module TranTuanNoiThat
   module MaterialCatalog
@@ -14,7 +15,11 @@ module TranTuanNoiThat
     end
 
     def load_records
-      return [] unless File.file?(data_path)
+      unless File.file?(data_path)
+        records = defined?(TranTuanNoiThat::MaterialCatalogSeed::RECORDS) ? TranTuanNoiThat::MaterialCatalogSeed::RECORDS : []
+        save_records(records) unless records.empty?
+        return records
+      end
       data = JSON.parse(File.read(data_path, encoding: 'UTF-8'))
       data.is_a?(Array) ? data : []
     rescue StandardError => e
