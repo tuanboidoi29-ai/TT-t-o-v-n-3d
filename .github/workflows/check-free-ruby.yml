@@ -1,6 +1,11 @@
 name: Check Free Ruby Compatibility and Manifest
 
 on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'tran_tuan_noi_that_free/**'
+      - '.github/workflows/check-free-ruby.yml'
   push:
     branches: [main]
     paths:
