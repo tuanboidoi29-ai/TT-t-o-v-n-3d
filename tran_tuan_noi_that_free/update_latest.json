@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.343",
+  "version": "1.9.344",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "1.9.343: Thư viện vật liệu & thiết bị nội thất; bổ sung dữ liệu mẫu có nguồn chính thức An Cường và Blum.",
+  "notes": "1.9.344: Thư viện vật liệu nội bộ; tìm kiếm không dấu trên mọi trường, lọc theo nhóm vật liệu, thương hiệu, bề mặt và nhà cung cấp; bỏ tra cứu Google/Bing.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -484,7 +484,7 @@
     {
       "path": "tran_tuan_noi_that/material_catalog_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/material_catalog_tool.rb",
-      "sha256": "1ab241eb775977577845238cf5eab698190cf060f25da6cabde6ccb6457aac53"
+      "sha256": "52eca62bc6a4cdcb1e931bbd6168ce5355d30f327d77e3aeaea0a9678b0af341"
     },
     {
       "path": "tran_tuan_noi_that/icons/material_catalog.svg",
@@ -510,5 +510,5 @@
     "tran_tuan_noi_that/cnc_profile_tool.rb",
     "tran_tuan_noi_that/icons/cnc_profile.svg"
   ],
-  "release_notes": "1.9.339: Hoàn thiện quy trình cập nhật VIỀN TRANG TRÍ ĐỤC KHUNG; đồng bộ manifest SHA256 và sửa thao tác commit Undo để không commit operation hai lần."
+  "release_notes": "1.9.344: Thư viện vật liệu nội bộ; tìm kiếm không dấu trên mọi trường, lọc theo nhóm vật liệu, thương hiệu, bề mặt và nhà cung cấp; bỏ tra cứu Google/Bing."
 }
