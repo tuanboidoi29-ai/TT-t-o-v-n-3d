@@ -202,7 +202,8 @@ module TranTuanNoiThat
     end
 
     def scan_instance_tree(entity, parent_uid, parent_path, depth, parent_transform, root_triangles = [])
-      uid = entity_uid(entity)
+      base_uid = entity_uid(entity)
+      uid = parent_uid ? "#{parent_uid}:#{base_uid}" : base_uid
       world_transform = parent_transform * entity.transformation
       child_instances = entity.definition.entities.to_a.select do |child|
         (child.is_a?(Sketchup::Group) || child.is_a?(Sketchup::ComponentInstance)) &&
