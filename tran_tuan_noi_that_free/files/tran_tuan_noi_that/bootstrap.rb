@@ -18,7 +18,7 @@ module TranTuanNoiThat
   }.freeze unless const_defined?(:LOCKED_FEATURE_BASELINES, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.349'.freeze
+  VERSION = '1.9.350'.freeze
 
   class << self
     def setting(key, default = nil)
@@ -987,4 +987,4 @@ end
 
 TranTuanNoiThat.boot
 
-# 1.9.343: add local material and furniture-equipment catalog.
+# 1.9.350: refresh updater bootstrap after checksum recovery.
