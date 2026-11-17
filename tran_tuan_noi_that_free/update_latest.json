@@ -1,6 +1,6 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.347",
+  "version": "1.9.348",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
@@ -9,7 +9,7 @@
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bao_gia_tool.rb",
-      "sha256": "cbcc72402fe16dff7f47a2ae260eed652b5ae07bd1fd503362e3db3d8506a79f"
+      "sha256": "257e4682f6099b6396bce765fe287f5f05324153a9ad389e6dda97c74b4167b5"
     },
     {
       "path": "tran_tuan_noi_that/board_tool.rb",
@@ -510,5 +510,5 @@
     "tran_tuan_noi_that/cnc_profile_tool.rb",
     "tran_tuan_noi_that/icons/cnc_profile.svg"
   ],
-  "release_notes": "1.9.344: Thư viện vật liệu nội bộ; tìm kiếm không dấu trên mọi trường, lọc theo nhóm vật liệu, thương hiệu, bề mặt và nhà cung cấp; bỏ tra cứu Google/Bing."
+  "release_notes": "1.9.348: Bảng báo giá đổi trường Cao thành Sâu; công thức m² dùng ((Dài × Rộng) + Sâu) / 1.000.000 × Đơn giá × Số lượng; vẫn đọc dữ liệu báo giá cũ."
 }
