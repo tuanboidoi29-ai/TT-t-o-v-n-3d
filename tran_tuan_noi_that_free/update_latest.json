@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.355",
+  "version": "1.9.356",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "1.9.355: Sửa lỗi quét Model: tách quét danh sách khỏi dựng mesh 3D nặng, tránh gửi payload tam giác lớn vào cửa sổ HtmlDialog; đồng bộ và xuất JSON vẫn giữ mesh đầy đủ.",
+  "notes": "1.9.356: Sửa lỗi đồng bộ Model: tính tổng tam giác từ danh sách bản ghi đã quét, không gọi fetch trên Sketchup::ComponentInstance.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "60ab9f3dae0dea885ec174e6cf34069c116f8b9f7313ce93e88be61e8a1a90c1"
+      "sha256": "b720e26596267b4f3261755acf89d10a99ed3de5537c8b43805d7447304da81e"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -319,7 +319,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "f4ef04b6b2e65f1f97694db126b76844d9c291f279ec85cf8458099805d301b0"
+      "sha256": "2d7c9926a5bff68fd149bcb45a9ae6fcb67b0d980fce6dfa5b715dbba1c16223"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -499,7 +499,7 @@
     {
       "path": "tran_tuan_noi_that/model_export_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/model_export_tool.rb",
-      "sha256": "0eb24272dde79ef6382c86cebdb116abfa4de8c84b226ce42cea6decacd53b7c"
+      "sha256": "cea9dcb41347c675e2fd7ad99c50325e9bc2c3587a71c50e435ec6b5e32f27e1"
     },
     {
       "path": "tran_tuan_noi_that/icons/model_export.svg",
@@ -520,5 +520,5 @@
     "tran_tuan_noi_that/cnc_profile_tool.rb",
     "tran_tuan_noi_that/icons/cnc_profile.svg"
   ],
-  "release_notes": "1.9.355: Sửa lỗi quét Model: tách quét danh sách khỏi dựng mesh 3D nặng, tránh gửi payload tam giác lớn vào cửa sổ HtmlDialog; đồng bộ và xuất JSON vẫn giữ mesh đầy đủ."
+  "release_notes": "1.9.356: Sửa lỗi đồng bộ Model: tính tổng tam giác từ danh sách bản ghi đã quét, không gọi fetch trên Sketchup::ComponentInstance."
 }
