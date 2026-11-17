@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.351",
+  "version": "1.9.352",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "1.9.351: Bổ sung quản lý ẩn/hiện chi tiết theo Tags (Layers), ẩn/hiện từng Tag và thao tác tất cả; không xóa hình học.",
+  "notes": "1.9.352: Quét sâu Group/Component lồng nhau, thống kê ván theo từng cụm; bỏ mật khẩu, mở bằng tên/mã dự án; lưu lịch sử mỗi lần đồng bộ; mặc định xem Model 3D.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "c2d4e9ac662bacde5e0e1897d05b86144a0c252930b438cb392e7cc9882a7019"
+      "sha256": "0231c5427b910cc79786608ff39dbecb6b69273df11ead56239ee952a57d7839"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -319,7 +319,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "c78c764c04d500d7778d16bcac002a4048cdfe1c307530428b3731ebace413b7"
+      "sha256": "9aefd728ea9dc2e40cadafdce5a32b3f69d997712f6b7a5d3f343baa5551ec24"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -499,7 +499,7 @@
     {
       "path": "tran_tuan_noi_that/model_export_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/model_export_tool.rb",
-      "sha256": "3db532f4e547b7afd8c6967f656c5bcc11c36b754e99ea01eaa01b7c90af2dbd"
+      "sha256": "d14999cfd09a6fe2119f0e30c6eb1cafafd229f95cf35120347eff596ebbcfdf"
     },
     {
       "path": "tran_tuan_noi_that/icons/model_export.svg",
