@@ -145,7 +145,7 @@ module TranTuanNoiThat
       output
     end
 
-    def scan_model
+    def scan_model(include_mesh = true)
       m = model
       raise 'Không có model SketchUp đang mở.' unless m
       roots = top_level_objects
@@ -166,7 +166,7 @@ module TranTuanNoiThat
       group_tree = []
       roots.each do |root|
         cap = [remaining, MAX_TRIANGLES_PER_OBJECT].min
-        triangles = cap > 0 ? mesh_triangles(root, Geom::Transformation.new, [], cap) : []
+        triangles = include_mesh && cap > 0 ? mesh_triangles(root, Geom::Transformation.new, [], cap) : []
         remaining -= triangles.length
         root_record, tree_node, descendants = scan_instance_tree(root, nil, entity_name(root), 0, Geom::Transformation.new, triangles)
         records.concat([root_record] + descendants)
@@ -447,8 +447,11 @@ module TranTuanNoiThat
       @dialog.set_html(html)
       @dialog.add_action_callback('model_scan') do |_context|
         begin
-          result = scan_model
-          @dialog.execute_script("window.TTModelExport.receiveScan(#{JSON.generate(result).gsub('</', '<\\/')})")
+          result = scan_model(false)
+          # Không gửi lưới tam giác 3D lớn vào HtmlDialog khi chỉ cần danh sách đối tượng.
+          # Dữ liệu mesh đầy đủ vẫn được tạo khi Đồng bộ Web hoặc Xuất JSON.
+          display_result = result.reject { |key, _| ['model3d', 'panels', 'group_tree'].include?(key) }
+          @dialog.execute_script("window.TTModelExport.receiveScan(#{JSON.generate(display_result).gsub('</', '<\\/')})")
         rescue StandardError => e
           @dialog.execute_script("window.TTModelExport.showError(#{e.message.to_s.to_json})")
         end
