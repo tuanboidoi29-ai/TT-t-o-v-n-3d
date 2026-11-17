@@ -18,7 +18,7 @@ module TranTuanNoiThat
   }.freeze unless const_defined?(:LOCKED_FEATURE_BASELINES, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.348'.freeze
+  VERSION = '1.9.349'.freeze
 
   class << self
     def setting(key, default = nil)
@@ -228,7 +228,7 @@ module TranTuanNoiThat
         layout_stats_v101_fast_pages
         layout_stats_v110_layout_only_dim_dedupe
         settings
-        material_catalog_tool
+        model_export_tool
         grain_board_auto
         updater
         don_dim_line
@@ -489,7 +489,7 @@ module TranTuanNoiThat
       install_layout_stats_ui
       install_dimensions_ui
       install_gcode_export_ui
-      install_material_catalog_ui
+      install_model_export_ui
       refresh_feature_commands
       @toolbar.restore if @toolbar
       @toolbar.show if @toolbar
@@ -836,17 +836,17 @@ module TranTuanNoiThat
       false
     end
 
-    def install_material_catalog_ui
-      return false unless defined?(TranTuanNoiThat::MaterialCatalog)
-      @material_catalog_cmd ||= command(
-        'THƯ VIỆN VẬT LIỆU',
-        'material_catalog.svg',
-        'Tra cứu và quản lý mẫu mã, thông số, giá và nhà cung cấp vật liệu nội thất'
-      ) { MaterialCatalog.show }
-      add_feature_command_once(@material_catalog_cmd, :material_catalog_menu_installed)
+    def install_model_export_ui
+      return false unless defined?(TranTuanNoiThat::ModelExport)
+      @model_export_cmd ||= command(
+        'XUẤT DỮ LIỆU KIỂM TRA MODEL',
+        'model_export.svg',
+        'Quét Group/Component, đồng bộ model lên Web và tạo QR riêng cho từng đối tượng'
+      ) { ModelExport.show }
+      add_feature_command_once(@model_export_cmd, :model_export_menu_installed)
       true
     rescue StandardError => error
-      puts "[TT UI MaterialCatalog] #{error.class}: #{error.message}"
+      puts "[TT UI ModelExport] #{error.class}: #{error.message}"
       false
     end
 
