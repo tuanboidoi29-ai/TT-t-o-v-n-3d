@@ -61,8 +61,8 @@ function loadModel(model){
   const th=[...new Set(state.panels.map(thickness).filter(Boolean))].sort((a,b)=>num(a)-num(b));
   $('#thicknessFilter').innerHTML='<option value="">Tất cả độ dày</option>'+th.map(v=>'<option value="'+esc(v)+'">'+esc(v)+' mm</option>').join('');
   showApp();render();renderObjects();drawModel();setStatus('DỮ LIỆU ĐÃ LƯU','ok');
-  if(state.pendingObject){const hit=findObject(state.pendingObject);if(hit)setTimeout(()=>openObject(hit),100);}
-  else if(state.pendingBoard){const hit=findBoard(state.pendingBoard);if(hit)setTimeout(()=>openDetail(hit),100);}
+  if(state.pendingObject){const hit=findObject(state.pendingObject);state.pendingObject='';if(hit)setTimeout(()=>openObject(hit),100);}
+  else if(state.pendingBoard){const hit=findBoard(state.pendingBoard);state.pendingBoard='';if(hit)setTimeout(()=>openDetail(hit),100);}
 }
 
 function findBoard(token){const t=String(token||'').trim();return state.panels.find(p=>[p.uid,p.panel_uid,p.code,p.ma_tam,p.id].map(String).includes(t))||null}
@@ -102,7 +102,7 @@ function logout(){stopScanner();state.model=null;state.panels=[];state.labels=[]
 
 function parseQr(raw){
   const s=String(raw||'').trim();if(!s)return false;
-  try{const u=new URL(s);const id=u.searchParams.get('id')||'';const board=u.searchParams.get('board')||'';const object=u.searchParams.get('object')||'';if(id)state.shareId=id;if(board)state.pendingBoard=board;if(object)state.pendingObject=object;handleQrResult();return true}catch(e){}
+  try{const u=new URL(s);const id=u.searchParams.get('id')||'';const board=u.searchParams.get('board')||'';const object=u.searchParams.get('object')||'';if(id)state.shareId=id;state.pendingBoard=board;state.pendingObject=object;handleQrResult();return true}catch(e){}
   const objectHit=findObject(s);if(objectHit){stopScanner();$('#scanDialog').close();openObject(objectHit);return true}
   const hit=findBoard(s);if(hit){stopScanner();$('#scanDialog').close();openDetail(hit);return true}
   if(/^TTB[-_]/i.test(s)){state.pendingBoard=s;handleQrResult();return true}
