@@ -5,6 +5,7 @@ require 'json'
 require 'net/http'
 require 'uri'
 require 'securerandom'
+require 'time'
 require 'fileutils'
 
 module TranTuanNoiThat
