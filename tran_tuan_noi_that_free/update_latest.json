@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.354",
+  "version": "1.9.355",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "1.9.354: Quét sâu Group/Component lồng nhau, giữ đúng cụm Group trung gian và UID riêng từng nhánh; thống kê ván theo từng cụm; bỏ mật khẩu, mở bằng tên/mã dự án; lưu lịch sử mỗi lần đồng bộ; mặc định xem Model 3D.",
+  "notes": "1.9.355: Sửa lỗi quét Model: tách quét danh sách khỏi dựng mesh 3D nặng, tránh gửi payload tam giác lớn vào cửa sổ HtmlDialog; đồng bộ và xuất JSON vẫn giữ mesh đầy đủ.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -499,7 +499,7 @@
     {
       "path": "tran_tuan_noi_that/model_export_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/model_export_tool.rb",
-      "sha256": "edb41bf191719e86b3d22c9c78b2cc33de778bb60431eac11afa763c2e01eafd"
+      "sha256": "0eb24272dde79ef6382c86cebdb116abfa4de8c84b226ce42cea6decacd53b7c"
     },
     {
       "path": "tran_tuan_noi_that/icons/model_export.svg",
@@ -520,5 +520,5 @@
     "tran_tuan_noi_that/cnc_profile_tool.rb",
     "tran_tuan_noi_that/icons/cnc_profile.svg"
   ],
-  "release_notes": "1.9.351: Bổ sung quản lý ẩn/hiện chi tiết theo Tags (Layers), ẩn/hiện từng Tag và thao tác tất cả; không xóa hình học."
+  "release_notes": "1.9.355: Sửa lỗi quét Model: tách quét danh sách khỏi dựng mesh 3D nặng, tránh gửi payload tam giác lớn vào cửa sổ HtmlDialog; đồng bộ và xuất JSON vẫn giữ mesh đầy đủ."
 }
