@@ -1,11 +1,12 @@
 const API='https://vnvkmxqgbnmirsgdgfzm.supabase.co/functions/v1/tt-model-api';
 const $=s=>document.querySelector(s);
-const state={shareId:'',pendingBoard:'',model:null,panels:[],labels:[],model3d:[],view:{yaw:-.65,pitch:-.45,zoom:1,drag:false,x:0,y:0},stream:null,scanLoop:0,detector:null};
+const state={shareId:'',pendingBoard:'',pendingObject:'',model:null,panels:[],labels:[],objects:[],selectedObject:'',model3d:[],view:{yaw:-.65,pitch:-.45,zoom:1,drag:false,x:0,y:0},stream:null,scanLoop:0,detector:null};
 
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function num(v){const n=Number(v);return Number.isFinite(n)?n:0}
 function shareIdFromUrl(){return String(new URLSearchParams(location.search).get('id')||'').trim()}
 function boardFromUrl(){return String(new URLSearchParams(location.search).get('board')||'').trim()}
+function objectFromUrl(){return String(new URLSearchParams(location.search).get('object')||'').trim()}
 function setStatus(t,cls=''){const e=$('#status');e.textContent=t;e.className='status '+cls}
 function setMsg(t,cls=''){const e=$('#loginMessage');e.textContent=t;e.className='loginMessage '+cls}
 function codeOf(p){return p.code||p.ma_tam||p.uid||p.panel_uid||p.id||'—'}
@@ -17,7 +18,7 @@ function dim(p){if(Array.isArray(p.cut)&&p.cut.length>=2)return p.cut.map(x=>Num
 function bandsOf(p){return p.banding||p.bands||p.dan_canh||{}}
 function bandCount(p){return Object.values(bandsOf(p)).filter(v=>v!==null&&v!==false&&v!==0&&v!=='').length}
 
-function showApp(){ $('#loginCard').classList.add('hidden'); ['#projectCard','#modelPanel','#controls','#summary'].forEach(s=>$(s).classList.remove('hidden')); $('#logoutBtn').classList.remove('hidden'); }
+function showApp(){ $('#loginCard').classList.add('hidden'); ['#projectCard','#modelPanel','#objectPanel','#controls','#summary'].forEach(s=>$(s).classList.remove('hidden')); $('#logoutBtn').classList.remove('hidden'); }
 function hideApp(){ $('#loginCard').classList.remove('hidden'); ['#projectCard','#modelPanel','#controls','#summary'].forEach(s=>$(s).classList.add('hidden')); $('#logoutBtn').classList.add('hidden'); $('#list').innerHTML=''; }
 
 async function login(){
@@ -45,21 +46,27 @@ function loadModel(model){
   state.shareId=state.model.share_id||state.shareId;
   state.panels=Array.isArray(p.panels)?p.panels:(Array.isArray(p.boards)?p.boards:[]);
   state.labels=Array.isArray(p.labels)?p.labels:state.panels.filter(x=>labelInfo(x).assigned);
+  state.objects=Array.isArray(p.objects)?p.objects:(Array.isArray(p.model3d)?p.model3d:[]);
   state.model3d=Array.isArray(p.model3d)?p.model3d:[];
+  state.selectedObject='';
   $('#modelName').textContent=state.model.model_name||p.model_name||'SketchUp Model';
   $('#modelId').textContent='Mã: '+state.shareId;
   $('#savedAt').textContent='Lưu: '+new Date(state.model.last_saved_at||state.model.updated_at||Date.now()).toLocaleString('vi-VN');
   $('#revision').textContent='Revision: '+String(state.model.revision||1);
   $('#panelCount').textContent=state.panels.length;
+  $('#objectCount').textContent=state.objects.length;
+  $('#objectPanel').classList.toggle('hidden',!state.objects.length);
   $('#labelCount').textContent=state.labels.length;
   $('#bandCount').textContent=state.panels.reduce((a,p)=>a+bandCount(p),0);
   const th=[...new Set(state.panels.map(thickness).filter(Boolean))].sort((a,b)=>num(a)-num(b));
   $('#thicknessFilter').innerHTML='<option value="">Tất cả độ dày</option>'+th.map(v=>'<option value="'+esc(v)+'">'+esc(v)+' mm</option>').join('');
-  showApp();render();drawModel();setStatus('DỮ LIỆU ĐÃ LƯU','ok');
-  if(state.pendingBoard){const hit=findBoard(state.pendingBoard);if(hit)setTimeout(()=>openDetail(hit),100);}
+  showApp();render();renderObjects();drawModel();setStatus('DỮ LIỆU ĐÃ LƯU','ok');
+  if(state.pendingObject){const hit=findObject(state.pendingObject);if(hit)setTimeout(()=>openObject(hit),100);}
+  else if(state.pendingBoard){const hit=findBoard(state.pendingBoard);if(hit)setTimeout(()=>openDetail(hit),100);}
 }
 
 function findBoard(token){const t=String(token||'').trim();return state.panels.find(p=>[p.uid,p.panel_uid,p.code,p.ma_tam,p.id].map(String).includes(t))||null}
+function findObject(token){const t=String(token||'').trim();return state.objects.find(o=>[o.uid,o.id,o.persistent_id,o.code].map(String).includes(t))||state.model3d.find(o=>[o.uid,o.id,o.persistent_id].map(String).includes(t))||null}
 function render(){
   const q=$('#search').value.trim().toLowerCase(),tf=$('#thicknessFilter').value,lf=$('#labelFilter').value;
   const rows=state.panels.filter(p=>{const li=labelInfo(p);const txt=[nameOf(p),codeOf(p),li.code,li.name,p.tag,p.material,pathOf(p),dim(p)].join(' ').toLowerCase();return(!q||txt.includes(q))&&(!tf||thickness(p)===tf)&&(!lf||(lf==='yes'?li.assigned:!li.assigned))});
@@ -73,28 +80,38 @@ function openDetail(p){
   $('#detailBody').innerHTML='<div class="detailGrid">'+items.map((x,i)=>'<div class="detailItem '+(i===6?'wide':'')+'"><span>'+esc(x[0])+'</span><b>'+esc(x[1])+'</b></div>').join('')+'</div>';
   $('#detailDialog').showModal();
 }
+function objectLink(o){const u=new URL(location.href);u.searchParams.set('id',state.shareId);u.searchParams.set('object',o.uid||o.id||'');u.searchParams.delete('board');u.searchParams.delete('scanner');return u.toString()}
+function renderObjects(){const q=($('#objectSearch')?.value||'').trim().toLowerCase();const rows=state.objects.filter(o=>[o.name,o.uid,o.type,o.tag,o.material,(o.dimensions||[]).join(' ')].join(' ').toLowerCase().includes(q));$('#objectList').innerHTML=rows.map((o,i)=>'<article class="objectCard"><div class="objectTitle"><b>'+esc(o.name||'Đối tượng chưa đặt tên')+'</b><span class="badge">'+esc(o.type||'Object')+'</span></div><div class="objectMeta">'+esc((o.dimensions||[]).join(' × '))+' mm · '+esc(o.material||'Chưa gán vật liệu')+'</div><div class="objectMeta">Tag: '+esc(o.tag||'—')+' · Mã: '+esc(o.uid||o.id||'—')+'</div><div class="objectActions"><button class="secondary" data-openobj="'+esc(o.uid||o.id||'')+'">Tìm / xem</button><button class="ghost" data-qrobj="'+esc(o.uid||o.id||'')+'">Tạo QR</button></div><div class="qrHolder" id="qrObj'+i+'"></div></article>').join('')||'<div class="muted">Không có đối tượng phù hợp.</div>';document.querySelectorAll('[data-openobj]').forEach(b=>b.onclick=()=>{const o=findObject(b.dataset.openobj);if(o)openObject(o)});document.querySelectorAll('[data-qrobj]').forEach(b=>b.onclick=()=>showObjectQr(b.dataset.qrobj,b.closest('.objectCard').querySelector('.qrHolder')))}
+function openObject(o){const uid=o.uid||o.id||'';state.selectedObject=uid;drawModel();const dims=(o.dimensions||[]).join(' × ')+' mm';const items=[['Tên đối tượng',o.name||'—'],['Mã định danh',uid||'—'],['Loại',o.type||'—'],['Kích thước bao',dims],['Tag / Layer',o.tag||'—'],['Vật liệu',o.material||'—'],['Persistent ID',o.persistent_id||'—'],['Số tam giác 3D',o.triangle_count||0]];$('#dName').textContent=o.name||'Đối tượng Model';$('#detailBody').innerHTML='<div class="detailGrid">'+items.map((x,i)=>'<div class="detailItem '+(i===0?'wide':'')+'"><span>'+esc(x[0])+'</span><b>'+esc(x[1])+'</b></div>').join('')+'</div><p class="objectDetailActions"><button class="secondary" onclick="showObjectQr(\''+esc(uid)+'\',document.getElementById(\'detailQr\'))">Hiện mã QR đối tượng</button></p><div id="detailQr" class="qrHolder"></div><p class="objectMeta">Quét QR bằng camera điện thoại để mở đúng đối tượng trong trang xem Model.</p>';$('#detailDialog').showModal()}
+function showObjectQr(uid,holder){const o=findObject(uid);if(!o||!holder)return;holder.innerHTML='';const url=objectLink(o);if(window.QRCode){new QRCode(holder,{text:url,width:132,height:132,correctLevel:QRCode.CorrectLevel.M})}else{holder.textContent=url}}
+function printAllQrs(){const grid=$('#qrPrintGrid');grid.innerHTML='';state.objects.forEach(o=>{const card=document.createElement('div');card.className='qrPrintCard';const title=document.createElement('b');title.textContent=o.name||'Đối tượng';const code=document.createElement('small');code.textContent=o.uid||'';const qr=document.createElement('div');qr.className='qrPrintCode';card.append(title,code,qr);grid.appendChild(card);if(window.QRCode)new QRCode(qr,{text:objectLink(o),width:112,height:112,correctLevel:QRCode.CorrectLevel.M});else qr.textContent=objectLink(o)});grid.classList.remove('hidden');setTimeout(()=>window.print(),350)}
+window.onafterprint=()=>$('#qrPrintGrid').classList.add('hidden');
 
-function project3d(pt,c,v,scale,W,H){let x=pt[0]-c[0],y=pt[1]-c[1],z=pt[2]-c[2];let cy=Math.cos(v.yaw),sy=Math.sin(v.yaw),cp=Math.cos(v.pitch),sp=Math.sin(v.pitch);let x1=x*cy-y*sy,y1=x*sy+y*cy,z1=z;let y2=y1*cp-z1*sp,z2=y1*sp+z1*cp;return[W/2+x1*scale*v.zoom,H/2-z2*scale*v.zoom]}
+function project3d(pt,c,v,scale,W,H){let x=pt[0]-c[0],y=pt[1]-c[1],z=pt[2]-c[2];let cy=Math.cos(v.yaw),sy=Math.sin(v.yaw),cp=Math.cos(v.pitch),sp=Math.sin(v.pitch);let x1=x*cy-y*sy,y1=x*sy+y*cy,z1=z;let y2=y1*cp-z1*sp,z2=y1*sp+z1*cp;return[W/2+x1*scale*v.zoom,H/2-z2*scale*v.zoom,y2]}
 function drawModel(){
   const cv=$('#modelCanvas'),boxes=state.model3d;if(!cv)return;const dpr=window.devicePixelRatio||1,W=cv.clientWidth||800,H=cv.clientHeight||360;cv.width=W*dpr;cv.height=H*dpr;const ctx=cv.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,W,H);
   if(!boxes.length){ctx.fillStyle='#7f96b3';ctx.font='14px Arial';ctx.fillText('Model chưa có dữ liệu 3D. Hãy Đồng bộ Web lại từ SketchUp.',20,40);return}
-  const pts=[];boxes.forEach(b=>(b.corners||[]).forEach(p=>pts.push(p)));const c=[0,0,0];pts.forEach(p=>{c[0]+=p[0];c[1]+=p[1];c[2]+=p[2]});c[0]/=pts.length;c[1]/=pts.length;c[2]/=pts.length;let span=100;pts.forEach(p=>{span=Math.max(span,Math.abs(p[0]-c[0])*2,Math.abs(p[1]-c[1])*2,Math.abs(p[2]-c[2])*2)});const scale=Math.min(W,H)*.72/span,edges=[[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]];boxes.forEach(b=>{ctx.strokeStyle=b.label&&b.label.assigned?'#60a5fa':'#475569';ctx.lineWidth=b.label&&b.label.assigned?1.8:1;ctx.beginPath();edges.forEach(e=>{const a=project3d(b.corners[e[0]],c,state.view,scale,W,H),q=project3d(b.corners[e[1]],c,state.view,scale,W,H);ctx.moveTo(a[0],a[1]);ctx.lineTo(q[0],q[1])});ctx.stroke()});
+  const pts=[];boxes.forEach(b=>{(b.corners||[]).forEach(p=>pts.push(p));(b.triangles||[]).forEach(t=>(t.v||[]).forEach(p=>pts.push(p)))});if(!pts.length)return;
+  const c=[0,0,0];pts.forEach(p=>{c[0]+=p[0];c[1]+=p[1];c[2]+=p[2]});c[0]/=pts.length;c[1]/=pts.length;c[2]/=pts.length;let span=100;pts.forEach(p=>{span=Math.max(span,Math.abs(p[0]-c[0])*2,Math.abs(p[1]-c[1])*2,Math.abs(p[2]-c[2])*2)});const scale=Math.min(W,H)*.72/span,edges=[[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]];
+  const faces=[];boxes.forEach(b=>(b.triangles||[]).forEach(t=>{if((t.v||[]).length===3){const p=t.v.map(v=>project3d(v,c,state.view,scale,W,H));faces.push({p:p,color:t.c||'#B8C7D9',depth:(p[0][2]+p[1][2]+p[2][2])/3})}}));faces.sort((a,b)=>a.depth-b.depth);ctx.save();ctx.globalAlpha=.68;faces.forEach(f=>{ctx.beginPath();ctx.moveTo(f.p[0][0],f.p[0][1]);ctx.lineTo(f.p[1][0],f.p[1][1]);ctx.lineTo(f.p[2][0],f.p[2][1]);ctx.closePath();ctx.fillStyle=f.color;ctx.fill();ctx.strokeStyle='#334155';ctx.lineWidth=.35;ctx.stroke()});ctx.restore();
+  boxes.forEach(b=>{if(!(b.corners||[]).length)return;const selected=String(b.uid||'')===String(state.selectedObject||'');ctx.strokeStyle=selected?'#fbbf24':(b.label&&b.label.assigned?'#60a5fa':'#475569');ctx.lineWidth=selected?3:(b.label&&b.label.assigned?1.8:.7);ctx.beginPath();edges.forEach(e=>{const a=project3d(b.corners[e[0]],c,state.view,scale,W,H),q=project3d(b.corners[e[1]],c,state.view,scale,W,H);ctx.moveTo(a[0],a[1]);ctx.lineTo(q[0],q[1])});ctx.stroke()});
 }
 
 function bindModel(){const cv=$('#modelCanvas');cv.onmousedown=e=>{state.view.drag=true;state.view.x=e.clientX;state.view.y=e.clientY};window.addEventListener('mouseup',()=>state.view.drag=false);window.addEventListener('mousemove',e=>{if(!state.view.drag)return;state.view.yaw+=(e.clientX-state.view.x)*.008;state.view.pitch+=(e.clientY-state.view.y)*.008;state.view.pitch=Math.max(-1.45,Math.min(1.45,state.view.pitch));state.view.x=e.clientX;state.view.y=e.clientY;drawModel()});cv.onwheel=e=>{e.preventDefault();state.view.zoom*=e.deltaY<0?1.12:.89;state.view.zoom=Math.max(.2,Math.min(7,state.view.zoom));drawModel()};cv.ondblclick=()=>{state.view={yaw:-.65,pitch:-.45,zoom:1,drag:false,x:0,y:0};drawModel()}}
-function logout(){stopScanner();state.model=null;state.panels=[];state.labels=[];state.model3d=[];hideApp();setStatus('Sẵn sàng');setMsg('');}
+function logout(){stopScanner();state.model=null;state.panels=[];state.labels=[];state.objects=[];state.model3d=[];state.selectedObject='';hideApp();setStatus('Sẵn sàng');setMsg('');}
 
 function parseQr(raw){
   const s=String(raw||'').trim();if(!s)return false;
-  try{const u=new URL(s);const id=u.searchParams.get('id')||'';const board=u.searchParams.get('board')||'';if(id)state.shareId=id;if(board)state.pendingBoard=board;handleQrResult();return true}catch(e){}
+  try{const u=new URL(s);const id=u.searchParams.get('id')||'';const board=u.searchParams.get('board')||'';const object=u.searchParams.get('object')||'';if(id)state.shareId=id;if(board)state.pendingBoard=board;if(object)state.pendingObject=object;handleQrResult();return true}catch(e){}
+  const objectHit=findObject(s);if(objectHit){stopScanner();$('#scanDialog').close();openObject(objectHit);return true}
   const hit=findBoard(s);if(hit){stopScanner();$('#scanDialog').close();openDetail(hit);return true}
   if(/^TTB[-_]/i.test(s)){state.pendingBoard=s;handleQrResult();return true}
   return false;
 }
 function handleQrResult(){
   stopScanner();if($('#scanDialog').open)$('#scanDialog').close();
-  if(state.model&&state.shareId===state.model.share_id){const hit=findBoard(state.pendingBoard);if(hit){openDetail(hit);return}}
-  $('#qrModeHint').classList.remove('hidden');$('#qrModeHint').textContent='Đã đọc QR. Mã dự án: '+(state.shareId||'—')+(state.pendingBoard?' • Tấm: '+state.pendingBoard:'')+'. Hãy đăng nhập để xem dữ liệu.';hideApp();$('#projectLogin').focus();
+  if(state.model&&state.shareId===state.model.share_id){const objectHit=findObject(state.pendingObject);if(objectHit){openObject(objectHit);return}const hit=findBoard(state.pendingBoard);if(hit){openDetail(hit);return}}
+  $('#qrModeHint').classList.remove('hidden');$('#qrModeHint').textContent='Đã đọc QR. Mã dự án: '+(state.shareId||'—')+(state.pendingObject?' • Đối tượng: '+state.pendingObject:'')+(state.pendingBoard?' • Tấm: '+state.pendingBoard:'')+'. Hãy đăng nhập để xem dữ liệu.';hideApp();$('#projectLogin').focus();
 }
 
 async function startScanner(){
@@ -119,14 +136,14 @@ async function scanFrame(){
 function openScanner(){if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){alert('Trình duyệt không hỗ trợ Camera.');return}$('#scanDialog').showModal();$('#scanStatus').textContent='Bấm BẬT CAMERA để quét.';}
 
 function boot(){
-  state.shareId=shareIdFromUrl();state.pendingBoard=boardFromUrl();
+  state.shareId=shareIdFromUrl();state.pendingBoard=boardFromUrl();state.pendingObject=objectFromUrl();
   $('#projectLogin').value=localStorage.getItem('tt_project_login')||'';
-  if(state.shareId){$('#qrModeHint').classList.remove('hidden');$('#qrModeHint').textContent='QR đã xác định dự án'+(state.pendingBoard?' và tấm '+state.pendingBoard:'')+'. Nhập thông tin đăng nhập.'} if(new URLSearchParams(location.search).get('scanner')==='1'){setTimeout(openScanner,250)}
+  if(state.shareId){$('#qrModeHint').classList.remove('hidden');$('#qrModeHint').textContent='QR đã xác định dự án'+(state.pendingObject?' và đối tượng '+state.pendingObject:'')+(state.pendingBoard?' và tấm '+state.pendingBoard:'')+'. Nhập thông tin đăng nhập.'} if(new URLSearchParams(location.search).get('scanner')==='1'){setTimeout(openScanner,250)}
   bindModel();setStatus('CHỜ ĐĂNG NHẬP');
 }
 
 $('#loginBtn').onclick=login;$('#projectPassword').onkeydown=e=>{if(e.key==='Enter')login()};$('#togglePassword').onclick=()=>{const p=$('#projectPassword'),show=p.type==='password';p.type=show?'text':'password';$('#togglePassword').textContent=show?'ẨN':'HIỆN'};
 $('#logoutBtn').onclick=logout;$('#closeDetail').onclick=()=>$('#detailDialog').close();
 ['#scanTopBtn','#scanLoginBtn','#scanProjectBtn'].forEach(s=>$(s).onclick=openScanner);$('#closeScanner').onclick=()=>{stopScanner();$('#scanDialog').close()};$('#startScanner').onclick=startScanner;$('#stopScanner').onclick=stopScanner;$('#manualQrBtn').onclick=()=>{if(!parseQr($('#manualQrText').value))$('#scanStatus').textContent='Không nhận được mã QR hợp lệ.'};
-['search','thicknessFilter','labelFilter'].forEach(id=>$('#'+id).addEventListener(id==='search'?'input':'change',render));
+['search','thicknessFilter','labelFilter'].forEach(id=>$('#'+id).addEventListener(id==='search'?'input':'change',render));$('#objectSearch').addEventListener('input',renderObjects);$('#printQrBtn').onclick=printAllQrs;
 boot();
