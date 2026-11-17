@@ -15,8 +15,8 @@ module TranTuanNoiThat
     API_URL = 'https://vnvkmxqgbnmirsgdgfzm.supabase.co/functions/v1/tt-model-api'.freeze
     WEB_URL = 'https://tt-kiem-tra-tam-web.vercel.app/'.freeze
     DICT = 'TT_ModelExport'.freeze
-    MAX_TRIANGLES_TOTAL = 12000
-    MAX_TRIANGLES_PER_OBJECT = 2500
+    MAX_TRIANGLES_TOTAL = 120000
+    MAX_TRIANGLES_PER_OBJECT = 30000
 
     def model
       Sketchup.active_model
@@ -55,6 +55,24 @@ module TranTuanNoiThat
       m.entities.to_a.select do |entity|
         (entity.is_a?(Sketchup::Group) || entity.is_a?(Sketchup::ComponentInstance)) &&
           entity.valid? && visible_entity?(entity)
+      end
+    end
+
+    def scan_roots
+      m = model
+      selection = m.selection.to_a
+      selected_instances = selection.select do |entity|
+        (entity.is_a?(Sketchup::Group) || entity.is_a?(Sketchup::ComponentInstance)) && entity.valid? && visible_entity?(entity)
+      end
+      if selection.any?
+        raise 'Vùng chọn hiện tại không có Group/Component hợp lệ. Hãy chọn Group hoặc Component cần xuất.' if selected_instances.empty?
+        selected_ids = selected_instances.map { |entity| entity.persistent_id rescue entity.entityID }
+        selected_instances.reject do |entity|
+          parent = entity.parent
+          parent.respond_to?(:instances) && parent.instances.any? { |ancestor| selected_ids.include?(ancestor.persistent_id rescue ancestor.entityID) }
+        end
+      else
+        top_level_objects
       end
     end
 
@@ -140,7 +158,8 @@ module TranTuanNoiThat
                     [(p3.x.to_f * 25.4).round(2), (p3.y.to_f * 25.4).round(2), (p3.z.to_f * 25.4).round(2)]
                   ],
                   'c' => front_color,
-                  'bc' => back_color
+                  'bc' => back_color,
+                  'tag' => (child.layer.name.to_s rescue '')
                 }
               end
             end
@@ -159,7 +178,7 @@ module TranTuanNoiThat
     def scan_model(include_mesh = true)
       m = model
       raise 'Không có model SketchUp đang mở.' unless m
-      roots = top_level_objects
+      roots = scan_roots
       raise 'Không tìm thấy Group/Component đang hiển thị trong model.' if roots.empty?
 
       m.start_operation('Quét sâu dữ liệu Model', true)
@@ -468,45 +487,12 @@ module TranTuanNoiThat
         end
       end
 
-      @dialog.add_action_callback('tags_list') do |_context|
-        begin
-          data = tag_inventory
-          @dialog.execute_script("window.TTModelExport.receiveTags(#{JSON.generate(data).gsub('</', '<\\/')})")
-        rescue StandardError => e
-          @dialog.execute_script("window.TTModelExport.tagError(#{e.message.to_s.to_json})")
-        end
-      end
-      @dialog.add_action_callback('tag_visibility') do |_context, name, visible|
-        begin
-          data = set_tag_visibility(name, visible)
-          @dialog.execute_script("window.TTModelExport.receiveTags(#{JSON.generate(data).gsub('</', '<\\/')})")
-        rescue StandardError => e
-          @dialog.execute_script("window.TTModelExport.tagError(#{e.message.to_s.to_json})")
-        end
-      end
-      @dialog.add_action_callback('tags_all_visibility') do |_context, visible|
-        begin
-          data = set_all_tags_visibility(visible)
-          @dialog.execute_script("window.TTModelExport.receiveTags(#{JSON.generate(data).gsub('</', '<\\/')})")
-        rescue StandardError => e
-          @dialog.execute_script("window.TTModelExport.tagError(#{e.message.to_s.to_json})")
-        end
-      end
       @dialog.add_action_callback('model_sync') do |_context, login|
         begin
           result = sync_to_web(login)
           @dialog.execute_script("window.TTModelExport.synced(true, #{JSON.generate(result).gsub('</', '<\\/')})")
         rescue StandardError => e
           @dialog.execute_script("window.TTModelExport.synced(false, #{e.message.to_s.to_json})")
-        end
-      end
-      @dialog.add_action_callback('model_export_json') { |_context| export_json }
-      @dialog.add_action_callback('model_open_web') do |_context|
-        settings = share_settings
-        if settings['share_id'].empty?
-          UI.messagebox('Hãy đồng bộ Model lên Web trước.')
-        else
-          UI.openURL(WEB_URL + '?id=' + URI.encode_www_form_component(settings['share_id']))
         end
       end
       @dialog.set_on_closed { @dialog = nil }
@@ -530,21 +516,12 @@ module TranTuanNoiThat
       <style>
       *{box-sizing:border-box}body{margin:0;background:#f3f6fa;color:#202a36;font:14px Segoe UI,Arial}header{padding:18px 22px;background:#fff;border-bottom:1px solid #dce3eb;display:flex;justify-content:space-between;align-items:center;gap:12px}h1{font-size:20px;margin:0}.muted{color:#718096;font-size:12px}.wrap{padding:16px;max-width:1300px;margin:auto}.panel{background:#fff;border:1px solid #dfe5ed;border-radius:11px;padding:14px;margin-bottom:12px}.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.field{display:block;font-size:12px;color:#59677a;margin-bottom:5px}input{width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:7px;font:inherit}.btn{border:0;border-radius:7px;padding:10px 14px;background:#24384f;color:#fff;cursor:pointer;font-weight:700}.green{background:#137b50}.blue{background:#245fc4}.light{background:#e9eef5;color:#25364b}.btn:disabled{opacity:.55;cursor:wait}.stats{display:flex;gap:8px;flex-wrap:wrap}.stat{background:#f2f5f9;border-radius:8px;padding:8px 12px}.stat b{display:block;font-size:19px}.tablewrap{overflow:auto;max-height:340px}table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px;border-bottom:1px solid #e7ecf2;text-align:left;white-space:nowrap}th{background:#f7f9fc;position:sticky;top:0}.link{overflow-wrap:anywhere;color:#1458ad}.notice{padding:10px;border-radius:8px;background:#eef5ff;color:#31517b;font-size:12px;line-height:1.5}.status{margin-top:9px;font-size:12px;white-space:pre-wrap}.ok{color:#087344}.bad{color:#b42318}@media(max-width:720px){.grid{grid-template-columns:1fr}header{align-items:flex-start;flex-direction:column}}
       </style></head><body>
-      <header><div><h1>XUẤT DỮ LIỆU - KIỂM TRA MODEL</h1><div class="muted">Quét Group / Component · Đồng bộ Model lên Web · Tạo QR riêng từng đối tượng</div></div><div class="row"><button class="btn light" onclick="sketchup.model_export_json()">Xuất JSON</button><button class="btn blue" onclick="sketchup.model_open_web()">Mở Web</button></div></header>
+      <header><div><h1>XUẤT DỮ LIỆU - KIỂM TRA MODEL</h1><div class="muted">Tự quét model hoặc chỉ xuất Group / Component đang chọn · Đồng bộ lên Web</div></div></header>
       <main class="wrap">
         <section class="panel">
-          <div class="row" style="justify-content:space-between"><div><b>1. QUÉT MODEL</b><div class="muted">Quét các Group / Component đang hiển thị ở cấp model. Mỗi đối tượng có mã định danh riêng.</div></div><button id="scanBtn" class="btn green" onclick="scan()">QUÉT MODEL</button></div>
+          <div class="row" style="justify-content:space-between"><div><b>1. QUÉT MODEL / VÙNG ĐANG CHỌN</b><div class="muted">Tự quét khi mở chức năng. Không chọn gì: xuất toàn bộ model đang hiển thị. Có chọn Group / Component: chỉ xuất phần được chọn.</div></div><button id="scanBtn" class="btn green" onclick="scan()">QUÉT LẠI MODEL</button></div>
           <div id="stats" class="stats" style="margin-top:12px"><div class="stat"><b id="count">0</b><span class="muted">Đối tượng</span></div><div class="stat"><b id="triangles">0</b><span class="muted">Mặt tam giác 3D</span></div></div>
           <div class="tablewrap" style="margin-top:12px"><table><thead><tr><th>TÊN ĐỐI TƯỢNG</th><th>LOẠI</th><th>KÍCH THƯỚC (mm)</th><th>TAG</th><th>VẬT LIỆU</th><th>MÃ ĐỊNH DANH</th></tr></thead><tbody id="objects"><tr><td colspan="6" class="muted">Bấm QUÉT MODEL để đọc dữ liệu.</td></tr></tbody></table></div>
-        </section>
-        <section class="panel">
-          <div class="row" style="justify-content:space-between;align-items:center">
-            <div><b>2. ẨN / HIỆN CHI TIẾT THEO TAGS (LAYERS)</b><div class="muted">Bật/tắt hiển thị từng nhóm chi tiết trong model. Không xóa đối tượng và không thay đổi hình học.</div></div>
-            <div class="row"><button class="btn light" onclick="loadTags()">LÀM MỚI</button><button class="btn light" onclick="setAllTags(true)">HIỆN TẤT CẢ</button><button class="btn blue" onclick="setAllTags(false)">ẨN TẤT CẢ</button></div>
-          </div>
-          <div class="notice" style="margin:10px 0">Tag/Layer đang hoạt động của SketchUp luôn được giữ hiển thị để tránh lỗi thao tác. Trạng thái ẩn/hiện được lưu cùng file SKP khi bạn lưu model.</div>
-          <div class="tablewrap" style="max-height:260px"><table><thead><tr><th>HIỂN THỊ</th><th>TÊN TAG / LAYER</th><th>SỐ CHI TIẾT</th><th>TRẠNG THÁI</th></tr></thead><tbody id="tags"><tr><td colspan="4" class="muted">Đang tải danh sách Tags...</td></tr></tbody></table></div>
-          <div id="tagStatus" class="status"></div>
         </section>
         <section class="panel">
           <b>3. ĐỒNG BỘ VÀ XUẤT LINK XEM MODEL TRÊN WEB</b>
@@ -557,13 +534,8 @@ module TranTuanNoiThat
         <section class="notice">Lưu ý: Sau khi đồng bộ, hãy lưu file SKP để giữ mã dự án và mã định danh đối tượng. Trình xem Web hiển thị hình học 3D đã quét, danh sách đối tượng và QR riêng từng đối tượng. Cần Internet khi đồng bộ và khi mở Web.</section>
       </main>
       <script>
-      var lastLink='';\n      window.addEventListener('load',loadTags);
+      var lastLink='';\n      window.addEventListener('load',function(){scan()});
 
-      function loadTags(){document.getElementById('tags').innerHTML='<tr><td colspan="4">Đang tải Tags...</td></tr>';sketchup.tags_list()}
-      function receiveTags(rows){document.getElementById('tags').innerHTML=(rows||[]).map(function(t){var checked=t.visible?'checked':'';var disabled=t.active?'disabled':'';return '<tr><td><input type="checkbox" '+checked+' '+disabled+' data-tag="'+esc(t.name)+'" onchange="setTag(this.dataset.tag,this.checked)" style="width:auto"></td><td>'+esc(t.name)+(t.active?' <b>(ĐANG DÙNG)</b>':'')+'</td><td>'+Number(t.entity_count||0)+'</td><td>'+(t.visible?'Đang hiện':'Đang ẩn')+'</td></tr>'}).join('')||'<tr><td colspan="4">Model chưa có Tags.</td></tr>';document.getElementById('tagStatus').textContent='Có '+(rows||[]).length+' Tags/Layer.'}
-      function setTag(name,visible){sketchup.tag_visibility(name,visible)}
-      function setAllTags(visible){sketchup.tags_all_visibility(visible)}
-      function tagError(s){document.getElementById('tagStatus').textContent=s;document.getElementById('tagStatus').className='status bad'}
       function scan(){document.getElementById('scanBtn').disabled=true;document.getElementById('objects').innerHTML='<tr><td colspan="6">Đang quét model...</td></tr>';sketchup.model_scan()}
       function receiveScan(d){document.getElementById('scanBtn').disabled=false;document.getElementById('count').textContent=d.object_count||0;document.getElementById('triangles').textContent=d.triangle_count||0;var rows=d.objects||[];document.getElementById('objects').innerHTML=rows.map(function(o){return '<tr><td>'+esc(o.name)+'</td><td>'+esc(o.type)+'</td><td>'+esc((o.dimensions||[]).join(' × '))+'</td><td>'+esc(o.tag)+'</td><td>'+esc(o.material)+'</td><td>'+esc(o.uid)+'</td></tr>'}).join('')||'<tr><td colspan="6">Không có đối tượng.</td></tr>';document.getElementById('result').textContent='Đã quét '+(d.object_count||0)+' đối tượng.';document.getElementById('result').className='status ok'}
       function showError(s){document.getElementById('scanBtn').disabled=false;document.getElementById('result').textContent=s;document.getElementById('result').className='status bad'}
@@ -572,7 +544,7 @@ module TranTuanNoiThat
       function copyLink(){if(!lastLink)return;var t=document.createElement('textarea');t.value=lastLink;document.body.appendChild(t);t.select();document.execCommand('copy');t.remove();document.getElementById('result').textContent='Đã sao chép link.'}
       function openLink(){if(lastLink)sketchup.model_open_web()}
       function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
-      window.TTModelExport={receiveScan:receiveScan,showError:showError,synced:synced,receiveTags:receiveTags,tagError:tagError};
+      window.TTModelExport={receiveScan:receiveScan,showError:showError,synced:synced};
       </script></body></html>
       HTML
     end
