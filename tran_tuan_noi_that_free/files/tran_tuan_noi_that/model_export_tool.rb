@@ -127,10 +127,13 @@ module TranTuanNoiThat
       [(b.width.to_f * 25.4).round(1), (b.depth.to_f * 25.4).round(1), (b.height.to_f * 25.4).round(1)]
     end
 
-    def mesh_triangles(instance, parent_transform, output, limit, inherited_material = nil)
+    def mesh_triangles(instance, parent_transform, output, limit, inherited_material = nil, inherited_tag = nil)
       return output if output.length >= limit
       transform = parent_transform * instance.transformation
       inherited = instance.material || inherited_material
+      default_layer = model.layers[0]
+      instance_layer = instance.layer
+      current_tag = (instance_layer && instance_layer != default_layer) ? instance_layer.name.to_s : inherited_tag
       instance.definition.entities.each do |child|
         break if output.length >= limit
         next unless visible_entity?(child)
@@ -142,6 +145,8 @@ module TranTuanNoiThat
             back_material = child.back_material || inherited
             front_color = rgb_hex(front_material, default_face_color('FaceFrontColor', '#F2F2F2'))
             back_color = rgb_hex(back_material, default_face_color('FaceBackColor', '#B8C7D9'))
+            face_layer = child.layer
+            face_tag = (face_layer && face_layer != default_layer) ? face_layer.name.to_s : current_tag.to_s
             mesh.polygons.each do |polygon|
               break if output.length >= limit
               indices = polygon.map { |index| index.abs - 1 }.select { |index| index >= 0 && index < points.length }
@@ -159,7 +164,7 @@ module TranTuanNoiThat
                   ],
                   'c' => front_color,
                   'bc' => back_color,
-                  'tag' => (child.layer.name.to_s rescue '')
+                  'tag' => face_tag
                 }
               end
             end
@@ -167,7 +172,7 @@ module TranTuanNoiThat
             next
           end
         elsif child.is_a?(Sketchup::Group) || child.is_a?(Sketchup::ComponentInstance)
-          mesh_triangles(child, transform, output, limit, inherited)
+          mesh_triangles(child, transform, output, limit, inherited, current_tag)
         end
       end
       output
