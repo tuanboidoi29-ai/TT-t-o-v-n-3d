@@ -113,32 +113,89 @@ function printAllQrs(){const grid=$('#qrPrintGrid');grid.innerHTML='';state.obje
 window.onafterprint=()=>$('#qrPrintGrid').classList.add('hidden');
 
 function project3d(pt,c,v,scale,W,H){let x=pt[0]-c[0],y=pt[1]-c[1],z=pt[2]-c[2];if(state.viewMode==='2d')return[W/2+x*scale*v.zoom,H/2-y*scale*v.zoom,z];let cy=Math.cos(v.yaw),sy=Math.sin(v.yaw),cp=Math.cos(v.pitch),sp=Math.sin(v.pitch);let x1=x*cy-y*sy,y1=x*sy+y*cy,z1=z;let y2=y1*cp-z1*sp,z2=y1*sp+z1*cp;return[W/2+x1*scale*v.zoom,H/2-z2*scale*v.zoom,y2]}
-function drawModel(){
-  const cv=$('#modelCanvas'),boxes=state.model3d,selectable=state.objects.filter(o=>Array.isArray(o.corners)&&o.corners.length>=8);state.hitTargets=[];if(!cv)return;const dpr=window.devicePixelRatio||1,W=cv.clientWidth||800,H=cv.clientHeight||360;cv.width=W*dpr;cv.height=H*dpr;const ctx=cv.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,W,H);
-  if(!boxes.length){ctx.fillStyle='#7f96b3';ctx.font='14px Arial';ctx.fillText('Model chưa có dữ liệu 3D. Hãy Đồng bộ Web lại từ SketchUp.',20,40);return}
-  const pts=[];boxes.forEach(b=>{(b.corners||[]).forEach(p=>pts.push(p));(b.triangles||[]).forEach(t=>(t.v||[]).forEach(p=>pts.push(p)))});if(!pts.length)return;
-  const c=[0,0,0];pts.forEach(p=>{c[0]+=p[0];c[1]+=p[1];c[2]+=p[2]});c[0]/=pts.length;c[1]/=pts.length;c[2]/=pts.length;let span=100;pts.forEach(p=>{span=Math.max(span,Math.abs(p[0]-c[0])*2,Math.abs(p[1]-c[1])*2,Math.abs(p[2]-c[2])*2)});const scale=Math.min(W,H)*.72/span,edges=[[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]];
-  const faces=[];boxes.forEach(b=>(b.triangles||[]).forEach(t=>{if((t.v||[]).length===3){const p=t.v.map(v=>project3d(v,c,state.view,scale,W,H));faces.push({p:p,color:(typeof t.c==='string'&&t.c.trim())?t.c:'#B8C7D9',depth:(p[0][2]+p[1][2]+p[2][2])/3,owner:String(b.uid||b.id||b.persistent_id||'')})}}));faces.sort((a,b)=>a.depth-b.depth);ctx.save();ctx.globalAlpha=1;faces.forEach(f=>{ctx.beginPath();ctx.moveTo(f.p[0][0],f.p[0][1]);ctx.lineTo(f.p[1][0],f.p[1][1]);ctx.lineTo(f.p[2][0],f.p[2][1]);ctx.closePath();ctx.fillStyle=(state.selectedObject&&f.owner===String(state.selectedObject))?'#ffb020':f.color;ctx.fill();ctx.strokeStyle=(state.selectedObject&&f.owner===String(state.selectedObject))?'#fff1a8':'#334155';ctx.lineWidth=.35;ctx.stroke()});ctx.restore();
-  selectable.forEach(o=>{
-    const projected=o.corners.map(p=>project3d(p,c,state.view,scale,W,H));
-    const xs=projected.map(p=>p[0]),ys=projected.map(p=>p[1]);
-    const minX=Math.min(...xs),maxX=Math.max(...xs),minY=Math.min(...ys),maxY=Math.max(...ys);
-    const area=Math.max(1,(maxX-minX)*(maxY-minY));
-    state.hitTargets.push({uid:String(o.uid||o.id||''),minX,maxX,minY,maxY,area,depth:projected.reduce((a,p)=>a+p[2],0)/projected.length});
-    const selected=String(o.uid||o.id||'')===String(state.selectedObject||'');
-    ctx.strokeStyle=selected?'#fbbf24':(state.viewMode==='xray'?'#8bb4db':(o.label&&o.label.assigned?'#60a5fa':'#64748b'));
-    ctx.lineWidth=selected?3:(state.viewMode==='xray'?1.4:(o.label&&o.label.assigned?1.8:1));
-    ctx.beginPath();edges.forEach(e=>{const a=projected[e[0]],q=projected[e[1]];ctx.moveTo(a[0],a[1]);ctx.lineTo(q[0],q[1])});ctx.stroke();
+let ttThreeScene=null,ttThreeCamera=null,ttThreeRenderer=null,ttThreeRoot=null,ttThreeCenter=null,ttThreeRadius=1000,ttThreeRaycaster=null,ttThreePointer=null,ttThreeModelRef=null;
+function initThreeModel(){
+  const cv=$('#modelCanvas');if(!cv||!window.THREE)return false;
+  if(ttThreeRenderer)return true;
+  const T=window.THREE;
+  ttThreeRenderer=new T.WebGLRenderer({canvas:cv,antialias:true,alpha:false,preserveDrawingBuffer:false});
+  ttThreeRenderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
+  ttThreeRenderer.outputColorSpace=T.SRGBColorSpace;
+  ttThreeRenderer.toneMapping=T.ACESFilmicToneMapping;
+  ttThreeRenderer.toneMappingExposure=1.15;
+  ttThreeScene=new T.Scene();ttThreeScene.background=new T.Color('#ffffff');
+  ttThreeCamera=new T.PerspectiveCamera(38,1,0.1,10000000);
+  ttThreeScene.add(new T.HemisphereLight(0xffffff,0x8b98a8,2.1));
+  const key=new T.DirectionalLight(0xffffff,2.2);key.position.set(1,-2,3);ttThreeScene.add(key);
+  const fill=new T.DirectionalLight(0xffffff,1.0);fill.position.set(-2,1,1);ttThreeScene.add(fill);
+  const floorGrid=new T.GridHelper(1000,20,0xd9e0e8,0xe9edf2);floorGrid.position.z=-0.01;ttThreeScene.add(floorGrid);
+  ttThreeRoot=new T.Group();ttThreeScene.add(ttThreeRoot);
+  ttThreeRaycaster=new T.Raycaster();ttThreePointer=new T.Vector2();
+  return true;
+}
+function buildThreeGeometry(){
+  if(!initThreeModel())return;
+  const T=window.THREE;
+  while(ttThreeRoot.children.length){const child=ttThreeRoot.children.pop();ttThreeRoot.remove(child);child.geometry?.dispose();if(Array.isArray(child.material))child.material.forEach(m=>m.dispose());else child.material?.dispose()}
+  const all=[];
+  (state.model3d||[]).forEach((obj,index)=>{
+    const tris=Array.isArray(obj.triangles)?obj.triangles:[];
+    if(!tris.length)return;
+    const positions=[],colors=[];
+    tris.forEach(tri=>{
+      if(!Array.isArray(tri.v)||tri.v.length!==3)return;
+      let color=new T.Color(typeof tri.c==='string'?tri.c:'#b8c7d9');
+      if(String(obj.uid||obj.id||obj.persistent_id||'')===String(state.selectedObject||''))color=new T.Color('#ffb020');
+      tri.v.forEach(p=>{positions.push(Number(p[0])||0,Number(p[1])||0,Number(p[2])||0);colors.push(color.r,color.g,color.b)});
+      tri.v.forEach(p=>all.push([Number(p[0])||0,Number(p[1])||0,Number(p[2])||0]));
+    });
+    if(!positions.length)return;
+    const geo=new T.BufferGeometry();
+    geo.setAttribute('position',new T.Float32BufferAttribute(positions,3));
+    geo.setAttribute('color',new T.Float32BufferAttribute(colors,3));
+    geo.computeVertexNormals();
+    const mat=new T.MeshStandardMaterial({vertexColors:true,roughness:.78,metalness:.02,side:T.DoubleSide});
+    const mesh=new T.Mesh(geo,mat);mesh.userData.uid=String(obj.uid||obj.id||obj.persistent_id||'');mesh.userData.name=obj.name||'';
+    ttThreeRoot.add(mesh);
   });
-  state.hitTargets.sort((a,b)=>a.area-b.area||b.depth-a.depth);
+  if(!all.length){
+    (state.model3d||[]).forEach(o=>(o.corners||[]).forEach(p=>all.push(p)));
+  }
+  if(!all.length){ttThreeCenter=new T.Vector3(0,0,0);ttThreeRadius=1000;return}
+  const bounds=new T.Box3();all.forEach(p=>bounds.expandByPoint(new T.Vector3(p[0],p[1],p[2])));
+  ttThreeCenter=bounds.getCenter(new T.Vector3());
+  const size=bounds.getSize(new T.Vector3());ttThreeRadius=Math.max(size.x,size.y,size.z,1)*1.8;
+  // Center model geometry so perspective camera and orbit always frame the complete model.
+  ttThreeRoot.position.set(-ttThreeCenter.x,-ttThreeCenter.y,-ttThreeCenter.z);
+  const grid=ttThreeScene.children.find(x=>x.isGridHelper);
+  if(grid){grid.scale.setScalar(Math.max(size.x,size.y,size.z,1)/1000);grid.position.z=-size.z*.52;}
+  ttThreeModelRef=state.model3d;
+}
+function drawModel(){
+  const cv=$('#modelCanvas');if(!cv)return;
+  if(!window.THREE){const ctx=cv.getContext('2d');if(ctx){ctx.clearRect(0,0,cv.width,cv.height);ctx.fillStyle='#334155';ctx.font='14px Arial';ctx.fillText('Đang tải bộ dựng 3D…',18,32)}return}
+  if(!initThreeModel())return;
+  if(ttThreeModelRef!==state.model3d||!ttThreeRoot.children.length)buildThreeGeometry();
+  const w=Math.max(1,cv.clientWidth||800),h=Math.max(1,cv.clientHeight||360);
+  const pixelRatio=Math.min(window.devicePixelRatio||1,2);
+  if(cv.width!==Math.round(w*pixelRatio)||cv.height!==Math.round(h*pixelRatio)){ttThreeRenderer.setSize(w,h,false);ttThreeCamera.aspect=w/h;ttThreeCamera.updateProjectionMatrix()}
+  const yaw=state.view.yaw,pitch=Math.max(-1.45,Math.min(1.45,state.view.pitch));
+  const distance=ttThreeRadius/Math.max(.2,Math.min(12,state.view.zoom));
+  ttThreeCamera.position.set(distance*Math.cos(pitch)*Math.sin(yaw),-distance*Math.cos(pitch)*Math.cos(yaw),distance*Math.sin(pitch));
+  ttThreeCamera.up.set(0,0,1);ttThreeCamera.lookAt(0,0,0);
+  ttThreeCamera.near=Math.max(.01,distance/10000);ttThreeCamera.far=Math.max(10000,distance*100);ttThreeCamera.updateProjectionMatrix();
+  ttThreeRenderer.render(ttThreeScene,ttThreeCamera);
 }
 
 function pickModelObject(e){
-  if(state.view.dragMoved)return;
-  const cv=$('#modelCanvas'),r=cv.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top;
-  const hit=state.hitTargets.find(t=>x>=t.minX-5&&x<=t.maxX+5&&y>=t.minY-5&&y<=t.maxY+5);
-  if(!hit)return;
-  const o=findObject(hit.uid);if(o){openObject(o);const row=document.querySelector('[data-openobj="'+CSS.escape(hit.uid)+'"]');row?.scrollIntoView({block:'nearest',behavior:'smooth'})}
+  if(!ttThreeRenderer||!ttThreeCamera||!ttThreeRaycaster)return;
+  const cv=$('#modelCanvas'),r=cv.getBoundingClientRect();
+  ttThreePointer.set(((e.clientX-r.left)/r.width)*2-1,-((e.clientY-r.top)/r.height)*2+1);
+  ttThreeRaycaster.setFromCamera(ttThreePointer,ttThreeCamera);
+  const hits=ttThreeRaycaster.intersectObjects(ttThreeRoot.children,false);
+  if(!hits.length)return;
+  const uid=hits[0].object.userData.uid;
+  const o=findObject(uid);if(o){openObject(o);const row=document.querySelector('[data-openobj="'+CSS.escape(uid)+'"]');row?.scrollIntoView({block:'nearest',behavior:'smooth'})}
 }
 function bindModel(){
   const cv=$('#modelCanvas');
