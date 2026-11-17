@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.353",
+  "version": "1.9.354",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "1.9.353: Quét sâu Group/Component lồng nhau, UID riêng từng nhánh, thống kê ván theo từng cụm; bỏ mật khẩu, mở bằng tên/mã dự án; lưu lịch sử mỗi lần đồng bộ; mặc định xem Model 3D.",
+  "notes": "1.9.354: Quét sâu Group/Component lồng nhau, giữ đúng cụm Group trung gian và UID riêng từng nhánh; thống kê ván theo từng cụm; bỏ mật khẩu, mở bằng tên/mã dự án; lưu lịch sử mỗi lần đồng bộ; mặc định xem Model 3D.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "3b6c8da7ce45317390b4626f071dc45242375f96e4c62782e8c0c93e74eab404"
+      "sha256": "d932eeea11c1d51432cebc022b1e84eefffc799e876143c34f391a4e703d52ea"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -319,7 +319,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "16b54eadd808ef377d54fcf5b7cc9987c82a98b2e5cb781a842660d1c6d868b7"
+      "sha256": "8e684b16161efcfbae805f5d80c0557c41406ea99cd427ce2c643439cbb1705f"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -499,7 +499,7 @@
     {
       "path": "tran_tuan_noi_that/model_export_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/model_export_tool.rb",
-      "sha256": "47f16ea06474fa22dec9a44057d3e97c174588d66477af37cbcdbc86a5f9ae68"
+      "sha256": "edb41bf191719e86b3d22c9c78b2cc33de778bb60431eac11afa763c2e01eafd"
     },
     {
       "path": "tran_tuan_noi_that/icons/model_export.svg",
