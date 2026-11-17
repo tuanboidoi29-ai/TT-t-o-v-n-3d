@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.350",
+  "version": "1.9.351",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "1.9.350: Khắc phục lỗi đối chiếu SHA-256 khi cập nhật bootstrap; làm mới phiên bản bộ nạp và xác nhận lại mã kiểm tra tệp.",
+  "notes": "1.9.351: Bổ sung quản lý ẩn/hiện chi tiết theo Tags (Layers), ẩn/hiện từng Tag và thao tác tất cả; không xóa hình học.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "dff65065ce700c5d09fe9c7ff85a1ced3187156a4d51a19818c8fe0a9f35ea2b"
+      "sha256": "c2d4e9ac662bacde5e0e1897d05b86144a0c252930b438cb392e7cc9882a7019"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -319,7 +319,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "20921d0c015280c968ddc8c8d09fcc6d5b01455b2721be8d4f20ab7f7ca03e53"
+      "sha256": "c78c764c04d500d7778d16bcac002a4048cdfe1c307530428b3731ebace413b7"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -499,7 +499,7 @@
     {
       "path": "tran_tuan_noi_that/model_export_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/model_export_tool.rb",
-      "sha256": "8d9ba3cc52e61e8419d7ebb5ca5a4445bb802c1ae4c10ea45e87103d09fcc4e7"
+      "sha256": "66708fa14a4d8ef5d5157b3f28d38c6930caef74540a9aa8278204c487496176"
     },
     {
       "path": "tran_tuan_noi_that/icons/model_export.svg",
@@ -520,5 +520,5 @@
     "tran_tuan_noi_that/cnc_profile_tool.rb",
     "tran_tuan_noi_that/icons/cnc_profile.svg"
   ],
-  "release_notes": "1.9.349: Thay Thư viện vật liệu bằng Xuất dữ liệu kiểm tra Model; quét Group/Component, xuất dữ liệu hình học 3D, đồng bộ link Web bảo vệ bằng mật khẩu và tạo QR riêng từng đối tượng."
+  "release_notes": "1.9.351: Bổ sung quản lý ẩn/hiện chi tiết theo Tags (Layers), ẩn/hiện từng Tag và thao tác tất cả; không xóa hình học."
 }
