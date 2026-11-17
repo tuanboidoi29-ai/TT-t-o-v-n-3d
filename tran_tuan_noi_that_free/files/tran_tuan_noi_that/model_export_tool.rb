@@ -238,12 +238,11 @@ module TranTuanNoiThat
         child_record, child_node, nested_records = scan_instance_tree(child, uid, child_path, depth + 1, world_transform, [])
         descendants << child_record
         descendants.concat(nested_records)
-        if child_node['children'].empty?
+        if child_node['boards'].empty? && child_node['children'].empty?
           node['boards'] << panel_payload(child_record) if child_record['is_board']
         else
           node['children'] << child_node
         end
-        node['children'].concat(child_node.delete('children') || []) if false
         node['board_count'] += child_node['board_count'].to_i
         node['board_count'] += 1 if child_record['is_board']
       end
