@@ -28,19 +28,13 @@
     <div class="loginMark">TT</div>
     <div class="eyebrow">ĐĂNG NHẬP DỰ ÁN</div>
     <h2>TRẦN TUẤN NESTING PRO</h2>
-    <p id="loginHint" class="loginHint">Nhập Tên dự án và Mật khẩu đã thiết lập trong SketchUp, hoặc quét QR tem bằng camera.</p>
+    <p id="loginHint" class="loginHint">Nhập Tên dự án hoặc Mã dự án để mở model. Nếu mở bằng link QR, hệ thống tự tải dự án.</p>
 
-    <label class="fieldLabel">Tên dự án</label>
-    <input id="projectLogin" autocomplete="username" placeholder="VD: tuan1233">
-
-    <label class="fieldLabel">Mật khẩu</label>
-    <div class="passwordRow">
-      <input id="projectPassword" type="password" autocomplete="current-password" placeholder="Tối thiểu 4 ký tự">
-      <button id="togglePassword" class="eyeBtn" type="button">HIỆN</button>
-    </div>
+    <label class="fieldLabel">TÊN DỰ ÁN / HOẶC MÃ DỰ ÁN</label>
+    <input id="projectLogin" autocomplete="off" placeholder="Nhập tên dự án hoặc mã dự án">
 
     <div class="loginActions">
-      <button id="loginBtn" class="primary">ĐĂNG NHẬP</button>
+      <button id="loginBtn" class="primary">MỞ DỰ ÁN</button>
       <button id="scanLoginBtn" class="secondary">QUÉT QR TEM</button>
     </div>
     <div id="loginMessage" class="loginMessage"></div>
@@ -73,6 +67,16 @@
       <div class="smallHint">Kéo: xoay • Wheel: zoom • Double click: FIT</div>
     </div>
     <canvas id="modelCanvas"></canvas>
+  </section>
+
+  <section id="groupPanel" class="panel hidden">
+    <div class="panelHead"><div><div class="eyebrow">THỐNG KÊ THEO CỤM GROUP</div><h3>Danh sách ván trong từng Group</h3></div><span id="groupCount" class="smallHint">0 cụm</span></div>
+    <div id="groupTree" class="groupTree"></div>
+  </section>
+
+  <section id="historyPanel" class="panel hidden">
+    <div class="panelHead"><div><div class="eyebrow">LỊCH SỬ HỆ THỐNG</div><h3>Các lần đồng bộ Model</h3></div><span id="historyCount" class="smallHint">0 phiên bản</span></div>
+    <div id="historyList" class="historyList"></div>
   </section>
 
   <section id="objectPanel" class="panel hidden">
