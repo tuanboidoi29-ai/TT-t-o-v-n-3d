@@ -138,34 +138,43 @@ function buildThreeGeometry(){
   const T=window.THREE;
   while(ttThreeRoot.children.length){const child=ttThreeRoot.children.pop();ttThreeRoot.remove(child);child.geometry?.dispose();if(Array.isArray(child.material))child.material.forEach(m=>m.dispose());else child.material?.dispose()}
   const all=[];
-  (state.model3d||[]).forEach((obj,index)=>{
+  (state.model3d||[]).forEach(obj=>{
     const tris=Array.isArray(obj.triangles)?obj.triangles:[];
     if(!tris.length)return;
-    const positions=[],colors=[];
+    const frontPositions=[],frontColors=[],backPositions=[],backColors=[];
     tris.forEach(tri=>{
       if(!Array.isArray(tri.v)||tri.v.length!==3)return;
-      let color=new T.Color(typeof tri.c==='string'?tri.c:'#b8c7d9');
-      if(String(obj.uid||obj.id||obj.persistent_id||'')===String(state.selectedObject||''))color=new T.Color('#ffb020');
-      tri.v.forEach(p=>{positions.push(Number(p[0])||0,Number(p[1])||0,Number(p[2])||0);colors.push(color.r,color.g,color.b)});
-      tri.v.forEach(p=>all.push([Number(p[0])||0,Number(p[1])||0,Number(p[2])||0]));
+      const selected=String(obj.uid||obj.id||obj.persistent_id||'')===String(state.selectedObject||'');
+      const frontColor=new T.Color(selected?'#ffb020':(typeof tri.c==='string'?tri.c:'#f2f2f2'));
+      const backColor=new T.Color(selected?'#ffb020':(typeof tri.bc==='string'?tri.bc:'#b8c7d9'));
+      tri.v.forEach(p=>{
+        const x=Number(p[0])||0,y=Number(p[1])||0,z=Number(p[2])||0;
+        frontPositions.push(x,y,z);backPositions.push(x,y,z);
+        frontColors.push(frontColor.r,frontColor.g,frontColor.b);
+        backColors.push(backColor.r,backColor.g,backColor.b);
+        all.push([x,y,z]);
+      });
     });
-    if(!positions.length)return;
-    const geo=new T.BufferGeometry();
-    geo.setAttribute('position',new T.Float32BufferAttribute(positions,3));
-    geo.setAttribute('color',new T.Float32BufferAttribute(colors,3));
-    geo.computeVertexNormals();
-    const mat=new T.MeshStandardMaterial({vertexColors:true,roughness:.78,metalness:.02,side:T.DoubleSide});
-    const mesh=new T.Mesh(geo,mat);mesh.userData.uid=String(obj.uid||obj.id||obj.persistent_id||'');mesh.userData.name=obj.name||'';
-    ttThreeRoot.add(mesh);
+    if(!frontPositions.length)return;
+    const makeFaceMesh=(positions,colors,side)=>{
+      const geo=new T.BufferGeometry();
+      geo.setAttribute('position',new T.Float32BufferAttribute(positions,3));
+      geo.setAttribute('color',new T.Float32BufferAttribute(colors,3));
+      geo.computeVertexNormals();
+      const mat=new T.MeshStandardMaterial({vertexColors:true,roughness:.78,metalness:0,side});
+      const mesh=new T.Mesh(geo,mat);
+      mesh.userData.uid=String(obj.uid||obj.id||obj.persistent_id||'');
+      mesh.userData.name=obj.name||'';
+      ttThreeRoot.add(mesh);
+    };
+    makeFaceMesh(frontPositions,frontColors,T.FrontSide);
+    makeFaceMesh(backPositions,backColors,T.BackSide);
   });
-  if(!all.length){
-    (state.model3d||[]).forEach(o=>(o.corners||[]).forEach(p=>all.push(p)));
-  }
+  if(!all.length)(state.model3d||[]).forEach(o=>(o.corners||[]).forEach(p=>all.push(p)));
   if(!all.length){ttThreeCenter=new T.Vector3(0,0,0);ttThreeRadius=1000;return}
   const bounds=new T.Box3();all.forEach(p=>bounds.expandByPoint(new T.Vector3(p[0],p[1],p[2])));
   ttThreeCenter=bounds.getCenter(new T.Vector3());
   const size=bounds.getSize(new T.Vector3());ttThreeRadius=Math.max(size.x,size.y,size.z,1)*1.8;
-  // Center model geometry so perspective camera and orbit always frame the complete model.
   ttThreeRoot.position.set(-ttThreeCenter.x,-ttThreeCenter.y,-ttThreeCenter.z);
   const grid=ttThreeScene.children.find(x=>x.isGridHelper);
   if(grid){grid.scale.setScalar(Math.max(size.x,size.y,size.z,1)/1000);grid.position.z=-size.z*.52;}
