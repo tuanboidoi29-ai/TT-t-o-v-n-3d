@@ -113,7 +113,7 @@ function printAllQrs(){const grid=$('#qrPrintGrid');grid.innerHTML='';state.obje
 window.onafterprint=()=>$('#qrPrintGrid').classList.add('hidden');
 
 function project3d(pt,c,v,scale,W,H){let x=pt[0]-c[0],y=pt[1]-c[1],z=pt[2]-c[2];if(state.viewMode==='2d')return[W/2+x*scale*v.zoom,H/2-y*scale*v.zoom,z];let cy=Math.cos(v.yaw),sy=Math.sin(v.yaw),cp=Math.cos(v.pitch),sp=Math.sin(v.pitch);let x1=x*cy-y*sy,y1=x*sy+y*cy,z1=z;let y2=y1*cp-z1*sp,z2=y1*sp+z1*cp;return[W/2+x1*scale*v.zoom,H/2-z2*scale*v.zoom,y2]}
-let ttThreeScene=null,ttThreeCamera=null,ttThreeRenderer=null,ttThreeRoot=null,ttThreeCenter=null,ttThreeRadius=1000,ttThreeRaycaster=null,ttThreePointer=null,ttThreeModelRef=null;
+let ttThreeScene=null,ttThreeCamera=null,ttThreeRenderer=null,ttThreeRoot=null,ttThreeCenter=null,ttThreeRadius=1000,ttThreeRaycaster=null,ttThreePointer=null,ttThreeModelRef=null,ttThreeSelectedRef='';
 function initThreeModel(){
   const cv=$('#modelCanvas');if(!cv||!window.THREE)return false;
   if(ttThreeRenderer)return true;
@@ -128,7 +128,7 @@ function initThreeModel(){
   ttThreeScene.add(new T.HemisphereLight(0xffffff,0x8b98a8,2.1));
   const key=new T.DirectionalLight(0xffffff,2.2);key.position.set(1,-2,3);ttThreeScene.add(key);
   const fill=new T.DirectionalLight(0xffffff,1.0);fill.position.set(-2,1,1);ttThreeScene.add(fill);
-  const floorGrid=new T.GridHelper(1000,20,0xd9e0e8,0xe9edf2);floorGrid.position.z=-0.01;ttThreeScene.add(floorGrid);
+  const floorGrid=new T.GridHelper(1000,20,0xd9e0e8,0xe9edf2);floorGrid.rotation.x=Math.PI/2;floorGrid.position.z=-0.01;ttThreeScene.add(floorGrid);
   ttThreeRoot=new T.Group();ttThreeScene.add(ttThreeRoot);
   ttThreeRaycaster=new T.Raycaster();ttThreePointer=new T.Vector2();
   return true;
@@ -169,13 +169,13 @@ function buildThreeGeometry(){
   ttThreeRoot.position.set(-ttThreeCenter.x,-ttThreeCenter.y,-ttThreeCenter.z);
   const grid=ttThreeScene.children.find(x=>x.isGridHelper);
   if(grid){grid.scale.setScalar(Math.max(size.x,size.y,size.z,1)/1000);grid.position.z=-size.z*.52;}
-  ttThreeModelRef=state.model3d;
+  ttThreeModelRef=state.model3d;ttThreeSelectedRef=String(state.selectedObject||'');
 }
 function drawModel(){
   const cv=$('#modelCanvas');if(!cv)return;
   if(!window.THREE){const ctx=cv.getContext('2d');if(ctx){ctx.clearRect(0,0,cv.width,cv.height);ctx.fillStyle='#334155';ctx.font='14px Arial';ctx.fillText('Đang tải bộ dựng 3D…',18,32)}return}
   if(!initThreeModel())return;
-  if(ttThreeModelRef!==state.model3d||!ttThreeRoot.children.length)buildThreeGeometry();
+  if(ttThreeModelRef!==state.model3d||ttThreeSelectedRef!==String(state.selectedObject||'')||!ttThreeRoot.children.length)buildThreeGeometry();
   const w=Math.max(1,cv.clientWidth||800),h=Math.max(1,cv.clientHeight||360);
   const pixelRatio=Math.min(window.devicePixelRatio||1,2);
   if(cv.width!==Math.round(w*pixelRatio)||cv.height!==Math.round(h*pixelRatio)){ttThreeRenderer.setSize(w,h,false);ttThreeCamera.aspect=w/h;ttThreeCamera.updateProjectionMatrix()}
