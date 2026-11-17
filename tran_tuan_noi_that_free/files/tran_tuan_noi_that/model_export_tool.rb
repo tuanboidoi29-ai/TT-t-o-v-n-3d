@@ -316,6 +316,59 @@ module TranTuanNoiThat
       false
     end
 
+
+    # Quản lý Tags/Layers trực tiếp trong model, không xóa hoặc sửa hình học.
+    def tag_inventory
+      m = model
+      return [] unless m
+      m.layers.to_a.sort_by { |tag| tag.name.to_s.downcase }.map do |tag|
+        { 'name' => tag.name.to_s, 'visible' => !!tag.visible?, 'active' => (m.active_layer == tag),
+          'entity_count' => count_entities_on_tag(m.entities, tag, 0) }
+      end
+    end
+
+    def count_entities_on_tag(entities, tag, depth)
+      return 0 if depth > 30
+      entities.to_a.inject(0) do |sum, entity|
+        count = (entity.respond_to?(:layer) && entity.layer == tag) ? 1 : 0
+        if entity.is_a?(Sketchup::Group) || entity.is_a?(Sketchup::ComponentInstance)
+          count += count_entities_on_tag(entity.definition.entities, tag, depth + 1)
+        end
+        sum + count
+      end
+    rescue StandardError
+      0
+    end
+
+    def set_tag_visibility(name, visible)
+      m = model
+      tag = m.layers.to_a.find { |item| item.name.to_s == name.to_s }
+      raise 'Không tìm thấy Tag/Layer được chọn.' unless tag
+      raise 'Không thể ẩn Tag/Layer đang được đặt làm hiện hành.' if !visible && m.active_layer == tag
+      m.start_operation(visible ? 'Hiện Tag/Layer' : 'Ẩn Tag/Layer', true)
+      begin
+        tag.visible = !!visible
+        m.commit_operation
+      rescue StandardError
+        m.abort_operation rescue nil
+        raise
+      end
+      tag_inventory
+    end
+
+    def set_all_tags_visibility(visible)
+      m = model
+      m.start_operation(visible ? 'Hiện tất cả Tags' : 'Ẩn tất cả Tags', true)
+      begin
+        m.layers.each { |tag| tag.visible = !!visible if visible || m.active_layer != tag }
+        m.commit_operation
+      rescue StandardError
+        m.abort_operation rescue nil
+        raise
+      end
+      tag_inventory
+    end
+
     def show
       if @dialog && @dialog.visible?
         @dialog.bring_to_front
@@ -335,6 +388,31 @@ module TranTuanNoiThat
           @dialog.execute_script("window.TTModelExport.receiveScan(#{JSON.generate(result).gsub('</', '<\\/')})")
         rescue StandardError => e
           @dialog.execute_script("window.TTModelExport.showError(#{e.message.to_s.to_json})")
+        end
+      end
+
+      @dialog.add_action_callback('tags_list') do |_context|
+        begin
+          data = tag_inventory
+          @dialog.execute_script("window.TTModelExport.receiveTags(#{JSON.generate(data).gsub('</', '<\\/')})")
+        rescue StandardError => e
+          @dialog.execute_script("window.TTModelExport.tagError(#{e.message.to_s.to_json})")
+        end
+      end
+      @dialog.add_action_callback('tag_visibility') do |_context, name, visible|
+        begin
+          data = set_tag_visibility(name, visible)
+          @dialog.execute_script("window.TTModelExport.receiveTags(#{JSON.generate(data).gsub('</', '<\\/')})")
+        rescue StandardError => e
+          @dialog.execute_script("window.TTModelExport.tagError(#{e.message.to_s.to_json})")
+        end
+      end
+      @dialog.add_action_callback('tags_all_visibility') do |_context, visible|
+        begin
+          data = set_all_tags_visibility(visible)
+          @dialog.execute_script("window.TTModelExport.receiveTags(#{JSON.generate(data).gsub('</', '<\\/')})")
+        rescue StandardError => e
+          @dialog.execute_script("window.TTModelExport.tagError(#{e.message.to_s.to_json})")
         end
       end
       @dialog.add_action_callback('model_sync') do |_context, login, password|
@@ -383,7 +461,16 @@ module TranTuanNoiThat
           <div class="tablewrap" style="margin-top:12px"><table><thead><tr><th>TÊN ĐỐI TƯỢNG</th><th>LOẠI</th><th>KÍCH THƯỚC (mm)</th><th>TAG</th><th>VẬT LIỆU</th><th>MÃ ĐỊNH DANH</th></tr></thead><tbody id="objects"><tr><td colspan="6" class="muted">Bấm QUÉT MODEL để đọc dữ liệu.</td></tr></tbody></table></div>
         </section>
         <section class="panel">
-          <b>2. ĐỒNG BỘ VÀ XUẤT LINK XEM MODEL TRÊN WEB</b>
+          <div class="row" style="justify-content:space-between;align-items:center">
+            <div><b>2. ẨN / HIỆN CHI TIẾT THEO TAGS (LAYERS)</b><div class="muted">Bật/tắt hiển thị từng nhóm chi tiết trong model. Không xóa đối tượng và không thay đổi hình học.</div></div>
+            <div class="row"><button class="btn light" onclick="loadTags()">LÀM MỚI</button><button class="btn light" onclick="setAllTags(true)">HIỆN TẤT CẢ</button><button class="btn blue" onclick="setAllTags(false)">ẨN TẤT CẢ</button></div>
+          </div>
+          <div class="notice" style="margin:10px 0">Tag/Layer đang hoạt động của SketchUp luôn được giữ hiển thị để tránh lỗi thao tác. Trạng thái ẩn/hiện được lưu cùng file SKP khi bạn lưu model.</div>
+          <div class="tablewrap" style="max-height:260px"><table><thead><tr><th>HIỂN THỊ</th><th>TÊN TAG / LAYER</th><th>SỐ CHI TIẾT</th><th>TRẠNG THÁI</th></tr></thead><tbody id="tags"><tr><td colspan="4" class="muted">Đang tải danh sách Tags...</td></tr></tbody></table></div>
+          <div id="tagStatus" class="status"></div>
+        </section>
+        <section class="panel">
+          <b>3. ĐỒNG BỘ VÀ XUẤT LINK XEM MODEL TRÊN WEB</b>
           <p class="muted">Lần đầu đồng bộ, đặt tên dự án và mật khẩu. Các lần sau dùng lại tên dự án; mật khẩu chỉ cần nhập khi tạo dự án mới hoặc muốn đổi mật khẩu. Link web và QR yêu cầu đăng nhập để bảo vệ model.</p>
           <div class="grid">
             <div><label class="field">TÊN ĐĂNG NHẬP DỰ ÁN</label><input id="login" autocomplete="username" placeholder="VD: tuan-noi-that-01"></div>
@@ -396,7 +483,13 @@ module TranTuanNoiThat
         <section class="notice">Lưu ý: Sau khi đồng bộ, hãy lưu file SKP để giữ mã dự án và mã định danh đối tượng. Trình xem Web hiển thị hình học 3D đã quét, danh sách đối tượng và QR riêng từng đối tượng. Cần Internet khi đồng bộ và khi mở Web.</section>
       </main>
       <script>
-      var lastLink='';
+      var lastLink='';\n      window.addEventListener('load',loadTags);
+
+      function loadTags(){document.getElementById('tags').innerHTML='<tr><td colspan="4">Đang tải Tags...</td></tr>';sketchup.tags_list()}
+      function receiveTags(rows){document.getElementById('tags').innerHTML=(rows||[]).map(function(t){var checked=t.visible?'checked':'';var disabled=t.active?'disabled':'';return '<tr><td><input type="checkbox" '+checked+' '+disabled+' onchange="setTag(\\''+esc(t.name).replace(/\\'/g,"&#39;")+'\\',this.checked)" style="width:auto"></td><td>'+esc(t.name)+(t.active?' <b>(ĐANG DÙNG)</b>':'')+'</td><td>'+Number(t.entity_count||0)+'</td><td>'+(t.visible?'Đang hiện':'Đang ẩn')+'</td></tr>'}).join('')||'<tr><td colspan="4">Model chưa có Tags.</td></tr>';document.getElementById('tagStatus').textContent='Có '+(rows||[]).length+' Tags/Layer.'}
+      function setTag(name,visible){sketchup.tag_visibility(name,visible)}
+      function setAllTags(visible){sketchup.tags_all_visibility(visible)}
+      function tagError(s){document.getElementById('tagStatus').textContent=s;document.getElementById('tagStatus').className='status bad'}
       function scan(){document.getElementById('scanBtn').disabled=true;document.getElementById('objects').innerHTML='<tr><td colspan="6">Đang quét model...</td></tr>';sketchup.model_scan()}
       function receiveScan(d){document.getElementById('scanBtn').disabled=false;document.getElementById('count').textContent=d.object_count||0;document.getElementById('triangles').textContent=d.triangle_count||0;var rows=d.objects||[];document.getElementById('objects').innerHTML=rows.map(function(o){return '<tr><td>'+esc(o.name)+'</td><td>'+esc(o.type)+'</td><td>'+esc((o.dimensions||[]).join(' × '))+'</td><td>'+esc(o.tag)+'</td><td>'+esc(o.material)+'</td><td>'+esc(o.uid)+'</td></tr>'}).join('')||'<tr><td colspan="6">Không có đối tượng.</td></tr>';document.getElementById('result').textContent='Đã quét '+(d.object_count||0)+' đối tượng.';document.getElementById('result').className='status ok'}
       function showError(s){document.getElementById('scanBtn').disabled=false;document.getElementById('result').textContent=s;document.getElementById('result').className='status bad'}
@@ -405,7 +498,7 @@ module TranTuanNoiThat
       function copyLink(){if(!lastLink)return;var t=document.createElement('textarea');t.value=lastLink;document.body.appendChild(t);t.select();document.execCommand('copy');t.remove();document.getElementById('result').textContent='Đã sao chép link.'}
       function openLink(){if(lastLink)sketchup.model_open_web()}
       function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
-      window.TTModelExport={receiveScan:receiveScan,showError:showError,synced:synced};
+      window.TTModelExport={receiveScan:receiveScan,showError:showError,synced:synced,receiveTags:receiveTags,tagError:tagError};
       </script></body></html>
       HTML
     end
