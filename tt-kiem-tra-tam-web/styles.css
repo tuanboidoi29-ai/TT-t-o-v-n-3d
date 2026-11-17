@@ -64,3 +64,14 @@ input,select{background:#fff!important;color:#172033!important;border-color:#cbd
 .dialogHead button{background:#e2e8f0!important;color:#172033!important}
 .cameraBox{background:#0f172a!important}
 @media print{html,body{background:#fff!important;color:#111!important}}
+
+
+/* Web model Tag visibility controls */
+.tagVisibilityPanel{margin-top:12px;padding:14px 16px;background:#fff;border:1px solid #dfe5ed;border-radius:12px}
+.tagVisibilityHead{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.tagVisibilityHead b{font-size:13px;color:#1e293b}
+.tagVisibilityActions{display:flex;gap:8px;flex-wrap:wrap}
+.webTagFilters{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.webTagItem{display:flex;align-items:center;gap:7px;padding:8px 10px;border:1px solid #dbe3ec;border-radius:8px;background:#f8fafc;font-size:12px;cursor:pointer}
+.webTagItem input{width:auto;margin:0}
+.webTagItem small{color:#64748b}
