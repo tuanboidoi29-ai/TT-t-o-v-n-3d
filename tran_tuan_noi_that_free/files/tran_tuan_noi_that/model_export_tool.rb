@@ -530,12 +530,12 @@ module TranTuanNoiThat
           <div class="tablewrap" style="margin-top:12px"><table><thead><tr><th>TÊN ĐỐI TƯỢNG</th><th>LOẠI</th><th>KÍCH THƯỚC (mm)</th><th>TAG</th><th>VẬT LIỆU</th><th>MÃ ĐỊNH DANH</th></tr></thead><tbody id="objects"><tr><td colspan="6" class="muted">Bấm QUÉT MODEL để đọc dữ liệu.</td></tr></tbody></table></div>
         </section>
         <section class="panel">
-          <b>3. ĐỒNG BỘ VÀ XUẤT LINK XEM MODEL TRÊN WEB</b>
+          <b>2. ĐỒNG BỘ MODEL LÊN WEB</b>
           <p class="muted">Chỉ cần nhập TÊN DỰ ÁN hoặc MÃ DỰ ÁN. Mỗi lần đồng bộ đều tự lưu một phiên bản vào lịch sử hệ thống.</p>
           <div><label class="field">TÊN DỰ ÁN / HOẶC MÃ DỰ ÁN</label><input id="login" autocomplete="off" placeholder="VD: TUAN-NOI-THAT-01 hoặc mã dự án"></div>
           <div class="row" style="margin-top:12px"><button id="syncBtn" class="btn green" onclick="sync()">ĐỒNG BỘ MODEL & TẠO LINK</button><span class="muted">Model sẽ được cập nhật theo lần đồng bộ mới nhất.</span></div>
           <div id="result" class="status"></div>
-          <div id="linkBox" class="notice" style="display:none;margin-top:10px"><b>LINK XEM MODEL</b><div id="webLink" class="link"></div><div class="row" style="margin-top:8px"><button class="btn light" onclick="copyLink()">Sao chép link</button><button class="btn blue" onclick="openLink()">Mở trang xem</button></div></div>
+          <div id="linkBox" class="notice" style="display:none;margin-top:10px"><b>LINK XEM MODEL</b><div id="webLink" class="link"></div><div class="row" style="margin-top:8px"><button class="btn light" onclick="copyLink()">Sao chép link</button></div></div>
         </section>
         <section class="notice">Lưu ý: Sau khi đồng bộ, hãy lưu file SKP để giữ mã dự án và mã định danh đối tượng. Trình xem Web hiển thị hình học 3D đã quét, danh sách đối tượng và QR riêng từng đối tượng. Cần Internet khi đồng bộ và khi mở Web.</section>
       </main>
@@ -548,7 +548,6 @@ module TranTuanNoiThat
       function sync(){var login=document.getElementById('login').value.trim();if(!login)return showError('Nhập Tên dự án hoặc Mã dự án.');document.getElementById('syncBtn').disabled=true;document.getElementById('result').textContent='Đang quét sâu Group lồng nhau và đồng bộ lên Web...';document.getElementById('result').className='status';sketchup.model_sync(login)}
       function synced(ok,d){document.getElementById('syncBtn').disabled=false;if(!ok){showError(d);return}lastLink=d.url;document.getElementById('linkBox').style.display='block';document.getElementById('webLink').textContent=d.url;document.getElementById('result').textContent='Đã đồng bộ '+d.object_count+' Group/Component · '+d.board_count+' ván · '+d.triangle_count+' tam giác · Revision '+d.revision+' (đã lưu lịch sử)';document.getElementById('result').className='status ok'}
       function copyLink(){if(!lastLink)return;var t=document.createElement('textarea');t.value=lastLink;document.body.appendChild(t);t.select();document.execCommand('copy');t.remove();document.getElementById('result').textContent='Đã sao chép link.'}
-      function openLink(){if(lastLink)sketchup.model_open_web()}
       function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
       window.TTModelExport={receiveScan:receiveScan,showError:showError,synced:synced};
       </script></body></html>
