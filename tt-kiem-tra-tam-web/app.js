@@ -1,6 +1,6 @@
 const API='https://vnvkmxqgbnmirsgdgfzm.supabase.co/functions/v1/tt-model-api';
 const $=s=>document.querySelector(s);
-const state={shareId:'',pendingBoard:'',pendingObject:'',model:null,panels:[],labels:[],objects:[],groupTree:[],selectedObject:'',hitTargets:[],model3d:[],viewMode:'xray',view:{yaw:-.65,pitch:-.45,zoom:1,drag:false,x:0,y:0},stream:null,scanLoop:0,detector:null};
+const state={shareId:'',pendingBoard:'',pendingObject:'',model:null,panels:[],labels:[],objects:[],groupTree:[],selectedObject:'',hitTargets:[],model3d:[],viewMode:'color',view:{yaw:-.65,pitch:-.45,zoom:1,drag:false,x:0,y:0},stream:null,scanLoop:0,detector:null};
 
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function num(v){const n=Number(v);return Number.isFinite(n)?n:0}
@@ -142,8 +142,7 @@ function pickModelObject(e){
 }
 function bindModel(){
   const cv=$('#modelCanvas');
-  $('#view2dBtn').onclick=()=>{state.viewMode='2d';$('#view2dBtn').classList.add('active');$('#viewXrayBtn').classList.remove('active');drawModel();setStatus('CHẾ ĐỘ 2D – GIỮ MÀU VẬT LIỆU SKETCHUP','ok')};
-  $('#viewXrayBtn').onclick=()=>{state.viewMode='color';$('#viewXrayBtn').classList.add('active');$('#view2dBtn').classList.remove('active');drawModel()};
+  $('#viewXrayBtn').onclick=()=>{state.viewMode='color';$('#viewXrayBtn').classList.add('active');drawModel();setStatus('GÓC NHÌN 3D MÀU','ok')};
   $('#modelObjectSearch').oninput=renderObjects;
   $('#printQrBtn').onclick=printAllQrs;
   // Pointer events hỗ trợ chuột, bút cảm ứng và màn hình điện thoại.
