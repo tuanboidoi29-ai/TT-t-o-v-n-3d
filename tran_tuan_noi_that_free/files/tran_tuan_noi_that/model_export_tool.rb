@@ -181,7 +181,7 @@ module TranTuanNoiThat
         'object_count' => records.length,
         'root_count' => roots.length,
         'board_count' => board_records.length,
-        'triangle_count' => roots.inject(0) { |sum, item| sum + item.fetch('triangle_count', 0).to_i },
+        'triangle_count' => records.inject(0) { |sum, item| sum + item['triangle_count'].to_i },
         'objects' => records.map { |r| r.reject { |k, _| k == 'triangles' } },
         'model3d' => records,
         'group_tree' => group_tree,
