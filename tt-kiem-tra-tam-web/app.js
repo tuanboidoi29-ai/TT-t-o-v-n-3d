@@ -128,7 +128,6 @@ function initThreeModel(){
   ttThreeScene.add(new T.HemisphereLight(0xffffff,0x8b98a8,2.1));
   const key=new T.DirectionalLight(0xffffff,2.2);key.position.set(1,-2,3);ttThreeScene.add(key);
   const fill=new T.DirectionalLight(0xffffff,1.0);fill.position.set(-2,1,1);ttThreeScene.add(fill);
-  const floorGrid=new T.GridHelper(1000,20,0xd9e0e8,0xe9edf2);floorGrid.rotation.x=Math.PI/2;floorGrid.position.z=-0.01;ttThreeScene.add(floorGrid);
   ttThreeRoot=new T.Group();ttThreeScene.add(ttThreeRoot);
   ttThreeRaycaster=new T.Raycaster();ttThreePointer=new T.Vector2();
   return true;
@@ -176,8 +175,6 @@ function buildThreeGeometry(){
   ttThreeCenter=bounds.getCenter(new T.Vector3());
   const size=bounds.getSize(new T.Vector3());ttThreeRadius=Math.max(size.x,size.y,size.z,1)*1.8;
   ttThreeRoot.position.set(-ttThreeCenter.x,-ttThreeCenter.y,-ttThreeCenter.z);
-  const grid=ttThreeScene.children.find(x=>x.isGridHelper);
-  if(grid){grid.scale.setScalar(Math.max(size.x,size.y,size.z,1)/1000);grid.position.z=-size.z*.52;}
   ttThreeModelRef=state.model3d;ttThreeSelectedRef=String(state.selectedObject||'');
 }
 function drawModel(){
