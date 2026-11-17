@@ -1,6 +1,6 @@
 const API='https://vnvkmxqgbnmirsgdgfzm.supabase.co/functions/v1/tt-model-api';
 const $=s=>document.querySelector(s);
-const state={shareId:'',pendingBoard:'',pendingObject:'',model:null,panels:[],labels:[],objects:[],groupTree:[],selectedObject:'',hitTargets:[],model3d:[],viewMode:'color',view:{yaw:-.65,pitch:-.45,zoom:1,drag:false,x:0,y:0},stream:null,scanLoop:0,detector:null};
+const state={shareId:'',pendingBoard:'',pendingObject:'',model:null,panels:[],labels:[],objects:[],groupTree:[],selectedObject:'',hitTargets:[],model3d:[],hiddenTags:[],viewMode:'color',view:{yaw:-.65,pitch:-.45,zoom:1,drag:false,x:0,y:0},stream:null,scanLoop:0,detector:null};
 
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function num(v){const n=Number(v);return Number.isFinite(n)?n:0}
@@ -48,6 +48,7 @@ function loadModel(model){
   state.objects=Array.isArray(p.objects)?p.objects:(Array.isArray(p.model3d)?p.model3d:[]);
   state.model3d=Array.isArray(p.model3d)?p.model3d:[];
   state.groupTree=Array.isArray(p.group_tree)?p.group_tree:[];
+  state.hiddenTags=[];
   state.selectedObject='';
   $('#modelName').textContent=state.model.model_name||p.model_name||'SketchUp Model';
   $('#modelId').textContent='Mã: '+state.shareId;
@@ -61,11 +62,38 @@ function loadModel(model){
   $('#bandCount').textContent=state.panels.reduce((a,p)=>a+bandCount(p),0);
   const th=[...new Set(state.panels.map(thickness).filter(Boolean))].sort((a,b)=>num(a)-num(b));
   $('#thicknessFilter').innerHTML='<option value="">Tất cả độ dày</option>'+th.map(v=>'<option value="'+esc(v)+'">'+esc(v)+' mm</option>').join('');
-  state.viewMode='color';showApp();render();renderObjects();renderGroups();drawModel();renderObjectDetail();loadHistory();setStatus('MODEL 3D MÀU ĐANG HIỂN THỊ','ok');
+  state.viewMode='color';showApp();render();renderObjects();renderGroups();renderTagFilters();drawModel();renderObjectDetail();loadHistory();setStatus('MODEL 3D MÀU ĐANG HIỂN THỊ','ok');
   if(state.pendingObject){const hit=findObject(state.pendingObject);state.pendingObject='';if(hit)setTimeout(()=>{state.selectedObject=String(hit.uid||hit.id||'');renderObjects();drawModel();renderObjectDetail();},100);}
   else if(state.pendingBoard){const hit=findBoard(state.pendingBoard);state.pendingBoard='';if(hit)setTimeout(()=>openDetail(hit),100);}
 }
 
+function tagInventory(){
+  const counts=new Map();
+  (state.model3d||[]).forEach(obj=>{
+    const fallback=String(obj.tag||'').trim();
+    (Array.isArray(obj.triangles)?obj.triangles:[]).forEach(tri=>{
+      const tag=String(tri.tag||fallback).trim();
+      if(tag)counts.set(tag,(counts.get(tag)||0)+1);
+    });
+    if(fallback&&!counts.has(fallback))counts.set(fallback,0);
+  });
+  return [...counts.entries()].sort((a,b)=>a[0].localeCompare(b[0],'vi')).map(([name,count])=>({name,count}));
+}
+function renderTagFilters(){
+  const host=$('#webTagFilters');if(!host)return;
+  const tags=tagInventory();
+  if(!tags.length){host.innerHTML='<span class="smallHint">Model chưa có dữ liệu Tags trên các mặt 3D.</span>';return}
+  host.innerHTML=tags.map(t=>'<label class="webTagItem"><input type="checkbox" data-web-tag="'+esc(t.name)+'" '+(state.hiddenTags.includes(t.name)?'':'checked')+'><span>'+esc(t.name)+'</span><small>'+t.count.toLocaleString('vi-VN')+' mặt</small></label>').join('');
+  host.querySelectorAll('[data-web-tag]').forEach(input=>input.addEventListener('change',()=>{
+    const tag=input.dataset.webTag;
+    state.hiddenTags=input.checked?state.hiddenTags.filter(x=>x!==tag):[...state.hiddenTags,tag];
+    drawModel();
+  }));
+}
+function setAllWebTags(visible){
+  state.hiddenTags=visible?[]:tagInventory().map(t=>t.name);
+  renderTagFilters();drawModel();
+}
 function findBoard(token){const t=String(token||'').trim();return state.panels.find(p=>[p.uid,p.panel_uid,p.code,p.ma_tam,p.id].map(String).includes(t))||null}
 function findObject(token){const t=String(token||'').trim();return state.objects.find(o=>[o.uid,o.id,o.persistent_id,o.code].map(String).includes(t))||state.model3d.find(o=>[o.uid,o.id,o.persistent_id].map(String).includes(t))||null}
 function render(){
@@ -113,7 +141,7 @@ function printAllQrs(){const grid=$('#qrPrintGrid');grid.innerHTML='';state.obje
 window.onafterprint=()=>$('#qrPrintGrid').classList.add('hidden');
 
 function project3d(pt,c,v,scale,W,H){let x=pt[0]-c[0],y=pt[1]-c[1],z=pt[2]-c[2];if(state.viewMode==='2d')return[W/2+x*scale*v.zoom,H/2-y*scale*v.zoom,z];let cy=Math.cos(v.yaw),sy=Math.sin(v.yaw),cp=Math.cos(v.pitch),sp=Math.sin(v.pitch);let x1=x*cy-y*sy,y1=x*sy+y*cy,z1=z;let y2=y1*cp-z1*sp,z2=y1*sp+z1*cp;return[W/2+x1*scale*v.zoom,H/2-z2*scale*v.zoom,y2]}
-let ttThreeScene=null,ttThreeCamera=null,ttThreeRenderer=null,ttThreeRoot=null,ttThreeCenter=null,ttThreeRadius=1000,ttThreeRaycaster=null,ttThreePointer=null,ttThreeModelRef=null,ttThreeSelectedRef='';
+let ttThreeScene=null,ttThreeCamera=null,ttThreeRenderer=null,ttThreeRoot=null,ttThreeCenter=null,ttThreeRadius=1000,ttThreeRaycaster=null,ttThreePointer=null,ttThreeModelRef=null,ttThreeSelectedRef='',ttThreeHiddenTagsRef='';
 function initThreeModel(){
   const cv=$('#modelCanvas');if(!cv||!window.THREE)return false;
   if(ttThreeRenderer)return true;
@@ -138,7 +166,9 @@ function buildThreeGeometry(){
   while(ttThreeRoot.children.length){const child=ttThreeRoot.children.pop();ttThreeRoot.remove(child);child.geometry?.dispose();if(Array.isArray(child.material))child.material.forEach(m=>m.dispose());else child.material?.dispose()}
   const all=[];
   (state.model3d||[]).forEach(obj=>{
-    const tris=Array.isArray(obj.triangles)?obj.triangles:[];
+    const allTris=Array.isArray(obj.triangles)?obj.triangles:[];
+    const hiddenTags=new Set(state.hiddenTags||[]);
+    const tris=allTris.filter(tri=>!hiddenTags.has(String(tri.tag||obj.tag||'')));
     if(!tris.length)return;
     const frontPositions=[],frontColors=[],backPositions=[],backColors=[];
     tris.forEach(tri=>{
@@ -175,13 +205,13 @@ function buildThreeGeometry(){
   ttThreeCenter=bounds.getCenter(new T.Vector3());
   const size=bounds.getSize(new T.Vector3());ttThreeRadius=Math.max(size.x,size.y,size.z,1)*1.8;
   ttThreeRoot.position.set(-ttThreeCenter.x,-ttThreeCenter.y,-ttThreeCenter.z);
-  ttThreeModelRef=state.model3d;ttThreeSelectedRef=String(state.selectedObject||'');
+  ttThreeModelRef=state.model3d;ttThreeSelectedRef=String(state.selectedObject||'');ttThreeHiddenTagsRef=JSON.stringify([...(state.hiddenTags||[])].sort());
 }
 function drawModel(){
   const cv=$('#modelCanvas');if(!cv)return;
   if(!window.THREE){const ctx=cv.getContext('2d');if(ctx){ctx.clearRect(0,0,cv.width,cv.height);ctx.fillStyle='#334155';ctx.font='14px Arial';ctx.fillText('Đang tải bộ dựng 3D…',18,32)}return}
   if(!initThreeModel())return;
-  if(ttThreeModelRef!==state.model3d||ttThreeSelectedRef!==String(state.selectedObject||'')||!ttThreeRoot.children.length)buildThreeGeometry();
+  if(ttThreeModelRef!==state.model3d||ttThreeSelectedRef!==String(state.selectedObject||'')||ttThreeHiddenTagsRef!==JSON.stringify([...(state.hiddenTags||[])].sort())||!ttThreeRoot.children.length)buildThreeGeometry();
   const w=Math.max(1,cv.clientWidth||800),h=Math.max(1,cv.clientHeight||360);
   const pixelRatio=Math.min(window.devicePixelRatio||1,2);
   if(cv.width!==Math.round(w*pixelRatio)||cv.height!==Math.round(h*pixelRatio)){ttThreeRenderer.setSize(w,h,false);ttThreeCamera.aspect=w/h;ttThreeCamera.updateProjectionMatrix()}
@@ -204,6 +234,8 @@ function pickModelObject(e){
   const o=findObject(uid);if(o){openObject(o);const row=document.querySelector('[data-openobj="'+CSS.escape(uid)+'"]');row?.scrollIntoView({block:'nearest',behavior:'smooth'})}
 }
 function bindModel(){
+  $('#showAllTagsBtn').onclick=()=>setAllWebTags(true);
+  $('#hideAllTagsBtn').onclick=()=>setAllWebTags(false);
   const cv=$('#modelCanvas');
   $('#viewXrayBtn').onclick=()=>{state.viewMode='color';$('#viewXrayBtn').classList.add('active');drawModel();setStatus('GÓC NHÌN 3D MÀU','ok')};
   $('#modelObjectSearch').oninput=renderObjects;
