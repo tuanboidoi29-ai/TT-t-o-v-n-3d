@@ -837,6 +837,8 @@ module TranTuanNoiThat
     end
 
     def install_model_export_ui
+      # Vô hiệu hóa nút Thư viện vật liệu cũ còn tồn tại trong phiên SketchUp đang mở.
+      @material_catalog_cmd.set_validation_proc { MF_GRAYED } if @material_catalog_cmd
       return false unless defined?(TranTuanNoiThat::ModelExport)
       @model_export_cmd ||= command(
         'XUẤT DỮ LIỆU KIỂM TRA MODEL',
