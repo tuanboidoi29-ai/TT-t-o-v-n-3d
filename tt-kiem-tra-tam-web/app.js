@@ -121,8 +121,8 @@ function initThreeModel(){
   ttThreeRenderer=new T.WebGLRenderer({canvas:cv,antialias:true,alpha:false,preserveDrawingBuffer:false});
   ttThreeRenderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
   ttThreeRenderer.outputColorSpace=T.SRGBColorSpace;
-  ttThreeRenderer.toneMapping=T.ACESFilmicToneMapping;
-  ttThreeRenderer.toneMappingExposure=1.15;
+  ttThreeRenderer.toneMapping=T.NoToneMapping;
+  ttThreeRenderer.toneMappingExposure=1;
   ttThreeScene=new T.Scene();ttThreeScene.background=new T.Color('#ffffff');
   ttThreeCamera=new T.PerspectiveCamera(38,1,0.1,10000000);
   ttThreeScene.add(new T.HemisphereLight(0xffffff,0x8b98a8,2.1));
@@ -161,7 +161,7 @@ function buildThreeGeometry(){
       geo.setAttribute('position',new T.Float32BufferAttribute(positions,3));
       geo.setAttribute('color',new T.Float32BufferAttribute(colors,3));
       geo.computeVertexNormals();
-      const mat=new T.MeshStandardMaterial({vertexColors:true,roughness:.78,metalness:0,side});
+      const mat=new T.MeshBasicMaterial({vertexColors:true,side});
       const mesh=new T.Mesh(geo,mat);
       mesh.userData.uid=String(obj.uid||obj.id||obj.persistent_id||'');
       mesh.userData.name=obj.name||'';
