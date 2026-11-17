@@ -1,6 +1,6 @@
 const API='https://vnvkmxqgbnmirsgdgfzm.supabase.co/functions/v1/tt-model-api';
 const $=s=>document.querySelector(s);
-const state={shareId:'',pendingBoard:'',pendingObject:'',model:null,panels:[],labels:[],objects:[],selectedObject:'',model3d:[],view:{yaw:-.65,pitch:-.45,zoom:1,drag:false,x:0,y:0},stream:null,scanLoop:0,detector:null};
+const state={shareId:'',pendingBoard:'',pendingObject:'',model:null,panels:[],labels:[],objects:[],groupTree:[],selectedObject:'',model3d:[],viewMode:'3d',view:{yaw:-.65,pitch:-.45,zoom:1,drag:false,x:0,y:0},stream:null,scanLoop:0,detector:null};
 
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function num(v){const n=Number(v);return Number.isFinite(n)?n:0}
@@ -18,26 +18,25 @@ function dim(p){if(Array.isArray(p.cut)&&p.cut.length>=2)return p.cut.map(x=>Num
 function bandsOf(p){return p.banding||p.bands||p.dan_canh||{}}
 function bandCount(p){return Object.values(bandsOf(p)).filter(v=>v!==null&&v!==false&&v!==0&&v!=='').length}
 
-function showApp(){ $('#loginCard').classList.add('hidden'); ['#projectCard','#modelPanel','#objectPanel','#controls','#summary'].forEach(s=>$(s).classList.remove('hidden')); $('#logoutBtn').classList.remove('hidden'); }
-function hideApp(){ $('#loginCard').classList.remove('hidden'); ['#projectCard','#modelPanel','#objectPanel','#controls','#summary'].forEach(s=>$(s).classList.add('hidden')); $('#logoutBtn').classList.add('hidden'); $('#list').innerHTML=''; $('#objectList').innerHTML=''; }
+function showApp(){ $('#loginCard').classList.add('hidden'); ['#projectCard','#modelPanel','#objectPanel','#groupPanel','#historyPanel','#controls','#summary'].forEach(s=>$(s).classList.remove('hidden')); $('#logoutBtn').classList.remove('hidden'); }
+function hideApp(){ $('#loginCard').classList.remove('hidden'); ['#projectCard','#modelPanel','#objectPanel','#groupPanel','#historyPanel','#controls','#summary'].forEach(s=>$(s).classList.add('hidden')); $('#logoutBtn').classList.add('hidden'); $('#list').innerHTML=''; $('#objectList').innerHTML=''; $('#groupTree').innerHTML=''; $('#historyList').innerHTML=''; }
 
 async function login(){
   const login=$('#projectLogin').value.trim();
-  const password=$('#projectPassword').value;
-  if(!login||!password){setMsg('Nhập đủ Tên dự án và Mật khẩu.');return}
-  $('#loginBtn').disabled=true;setMsg('Đang xác thực…');setStatus('ĐANG ĐĂNG NHẬP');
+  if(!state.shareId&&!login){setMsg('Nhập Tên dự án hoặc Mã dự án.');return}
+  $('#loginBtn').disabled=true;setMsg('Đang tìm dự án…');setStatus('ĐANG MỞ DỰ ÁN');
   try{
-    const res=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'login',share_id:state.shareId,project_login:login,password})});
+    const res=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'open',share_id:state.shareId,project_login:login})});
     const j=await res.json().catch(()=>({}));
     if(!res.ok||!j.ok){
-      const map={invalid_credentials:'Tên dự án hoặc mật khẩu không đúng.',missing_credentials:'Thiếu thông tin đăng nhập.',project_login_too_short:'Tên dự án quá ngắn.',password_too_short:'Mật khẩu quá ngắn.',password_required:'Dự án chưa có mật khẩu.'};
-      throw new Error(map[j.error]||j.detail||j.error||'Đăng nhập thất bại');
+      const map={project_code_required:'Nhập Tên dự án hoặc Mã dự án.',project_not_found:'Không tìm thấy dự án. Kiểm tra lại tên hoặc mã dự án.'};
+      throw new Error(map[j.error]||j.detail||j.error||'Không mở được dự án');
     }
-    localStorage.setItem('tt_project_login',login);
-    $('#projectPassword').value='';
+    state.shareId=j.model.share_id||state.shareId;
+    if(login)localStorage.setItem('tt_project_login',login);
     loadModel(j.model);
-    setMsg('Đăng nhập thành công.','ok');
-  }catch(e){setStatus('ĐĂNG NHẬP LỖI','bad');setMsg(e.message||String(e))}
+    setMsg('Đã mở dự án.','ok');
+  }catch(e){setStatus('KHÔNG MỞ ĐƯỢC','bad');setMsg(e.message||String(e))}
   finally{$('#loginBtn').disabled=false}
 }
 
@@ -48,6 +47,7 @@ function loadModel(model){
   state.labels=Array.isArray(p.labels)?p.labels:state.panels.filter(x=>labelInfo(x).assigned);
   state.objects=Array.isArray(p.objects)?p.objects:(Array.isArray(p.model3d)?p.model3d:[]);
   state.model3d=Array.isArray(p.model3d)?p.model3d:[];
+  state.groupTree=Array.isArray(p.group_tree)?p.group_tree:[];
   state.selectedObject='';
   $('#modelName').textContent=state.model.model_name||p.model_name||'SketchUp Model';
   $('#modelId').textContent='Mã: '+state.shareId;
@@ -55,12 +55,13 @@ function loadModel(model){
   $('#revision').textContent='Revision: '+String(state.model.revision||1);
   $('#panelCount').textContent=state.panels.length;
   $('#objectCount').textContent=state.objects.length;
+  $('#objectCount').textContent=state.objects.length;
   $('#objectPanel').classList.toggle('hidden',!state.objects.length);
   $('#labelCount').textContent=state.labels.length;
   $('#bandCount').textContent=state.panels.reduce((a,p)=>a+bandCount(p),0);
   const th=[...new Set(state.panels.map(thickness).filter(Boolean))].sort((a,b)=>num(a)-num(b));
   $('#thicknessFilter').innerHTML='<option value="">Tất cả độ dày</option>'+th.map(v=>'<option value="'+esc(v)+'">'+esc(v)+' mm</option>').join('');
-  showApp();render();renderObjects();drawModel();setStatus('DỮ LIỆU ĐÃ LƯU','ok');
+  state.viewMode='3d';showApp();render();renderObjects();renderGroups();drawModel();loadHistory();setStatus('MODEL 3D ĐANG HIỂN THỊ','ok');
   if(state.pendingObject){const hit=findObject(state.pendingObject);state.pendingObject='';if(hit)setTimeout(()=>openObject(hit),100);}
   else if(state.pendingBoard){const hit=findBoard(state.pendingBoard);state.pendingBoard='';if(hit)setTimeout(()=>openDetail(hit),100);}
 }
@@ -81,6 +82,29 @@ function openDetail(p){
   $('#detailDialog').showModal();
 }
 function objectLink(o){const u=new URL(location.href);u.searchParams.set('id',state.shareId);u.searchParams.set('object',o.uid||o.id||'');u.searchParams.delete('board');u.searchParams.delete('scanner');return u.toString()}
+function renderGroupNode(n,depth=0){
+  if(depth>30)return '';
+  const boards=Array.isArray(n.boards)?n.boards:[];
+  const children=Array.isArray(n.children)?n.children:[];
+  const boardHtml=boards.length?'<div class="groupBoards"><b>Ván thuộc Group này ('+boards.length+')</b><div class="boardRows">'+boards.map(b=>'<div class="boardRow"><span>'+esc(b.name||'Ván chưa đặt tên')+'</span><small>'+esc((b.dimensions||[]).join(' × '))+' mm · '+esc(b.material||'Chưa có vật liệu')+' · '+esc(b.tag||'')+'</small></div>').join('')+'</div></div>':'<div class="groupEmpty">Không có ván trực tiếp trong cụm này.</div>';
+  const childHtml=children.map(c=>renderGroupNode(c,depth+1)).join('');
+  return '<details class="groupNode" '+(depth===0?'open':'')+'><summary><span><b>'+esc(n.name||'Group')+'</b><small>'+esc(n.path||'')+'</small></span><em>'+Number(n.board_count||boards.length||0)+' ván</em></summary><div class="groupContent">'+boardHtml+(childHtml?'<div class="nestedGroups"><b>Group con</b>'+childHtml+'</div>':'')+'</div></details>';
+}
+function renderGroups(){
+  const tree=state.groupTree||[];
+  $('#groupCount').textContent=tree.length+' cụm gốc · '+state.panels.length+' ván';
+  $('#groupTree').innerHTML=tree.map(n=>renderGroupNode(n)).join('')||'<div class="muted">Model chưa có cấu trúc Group lồng nhau.</div>';
+}
+async function loadHistory(){
+  if(!state.shareId)return;
+  try{
+    const res=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'history',share_id:state.shareId})});
+    const j=await res.json();if(!res.ok||!j.ok)throw new Error(j.detail||j.error||'Lỗi đọc lịch sử');
+    const rows=j.history||[];$('#historyCount').textContent=rows.length+' phiên bản';
+    $('#historyList').innerHTML=rows.map(h=>'<div class="historyRow"><b>Revision '+Number(h.revision||0)+'</b><span>'+esc(h.model_name||'Model')+'</span><small>'+Number(h.panel_count||0)+' tấm · '+new Date(h.saved_at).toLocaleString('vi-VN')+'</small></div>').join('')||'<div class="muted">Chưa có lịch sử đồng bộ.</div>';
+  }catch(e){$('#historyList').textContent='Không tải được lịch sử: '+(e.message||e)}
+}
+
 function renderObjects(){const q=($('#objectSearch')?.value||'').trim().toLowerCase();const rows=state.objects.filter(o=>[o.name,o.uid,o.type,o.tag,o.material,(o.dimensions||[]).join(' ')].join(' ').toLowerCase().includes(q));$('#objectList').innerHTML=rows.map((o,i)=>'<article class="objectCard"><div class="objectTitle"><b>'+esc(o.name||'Đối tượng chưa đặt tên')+'</b><span class="badge">'+esc(o.type||'Object')+'</span></div><div class="objectMeta">'+esc((o.dimensions||[]).join(' × '))+' mm · '+esc(o.material||'Chưa gán vật liệu')+'</div><div class="objectMeta">Tag: '+esc(o.tag||'—')+' · Mã: '+esc(o.uid||o.id||'—')+'</div><div class="objectActions"><button class="secondary" data-openobj="'+esc(o.uid||o.id||'')+'">Tìm / xem</button><button class="ghost" data-qrobj="'+esc(o.uid||o.id||'')+'">Tạo QR</button></div><div class="qrHolder" id="qrObj'+i+'"></div></article>').join('')||'<div class="muted">Không có đối tượng phù hợp.</div>';document.querySelectorAll('[data-openobj]').forEach(b=>b.onclick=()=>{const o=findObject(b.dataset.openobj);if(o)openObject(o)});document.querySelectorAll('[data-qrobj]').forEach(b=>b.onclick=()=>showObjectQr(b.dataset.qrobj,b.closest('.objectCard').querySelector('.qrHolder')))}
 function openObject(o){const uid=o.uid||o.id||'';state.selectedObject=uid;drawModel();const dims=(o.dimensions||[]).join(' × ')+' mm';const items=[['Tên đối tượng',o.name||'—'],['Mã định danh',uid||'—'],['Loại',o.type||'—'],['Kích thước bao',dims],['Tag / Layer',o.tag||'—'],['Vật liệu',o.material||'—'],['Persistent ID',o.persistent_id||'—'],['Số tam giác 3D',o.triangle_count||0]];$('#dName').textContent=o.name||'Đối tượng Model';$('#detailBody').innerHTML='<div class="detailGrid">'+items.map((x,i)=>'<div class="detailItem '+(i===0?'wide':'')+'"><span>'+esc(x[0])+'</span><b>'+esc(x[1])+'</b></div>').join('')+'</div><p class="objectDetailActions"><button class="secondary" onclick="showObjectQr(\''+esc(uid)+'\',document.getElementById(\'detailQr\'))">Hiện mã QR đối tượng</button></p><div id="detailQr" class="qrHolder"></div><p class="objectMeta">Quét QR bằng camera điện thoại để mở đúng đối tượng trong trang xem Model.</p>';$('#detailDialog').showModal()}
 function showObjectQr(uid,holder){const o=findObject(uid);if(!o||!holder)return;holder.innerHTML='';const url=objectLink(o);if(window.QRCode){new QRCode(holder,{text:url,width:132,height:132,correctLevel:QRCode.CorrectLevel.M})}else{holder.textContent=url}}
@@ -98,7 +122,7 @@ function drawModel(){
 }
 
 function bindModel(){const cv=$('#modelCanvas');cv.onmousedown=e=>{state.view.drag=true;state.view.x=e.clientX;state.view.y=e.clientY};window.addEventListener('mouseup',()=>state.view.drag=false);window.addEventListener('mousemove',e=>{if(!state.view.drag)return;state.view.yaw+=(e.clientX-state.view.x)*.008;state.view.pitch+=(e.clientY-state.view.y)*.008;state.view.pitch=Math.max(-1.45,Math.min(1.45,state.view.pitch));state.view.x=e.clientX;state.view.y=e.clientY;drawModel()});cv.onwheel=e=>{e.preventDefault();state.view.zoom*=e.deltaY<0?1.12:.89;state.view.zoom=Math.max(.2,Math.min(7,state.view.zoom));drawModel()};cv.ondblclick=()=>{state.view={yaw:-.65,pitch:-.45,zoom:1,drag:false,x:0,y:0};drawModel()}}
-function logout(){stopScanner();state.model=null;state.panels=[];state.labels=[];state.objects=[];state.model3d=[];state.selectedObject='';hideApp();setStatus('Sẵn sàng');setMsg('');}
+function logout(){stopScanner();state.model=null;state.panels=[];state.labels=[];state.objects=[];state.groupTree=[];state.model3d=[];state.selectedObject='';hideApp();setStatus('Sẵn sàng');setMsg('');}
 
 function parseQr(raw){
   const s=String(raw||'').trim();if(!s)return false;
@@ -138,11 +162,12 @@ function openScanner(){if(!navigator.mediaDevices||!navigator.mediaDevices.getUs
 function boot(){
   state.shareId=shareIdFromUrl();state.pendingBoard=boardFromUrl();state.pendingObject=objectFromUrl();
   $('#projectLogin').value=localStorage.getItem('tt_project_login')||'';
-  if(state.shareId){$('#qrModeHint').classList.remove('hidden');$('#qrModeHint').textContent='QR đã xác định dự án'+(state.pendingObject?' và đối tượng '+state.pendingObject:'')+(state.pendingBoard?' và tấm '+state.pendingBoard:'')+'. Nhập thông tin đăng nhập.'} if(new URLSearchParams(location.search).get('scanner')==='1'){setTimeout(openScanner,250)}
-  bindModel();setStatus('CHỜ ĐĂNG NHẬP');
+  if(state.shareId){$('#qrModeHint').classList.remove('hidden');$('#qrModeHint').textContent='Đã nhận mã dự án từ liên kết QR. Đang mở Model 3D…';setTimeout(login,80)} else {$('#projectLogin').value=localStorage.getItem('tt_project_login')||''}
+  if(new URLSearchParams(location.search).get('scanner')==='1'){setTimeout(openScanner,250)}
+  bindModel();setStatus('NHẬP TÊN HOẶC MÃ DỰ ÁN');
 }
 
-$('#loginBtn').onclick=login;$('#projectPassword').onkeydown=e=>{if(e.key==='Enter')login()};$('#togglePassword').onclick=()=>{const p=$('#projectPassword'),show=p.type==='password';p.type=show?'text':'password';$('#togglePassword').textContent=show?'ẨN':'HIỆN'};
+$('#loginBtn').onclick=login;$('#projectLogin').onkeydown=e=>{if(e.key==='Enter')login()};
 $('#logoutBtn').onclick=logout;$('#closeDetail').onclick=()=>$('#detailDialog').close();
 ['#scanTopBtn','#scanLoginBtn','#scanProjectBtn'].forEach(s=>$(s).onclick=openScanner);$('#closeScanner').onclick=()=>{stopScanner();$('#scanDialog').close()};$('#startScanner').onclick=startScanner;$('#stopScanner').onclick=stopScanner;$('#manualQrBtn').onclick=()=>{if(!parseQr($('#manualQrText').value))$('#scanStatus').textContent='Không nhận được mã QR hợp lệ.'};
 ['search','thicknessFilter','labelFilter'].forEach(id=>$('#'+id).addEventListener(id==='search'?'input':'change',render));$('#objectSearch').addEventListener('input',renderObjects);$('#printQrBtn').onclick=printAllQrs;
