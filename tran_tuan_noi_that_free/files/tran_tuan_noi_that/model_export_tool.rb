@@ -180,6 +180,7 @@ module TranTuanNoiThat
       raise 'Không có model SketchUp đang mở.' unless m
       roots = scan_roots
       raise 'Không tìm thấy Group/Component đang hiển thị trong model.' if roots.empty?
+      root_transform = m.selection.empty? ? Geom::Transformation.new : m.edit_transform
 
       m.start_operation('Quét sâu dữ liệu Model', true)
       begin
@@ -196,9 +197,9 @@ module TranTuanNoiThat
       group_tree = []
       roots.each do |root|
         cap = [remaining, MAX_TRIANGLES_PER_OBJECT].min
-        triangles = include_mesh && cap > 0 ? mesh_triangles(root, Geom::Transformation.new, [], cap) : []
+        triangles = include_mesh && cap > 0 ? mesh_triangles(root, root_transform, [], cap) : []
         remaining -= triangles.length
-        root_record, tree_node, descendants = scan_instance_tree(root, nil, entity_name(root), 0, Geom::Transformation.new, triangles)
+        root_record, tree_node, descendants = scan_instance_tree(root, nil, entity_name(root), 0, root_transform, triangles)
         records.concat([root_record] + descendants)
         group_tree << tree_node
       end
