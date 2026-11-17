@@ -540,7 +540,8 @@ module TranTuanNoiThat
         <section class="notice">Lưu ý: Sau khi đồng bộ, hãy lưu file SKP để giữ mã dự án và mã định danh đối tượng. Trình xem Web hiển thị hình học 3D đã quét, danh sách đối tượng và QR riêng từng đối tượng. Cần Internet khi đồng bộ và khi mở Web.</section>
       </main>
       <script>
-      var lastLink='';\n      window.addEventListener('load',function(){scan()});
+      var lastLink='';
+      window.addEventListener('load',function(){scan()});
 
       function scan(){document.getElementById('scanBtn').disabled=true;document.getElementById('objects').innerHTML='<tr><td colspan="6">Đang quét model...</td></tr>';sketchup.model_scan()}
       function receiveScan(d){document.getElementById('scanBtn').disabled=false;document.getElementById('count').textContent=d.object_count||0;document.getElementById('triangles').textContent=d.triangle_count||0;var rows=d.objects||[];document.getElementById('objects').innerHTML=rows.map(function(o){return '<tr><td>'+esc(o.name)+'</td><td>'+esc(o.type)+'</td><td>'+esc((o.dimensions||[]).join(' × '))+'</td><td>'+esc(o.tag)+'</td><td>'+esc(o.material)+'</td><td>'+esc(o.uid)+'</td></tr>'}).join('')||'<tr><td colspan="6">Không có đối tượng.</td></tr>';document.getElementById('result').textContent='Đã quét '+(d.object_count||0)+' đối tượng.';document.getElementById('result').className='status ok'}
