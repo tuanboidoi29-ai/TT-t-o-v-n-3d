@@ -66,9 +66,9 @@ module TranTuanNoiThat
       end
 
       unless candidates.empty?
-        # Không tin nguồn trả về đầu tiên: RAW/proxy có thể đang giữ manifest cũ.
-        # Luôn chọn version cao nhất giữa RAW và GitHub API.
-        return candidates.max_by { |data| normalize(data.fetch('version')) }
+        # Ưu tiên GitHub API khi hai nguồn cùng phiên bản: RAW/CDN có thể đang giữ manifest cũ.
+        # Khi version bằng nhau, phần tử cuối (API) thắng; khi khác version, chọn bản cao nhất.
+        return candidates.each_with_index.max_by { |data, index| [normalize(data.fetch('version')), index] }.first
       end
 
       raise "Không lấy được cập nhật GitHub.\n#{errors.join("\n")}"
