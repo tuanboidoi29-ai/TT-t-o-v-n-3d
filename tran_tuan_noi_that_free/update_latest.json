@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.346",
+  "version": "1.9.347",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "1.9.346: Ưu tiên manifest GitHub API khi RAW và API cùng phiên bản để tránh cache SHA cũ; đồng bộ phiên bản bootstrap và extension.",
+  "notes": "1.9.347: Sửa lưu thư viện vật liệu trên Windows; sửa tìm kiếm không phân biệt dấu tiếng Việt; bổ sung thống kê số sản phẩm, thương hiệu và nhà cung cấp.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "fadfa02009941c15139bd50b03a61bacbcac9b49ec848203157f28cc7b815e49"
+      "sha256": "0f4abceaaf601c037996ea069df91b34ef99f4b4792ae9af8e15771e766fc75a"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -319,7 +319,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "dea752a7ce194ecd11250fdd5ad76b0bb43acd93f41b3ecbfbb934df0034eba4"
+      "sha256": "702308827b2fd41f6ed3e39e904dff6b267987f1ea105c9bc1dd271b421002f3"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -484,7 +484,7 @@
     {
       "path": "tran_tuan_noi_that/material_catalog_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/material_catalog_tool.rb",
-      "sha256": "11839f15972c7325c885b9b5fa717f38e28a0e157c58402b1c3e52b4d123af9f"
+      "sha256": "0059fe1f0b3c8ebfae5c1d143bef210455e44442ff0041129176fe930caf494b"
     },
     {
       "path": "tran_tuan_noi_that/icons/material_catalog.svg",
