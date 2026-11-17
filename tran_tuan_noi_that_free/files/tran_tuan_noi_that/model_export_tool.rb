@@ -88,10 +88,10 @@ module TranTuanNoiThat
       'Đối tượng SketchUp'
     end
 
-    def bounds_corners(entity)
+    def bounds_corners(entity, transform = Geom::Transformation.new)
       b = entity.bounds
       8.times.map do |i|
-        p = b.corner(i)
+        p = transform * b.corner(i)
         [(p.x.to_f * 25.4).round(2), (p.y.to_f * 25.4).round(2), (p.z.to_f * 25.4).round(2)]
       end
     end
@@ -107,6 +107,7 @@ module TranTuanNoiThat
       inherited = instance.material || inherited_material
       instance.definition.entities.each do |child|
         break if output.length >= limit
+        next unless visible_entity?(child)
         if child.is_a?(Sketchup::Face)
           begin
             mesh = child.mesh(0)
@@ -147,49 +148,113 @@ module TranTuanNoiThat
     def scan_model
       m = model
       raise 'Không có model SketchUp đang mở.' unless m
-      objects = top_level_objects
-      raise 'Không tìm thấy Group/Component đang hiển thị trong model.' if objects.empty?
+      roots = top_level_objects
+      raise 'Không tìm thấy Group/Component đang hiển thị trong model.' if roots.empty?
 
-      changed = false
-      m.start_operation('Quét dữ liệu model', true)
+      m.start_operation('Quét sâu dữ liệu Model', true)
       begin
         model_uid
-        objects.each { |entity| entity_uid(entity) }
+        roots.each { |entity| assign_nested_uids(entity, 0) }
         m.commit_operation
-        changed = true
       rescue StandardError
         m.abort_operation rescue nil
         raise
       end
 
       remaining = MAX_TRIANGLES_TOTAL
-      records = objects.each_with_index.map do |entity, index|
+      records = []
+      group_tree = []
+      roots.each do |root|
         cap = [remaining, MAX_TRIANGLES_PER_OBJECT].min
-        triangles = cap > 0 ? mesh_triangles(entity, Geom::Transformation.new, [], cap) : []
+        triangles = cap > 0 ? mesh_triangles(root, Geom::Transformation.new, [], cap) : []
         remaining -= triangles.length
-        {
-          'uid' => entity_uid(entity),
-          'persistent_id' => (entity.persistent_id rescue nil),
-          'name' => entity_name(entity),
-          'type' => entity.is_a?(Sketchup::Group) ? 'Group' : 'Component',
-          'tag' => (entity.layer.name.to_s rescue ''),
-          'material' => material_name(entity),
-          'dimensions' => bounds_dimensions(entity),
-          'corners' => bounds_corners(entity),
-          'triangles' => triangles,
-          'triangle_count' => triangles.length,
-          'geometry_limited' => (triangles.length >= cap && remaining <= 0)
-        }
+        root_record, tree_node, descendants = scan_instance_tree(root, nil, entity_name(root), 0, Geom::Transformation.new, triangles)
+        records.concat([root_record] + descendants)
+        group_tree << tree_node
       end
 
+      board_records = records.select { |r| r['is_board'] }
       {
         'model_uid' => model_uid,
         'model_name' => model_title,
         'scanned_at' => Time.now.utc.iso8601,
         'object_count' => records.length,
-        'triangle_count' => records.inject(0) { |sum, item| sum + item['triangle_count'].to_i },
+        'root_count' => roots.length,
+        'board_count' => board_records.length,
+        'triangle_count' => roots.inject(0) { |sum, item| sum + item.fetch('triangle_count', 0).to_i },
         'objects' => records.map { |r| r.reject { |k, _| k == 'triangles' } },
-        'model3d' => records
+        'model3d' => records,
+        'group_tree' => group_tree,
+        'panels' => board_records.map { |r| panel_payload(r) }
+      }
+    end
+
+    def assign_nested_uids(entity, depth)
+      return if depth > 40
+      entity_uid(entity)
+      if entity.is_a?(Sketchup::Group) || entity.is_a?(Sketchup::ComponentInstance)
+        entity.definition.entities.each do |child|
+          next unless child.is_a?(Sketchup::Group) || child.is_a?(Sketchup::ComponentInstance)
+          next unless child.valid? && visible_entity?(child)
+          assign_nested_uids(child, depth + 1)
+        end
+      end
+    end
+
+    def scan_instance_tree(entity, parent_uid, parent_path, depth, parent_transform, root_triangles = [])
+      uid = entity_uid(entity)
+      world_transform = parent_transform * entity.transformation
+      child_instances = entity.definition.entities.to_a.select do |child|
+        (child.is_a?(Sketchup::Group) || child.is_a?(Sketchup::ComponentInstance)) &&
+          child.valid? && visible_entity?(child)
+      end
+      record = {
+        'uid' => uid,
+        'parent_uid' => parent_uid,
+        'depth' => depth,
+        'path' => parent_path,
+        'name' => entity_name(entity),
+        'type' => entity.is_a?(Sketchup::Group) ? 'Group' : 'Component',
+        'tag' => (entity.layer.name.to_s rescue ''),
+        'material' => material_name(entity),
+        'dimensions' => bounds_dimensions(entity),
+        'corners' => bounds_corners(entity, parent_transform),
+        'persistent_id' => (entity.persistent_id rescue nil),
+        'child_count' => child_instances.length,
+        'is_board' => child_instances.empty?,
+        'triangles' => depth.zero? ? root_triangles : [],
+        'triangle_count' => depth.zero? ? root_triangles.length : 0
+      }
+      node = {
+        'uid' => uid, 'name' => entity_name(entity), 'path' => parent_path,
+        'type' => record['type'], 'dimensions' => record['dimensions'],
+        'tag' => record['tag'], 'material' => record['material'],
+        'boards' => [], 'children' => [], 'board_count' => 0
+      }
+      descendants = []
+      child_instances.each do |child|
+        child_path = parent_path + ' / ' + entity_name(child)
+        child_record, child_node, nested_records = scan_instance_tree(child, uid, child_path, depth + 1, world_transform, [])
+        descendants << child_record
+        descendants.concat(nested_records)
+        if child_node['children'].empty?
+          node['boards'] << panel_payload(child_record) if child_record['is_board']
+        else
+          node['children'] << child_node
+        end
+        node['children'].concat(child_node.delete('children') || []) if false
+        node['board_count'] += child_node['board_count'].to_i
+        node['board_count'] += 1 if child_record['is_board']
+      end
+      node['board_count'] = node['boards'].length + node['children'].inject(0) { |sum, c| sum + c['board_count'].to_i }
+      [record, node, descendants]
+    end
+
+    def panel_payload(record)
+      {
+        'uid' => record['uid'], 'code' => record['uid'], 'name' => record['name'],
+        'type' => record['type'], 'dimensions' => record['dimensions'],
+        'tag' => record['tag'], 'material' => record['material'], 'path' => record['path']
       }
     end
 
@@ -225,12 +290,11 @@ module TranTuanNoiThat
       end
     end
 
-    def sync_to_web(login, password)
+    def sync_to_web(project_name)
       m = model
       raise 'Không có model SketchUp đang mở.' unless m
-      login = login.to_s.strip
-      password = password.to_s
-      raise 'Tên dự án phải có ít nhất 3 ký tự.' if login.length < 3
+      login = project_name.to_s.strip
+      raise 'Tên dự án hoặc mã dự án phải có ít nhất 3 ký tự.' if login.length < 3
 
       settings = share_settings
       share_id = settings['share_id']
@@ -245,7 +309,8 @@ module TranTuanNoiThat
         'model_name' => scanned['model_name'],
         'objects' => scanned['objects'],
         'model3d' => scanned['model3d'],
-        'panels' => [],
+        'group_tree' => scanned['group_tree'],
+        'panels' => scanned['panels'],
         'labels' => []
       }
       body = {
@@ -253,7 +318,6 @@ module TranTuanNoiThat
         'share_id' => share_id,
         'write_key' => write_key,
         'project_login' => login,
-        'password' => password,
         'model_uid' => scanned['model_uid'],
         'model_name' => scanned['model_name'],
         'payload' => payload
@@ -265,6 +329,7 @@ module TranTuanNoiThat
         'share_id' => share_id,
         'model_name' => scanned['model_name'],
         'object_count' => scanned['object_count'],
+        'board_count' => scanned['board_count'],
         'triangle_count' => scanned['triangle_count'],
         'revision' => (response.dig('model', 'revision') rescue nil),
         'url' => WEB_URL + '?id=' + URI.encode_www_form_component(share_id)
@@ -295,10 +360,8 @@ module TranTuanNoiThat
       messages = {
         'invalid_write_key' => 'Khóa ghi dữ liệu không hợp lệ.',
         'forbidden' => 'Khóa đồng bộ không khớp với model đã lưu.',
-        'project_login_exists' => 'Tên dự án này đã được sử dụng. Hãy đổi tên đăng nhập dự án.',
-        'password_required' => 'Lần đồng bộ đầu tiên cần đặt mật khẩu để bảo vệ link web.',
-        'password_too_short' => 'Mật khẩu phải có ít nhất 4 ký tự.',
-        'project_login_too_short' => 'Tên dự án phải có ít nhất 3 ký tự.',
+        'project_login_exists' => 'Tên dự án này đã được sử dụng cho một model khác. Hãy dùng mã dự án hoặc tên khác.',
+        'project_login_too_short' => 'Tên dự án hoặc mã dự án phải có ít nhất 3 ký tự.',
         'invalid_share_id' => 'Mã chia sẻ model không hợp lệ.'
       }
       messages[code] || (detail.empty? ? "Máy chủ từ chối đồng bộ (#{code})." : detail)
@@ -415,9 +478,9 @@ module TranTuanNoiThat
           @dialog.execute_script("window.TTModelExport.tagError(#{e.message.to_s.to_json})")
         end
       end
-      @dialog.add_action_callback('model_sync') do |_context, login, password|
+      @dialog.add_action_callback('model_sync') do |_context, login|
         begin
-          result = sync_to_web(login, password)
+          result = sync_to_web(login)
           @dialog.execute_script("window.TTModelExport.synced(true, #{JSON.generate(result).gsub('</', '<\\/')})")
         rescue StandardError => e
           @dialog.execute_script("window.TTModelExport.synced(false, #{e.message.to_s.to_json})")
@@ -471,11 +534,8 @@ module TranTuanNoiThat
         </section>
         <section class="panel">
           <b>3. ĐỒNG BỘ VÀ XUẤT LINK XEM MODEL TRÊN WEB</b>
-          <p class="muted">Lần đầu đồng bộ, đặt tên dự án và mật khẩu. Các lần sau dùng lại tên dự án; mật khẩu chỉ cần nhập khi tạo dự án mới hoặc muốn đổi mật khẩu. Link web và QR yêu cầu đăng nhập để bảo vệ model.</p>
-          <div class="grid">
-            <div><label class="field">TÊN ĐĂNG NHẬP DỰ ÁN</label><input id="login" autocomplete="username" placeholder="VD: tuan-noi-that-01"></div>
-            <div><label class="field">MẬT KHẨU WEB (tối thiểu 4 ký tự)</label><input id="password" type="password" autocomplete="new-password" placeholder="Chỉ nhập khi tạo dự án / đổi mật khẩu"></div>
-          </div>
+          <p class="muted">Chỉ cần nhập TÊN DỰ ÁN hoặc MÃ DỰ ÁN. Mỗi lần đồng bộ đều tự lưu một phiên bản vào lịch sử hệ thống.</p>
+          <div><label class="field">TÊN DỰ ÁN / HOẶC MÃ DỰ ÁN</label><input id="login" autocomplete="off" placeholder="VD: TUAN-NOI-THAT-01 hoặc mã dự án"></div>
           <div class="row" style="margin-top:12px"><button id="syncBtn" class="btn green" onclick="sync()">ĐỒNG BỘ MODEL & TẠO LINK</button><span class="muted">Model sẽ được cập nhật theo lần đồng bộ mới nhất.</span></div>
           <div id="result" class="status"></div>
           <div id="linkBox" class="notice" style="display:none;margin-top:10px"><b>LINK XEM MODEL</b><div id="webLink" class="link"></div><div class="row" style="margin-top:8px"><button class="btn light" onclick="copyLink()">Sao chép link</button><button class="btn blue" onclick="openLink()">Mở trang xem</button></div></div>
@@ -493,8 +553,8 @@ module TranTuanNoiThat
       function scan(){document.getElementById('scanBtn').disabled=true;document.getElementById('objects').innerHTML='<tr><td colspan="6">Đang quét model...</td></tr>';sketchup.model_scan()}
       function receiveScan(d){document.getElementById('scanBtn').disabled=false;document.getElementById('count').textContent=d.object_count||0;document.getElementById('triangles').textContent=d.triangle_count||0;var rows=d.objects||[];document.getElementById('objects').innerHTML=rows.map(function(o){return '<tr><td>'+esc(o.name)+'</td><td>'+esc(o.type)+'</td><td>'+esc((o.dimensions||[]).join(' × '))+'</td><td>'+esc(o.tag)+'</td><td>'+esc(o.material)+'</td><td>'+esc(o.uid)+'</td></tr>'}).join('')||'<tr><td colspan="6">Không có đối tượng.</td></tr>';document.getElementById('result').textContent='Đã quét '+(d.object_count||0)+' đối tượng.';document.getElementById('result').className='status ok'}
       function showError(s){document.getElementById('scanBtn').disabled=false;document.getElementById('result').textContent=s;document.getElementById('result').className='status bad'}
-      function sync(){var login=document.getElementById('login').value.trim(),password=document.getElementById('password').value;if(!login)return showError('Nhập tên đăng nhập dự án.');document.getElementById('syncBtn').disabled=true;document.getElementById('result').textContent='Đang quét hình học và đồng bộ lên Web...';document.getElementById('result').className='status';sketchup.model_sync(login,password)}
-      function synced(ok,d){document.getElementById('syncBtn').disabled=false;if(!ok){showError(d);return}lastLink=d.url;document.getElementById('password').value='';document.getElementById('linkBox').style.display='block';document.getElementById('webLink').textContent=d.url;document.getElementById('result').textContent='Đã đồng bộ '+d.object_count+' đối tượng · '+d.triangle_count+' tam giác · Revision '+d.revision;document.getElementById('result').className='status ok'}
+      function sync(){var login=document.getElementById('login').value.trim();if(!login)return showError('Nhập Tên dự án hoặc Mã dự án.');document.getElementById('syncBtn').disabled=true;document.getElementById('result').textContent='Đang quét sâu Group lồng nhau và đồng bộ lên Web...';document.getElementById('result').className='status';sketchup.model_sync(login)}
+      function synced(ok,d){document.getElementById('syncBtn').disabled=false;if(!ok){showError(d);return}lastLink=d.url;document.getElementById('linkBox').style.display='block';document.getElementById('webLink').textContent=d.url;document.getElementById('result').textContent='Đã đồng bộ '+d.object_count+' Group/Component · '+d.board_count+' ván · '+d.triangle_count+' tam giác · Revision '+d.revision+' (đã lưu lịch sử)';document.getElementById('result').className='status ok'}
       function copyLink(){if(!lastLink)return;var t=document.createElement('textarea');t.value=lastLink;document.body.appendChild(t);t.select();document.execCommand('copy');t.remove();document.getElementById('result').textContent='Đã sao chép link.'}
       function openLink(){if(lastLink)sketchup.model_open_web()}
       function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
