@@ -2,8 +2,8 @@
 # TRẦN TUẤN NỘI THẤT - BẢNG BÁO GIÁ
 # Tích hợp từ file baogia.rb do người dùng cung cấp.
 # Công thức tính:
-# - m² = (Dài x Rộng + Cao/Sâu) / 1e6 x Số lượng
-# - m³ = Dài x Rộng x Cao / 1e9 x Số lượng
+# - m² = ((Dài x Rộng) + Sâu) / 1e6 x Số lượng
+# - m³ = Dài x Rộng x Sâu / 1e9 x Số lượng
 # - m = Dài (mm) / 1000 x Số lượng
 # - các ĐVT đếm khác = Số lượng
 #
@@ -30,7 +30,7 @@ module TranTuanNoiThat
   module BaoGiaTool
     extend self
 
-    VERSION = '1.9.342'.freeze
+    VERSION = '1.9.348'.freeze
     ROOT = File.join(TranTuanNoiThat::ROOT, 'data', 'bao_gia').freeze
 
     DEFAULT_DVT = [
@@ -165,17 +165,17 @@ module TranTuanNoiThat
         'dvt'=>'m²',
         'dai'=>'',
         'rong'=>'',
-        'cao'=>'',
+        'sau'=>'',
         'so_luong'=>'1',
         'don_gia'=>'0'
       }
     end
 
-    # Trả về số lượng tính giá; m² = (Dài x Rộng + Cao/Sâu) / 1e6 theo công thức người dùng xác nhận.
+    # Trả về số lượng tính giá; m² = ((Dài x Rộng) + Sâu) / 1e6. Hỗ trợ dữ liệu cũ dùng khóa cao.
     def calc_measure(detail)
       length = num(detail['dai'])
       width  = num(detail['rong'])
-      height = num(detail['cao'])
+      height = num(detail['sau'] || (detail['sau'] || detail['cao']))
       qty    = num(detail['so_luong'])
       case detail['dvt'].to_s
       when 'm²'
@@ -332,7 +332,7 @@ module TranTuanNoiThat
         detail_html = details.each_with_index.map do |detail, detail_index|
           detail = detail.is_a?(Hash) ? detail : {}
           measured = calc_measure(detail)
-          text = [detail['mo_ta'], detail['dvt'], detail['dai'], detail['rong'], detail['cao'], detail['so_luong']].map { |v| safe(v) }.join(' · ')
+          text = [detail['mo_ta'], detail['dvt'], detail['dai'], detail['rong'], (detail['sau'] || detail['cao']), detail['so_luong']].map { |v| safe(v) }.join(' · ')
           %Q{<div>#{detail_index + 1}. #{text} · SL tính: #{format('%.3f', measured)} · Đơn giá: #{money(detail['don_gia'])} · Thành tiền: #{money(measured * num(detail['don_gia']))}</div>}
         end.join
         detail_count = details.length
@@ -708,10 +708,10 @@ module TranTuanNoiThat
             var n=Number(s); return isFinite(n)?n:0;
           }
           function money(v){return Math.round(num(v)).toLocaleString('vi-VN')+' ₫';}
-          function detailDefault(){return {mo_ta:'',dvt:'m²',dai:'',rong:'',cao:'',so_luong:'1',don_gia:'0'};}
-          function rowDefault(){return {anh:'',hang_muc:'',mo_ta:'',dvt:'m²',dai:'',rong:'',cao:'',so_luong:'1',don_gia:'0',chi_tiet:[detailDefault()]};}
+          function detailDefault(){return {mo_ta:'',dvt:'m²',dai:'',rong:'',sau:'',so_luong:'1',don_gia:'0'};}
+          function rowDefault(){return {anh:'',hang_muc:'',mo_ta:'',dvt:'m²',dai:'',rong:'',sau:'',so_luong:'1',don_gia:'0',chi_tiet:[detailDefault()]};}
           function calcMeasure(r){
-            var d=num(r.dai),w=num(r.rong),h=num(r.cao),q=num(r.so_luong);
+            var d=num(r.dai),w=num(r.rong),h=num(r.sau),q=num(r.so_luong);
             if(r.dvt==='m²')return (d*w+h)/1000000*q;
             if(r.dvt==='m³')return d*w*h/1000000000*q;
             if(r.dvt==='m')return d/1000*q;
@@ -724,8 +724,8 @@ module TranTuanNoiThat
           function normalizeRow(r){
             r=Object.assign(rowDefault(),r||{});
             if(!Array.isArray(r.chi_tiet)||!r.chi_tiet.length){
-              r.chi_tiet=[{mo_ta:r.mo_ta||'',dvt:r.dvt||'m²',dai:r.dai||'',rong:r.rong||'',cao:r.cao||'',so_luong:r.so_luong||'1',don_gia:r.don_gia||'0'}];
-            }else{r.chi_tiet=r.chi_tiet.map(function(d){return Object.assign(detailDefault(),d||{});});}
+              r.chi_tiet=[{mo_ta:r.mo_ta||'',dvt:r.dvt||'m²',dai:r.dai||'',rong:r.rong||'',sau:(r.sau!=null?r.sau:(r.cao||'')),so_luong:r.so_luong||'1',don_gia:r.don_gia||'0'}];
+            }else{r.chi_tiet=r.chi_tiet.map(function(d){d=Object.assign(detailDefault(),d||{});if(d.sau==null)d.sau=d.cao||'';return d;});}
             return r;
           }
           function field(value,placeholder,onchange){
@@ -772,7 +772,7 @@ module TranTuanNoiThat
               td=document.createElement('td');
               var detailWrap=document.createElement('div');detailWrap.className='detail-wrap';
               var detailHead=document.createElement('div');detailHead.className='detail-head';
-              ['Mô tả','ĐVT','Dài','Rộng','Cao','SL','SL tính','Đơn giá','Thành tiền',''].forEach(function(t){var x=document.createElement('span');x.textContent=t;detailHead.appendChild(x);});
+              ['Mô tả','ĐVT','Dài','Rộng','Sâu','SL','SL tính','Đơn giá','Thành tiền',''].forEach(function(t){var x=document.createElement('span');x.textContent=t;detailHead.appendChild(x);});
               detailWrap.appendChild(detailHead);
               r.chi_tiet.forEach(function(detail,di){
                 var line=document.createElement('div');line.className='detail-line';
@@ -788,7 +788,7 @@ module TranTuanNoiThat
                 var unit=document.createElement('select');
                 dvt.forEach(function(value){var opt=document.createElement('option');opt.value=value;opt.textContent=value;opt.selected=value===detail.dvt;unit.appendChild(opt);});
                 unit.onfocus=function(){activeRowIndex=i;activeDetailIndex=di;};unit.onchange=function(){detail.dvt=unit.value;render();};line.appendChild(unit);
-                detailInput('dai','Dài mm');detailInput('rong','Rộng mm');detailInput('cao','Cao mm');detailInput('so_luong','SL');
+                detailInput('dai','Dài mm');detailInput('rong','Rộng mm');detailInput('sau','Sâu mm');detailInput('so_luong','SL');
                 var result=document.createElement('span');result.className='detail-result';result.textContent=calcMeasure(detail).toFixed(3)+' '+detail.dvt;line.appendChild(result);
                 detailInput('don_gia','Đơn giá');
                 var amount=document.createElement('span');amount.className='detail-result';amount.textContent=money(calcMeasure(detail)*num(detail.don_gia));line.appendChild(amount);
