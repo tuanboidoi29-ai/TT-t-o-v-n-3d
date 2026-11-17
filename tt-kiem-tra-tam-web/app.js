@@ -139,7 +139,57 @@ function pickModelObject(e){
   if(!hit)return;
   const o=findObject(hit.uid);if(o){openObject(o);setStatus('ĐÃ CHỌN: '+(o.name||o.uid),'ok')}
 }
-function bindModel(){const cv=$('#modelCanvas');$('#view2dBtn').onclick=()=>{state.viewMode='2d';$('#view2dBtn').classList.add('active');$('#viewXrayBtn').classList.remove('active');drawModel()};$('#viewXrayBtn').onclick=()=>{state.viewMode='xray';$('#viewXrayBtn').classList.add('active');$('#view2dBtn').classList.remove('active');drawModel()};$('#modelObjectSearch').oninput=renderObjects;$('#printQrBtn').onclick=printAllQrs;cv.addEventListener('click',pickModelObject);cv.style.cursor='pointer';cv.onmousedown=e=>{state.view.drag=true;state.view.dragMoved=false;state.view.x=e.clientX;state.view.y=e.clientY};window.addEventListener('mouseup',()=>state.view.drag=false);window.addEventListener('mousemove',e=>{if(!state.view.drag)return;const dx=e.clientX-state.view.x,dy=e.clientY-state.view.y;if(Math.abs(dx)+Math.abs(dy)>3)state.view.dragMoved=true;state.view.yaw+=dx*.008;state.view.pitch+=dy*.008;state.view.pitch=Math.max(-1.45,Math.min(1.45,state.view.pitch));state.view.x=e.clientX;state.view.y=e.clientY;drawModel()});cv.onwheel=e=>{e.preventDefault();state.view.zoom*=e.deltaY<0?1.12:.89;state.view.zoom=Math.max(.2,Math.min(7,state.view.zoom));drawModel()};cv.ondblclick=()=>{state.view={yaw:-.65,pitch:-.45,zoom:1,drag:false,x:0,y:0};drawModel()}}
+function bindModel(){
+  const cv=$('#modelCanvas');
+  $('#view2dBtn').onclick=()=>{state.viewMode='2d';$('#view2dBtn').classList.add('active');$('#viewXrayBtn').classList.remove('active');drawModel()};
+  $('#viewXrayBtn').onclick=()=>{state.viewMode='xray';$('#viewXrayBtn').classList.add('active');$('#view2dBtn').classList.remove('active');drawModel()};
+  $('#modelObjectSearch').oninput=renderObjects;
+  $('#printQrBtn').onclick=printAllQrs;
+  // Pointer events hỗ trợ chuột, bút cảm ứng và màn hình điện thoại.
+  const pointers=new Map();
+  let pinchStart=0,pinchZoom=1,lastTap=0;
+  const distance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+  cv.style.cursor='grab';
+  cv.addEventListener('pointerdown',e=>{
+    e.preventDefault();
+    cv.setPointerCapture?.(e.pointerId);
+    pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    state.view.drag=true;state.view.dragMoved=false;
+    if(pointers.size===1){state.view.x=e.clientX;state.view.y=e.clientY;cv.style.cursor='grabbing'}
+    if(pointers.size===2){const p=[...pointers.values()];pinchStart=distance(p[0],p[1]);pinchZoom=state.view.zoom;state.view.dragMoved=true}
+  });
+  cv.addEventListener('pointermove',e=>{
+    if(!pointers.has(e.pointerId))return;
+    const prev=pointers.get(e.pointerId);pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    if(pointers.size>=2){
+      const p=[...pointers.values()],d=distance(p[0],p[1]);
+      if(pinchStart>0){state.view.zoom=Math.max(.2,Math.min(12,pinchZoom*d/pinchStart));state.view.dragMoved=true;drawModel()}
+      return;
+    }
+    const dx=e.clientX-prev.x,dy=e.clientY-prev.y;
+    if(Math.abs(dx)+Math.abs(dy)>2)state.view.dragMoved=true;
+    state.view.yaw+=dx*.008;state.view.pitch+=dy*.008;
+    state.view.pitch=Math.max(-1.45,Math.min(1.45,state.view.pitch));
+    state.view.x=e.clientX;state.view.y=e.clientY;drawModel();
+  });
+  const endPointer=e=>{
+    if(!pointers.has(e.pointerId))return;
+    pointers.delete(e.pointerId);
+    if(pointers.size===1){const p=[...pointers.values()][0];state.view.x=p.x;state.view.y=p.y;pinchStart=0}
+    else if(pointers.size===0){state.view.drag=false;pinchStart=0;cv.style.cursor='grab';setTimeout(()=>{state.view.dragMoved=false},80)}
+  };
+  cv.addEventListener('pointerup',endPointer);
+  cv.addEventListener('pointercancel',endPointer);
+  cv.addEventListener('lostpointercapture',endPointer);
+  cv.addEventListener('click',e=>{
+    if(state.view.dragMoved)return;
+    const now=Date.now();
+    if(now-lastTap<320){state.view={...state.view,yaw:-.65,pitch:-.45,zoom:1,drag:false,x:0,y:0};drawModel();lastTap=0;return}
+    lastTap=now;pickModelObject(e);
+  });
+  cv.addEventListener('wheel',e=>{e.preventDefault();state.view.zoom*=e.deltaY<0?1.12:.89;state.view.zoom=Math.max(.2,Math.min(12,state.view.zoom));drawModel()},{passive:false});
+  cv.addEventListener('dblclick',e=>{e.preventDefault();state.view={...state.view,yaw:-.65,pitch:-.45,zoom:1,drag:false,x:0,y:0};drawModel()});
+}
 function logout(){stopScanner();state.model=null;state.panels=[];state.labels=[];state.objects=[];state.groupTree=[];state.model3d=[];state.selectedObject='';state.hitTargets=[];hideApp();setStatus('Sẵn sàng');setMsg('');}
 
 function parseQr(raw){
