@@ -58,10 +58,18 @@ module TranTuanNoiThat
       end
     end
 
-    def rgb_hex(material, fallback = '#B8C7D9')
+    def rgb_hex(material, fallback = '#F2F2F2')
       return fallback unless material && material.respond_to?(:color) && material.color
       c = material.color
       format('#%02X%02X%02X', c.red.to_i, c.green.to_i, c.blue.to_i)
+    rescue StandardError
+      fallback
+    end
+
+    def default_face_color(option, fallback)
+      value = model.rendering_options[option] rescue nil
+      return fallback unless value && value.respond_to?(:red)
+      format('#%02X%02X%02X', value.red.to_i, value.green.to_i, value.blue.to_i)
     rescue StandardError
       fallback
     end
@@ -112,8 +120,10 @@ module TranTuanNoiThat
           begin
             mesh = child.mesh(0)
             points = mesh.points
-            face_material = child.material || child.back_material || inherited
-            color = rgb_hex(face_material)
+            front_material = child.material || inherited
+            back_material = child.back_material || inherited
+            front_color = rgb_hex(front_material, default_face_color('FaceFrontColor', '#F2F2F2'))
+            back_color = rgb_hex(back_material, default_face_color('FaceBackColor', '#B8C7D9'))
             mesh.polygons.each do |polygon|
               break if output.length >= limit
               indices = polygon.map { |index| index.abs - 1 }.select { |index| index >= 0 && index < points.length }
@@ -129,7 +139,8 @@ module TranTuanNoiThat
                     [(p2.x.to_f * 25.4).round(2), (p2.y.to_f * 25.4).round(2), (p2.z.to_f * 25.4).round(2)],
                     [(p3.x.to_f * 25.4).round(2), (p3.y.to_f * 25.4).round(2), (p3.z.to_f * 25.4).round(2)]
                   ],
-                  'c' => color
+                  'c' => front_color,
+                  'bc' => back_color
                 }
               end
             end
