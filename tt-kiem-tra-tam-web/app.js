@@ -118,7 +118,7 @@ function drawModel(){
   if(!boxes.length){ctx.fillStyle='#7f96b3';ctx.font='14px Arial';ctx.fillText('Model chưa có dữ liệu 3D. Hãy Đồng bộ Web lại từ SketchUp.',20,40);return}
   const pts=[];boxes.forEach(b=>{(b.corners||[]).forEach(p=>pts.push(p));(b.triangles||[]).forEach(t=>(t.v||[]).forEach(p=>pts.push(p)))});if(!pts.length)return;
   const c=[0,0,0];pts.forEach(p=>{c[0]+=p[0];c[1]+=p[1];c[2]+=p[2]});c[0]/=pts.length;c[1]/=pts.length;c[2]/=pts.length;let span=100;pts.forEach(p=>{span=Math.max(span,Math.abs(p[0]-c[0])*2,Math.abs(p[1]-c[1])*2,Math.abs(p[2]-c[2])*2)});const scale=Math.min(W,H)*.72/span,edges=[[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]];
-  const faces=[];boxes.forEach(b=>(b.triangles||[]).forEach(t=>{if((t.v||[]).length===3){const p=t.v.map(v=>project3d(v,c,state.view,scale,W,H));faces.push({p:p,color:t.c||'#B8C7D9',depth:(p[0][2]+p[1][2]+p[2][2])/3,owner:String(b.uid||b.id||b.persistent_id||'')})}}));faces.sort((a,b)=>a.depth-b.depth);ctx.save();ctx.globalAlpha=state.viewMode==='xray'?.24:1;faces.forEach(f=>{ctx.beginPath();ctx.moveTo(f.p[0][0],f.p[0][1]);ctx.lineTo(f.p[1][0],f.p[1][1]);ctx.lineTo(f.p[2][0],f.p[2][1]);ctx.closePath();ctx.fillStyle=(state.selectedObject&&f.owner===String(state.selectedObject))?'#ffb020':f.color;ctx.fill();ctx.strokeStyle=(state.selectedObject&&f.owner===String(state.selectedObject))?'#fff1a8':'#334155';ctx.lineWidth=.35;ctx.stroke()});ctx.restore();
+  const faces=[];boxes.forEach(b=>(b.triangles||[]).forEach(t=>{if((t.v||[]).length===3){const p=t.v.map(v=>project3d(v,c,state.view,scale,W,H));faces.push({p:p,color:(typeof t.c==='string'&&t.c.trim())?t.c:'#B8C7D9',depth:(p[0][2]+p[1][2]+p[2][2])/3,owner:String(b.uid||b.id||b.persistent_id||'')})}}));faces.sort((a,b)=>a.depth-b.depth);ctx.save();ctx.globalAlpha=1;faces.forEach(f=>{ctx.beginPath();ctx.moveTo(f.p[0][0],f.p[0][1]);ctx.lineTo(f.p[1][0],f.p[1][1]);ctx.lineTo(f.p[2][0],f.p[2][1]);ctx.closePath();ctx.fillStyle=(state.selectedObject&&f.owner===String(state.selectedObject))?'#ffb020':f.color;ctx.fill();ctx.strokeStyle=(state.selectedObject&&f.owner===String(state.selectedObject))?'#fff1a8':'#334155';ctx.lineWidth=.35;ctx.stroke()});ctx.restore();
   selectable.forEach(o=>{
     const projected=o.corners.map(p=>project3d(p,c,state.view,scale,W,H));
     const xs=projected.map(p=>p[0]),ys=projected.map(p=>p[1]);
@@ -142,7 +142,7 @@ function pickModelObject(e){
 }
 function bindModel(){
   const cv=$('#modelCanvas');
-  $('#view2dBtn').onclick=()=>{state.viewMode='2d';$('#view2dBtn').classList.add('active');$('#viewXrayBtn').classList.remove('active');drawModel()};
+  $('#view2dBtn').onclick=()=>{state.viewMode='2d';$('#view2dBtn').classList.add('active');$('#viewXrayBtn').classList.remove('active');drawModel();setStatus('CHẾ ĐỘ 2D – GIỮ MÀU VẬT LIỆU SKETCHUP','ok')};
   $('#viewXrayBtn').onclick=()=>{state.viewMode='color';$('#viewXrayBtn').classList.add('active');$('#view2dBtn').classList.remove('active');drawModel()};
   $('#modelObjectSearch').oninput=renderObjects;
   $('#printQrBtn').onclick=printAllQrs;
