@@ -1,5 +1,5 @@
 # encoding: UTF-8
-# TRẦN TUẤN NỘI THẤT - XUẤT DỮ LIỆU / KIỂM TRA MODEL
+# TRẦN TUẤN NỘI THẤT - XUẤT BẢN VẼ LẮP ĐẶT
 require 'sketchup.rb'
 require 'json'
 require 'net/http'
@@ -405,7 +405,7 @@ module TranTuanNoiThat
 
     def export_json
       data = scan_model
-      path = UI.savepanel('Xuất dữ liệu kiểm tra Model', '', 'model_kiem_tra.json')
+      path = UI.savepanel('Xuất bản vẽ lắp đặt', '', 'model_kiem_tra.json')
       return false unless path
       File.write(path, JSON.pretty_generate(data), mode: 'w:UTF-8')
       UI.messagebox("Đã xuất #{data['object_count']} đối tượng ra tệp JSON.")
@@ -474,7 +474,7 @@ module TranTuanNoiThat
         return true
       end
       @dialog = UI::HtmlDialog.new(
-        dialog_title: 'XUẤT DỮ LIỆU - KIỂM TRA MODEL',
+        dialog_title: 'XUẤT BẢN VẼ LẮP ĐẶT',
         preferences_key: 'TranTuanNoiThat.ModelExport',
         scrollable: true, resizable: true,
         width: 1040, height: 760, min_width: 760, min_height: 560,
@@ -505,7 +505,7 @@ module TranTuanNoiThat
       @dialog.show
       true
     rescue StandardError => e
-      UI.messagebox("Không mở được chức năng xuất dữ liệu Model:\n#{e.class}: #{e.message}")
+      UI.messagebox("Không mở được chức năng Xuất bản vẽ lắp đặt:\n#{e.class}: #{e.message}")
       false
     end
 
@@ -522,7 +522,7 @@ module TranTuanNoiThat
       <style>
       *{box-sizing:border-box}body{margin:0;background:#f3f6fa;color:#202a36;font:14px Segoe UI,Arial}header{padding:18px 22px;background:#fff;border-bottom:1px solid #dce3eb;display:flex;justify-content:space-between;align-items:center;gap:12px}h1{font-size:20px;margin:0}.muted{color:#718096;font-size:12px}.wrap{padding:16px;max-width:1300px;margin:auto}.panel{background:#fff;border:1px solid #dfe5ed;border-radius:11px;padding:14px;margin-bottom:12px}.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.field{display:block;font-size:12px;color:#59677a;margin-bottom:5px}input{width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:7px;font:inherit}.btn{border:0;border-radius:7px;padding:10px 14px;background:#24384f;color:#fff;cursor:pointer;font-weight:700}.green{background:#137b50}.blue{background:#245fc4}.light{background:#e9eef5;color:#25364b}.btn:disabled{opacity:.55;cursor:wait}.stats{display:flex;gap:8px;flex-wrap:wrap}.stat{background:#f2f5f9;border-radius:8px;padding:8px 12px}.stat b{display:block;font-size:19px}.tablewrap{overflow:auto;max-height:340px}table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px;border-bottom:1px solid #e7ecf2;text-align:left;white-space:nowrap}th{background:#f7f9fc;position:sticky;top:0}.link{overflow-wrap:anywhere;color:#1458ad}.notice{padding:10px;border-radius:8px;background:#eef5ff;color:#31517b;font-size:12px;line-height:1.5}.status{margin-top:9px;font-size:12px;white-space:pre-wrap}.ok{color:#087344}.bad{color:#b42318}@media(max-width:720px){.grid{grid-template-columns:1fr}header{align-items:flex-start;flex-direction:column}}
       </style></head><body>
-      <header><div><h1>XUẤT DỮ LIỆU - KIỂM TRA MODEL</h1><div class="muted">Tự quét model hoặc chỉ xuất Group / Component đang chọn · Đồng bộ lên Web</div></div></header>
+      <header><div><h1>XUẤT BẢN VẼ LẮP ĐẶT</h1><div class="muted">Tự quét model hoặc chỉ xuất Group / Component đang chọn · Đồng bộ lên Web</div></div></header>
       <main class="wrap">
         <section class="panel">
           <div class="row" style="justify-content:space-between"><div><b>1. QUÉT MODEL / VÙNG ĐANG CHỌN</b><div class="muted">Tự quét khi mở chức năng. Không chọn gì: xuất toàn bộ model đang hiển thị. Có chọn Group / Component: chỉ xuất phần được chọn.</div></div><button id="scanBtn" class="btn green" onclick="scan()">QUÉT LẠI MODEL</button></div>
