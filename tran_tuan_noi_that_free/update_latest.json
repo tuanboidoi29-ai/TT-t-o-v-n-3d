@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.358",
+  "version": "1.9.359",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "1.9.358: Hoàn thiện quét model/vùng chọn, giữ Tag theo mặt, đưa điều khiển ẩn/hiện Tags xuống Web và sửa tự động quét khi mở chức năng.",
+  "notes": "1.9.359: Đổi tên chức năng XUẤT BẢN VẼ LẮP ĐẶT; giữ nguyên xử lý quét model, đồng bộ Web và QR.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "a9716f011cd307a1a444c51295808288dee8ff1b4fc7d23d67713fb1d088a7c4"
+      "sha256": "82e01fff32fd8275d922ae7e883b6b1fe93585ead86609edcdc43e59fe39dd45"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -499,7 +499,7 @@
     {
       "path": "tran_tuan_noi_that/model_export_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/model_export_tool.rb",
-      "sha256": "305bc932df872cfc436943f86c9e214f3126cd64a6ef9322de9a58542fe9481d"
+      "sha256": "5d4d0e0ba6d32c0fa81f12a0203323e68d0a28e6fbe0c0ad25a065589af6066b"
     },
     {
       "path": "tran_tuan_noi_that/icons/model_export.svg",
@@ -520,5 +520,5 @@
     "tran_tuan_noi_that/cnc_profile_tool.rb",
     "tran_tuan_noi_that/icons/cnc_profile.svg"
   ],
-  "release_notes": "1.9.358: Hoàn thiện quét model/vùng chọn, giữ Tag theo mặt, đưa điều khiển ẩn/hiện Tags xuống Web và sửa tự động quét khi mở chức năng."
+  "release_notes": "1.9.359: Đổi tên chức năng XUẤT BẢN VẼ LẮP ĐẶT; giữ nguyên xử lý quét model, đồng bộ Web và QR."
 }
