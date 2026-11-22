@@ -58,6 +58,12 @@ module TranTuanNoiThat
       end
     end
 
+    def entity_identifier(entity)
+      entity.respond_to?(:persistent_id) ? entity.persistent_id : entity.entityID
+    rescue StandardError
+      entity.entityID rescue nil
+    end
+
     def scan_roots
       m = model
       selection = m.selection.to_a
@@ -66,10 +72,10 @@ module TranTuanNoiThat
       end
       if selection.any?
         raise 'Vùng chọn hiện tại không có Group/Component hợp lệ. Hãy chọn Group hoặc Component cần xuất.' if selected_instances.empty?
-        selected_ids = selected_instances.map { |entity| entity.persistent_id rescue entity.entityID }
+        selected_ids = selected_instances.map { |entity| entity_identifier(entity) }
         selected_instances.reject do |entity|
           parent = entity.parent
-          parent.respond_to?(:instances) && parent.instances.any? { |ancestor| selected_ids.include?(ancestor.persistent_id rescue ancestor.entityID) }
+          parent.respond_to?(:instances) && parent.instances.any? { |ancestor| selected_ids.include?(entity_identifier(ancestor)) }
         end
       else
         top_level_objects
