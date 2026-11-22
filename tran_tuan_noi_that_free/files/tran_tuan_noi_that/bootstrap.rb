@@ -845,6 +845,15 @@ module TranTuanNoiThat
         'model_export.svg',
         'Quét Group/Component, đồng bộ model lên Web và tạo QR riêng cho từng đối tượng'
       ) { ModelExport.show }
+      # Đồng bộ cả command đã tồn tại trong phiên SketchUp khi nạp nóng.
+      @model_export_cmd.tooltip = 'XUẤT BẢN VẼ LẮP ĐẶT'
+      @model_export_cmd.menu_text = 'XUẤT BẢN VẼ LẮP ĐẶT' if @model_export_cmd.respond_to?(:menu_text=)
+      @model_export_cmd.status_bar_text = 'Quét Group/Component, đồng bộ model lên Web và tạo QR riêng cho từng đối tượng.'
+      icon = File.join(ROOT, 'icons', 'model_export.svg')
+      if File.file?(icon)
+        @model_export_cmd.small_icon = icon
+        @model_export_cmd.large_icon = icon
+      end
       add_feature_command_once(@model_export_cmd, :model_export_menu_installed)
       true
     rescue StandardError => error
