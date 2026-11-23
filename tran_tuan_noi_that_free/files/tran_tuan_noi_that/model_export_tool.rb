@@ -139,27 +139,26 @@ module TranTuanNoiThat
 
     # Vật liệu gán ở Group/Component không nằm trên Face; phải lấy ảnh từ Material.texture
     # và chuẩn hóa UV theo kích thước texture để giữ đúng vân gỗ khi xuất ra Web.
-    def texture_mapping_for_face(face, material, front, texture_assets, inherited_material = false)
+    def texture_mapping_for_face(face, material, front, texture_assets, inherited_material = false, texture_owner = nil)
       return [nil, nil, nil] unless material && material.respond_to?(:texture) && material.texture
-      texture = material.texture
       key = material.object_id.to_s
-      uv_helper = nil
-      uv_scale = nil
-      unless inherited_material
-        writer = Sketchup.create_texture_writer
+      writer = Sketchup.create_texture_writer
+      if inherited_material && texture_owner
+        # Nạp Group/Component sở hữu vật liệu để SketchUp giải đúng texture kế thừa.
+        writer.load(texture_owner)
+        uv_helper = face.get_UVHelper(front, !front, writer)
+        write_texture = proc { |file| writer.write(texture_owner, file) == 0 }
+      else
         writer.load(face, front)
         uv_helper = face.get_UVHelper(front, !front, writer)
-      else
-        uv_helper = face.get_UVHelper(front, !front)
-        width = texture.width.to_f
-        height = texture.height.to_f
-        uv_scale = [width > 0 ? 1.0 / width : 1.0, height > 0 ? 1.0 / height : 1.0]
+        write_texture = proc { |file| writer.write(face, front, file) == 0 }
       end
+
       unless texture_assets.key?(key)
         current_bytes = texture_assets.values.inject(0) { |sum, item| sum + item['bytes'].to_i }
         if texture_assets.length < MAX_TEXTURE_ASSETS && current_bytes < MAX_TEXTURE_TOTAL_BYTES
           path = File.join(Sketchup.temp_dir, "tt_model_texture_#{SecureRandom.hex(8)}.png")
-          written = inherited_material ? texture.write(path, true) : (writer.write(face, front, path) == 0)
+          written = write_texture.call(path)
           if written && File.file?(path)
             bytes = File.binread(path)
             if bytes.bytesize <= MAX_TEXTURE_BYTES && current_bytes + bytes.bytesize <= MAX_TEXTURE_TOTAL_BYTES
@@ -173,7 +172,7 @@ module TranTuanNoiThat
         end
       end
       entry = texture_assets[key]
-      [entry && entry['id'], uv_helper, uv_scale]
+      [entry && entry['id'], uv_helper, nil]
     rescue StandardError
       [nil, nil, nil]
     ensure
@@ -233,10 +232,11 @@ module TranTuanNoiThat
       'HỖN HỢP: CÓ VÂN, MÀU VÀ/HOẶC MẶT CHƯA GÁN'
     end
 
-    def mesh_triangles(instance, parent_transform, output, limit, inherited_material = nil, inherited_tag = nil, texture_assets = {})
+    def mesh_triangles(instance, parent_transform, output, limit, inherited_material = nil, inherited_tag = nil, texture_assets = {}, inherited_material_source = nil)
       return output if output.length >= limit
       transform = parent_transform * instance.transformation
       inherited = instance.material || inherited_material
+      inherited_source = instance.material ? instance : inherited_material_source
       default_layer = model.layers[0]
       instance_layer = instance.layer
       current_tag = (instance_layer && instance_layer != default_layer) ? instance_layer.name.to_s : inherited_tag
@@ -253,8 +253,8 @@ module TranTuanNoiThat
             back_color = rgb_hex(back_material, default_face_color('FaceBackColor', '#B8C7D9'))
             front_inherited = child.material.nil? && !inherited.nil?
             back_inherited = child.back_material.nil? && !inherited.nil?
-            front_texture_id, front_uv_helper, front_uv_scale = texture_mapping_for_face(child, front_material, true, texture_assets, front_inherited)
-            back_texture_id, back_uv_helper, back_uv_scale = texture_mapping_for_face(child, back_material, false, texture_assets, back_inherited)
+            front_texture_id, front_uv_helper, front_uv_scale = texture_mapping_for_face(child, front_material, true, texture_assets, front_inherited, inherited_source)
+            back_texture_id, back_uv_helper, back_uv_scale = texture_mapping_for_face(child, back_material, false, texture_assets, back_inherited, inherited_source)
             face_layer = child.layer
             face_tag = (face_layer && face_layer != default_layer) ? face_layer.name.to_s : current_tag.to_s
             mesh.polygons.each do |polygon|
@@ -291,7 +291,7 @@ module TranTuanNoiThat
             next
           end
         elsif child.is_a?(Sketchup::Group) || child.is_a?(Sketchup::ComponentInstance)
-          mesh_triangles(child, transform, output, limit, inherited, current_tag, texture_assets)
+          mesh_triangles(child, transform, output, limit, inherited, current_tag, texture_assets, inherited_source)
         end
       end
       output
