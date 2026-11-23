@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.363",
+  "version": "1.9.364",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "1.9.363: Sửa và chuẩn hóa kiểm tra phiên bản bootstrap khi cập nhật; giữ nguyên sửa xuất texture Group/Component của 1.9.362.",
+  "notes": "1.9.364: Sửa xuất ảnh texture trực tiếp từ Sketchup::Texture#write; tách lỗi lấy UV khỏi lỗi xuất ảnh; tăng giới hạn ảnh texture để giữ vân gỗ/vật liệu khi đồng bộ Web.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "a26139deef3be2d4013581162d93122117b1fa5a4a24b4cc0698b72c0a6cbfca"
+      "sha256": "c4397218c0ff155f2a3dbd47e0189a76322d4f5bd6687848e73d95276be1c06f"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -319,7 +319,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "0c00322c733bc89ae741424e7b3f63c12af711e96c8fe5880b172030a037f2b5"
+      "sha256": "31f3fb5b89f02e2bd7ba3a25cdc7cc54b30b5ae0aa37ab9a79a3ae7bfd952708"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -499,7 +499,7 @@
     {
       "path": "tran_tuan_noi_that/model_export_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/model_export_tool.rb",
-      "sha256": "d04ddb2cc8545e88a4f49d46998a0c632981e4304364c1f61971d003b9355a1c"
+      "sha256": "477f361355379c2ddb26b7d7c7ec17ed3ad347e27ec0c473da5ca25fd76ac9a9"
     },
     {
       "path": "tran_tuan_noi_that/icons/model_export.svg",
@@ -520,5 +520,5 @@
     "tran_tuan_noi_that/cnc_profile_tool.rb",
     "tran_tuan_noi_that/icons/cnc_profile.svg"
   ],
-  "release_notes": "1.9.362: Sửa xuất texture đúng theo Group/Component mang vật liệu; TextureWriter nạp đối tượng sở hữu vật liệu và dùng UVHelper có TextureWriter để giữ ảnh vân gỗ/vật liệu khi đồng bộ Web."
+  "release_notes": "1.9.364: Sửa xuất texture trực tiếp từ ảnh vật liệu nhúng trong model; ưu tiên Texture#write(colorize=true), giữ TextureWriter làm dự phòng, không để lỗi UV làm mất ảnh texture."
 }
