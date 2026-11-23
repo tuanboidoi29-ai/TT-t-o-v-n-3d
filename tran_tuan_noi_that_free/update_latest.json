@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.364",
+  "version": "1.9.365",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "1.9.364: Sửa xuất ảnh texture trực tiếp từ Sketchup::Texture#write; tách lỗi lấy UV khỏi lỗi xuất ảnh; tăng giới hạn ảnh texture để giữ vân gỗ/vật liệu khi đồng bộ Web.",
+  "notes": "1.9.365: Khôi phục nút XEM WEB trong cửa sổ XUẤT BẢN VẼ LẮP ĐẶT; mở đúng link vừa đồng bộ, giữ nút Sao chép link.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "c4397218c0ff155f2a3dbd47e0189a76322d4f5bd6687848e73d95276be1c06f"
+      "sha256": "f13a7fd3f7a835b64d6833479dddde0c0e0664d395d3b4c6e939a20484cadcc8"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -319,7 +319,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "31f3fb5b89f02e2bd7ba3a25cdc7cc54b30b5ae0aa37ab9a79a3ae7bfd952708"
+      "sha256": "a91bf315146c237c6184f66a6f4003c020d96169645faa04f0b6837539742c95"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -499,7 +499,7 @@
     {
       "path": "tran_tuan_noi_that/model_export_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/model_export_tool.rb",
-      "sha256": "477f361355379c2ddb26b7d7c7ec17ed3ad347e27ec0c473da5ca25fd76ac9a9"
+      "sha256": "ba4d368886d2037e1c5ad2424c6f9fa22b253e9f8e96e940089951d82ed836bb"
     },
     {
       "path": "tran_tuan_noi_that/icons/model_export.svg",
