@@ -67,7 +67,7 @@ function loadModel(model){
   const materialSummary=$('#materialSummary');if(materialSummary)materialSummary.textContent='Vật liệu thực tế: '+materialTotals.textured+' mặt có vân · '+materialTotals.colored+' mặt màu đơn sắc · '+materialTotals.unassigned+' mặt chưa gán';
   const th=[...new Set(state.panels.map(thickness).filter(Boolean))].sort((a,b)=>num(a)-num(b));
   $('#thicknessFilter').innerHTML='<option value="">Tất cả độ dày</option>'+th.map(v=>'<option value="'+esc(v)+'">'+esc(v)+' mm</option>').join('');
-  state.viewMode='color';showApp();render();renderObjects();renderGroups();renderTagFilters();drawModel();renderObjectDetail();loadHistory();setStatus(Object.keys(state.textures).length?'MODEL 3D VỚI VẬT LIỆU & VÂN THỰC TẾ ĐANG HIỂN THỊ':'MODEL 3D MÀU ĐANG HIỂN THỊ','ok');
+  state.viewMode='color';showApp();render();renderObjects();renderGroups();renderTagFilters();drawModel();renderObjectDetail();loadHistory();const texturedTriangles=state.model3d.reduce((n,o)=>n+(Array.isArray(o.triangles)?o.triangles.filter(t=>t.tex||t.btex).length:0),0);if(materialTotals.textured>0&&(!Object.keys(state.textures).length||!texturedTriangles)){setStatus('CẢNH BÁO: MODEL CÓ MẶT GÁN TEXTURE NHƯNG DỮ LIỆU ẢNH/UV CHƯA ĐƯỢC ĐỒNG BỘ ĐẦY ĐỦ','bad')}else{setStatus(Object.keys(state.textures).length&&texturedTriangles?'MODEL 3D ĐANG HIỂN THỊ VẬT LIỆU & VÂN THỰC TẾ':'MODEL 3D MÀU ĐƠN SẮC ĐANG HIỂN THỊ','ok')}
   if(state.pendingObject){const hit=findObject(state.pendingObject);state.pendingObject='';if(hit)setTimeout(()=>{state.selectedObject=String(hit.uid||hit.id||'');renderObjects();drawModel();renderObjectDetail();},100);}
   else if(state.pendingBoard){const hit=findBoard(state.pendingBoard);state.pendingBoard='';if(hit)setTimeout(()=>openDetail(hit),100);}
 }
