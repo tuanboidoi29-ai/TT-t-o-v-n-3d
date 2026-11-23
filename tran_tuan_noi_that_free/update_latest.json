@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.362",
+  "version": "1.9.363",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "1.9.362: Sửa xuất texture đúng theo Group/Component mang vật liệu; TextureWriter nạp đối tượng sở hữu vật liệu và dùng UVHelper có TextureWriter để giữ ảnh vân gỗ/vật liệu khi đồng bộ Web.",
+  "notes": "1.9.363: Sửa và chuẩn hóa kiểm tra phiên bản bootstrap khi cập nhật; giữ nguyên sửa xuất texture Group/Component của 1.9.362.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "c13b587c4f27b06893d5c6badc4d587ff4390e1bc96dff918159ed1cb51c8d9d"
+      "sha256": "a26139deef3be2d4013581162d93122117b1fa5a4a24b4cc0698b72c0a6cbfca"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -319,7 +319,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "8a4c3a6b3c8f85664dc5b715e9aec472791ef47b54b7cf3cb209fdbcefdf0071"
+      "sha256": "0c00322c733bc89ae741424e7b3f63c12af711e96c8fe5880b172030a037f2b5"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
