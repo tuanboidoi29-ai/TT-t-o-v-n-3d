@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.361",
+  "version": "1.9.362",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "1.9.361: Sửa xuất vật liệu vân gỗ khi gán ở Group/Component; lấy ảnh texture có màu hiệu chỉnh, chuẩn hóa UV kế thừa và hiển thị trạng thái vật liệu có vân, màu đơn sắc hoặc chưa gán trên Web.",
+  "notes": "1.9.362: Sửa xuất texture đúng theo Group/Component mang vật liệu; TextureWriter nạp đối tượng sở hữu vật liệu và dùng UVHelper có TextureWriter để giữ ảnh vân gỗ/vật liệu khi đồng bộ Web.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -499,7 +499,7 @@
     {
       "path": "tran_tuan_noi_that/model_export_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/model_export_tool.rb",
-      "sha256": "71ee5312b9e31ff798813dbbe82bbd090bd0b6041b5286124f61aeb6407c2a91"
+      "sha256": "d04ddb2cc8545e88a4f49d46998a0c632981e4304364c1f61971d003b9355a1c"
     },
     {
       "path": "tran_tuan_noi_that/icons/model_export.svg",
@@ -520,5 +520,5 @@
     "tran_tuan_noi_that/cnc_profile_tool.rb",
     "tran_tuan_noi_that/icons/cnc_profile.svg"
   ],
-  "release_notes": "1.9.360: Nâng cấp xem mô phỏng 3D, xuất ảnh vật liệu và tọa độ UV từ SketchUp để hiển thị vân/màu vật liệu trên Web; giữ nguyên quét model, chọn Group và QR."
+  "release_notes": "1.9.362: Sửa xuất texture đúng theo Group/Component mang vật liệu; TextureWriter nạp đối tượng sở hữu vật liệu và dùng UVHelper có TextureWriter để giữ ảnh vân gỗ/vật liệu khi đồng bộ Web."
 }
