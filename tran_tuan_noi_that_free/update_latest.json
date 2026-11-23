@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.360",
+  "version": "1.9.361",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "1.9.360: Nâng cấp xem mô phỏng 3D, xuất ảnh vật liệu và tọa độ UV từ SketchUp để hiển thị vân/màu vật liệu trên Web; giữ nguyên quét model, chọn Group và QR.",
+  "notes": "1.9.361: Sửa xuất vật liệu vân gỗ khi gán ở Group/Component; lấy ảnh texture có màu hiệu chỉnh, chuẩn hóa UV kế thừa và hiển thị trạng thái vật liệu có vân, màu đơn sắc hoặc chưa gán trên Web.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "177ff524ada77af2c60b62ed94e28e9a10177e0c1e80ce9dc263a7287136fe3c"
+      "sha256": "c13b587c4f27b06893d5c6badc4d587ff4390e1bc96dff918159ed1cb51c8d9d"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -319,7 +319,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "419f565725abcb2cddb5ccfa86d6729a3fdf2812622f4b147615264ae3cb4e35"
+      "sha256": "8a4c3a6b3c8f85664dc5b715e9aec472791ef47b54b7cf3cb209fdbcefdf0071"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -499,7 +499,7 @@
     {
       "path": "tran_tuan_noi_that/model_export_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/model_export_tool.rb",
-      "sha256": "f2b99b3d999354f87b8f501c86bc1e49ff9e07c0a588f2f8bc4fa98229667d67"
+      "sha256": "71ee5312b9e31ff798813dbbe82bbd090bd0b6041b5286124f61aeb6407c2a91"
     },
     {
       "path": "tran_tuan_noi_that/icons/model_export.svg",
