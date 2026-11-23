@@ -19,8 +19,8 @@ module TranTuanNoiThat
     MAX_TRIANGLES_TOTAL = 120000
     MAX_TRIANGLES_PER_OBJECT = 30000
     MAX_TEXTURE_ASSETS = 40
-    MAX_TEXTURE_BYTES = 8_000_000
-    MAX_TEXTURE_TOTAL_BYTES = 24_000_000
+    MAX_TEXTURE_BYTES = 16_000_000
+    MAX_TEXTURE_TOTAL_BYTES = 64_000_000
     MAX_SCAN_DEPTH = 128
 
     def model
@@ -171,21 +171,26 @@ module TranTuanNoiThat
       unless texture_assets.key?(key)
         current_bytes = texture_assets.values.inject(0) { |sum, item| sum + item['bytes'].to_i }
         if texture_assets.length < MAX_TEXTURE_ASSETS && current_bytes < MAX_TEXTURE_TOTAL_BYTES
-          path = nil
+          path = File.join(Sketchup.temp_dir, "tt_model_texture_#{SecureRandom.hex(8)}.png")
           written = false
-          if !source_name.empty? && File.file?(source_name)
+
+          # Ưu tiên ảnh nhúng trong Model. save_file có thể trả nil dù PNG đã được ghi;
+          # vì vậy xác nhận bằng File.exist? và File.size, không kiểm tra giá trị trả về.
+          [true, false].each do |colorize|
             begin
-              source_ext = File.extname(source_name).downcase
-              source_ext = '.png' unless %w[.jpg .jpeg .png .webp .bmp .tif .tiff].include?(source_ext)
-              path = File.join(Sketchup.temp_dir, "tt_model_texture_#{SecureRandom.hex(8)}#{source_ext}")
-              FileUtils.cp(source_name, path)
+              image_rep = texture.image_rep(colorize)
+              next unless image_rep
+              image_rep.save_file(path)
               written = File.file?(path) && File.size(path) > 8
-            rescue StandardError
+              break if written
+            rescue StandardError => error
+              puts "[TT ModelExport ImageRep] #{error.class}: #{error.message}"
               written = false
             end
           end
+
+          # Dự phòng 1: SketchUp xuất ảnh trực tiếp từ Texture.
           unless written
-            path = File.join(Sketchup.temp_dir, "tt_model_texture_#{SecureRandom.hex(8)}.png")
             [true, false].each do |colorize|
               begin
                 result = texture.write(path, colorize)
@@ -194,6 +199,16 @@ module TranTuanNoiThat
               rescue StandardError
                 written = false
               end
+            end
+          end
+
+          # Dự phòng 2: dùng file nguồn nếu hai cách xuất từ Model thất bại.
+          if !written && !source_name.empty? && File.file?(source_name)
+            begin
+              FileUtils.cp(source_name, path)
+              written = File.file?(path) && File.size(path) > 8
+            rescue StandardError
+              written = false
             end
           end
           unless written
