@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.367",
+  "version": "1.9.368",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "1.9.367: Khắc phục xuất texture Face và Group/Component; giữ định dạng ảnh nguồn, tăng giới hạn ảnh texture, bổ sung UV dự phòng theo mặt phẳng khi SketchUp không trả UVHelper.",
+  "notes": "1.9.368: Nhận diện vật liệu ở mọi cấp Face/Group/Component lồng nhau; sửa TextureWriter để giữ ánh xạ vật liệu kế thừa; xuất ảnh texture nhúng trong SKP và mở rộng độ sâu quét.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "93f9e04a5cc9eb947565a0ecca7fd0ff8eaffcb498891967cc1206d76e641e55"
+      "sha256": "0573f5ca6fb5db8675bfa9f14a88b404ea269a3ca3ad5f58ea52ef35b78220a4"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -319,7 +319,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "b437c42d5ff96dde9a57807f984ecaee140a290866772735db662fc31ac307d5"
+      "sha256": "124456bb67e23642066db1d4e00a46d04ac03a2e0bb3e1fff1982242ee4feb9f"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -499,7 +499,7 @@
     {
       "path": "tran_tuan_noi_that/model_export_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/model_export_tool.rb",
-      "sha256": "f58b575abf1eb396064386df0575a8e1f82489f60f45fd7af3dbe77db9828ca6"
+      "sha256": "7301f300d133cc1af566a044f6a129cd5fe38c60d384ddca49c3c757d5d75323"
     },
     {
       "path": "tran_tuan_noi_that/icons/model_export.svg",
