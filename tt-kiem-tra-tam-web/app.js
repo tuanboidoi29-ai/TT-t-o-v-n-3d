@@ -1,6 +1,6 @@
 const API='https://vnvkmxqgbnmirsgdgfzm.supabase.co/functions/v1/tt-model-api';
 const $=s=>document.querySelector(s);
-const state={shareId:'',pendingBoard:'',pendingObject:'',model:null,panels:[],labels:[],objects:[],groupTree:[],selectedObject:'',hitTargets:[],model3d:[],hiddenTags:[],viewMode:'color',view:{yaw:-.65,pitch:-.45,zoom:1,drag:false,x:0,y:0},stream:null,scanLoop:0,detector:null};
+const state={shareId:'',pendingBoard:'',pendingObject:'',model:null,panels:[],labels:[],objects:[],groupTree:[],selectedObject:'',hitTargets:[],model3d:[],textures:{},hiddenTags:[],viewMode:'color',view:{yaw:-.65,pitch:-.45,zoom:1,drag:false,x:0,y:0},stream:null,scanLoop:0,detector:null};
 
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function num(v){const n=Number(v);return Number.isFinite(n)?n:0}
@@ -47,6 +47,8 @@ function loadModel(model){
   state.labels=Array.isArray(p.labels)?p.labels:state.panels.filter(x=>labelInfo(x).assigned);
   state.objects=Array.isArray(p.objects)?p.objects:(Array.isArray(p.model3d)?p.model3d:[]);
   state.model3d=Array.isArray(p.model3d)?p.model3d:[];
+  state.textures=p.textures&&typeof p.textures==='object'?p.textures:{};
+  textureCache.forEach(t=>t.dispose());textureCache.clear();
   state.groupTree=Array.isArray(p.group_tree)?p.group_tree:[];
   state.hiddenTags=[];
   state.selectedObject='';
@@ -62,7 +64,7 @@ function loadModel(model){
   $('#bandCount').textContent=state.panels.reduce((a,p)=>a+bandCount(p),0);
   const th=[...new Set(state.panels.map(thickness).filter(Boolean))].sort((a,b)=>num(a)-num(b));
   $('#thicknessFilter').innerHTML='<option value="">Tất cả độ dày</option>'+th.map(v=>'<option value="'+esc(v)+'">'+esc(v)+' mm</option>').join('');
-  state.viewMode='color';showApp();render();renderObjects();renderGroups();renderTagFilters();drawModel();renderObjectDetail();loadHistory();setStatus('MODEL 3D MÀU ĐANG HIỂN THỊ','ok');
+  state.viewMode='color';showApp();render();renderObjects();renderGroups();renderTagFilters();drawModel();renderObjectDetail();loadHistory();setStatus(Object.keys(state.textures).length?'MODEL 3D VỚI VẬT LIỆU & VÂN THỰC TẾ ĐANG HIỂN THỊ':'MODEL 3D MÀU ĐANG HIỂN THỊ','ok');
   if(state.pendingObject){const hit=findObject(state.pendingObject);state.pendingObject='';if(hit)setTimeout(()=>{state.selectedObject=String(hit.uid||hit.id||'');renderObjects();drawModel();renderObjectDetail();},100);}
   else if(state.pendingBoard){const hit=findBoard(state.pendingBoard);state.pendingBoard='';if(hit)setTimeout(()=>openDetail(hit),100);}
 }
@@ -142,6 +144,17 @@ window.onafterprint=()=>$('#qrPrintGrid').classList.add('hidden');
 
 function project3d(pt,c,v,scale,W,H){let x=pt[0]-c[0],y=pt[1]-c[1],z=pt[2]-c[2];if(state.viewMode==='2d')return[W/2+x*scale*v.zoom,H/2-y*scale*v.zoom,z];let cy=Math.cos(v.yaw),sy=Math.sin(v.yaw),cp=Math.cos(v.pitch),sp=Math.sin(v.pitch);let x1=x*cy-y*sy,y1=x*sy+y*cy,z1=z;let y2=y1*cp-z1*sp,z2=y1*sp+z1*cp;return[W/2+x1*scale*v.zoom,H/2-z2*scale*v.zoom,y2]}
 let ttThreeScene=null,ttThreeCamera=null,ttThreeRenderer=null,ttThreeRoot=null,ttThreeCenter=null,ttThreeRadius=1000,ttThreeRaycaster=null,ttThreePointer=null,ttThreeModelRef=null,ttThreeSelectedRef='',ttThreeHiddenTagsRef='';
+const textureCache=new Map();
+function getModelTexture(id){
+  const key=String(id||'');if(!key||!state.textures[key])return null;
+  if(textureCache.has(key))return textureCache.get(key);
+  try{
+    const tex=new THREE.TextureLoader().load(state.textures[key]);
+    tex.colorSpace=THREE.SRGBColorSpace;tex.wrapS=THREE.RepeatWrapping;tex.wrapT=THREE.RepeatWrapping;
+    tex.anisotropy=Math.min(8,ttThreeRenderer?.capabilities?.getMaxAnisotropy?.()||1);
+    textureCache.set(key,tex);return tex;
+  }catch(e){return null}
+}
 function initThreeModel(){
   const cv=$('#modelCanvas');if(!cv||!window.THREE)return false;
   if(ttThreeRenderer)return true;
@@ -163,41 +176,52 @@ function initThreeModel(){
 function buildThreeGeometry(){
   if(!initThreeModel())return;
   const T=window.THREE;
-  while(ttThreeRoot.children.length){const child=ttThreeRoot.children.pop();ttThreeRoot.remove(child);child.geometry?.dispose();if(Array.isArray(child.material))child.material.forEach(m=>m.dispose());else child.material?.dispose()}
+  while(ttThreeRoot.children.length){
+    const child=ttThreeRoot.children.pop();ttThreeRoot.remove(child);
+    child.geometry?.dispose();if(Array.isArray(child.material))child.material.forEach(m=>m.dispose());else child.material?.dispose();
+  }
   const all=[];
   (state.model3d||[]).forEach(obj=>{
     const allTris=Array.isArray(obj.triangles)?obj.triangles:[];
     const hiddenTags=new Set(state.hiddenTags||[]);
     const tris=allTris.filter(tri=>!hiddenTags.has(String(tri.tag||obj.tag||'')));
     if(!tris.length)return;
-    const frontPositions=[],frontColors=[],backPositions=[],backColors=[];
+    const selected=String(obj.uid||obj.id||obj.persistent_id||'')===String(state.selectedObject||'');
+    const batches=new Map();
+    const addTriangle=(tri,side)=>{
+      const texId=String(side==='front'?(tri.tex||''):(tri.btex||''));
+      const uv=side==='front'?tri.uv:tri.buv;
+      const usableTexture=!!(texId&&state.textures[texId]&&Array.isArray(uv)&&uv.length===3&&uv.every(p=>Array.isArray(p)&&p.length>=2));
+      const key=side+':'+(usableTexture?texId:'none');
+      if(!batches.has(key))batches.set(key,{side,texId:usableTexture?texId:'',positions:[],colors:[],uvs:[]});
+      const batch=batches.get(key);
+      const baseColor=side==='front'?(tri.c||'#f2f2f2'):(tri.bc||'#b8c7d9');
+      const color=new T.Color(selected?(usableTexture?'#ffffff':'#ffb020'):baseColor);
+      tri.v.forEach((p,i)=>{
+        const x=Number(p[0])||0,y=Number(p[1])||0,z=Number(p[2])||0;
+        batch.positions.push(x,y,z);batch.colors.push(color.r,color.g,color.b);all.push([x,y,z]);
+        if(usableTexture){batch.uvs.push(Number(uv[i][0])||0,Number(uv[i][1])||0)}
+      });
+    };
     tris.forEach(tri=>{
       if(!Array.isArray(tri.v)||tri.v.length!==3)return;
-      const selected=String(obj.uid||obj.id||obj.persistent_id||'')===String(state.selectedObject||'');
-      const frontColor=new T.Color(selected?'#ffb020':(typeof tri.c==='string'?tri.c:'#f2f2f2'));
-      const backColor=new T.Color(selected?'#ffb020':(typeof tri.bc==='string'?tri.bc:'#b8c7d9'));
-      tri.v.forEach(p=>{
-        const x=Number(p[0])||0,y=Number(p[1])||0,z=Number(p[2])||0;
-        frontPositions.push(x,y,z);backPositions.push(x,y,z);
-        frontColors.push(frontColor.r,frontColor.g,frontColor.b);
-        backColors.push(backColor.r,backColor.g,backColor.b);
-        all.push([x,y,z]);
-      });
+      addTriangle(tri,'front');addTriangle(tri,'back');
     });
-    if(!frontPositions.length)return;
-    const makeFaceMesh=(positions,colors,side)=>{
+    batches.forEach(batch=>{
+      if(!batch.positions.length)return;
       const geo=new T.BufferGeometry();
-      geo.setAttribute('position',new T.Float32BufferAttribute(positions,3));
-      geo.setAttribute('color',new T.Float32BufferAttribute(colors,3));
+      geo.setAttribute('position',new T.Float32BufferAttribute(batch.positions,3));
+      geo.setAttribute('color',new T.Float32BufferAttribute(batch.colors,3));
+      if(batch.texId&&batch.uvs.length===batch.positions.length/3*2)geo.setAttribute('uv',new T.Float32BufferAttribute(batch.uvs,2));
       geo.computeVertexNormals();
-      const mat=new T.MeshBasicMaterial({vertexColors:true,side});
+      const side=batch.side==='front'?T.FrontSide:T.BackSide;
+      const map=batch.texId?getModelTexture(batch.texId):null;
+      const mat=new T.MeshBasicMaterial({vertexColors:true,side,map:map||null});
       const mesh=new T.Mesh(geo,mat);
       mesh.userData.uid=String(obj.uid||obj.id||obj.persistent_id||'');
       mesh.userData.name=obj.name||'';
       ttThreeRoot.add(mesh);
-    };
-    makeFaceMesh(frontPositions,frontColors,T.FrontSide);
-    makeFaceMesh(backPositions,backColors,T.BackSide);
+    });
   });
   if(!all.length)(state.model3d||[]).forEach(o=>(o.corners||[]).forEach(p=>all.push(p)));
   if(!all.length){ttThreeCenter=new T.Vector3(0,0,0);ttThreeRadius=1000;return}
