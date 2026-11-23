@@ -19,8 +19,8 @@ module TranTuanNoiThat
     MAX_TRIANGLES_TOTAL = 120000
     MAX_TRIANGLES_PER_OBJECT = 30000
     MAX_TEXTURE_ASSETS = 20
-    MAX_TEXTURE_BYTES = 900_000
-    MAX_TEXTURE_TOTAL_BYTES = 8_000_000
+    MAX_TEXTURE_BYTES = 1_800_000
+    MAX_TEXTURE_TOTAL_BYTES = 12_000_000
 
     def model
       Sketchup.active_model
@@ -144,14 +144,37 @@ module TranTuanNoiThat
       key = material.object_id.to_s
       writer = Sketchup.create_texture_writer
       if inherited_material && texture_owner
-        # Nạp Group/Component sở hữu vật liệu để SketchUp giải đúng texture kế thừa.
+        # Group/Component sở hữu vật liệu; dùng writer để lấy UV theo mapping của SketchUp.
         writer.load(texture_owner)
-        uv_helper = face.get_UVHelper(front, !front, writer)
-        write_texture = proc { |file| writer.write(texture_owner, file) == 0 }
       else
         writer.load(face, front)
-        uv_helper = face.get_UVHelper(front, !front, writer)
-        write_texture = proc { |file| writer.write(face, front, file) == 0 }
+      end
+
+      # Tách việc lấy UV khỏi việc xuất ảnh: lỗi UV không được phép làm mất ảnh texture.
+      uv_helper = begin
+        face.get_UVHelper(front, !front, writer)
+      rescue StandardError
+        begin
+          face.get_UVHelper(front, !front)
+        rescue StandardError
+          nil
+        end
+      end
+
+      # Texture#write xuất trực tiếp ảnh gốc đã nhúng trong model.
+      write_texture = proc do |file|
+        texture_written = begin
+          material.texture.write(file, true)
+        rescue StandardError
+          false
+        end
+        texture_written || begin
+          if inherited_material && texture_owner
+            writer.write(texture_owner, file) == 0
+          else
+            writer.write(face, front, file) == 0
+          end
+        end
       end
 
       unless texture_assets.key?(key)
