@@ -18,9 +18,9 @@ module TranTuanNoiThat
     DICT = 'TT_ModelExport'.freeze
     MAX_TRIANGLES_TOTAL = 120000
     MAX_TRIANGLES_PER_OBJECT = 30000
-    MAX_TEXTURE_ASSETS = 20
-    MAX_TEXTURE_BYTES = 1_800_000
-    MAX_TEXTURE_TOTAL_BYTES = 12_000_000
+    MAX_TEXTURE_ASSETS = 40
+    MAX_TEXTURE_BYTES = 8_000_000
+    MAX_TEXTURE_TOTAL_BYTES = 24_000_000
 
     def model
       Sketchup.active_model
@@ -144,25 +144,23 @@ module TranTuanNoiThat
       texture = material.texture
       return [nil, nil, nil] unless texture && (!texture.respond_to?(:valid?) || texture.valid?)
 
-      # Không để TextureWriter.load thất bại làm dừng toàn bộ xuất ảnh.
-      # Đây là lỗi của nhánh cũ: load(face, side) chạy trước Texture#write,
-      # nên một Face kế thừa vật liệu từ Group có thể thoát sớm và mất texture.
       writer = Sketchup.create_texture_writer
-      writer_loaded = false
+      writer_ready = false
       begin
-        if inherited_material && texture_owner
-          writer.load(texture_owner)
-          writer_loaded = true
-        else
-          writer.load(face, front)
-          writer_loaded = true
-        end
+        writer.load(texture_owner) if inherited_material && texture_owner
+        writer.load(face, front)
+        writer_ready = true
       rescue StandardError
-        writer_loaded = false
+        begin
+          writer.load(texture_owner) if inherited_material && texture_owner
+          writer_ready = !!texture_owner
+        rescue StandardError
+          writer_ready = false
+        end
       end
 
       uv_helper = begin
-        face.get_UVHelper(front, !front, writer_loaded ? writer : nil)
+        writer_ready ? face.get_UVHelper(front, !front, writer) : face.get_UVHelper(front, !front)
       rescue StandardError
         begin
           face.get_UVHelper(front, !front)
@@ -171,29 +169,41 @@ module TranTuanNoiThat
         end
       end
 
-      key = (texture.respond_to?(:filename) ? texture.filename.to_s : '') + ':' + material.display_name.to_s
+      source_name = (texture.filename.to_s rescue '')
+      material_name = (material.name.to_s rescue material.object_id.to_s)
+      key = source_name + ':' + material_name
       key = material.object_id.to_s if key == ':'
+
       unless texture_assets.key?(key)
         current_bytes = texture_assets.values.inject(0) { |sum, item| sum + item['bytes'].to_i }
         if texture_assets.length < MAX_TEXTURE_ASSETS && current_bytes < MAX_TEXTURE_TOTAL_BYTES
-          path = File.join(Sketchup.temp_dir, "tt_model_texture_#{SecureRandom.hex(8)}.png")
+          source_ext = File.extname(source_name).downcase
+          ext = %w[.jpg .jpeg .png .webp .bmp .tif .tiff].include?(source_ext) ? source_ext : '.png'
+          path = File.join(Sketchup.temp_dir, "tt_model_texture_#{SecureRandom.hex(8)}#{ext}")
           written = false
 
-          # Cách ưu tiên: xuất trực tiếp ảnh texture đã nhúng trong Material.
           begin
             written = texture.write(path, true) && File.file?(path)
           rescue StandardError
             written = false
           end
 
-          # Dự phòng theo API TextureWriter: chỉ gọi sau khi load thành công.
+          if !written && !source_name.empty? && File.file?(source_name)
+            begin
+              FileUtils.cp(source_name, path)
+              written = File.file?(path)
+            rescue StandardError
+              written = false
+            end
+          end
+
           unless written
             begin
               if inherited_material && texture_owner
-                writer.load(texture_owner) unless writer_loaded
+                writer.load(texture_owner)
                 written = (writer.write(texture_owner, path) == 0) && File.file?(path)
               else
-                writer.load(face, front) unless writer_loaded
+                writer.load(face, front)
                 written = (writer.write(face, front, path) == 0) && File.file?(path)
               end
             rescue StandardError
@@ -205,11 +215,18 @@ module TranTuanNoiThat
             bytes = File.binread(path)
             if bytes.bytesize > 8 && bytes.bytesize <= MAX_TEXTURE_BYTES &&
                current_bytes + bytes.bytesize <= MAX_TEXTURE_TOTAL_BYTES
+              mime = case File.extname(path).downcase
+                     when '.jpg', '.jpeg' then 'image/jpeg'
+                     when '.webp' then 'image/webp'
+                     when '.bmp' then 'image/bmp'
+                     when '.tif', '.tiff' then 'image/tiff'
+                     else 'image/png'
+                     end
               texture_assets[key] = {
                 'id' => "tt_tex_#{texture_assets.length + 1}",
-                'data' => 'data:image/png;base64,' + Base64.strict_encode64(bytes),
+                'data' => "data:#{mime};base64," + Base64.strict_encode64(bytes),
                 'bytes' => bytes.bytesize,
-                'name' => material.display_name.to_s,
+                'name' => material_name,
                 'source' => inherited_material ? 'group_component' : 'face'
               }
             end
@@ -218,12 +235,33 @@ module TranTuanNoiThat
       end
 
       entry = texture_assets[key]
-      [entry && entry['id'], uv_helper, nil]
+      [entry && entry['id'], uv_helper, texture]
     rescue StandardError => error
       puts "[TT ModelExport texture] #{error.class}: #{error.message}"
       [nil, nil, nil]
     ensure
       File.delete(path) if path && File.file?(path)
+    end
+
+    def fallback_uv_for_point(face, point, front, texture)
+      return nil unless texture
+      width = texture.width.to_f rescue 0.0
+      height = texture.height.to_f rescue 0.0
+      return nil if width <= 0.000001 || height <= 0.000001
+      normal = face.normal
+      axis_u = normal.cross(Geom::Vector3d.new(0, 0, 1))
+      axis_u = normal.cross(Geom::Vector3d.new(0, 1, 0)) if axis_u.length < 0.000001
+      axis_u.normalize!
+      axis_v = normal.cross(axis_u)
+      axis_v.normalize!
+      origin = face.vertices.first.position
+      delta = point - origin
+      u = delta.dot(axis_u) / width
+      v = delta.dot(axis_v) / height
+      v = -v unless front
+      [u, v]
+    rescue StandardError
+      nil
     end
 
     def uv_for_point(helper, point, front, scale = nil)
@@ -300,8 +338,8 @@ module TranTuanNoiThat
             back_color = rgb_hex(back_material, default_face_color('FaceBackColor', '#B8C7D9'))
             front_inherited = child.material.nil? && !inherited.nil?
             back_inherited = child.back_material.nil? && !inherited.nil?
-            front_texture_id, front_uv_helper, front_uv_scale = texture_mapping_for_face(child, front_material, true, texture_assets, front_inherited, inherited_source)
-            back_texture_id, back_uv_helper, back_uv_scale = texture_mapping_for_face(child, back_material, false, texture_assets, back_inherited, inherited_source)
+            front_texture_id, front_uv_helper, front_texture = texture_mapping_for_face(child, front_material, true, texture_assets, front_inherited, inherited_source)
+            back_texture_id, back_uv_helper, back_texture = texture_mapping_for_face(child, back_material, false, texture_assets, back_inherited, inherited_source)
             face_layer = child.layer
             face_tag = (face_layer && face_layer != default_layer) ? face_layer.name.to_s : current_tag.to_s
             mesh.polygons.each do |polygon|
@@ -316,8 +354,8 @@ module TranTuanNoiThat
                 point_a = points[indices[0]]
                 point_b = points[indices[i]]
                 point_c = points[indices[i + 1]]
-                front_uv = [uv_for_point(front_uv_helper, point_a, true, front_uv_scale), uv_for_point(front_uv_helper, point_b, true, front_uv_scale), uv_for_point(front_uv_helper, point_c, true, front_uv_scale)]
-                back_uv = [uv_for_point(back_uv_helper, point_a, false, back_uv_scale), uv_for_point(back_uv_helper, point_b, false, back_uv_scale), uv_for_point(back_uv_helper, point_c, false, back_uv_scale)]
+                front_uv = [point_a, point_b, point_c].map { |pt| uv_for_point(front_uv_helper, pt, true) || fallback_uv_for_point(child, pt, true, front_texture) }
+                back_uv = [point_a, point_b, point_c].map { |pt| uv_for_point(back_uv_helper, pt, false) || fallback_uv_for_point(child, pt, false, back_texture) }
                 output << {
                   'v' => [
                     [(base.x.to_f * 25.4).round(2), (base.y.to_f * 25.4).round(2), (base.z.to_f * 25.4).round(2)],
