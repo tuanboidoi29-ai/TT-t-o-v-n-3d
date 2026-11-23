@@ -21,6 +21,7 @@ module TranTuanNoiThat
     MAX_TEXTURE_ASSETS = 40
     MAX_TEXTURE_BYTES = 8_000_000
     MAX_TEXTURE_TOTAL_BYTES = 24_000_000
+    MAX_SCAN_DEPTH = 128
 
     def model
       Sketchup.active_model
@@ -139,26 +140,21 @@ module TranTuanNoiThat
 
     # Vật liệu gán ở Group/Component không nằm trên Face; phải lấy ảnh từ Material.texture
     # và chuẩn hóa UV theo kích thước texture để giữ đúng vân gỗ khi xuất ra Web.
+    # Xuất texture theo vật liệu hiệu lực ở Face hoặc bất kỳ cấp Group/Component cha nào.
+    # Với vật liệu kế thừa, TextureWriter nạp instance sở hữu vật liệu; không nạp đè bằng Face.
     def texture_mapping_for_face(face, material, front, texture_assets, inherited_material = false, texture_owner = nil)
       return [nil, nil, nil] unless material && material.respond_to?(:texture)
       texture = material.texture
       return [nil, nil, nil] unless texture && (!texture.respond_to?(:valid?) || texture.valid?)
-
-      writer = Sketchup.create_texture_writer
+      writer = nil
       writer_ready = false
       begin
-        writer.load(texture_owner) if inherited_material && texture_owner
-        writer.load(face, front)
+        writer = Sketchup.create_texture_writer
+        inherited_material && texture_owner ? writer.load(texture_owner) : writer.load(face, front)
         writer_ready = true
-      rescue StandardError
-        begin
-          writer.load(texture_owner) if inherited_material && texture_owner
-          writer_ready = !!texture_owner
-        rescue StandardError
-          writer_ready = false
-        end
+      rescue StandardError => error
+        puts "[TT ModelExport UV load] #{error.class}: #{error.message}"
       end
-
       uv_helper = begin
         writer_ready ? face.get_UVHelper(front, !front, writer) : face.get_UVHelper(front, !front)
       rescue StandardError
@@ -168,53 +164,58 @@ module TranTuanNoiThat
           nil
         end
       end
-
       source_name = (texture.filename.to_s rescue '')
       material_name = (material.name.to_s rescue material.object_id.to_s)
       key = source_name + ':' + material_name
       key = material.object_id.to_s if key == ':'
-
       unless texture_assets.key?(key)
         current_bytes = texture_assets.values.inject(0) { |sum, item| sum + item['bytes'].to_i }
         if texture_assets.length < MAX_TEXTURE_ASSETS && current_bytes < MAX_TEXTURE_TOTAL_BYTES
-          source_ext = File.extname(source_name).downcase
-          ext = %w[.jpg .jpeg .png .webp .bmp .tif .tiff].include?(source_ext) ? source_ext : '.png'
-          path = File.join(Sketchup.temp_dir, "tt_model_texture_#{SecureRandom.hex(8)}#{ext}")
+          path = nil
           written = false
-
-          begin
-            written = texture.write(path, true) && File.file?(path)
-          rescue StandardError
-            written = false
-          end
-
-          if !written && !source_name.empty? && File.file?(source_name)
+          if !source_name.empty? && File.file?(source_name)
             begin
+              source_ext = File.extname(source_name).downcase
+              source_ext = '.png' unless %w[.jpg .jpeg .png .webp .bmp .tif .tiff].include?(source_ext)
+              path = File.join(Sketchup.temp_dir, "tt_model_texture_#{SecureRandom.hex(8)}#{source_ext}")
               FileUtils.cp(source_name, path)
-              written = File.file?(path)
+              written = File.file?(path) && File.size(path) > 8
             rescue StandardError
               written = false
             end
           end
-
+          unless written
+            path = File.join(Sketchup.temp_dir, "tt_model_texture_#{SecureRandom.hex(8)}.png")
+            [true, false].each do |colorize|
+              begin
+                result = texture.write(path, colorize)
+                written = (result != false && File.file?(path) && File.size(path) > 8)
+                break if written
+              rescue StandardError
+                written = false
+              end
+            end
+          end
           unless written
             begin
               if inherited_material && texture_owner
-                writer.load(texture_owner)
-                written = (writer.write(texture_owner, path) == 0) && File.file?(path)
+                writer ||= Sketchup.create_texture_writer
+                writer.load(texture_owner) unless writer_ready
+                status = writer.write(texture_owner, path)
               else
-                writer.load(face, front)
-                written = (writer.write(face, front, path) == 0) && File.file?(path)
+                writer ||= Sketchup.create_texture_writer
+                writer.load(face, front) unless writer_ready
+                status = writer.write(face, front, path)
               end
-            rescue StandardError
+              written = (status == 0 || status == true) && File.file?(path) && File.size(path) > 8
+            rescue StandardError => error
+              puts "[TT ModelExport texture write] #{error.class}: #{error.message}"
               written = false
             end
           end
-
           if written
             bytes = File.binread(path)
-            if bytes.bytesize > 8 && bytes.bytesize <= MAX_TEXTURE_BYTES &&
-               current_bytes + bytes.bytesize <= MAX_TEXTURE_TOTAL_BYTES
+            if bytes.bytesize <= MAX_TEXTURE_BYTES && current_bytes + bytes.bytesize <= MAX_TEXTURE_TOTAL_BYTES
               mime = case File.extname(path).downcase
                      when '.jpg', '.jpeg' then 'image/jpeg'
                      when '.webp' then 'image/webp'
@@ -225,15 +226,15 @@ module TranTuanNoiThat
               texture_assets[key] = {
                 'id' => "tt_tex_#{texture_assets.length + 1}",
                 'data' => "data:#{mime};base64," + Base64.strict_encode64(bytes),
-                'bytes' => bytes.bytesize,
-                'name' => material_name,
+                'bytes' => bytes.bytesize, 'name' => material_name,
                 'source' => inherited_material ? 'group_component' : 'face'
               }
             end
+          else
+            puts "[TT ModelExport texture] Không xuất được ảnh: material=#{material_name}, inherited=#{inherited_material}, owner=#{texture_owner ? texture_owner.class : 'nil'}, filename=#{source_name}"
           end
         end
       end
-
       entry = texture_assets[key]
       [entry && entry['id'], uv_helper, texture]
     rescue StandardError => error
@@ -280,7 +281,7 @@ module TranTuanNoiThat
 
     def material_profile(entity, inherited_material = nil, depth = 0, counts = nil)
       counts ||= { 'textured' => 0, 'colored' => 0, 'unassigned' => 0, 'names' => [] }
-      return counts if depth > 40
+      return counts if depth > MAX_SCAN_DEPTH
       current_material = entity.material || inherited_material
       entity.definition.entities.each do |child|
         if child.is_a?(Sketchup::Face)
@@ -434,7 +435,7 @@ module TranTuanNoiThat
     end
 
     def assign_nested_uids(entity, depth)
-      return if depth > 40
+      return if depth > MAX_SCAN_DEPTH
       entity_uid(entity)
       if entity.is_a?(Sketchup::Group) || entity.is_a?(Sketchup::ComponentInstance)
         entity.definition.entities.each do |child|
@@ -452,7 +453,7 @@ module TranTuanNoiThat
       effective_material = entity.material || inherited_material
       profile = material_profile(entity, effective_material)
       profile_label = material_profile_label(profile)
-      child_instances = entity.definition.entities.to_a.select do |child|
+      child_instances = depth >= MAX_SCAN_DEPTH ? [] : entity.definition.entities.to_a.select do |child|
         (child.is_a?(Sketchup::Group) || child.is_a?(Sketchup::ComponentInstance)) &&
           child.valid? && visible_entity?(child)
       end
