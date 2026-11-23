@@ -328,8 +328,8 @@ module TranTuanNoiThat
                   'bc' => back_color,
                   'uv' => (front_uv.all? ? front_uv : nil),
                   'buv' => (back_uv.all? ? back_uv : nil),
-                  'tex' => front_texture_id,
-                  'btex' => back_texture_id,
+                  'tex' => (front_uv.all? ? front_texture_id : nil),
+                  'btex' => (back_uv.all? ? back_texture_id : nil),
                   'tag' => face_tag
                 }
               end
