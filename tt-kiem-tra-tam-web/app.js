@@ -104,7 +104,9 @@ function findObject(token){const t=String(token||'').trim();return state.objects
 function render(){
   const q=$('#search').value.trim().toLowerCase(),tf=$('#thicknessFilter').value,lf=$('#labelFilter').value;
   const rows=state.panels.filter(p=>{const li=labelInfo(p);const txt=[nameOf(p),codeOf(p),li.code,li.name,p.tag,p.material,pathOf(p),dim(p)].join(' ').toLowerCase();return(!q||txt.includes(q))&&(!tf||thickness(p)===tf)&&(!lf||(lf==='yes'?li.assigned:!li.assigned))});
-  $('#summary').textContent='Đang hiển thị '+rows.length+'/'+state.panels.length+' tấm • '+state.labels.length+' tem đã lưu.';
+  const rootMaterials=(state.objects||[]).filter(o=>Number(o.depth||0)===0);
+  const totals=rootMaterials.reduce((a,o)=>({textured:a.textured+Number(o.material_textures||0),colored:a.colored+Number(o.material_colors||0),unassigned:a.unassigned+Number(o.material_unassigned||0)}),{textured:0,colored:0,unassigned:0});
+  $('#summary').textContent='Đang hiển thị '+rows.length+'/'+state.panels.length+' tấm • '+state.labels.length+' tem đã lưu • Vật liệu: '+totals.textured+' mặt có vân, '+totals.colored+' mặt màu đơn sắc, '+totals.unassigned+' mặt chưa gán.';
   $('#list').innerHTML=rows.map(p=>{const li=labelInfo(p),b=bandsOf(p);return '<article class="card" data-code="'+esc(codeOf(p))+'"><div class="cardTop"><div><div class="name">'+esc(li.assigned?li.name:nameOf(p))+'</div><div class="code">'+esc(li.code||codeOf(p))+'</div></div><span class="badge thk">'+esc(thickness(p)||'?')+' mm</span></div><div class="dim">'+esc(dim(p))+'</div><div class="path">'+esc(pathOf(p))+'</div><div class="badges">'+(li.assigned?'<span class="badge label">ĐÃ GÁN TEM</span>':'')+(bandCount(p)?'<span class="badge band">'+bandCount(p)+' CẠNH DÁN</span>':'')+'</div><div class="edgeRow">'+['U-','V+','U+','V-'].map((k,i)=>'<div class="edge '+(b[k]?'on':'')+'">'+['TRÁI','TRÊN','PHẢI','DƯỚI'][i]+(b[k]?' '+esc(b[k]):'')+'</div>').join('')+'</div></article>'}).join('');
   document.querySelectorAll('.card').forEach(el=>el.onclick=()=>{const hit=state.panels.find(p=>codeOf(p)===el.dataset.code);if(hit)openDetail(hit)});
 }
