@@ -140,19 +140,29 @@ module TranTuanNoiThat
     # Vật liệu gán ở Group/Component không nằm trên Face; phải lấy ảnh từ Material.texture
     # và chuẩn hóa UV theo kích thước texture để giữ đúng vân gỗ khi xuất ra Web.
     def texture_mapping_for_face(face, material, front, texture_assets, inherited_material = false, texture_owner = nil)
-      return [nil, nil, nil] unless material && material.respond_to?(:texture) && material.texture
-      key = material.object_id.to_s
+      return [nil, nil, nil] unless material && material.respond_to?(:texture)
+      texture = material.texture
+      return [nil, nil, nil] unless texture && (!texture.respond_to?(:valid?) || texture.valid?)
+
+      # Không để TextureWriter.load thất bại làm dừng toàn bộ xuất ảnh.
+      # Đây là lỗi của nhánh cũ: load(face, side) chạy trước Texture#write,
+      # nên một Face kế thừa vật liệu từ Group có thể thoát sớm và mất texture.
       writer = Sketchup.create_texture_writer
-      if inherited_material && texture_owner
-        # Group/Component sở hữu vật liệu; dùng writer để lấy UV theo mapping của SketchUp.
-        writer.load(texture_owner)
-      else
-        writer.load(face, front)
+      writer_loaded = false
+      begin
+        if inherited_material && texture_owner
+          writer.load(texture_owner)
+          writer_loaded = true
+        else
+          writer.load(face, front)
+          writer_loaded = true
+        end
+      rescue StandardError
+        writer_loaded = false
       end
 
-      # Tách việc lấy UV khỏi việc xuất ảnh: lỗi UV không được phép làm mất ảnh texture.
       uv_helper = begin
-        face.get_UVHelper(front, !front, writer)
+        face.get_UVHelper(front, !front, writer_loaded ? writer : nil)
       rescue StandardError
         begin
           face.get_UVHelper(front, !front)
@@ -161,42 +171,56 @@ module TranTuanNoiThat
         end
       end
 
-      # Texture#write xuất trực tiếp ảnh gốc đã nhúng trong model.
-      write_texture = proc do |file|
-        texture_written = begin
-          material.texture.write(file, true)
-        rescue StandardError
-          false
-        end
-        texture_written || begin
-          if inherited_material && texture_owner
-            writer.write(texture_owner, file) == 0
-          else
-            writer.write(face, front, file) == 0
-          end
-        end
-      end
-
+      key = (texture.respond_to?(:filename) ? texture.filename.to_s : '') + ':' + material.display_name.to_s
+      key = material.object_id.to_s if key == ':'
       unless texture_assets.key?(key)
         current_bytes = texture_assets.values.inject(0) { |sum, item| sum + item['bytes'].to_i }
         if texture_assets.length < MAX_TEXTURE_ASSETS && current_bytes < MAX_TEXTURE_TOTAL_BYTES
           path = File.join(Sketchup.temp_dir, "tt_model_texture_#{SecureRandom.hex(8)}.png")
-          written = write_texture.call(path)
-          if written && File.file?(path)
+          written = false
+
+          # Cách ưu tiên: xuất trực tiếp ảnh texture đã nhúng trong Material.
+          begin
+            written = texture.write(path, true) && File.file?(path)
+          rescue StandardError
+            written = false
+          end
+
+          # Dự phòng theo API TextureWriter: chỉ gọi sau khi load thành công.
+          unless written
+            begin
+              if inherited_material && texture_owner
+                writer.load(texture_owner) unless writer_loaded
+                written = (writer.write(texture_owner, path) == 0) && File.file?(path)
+              else
+                writer.load(face, front) unless writer_loaded
+                written = (writer.write(face, front, path) == 0) && File.file?(path)
+              end
+            rescue StandardError
+              written = false
+            end
+          end
+
+          if written
             bytes = File.binread(path)
-            if bytes.bytesize <= MAX_TEXTURE_BYTES && current_bytes + bytes.bytesize <= MAX_TEXTURE_TOTAL_BYTES
+            if bytes.bytesize > 8 && bytes.bytesize <= MAX_TEXTURE_BYTES &&
+               current_bytes + bytes.bytesize <= MAX_TEXTURE_TOTAL_BYTES
               texture_assets[key] = {
                 'id' => "tt_tex_#{texture_assets.length + 1}",
                 'data' => 'data:image/png;base64,' + Base64.strict_encode64(bytes),
-                'bytes' => bytes.bytesize
+                'bytes' => bytes.bytesize,
+                'name' => material.display_name.to_s,
+                'source' => inherited_material ? 'group_component' : 'face'
               }
             end
           end
         end
       end
+
       entry = texture_assets[key]
       [entry && entry['id'], uv_helper, nil]
-    rescue StandardError
+    rescue StandardError => error
+      puts "[TT ModelExport texture] #{error.class}: #{error.message}"
       [nil, nil, nil]
     ensure
       File.delete(path) if path && File.file?(path)
@@ -364,6 +388,8 @@ module TranTuanNoiThat
         'objects' => records.map { |r| r.reject { |k, _| k == 'triangles' } },
         'model3d' => records,
         'textures' => texture_assets.values.each_with_object({}) { |item, hash| hash[item['id']] = item['data'] },
+        'texture_count' => texture_assets.length,
+        'textured_triangle_count' => records.inject(0) { |sum, item| sum + item['triangles'].to_a.count { |tri| tri['tex'] || tri['btex'] } },
         'group_tree' => group_tree,
         'panels' => board_records.map { |r| panel_payload(r) }
       }
@@ -506,6 +532,8 @@ module TranTuanNoiThat
         'objects' => scanned['objects'],
         'model3d' => scanned['model3d'],
         'textures' => scanned['textures'],
+        'texture_count' => scanned['texture_count'],
+        'textured_triangle_count' => scanned['textured_triangle_count'],
         'group_tree' => scanned['group_tree'],
         'panels' => scanned['panels'],
         'labels' => []
@@ -519,6 +547,12 @@ module TranTuanNoiThat
         'model_name' => scanned['model_name'],
         'payload' => payload
       }
+      expected_textured = scanned['model3d'].inject(0) { |sum, item| sum + item['material_textures'].to_i }
+      exported_textured = scanned['textured_triangle_count'].to_i
+      if expected_textured > 0 && exported_textured == 0
+        raise "Model có #{expected_textured} mặt gán texture nhưng không xuất được ảnh/UV texture. Chưa gửi dữ liệu sai lên Web. Hãy kiểm tra texture trên Face hoặc Group/Component."
+      end
+
       response = post_json(API_URL, body)
       raise api_error(response) unless response['ok'] && response['saved']
 
@@ -528,6 +562,8 @@ module TranTuanNoiThat
         'object_count' => scanned['object_count'],
         'board_count' => scanned['board_count'],
         'triangle_count' => scanned['triangle_count'],
+        'texture_count' => scanned['texture_count'],
+        'textured_triangle_count' => scanned['textured_triangle_count'],
         'revision' => (response.dig('model', 'revision') rescue nil),
         'url' => WEB_URL + '?id=' + URI.encode_www_form_component(share_id)
       }
