@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.365",
+  "version": "1.9.366",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "1.9.365: Khôi phục nút XEM WEB trong cửa sổ XUẤT BẢN VẼ LẮP ĐẶT; mở đúng link vừa đồng bộ, giữ nút Sao chép link.",
+  "notes": "1.9.366: Sửa xuất texture cho vật liệu gán trực tiếp trên Face và kế thừa từ Group/Component; kiểm tra UV/ảnh texture trước khi đồng bộ; phân biệt texture, màu đơn sắc và mặt chưa gán; cảnh báo khi dữ liệu texture không đầy đủ.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "f13a7fd3f7a835b64d6833479dddde0c0e0664d395d3b4c6e939a20484cadcc8"
+      "sha256": "219025ff29d62940e33879ef5b0fbca1a6e980d1af7eb38c877d9c9179c36b0e"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -319,7 +319,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "a91bf315146c237c6184f66a6f4003c020d96169645faa04f0b6837539742c95"
+      "sha256": "814f63e576a1f4934a9cafea8e16ff48fa9c1b9fd71569441a3ded63e33aba8c"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -499,7 +499,7 @@
     {
       "path": "tran_tuan_noi_that/model_export_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/model_export_tool.rb",
-      "sha256": "ba4d368886d2037e1c5ad2424c6f9fa22b253e9f8e96e940089951d82ed836bb"
+      "sha256": "218c320b5d2a099d7740ec64f11fdb603b48c448af62627c5224d44ef5c676a7"
     },
     {
       "path": "tran_tuan_noi_that/icons/model_export.svg",
