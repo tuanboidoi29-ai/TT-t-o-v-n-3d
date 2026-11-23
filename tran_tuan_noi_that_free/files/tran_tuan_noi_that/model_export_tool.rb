@@ -7,6 +7,7 @@ require 'uri'
 require 'securerandom'
 require 'time'
 require 'fileutils'
+require 'base64'
 
 module TranTuanNoiThat
   module ModelExport
@@ -17,6 +18,9 @@ module TranTuanNoiThat
     DICT = 'TT_ModelExport'.freeze
     MAX_TRIANGLES_TOTAL = 120000
     MAX_TRIANGLES_PER_OBJECT = 30000
+    MAX_TEXTURE_ASSETS = 20
+    MAX_TEXTURE_BYTES = 900_000
+    MAX_TEXTURE_TOTAL_BYTES = 8_000_000
 
     def model
       Sketchup.active_model
@@ -133,7 +137,48 @@ module TranTuanNoiThat
       [(b.width.to_f * 25.4).round(1), (b.depth.to_f * 25.4).round(1), (b.height.to_f * 25.4).round(1)]
     end
 
-    def mesh_triangles(instance, parent_transform, output, limit, inherited_material = nil, inherited_tag = nil)
+    def texture_mapping_for_face(face, material, front, texture_assets)
+      return [nil, nil] unless material && material.respond_to?(:texture) && material.texture
+      writer = Sketchup.create_texture_writer
+      writer.load(face, front)
+      uv_helper = face.get_UVHelper(front, !front, writer)
+      key = [material.object_id, front ? 'front' : 'back'].join(':')
+      unless texture_assets.key?(key)
+        current_bytes = texture_assets.values.inject(0) { |sum, item| sum + item['bytes'].to_i }
+        if texture_assets.length < MAX_TEXTURE_ASSETS && current_bytes < MAX_TEXTURE_TOTAL_BYTES
+          path = File.join(Sketchup.temp_dir, "tt_model_texture_#{SecureRandom.hex(8)}.png")
+          status = writer.write(face, front, path)
+          if status == 0 && File.file?(path)
+            bytes = File.binread(path)
+            if bytes.bytesize <= MAX_TEXTURE_BYTES && current_bytes + bytes.bytesize <= MAX_TEXTURE_TOTAL_BYTES
+              texture_assets[key] = {
+                'id' => "tt_tex_#{texture_assets.length + 1}",
+                'data' => 'data:image/png;base64,' + Base64.strict_encode64(bytes),
+                'bytes' => bytes.bytesize
+              }
+            end
+          end
+        end
+      end
+      entry = texture_assets[key]
+      [entry && entry['id'], uv_helper]
+    rescue StandardError
+      [nil, nil]
+    ensure
+      File.delete(path) if path && File.file?(path)
+    end
+
+    def uv_for_point(helper, point, front)
+      return nil unless helper
+      uvq = front ? helper.get_front_UVQ(point) : helper.get_back_UVQ(point)
+      q = uvq.z.to_f
+      return nil if q.abs < 0.0000001
+      [uvq.x.to_f / q, uvq.y.to_f / q]
+    rescue StandardError
+      nil
+    end
+
+    def mesh_triangles(instance, parent_transform, output, limit, inherited_material = nil, inherited_tag = nil, texture_assets = {})
       return output if output.length >= limit
       transform = parent_transform * instance.transformation
       inherited = instance.material || inherited_material
@@ -151,6 +196,8 @@ module TranTuanNoiThat
             back_material = child.back_material || inherited
             front_color = rgb_hex(front_material, default_face_color('FaceFrontColor', '#F2F2F2'))
             back_color = rgb_hex(back_material, default_face_color('FaceBackColor', '#B8C7D9'))
+            front_texture_id, front_uv_helper = texture_mapping_for_face(child, front_material, true, texture_assets)
+            back_texture_id, back_uv_helper = texture_mapping_for_face(child, back_material, false, texture_assets)
             face_layer = child.layer
             face_tag = (face_layer && face_layer != default_layer) ? face_layer.name.to_s : current_tag.to_s
             mesh.polygons.each do |polygon|
@@ -162,6 +209,11 @@ module TranTuanNoiThat
                 break if output.length >= limit
                 p2 = transform * points[indices[i]]
                 p3 = transform * points[indices[i + 1]]
+                point_a = points[indices[0]]
+                point_b = points[indices[i]]
+                point_c = points[indices[i + 1]]
+                front_uv = [uv_for_point(front_uv_helper, point_a, true), uv_for_point(front_uv_helper, point_b, true), uv_for_point(front_uv_helper, point_c, true)]
+                back_uv = [uv_for_point(back_uv_helper, point_a, false), uv_for_point(back_uv_helper, point_b, false), uv_for_point(back_uv_helper, point_c, false)]
                 output << {
                   'v' => [
                     [(base.x.to_f * 25.4).round(2), (base.y.to_f * 25.4).round(2), (base.z.to_f * 25.4).round(2)],
@@ -170,6 +222,10 @@ module TranTuanNoiThat
                   ],
                   'c' => front_color,
                   'bc' => back_color,
+                  'uv' => (front_uv.all? ? front_uv : nil),
+                  'buv' => (back_uv.all? ? back_uv : nil),
+                  'tex' => front_texture_id,
+                  'btex' => back_texture_id,
                   'tag' => face_tag
                 }
               end
@@ -178,7 +234,7 @@ module TranTuanNoiThat
             next
           end
         elsif child.is_a?(Sketchup::Group) || child.is_a?(Sketchup::ComponentInstance)
-          mesh_triangles(child, transform, output, limit, inherited, current_tag)
+          mesh_triangles(child, transform, output, limit, inherited, current_tag, texture_assets)
         end
       end
       output
@@ -204,11 +260,12 @@ module TranTuanNoiThat
       end
 
       remaining = MAX_TRIANGLES_TOTAL
+      texture_assets = {}
       records = []
       group_tree = []
       roots.each do |root|
         cap = [remaining, MAX_TRIANGLES_PER_OBJECT].min
-        triangles = include_mesh && cap > 0 ? mesh_triangles(root, root_transform, [], cap) : []
+        triangles = include_mesh && cap > 0 ? mesh_triangles(root, root_transform, [], cap, nil, nil, texture_assets) : []
         remaining -= triangles.length
         root_record, tree_node, descendants = scan_instance_tree(root, nil, entity_name(root), 0, root_transform, triangles)
         records.concat([root_record] + descendants)
@@ -226,6 +283,7 @@ module TranTuanNoiThat
         'triangle_count' => records.inject(0) { |sum, item| sum + item['triangle_count'].to_i },
         'objects' => records.map { |r| r.reject { |k, _| k == 'triangles' } },
         'model3d' => records,
+        'textures' => texture_assets.values.each_with_object({}) { |item, hash| hash[item['id']] = item['data'] },
         'group_tree' => group_tree,
         'panels' => board_records.map { |r| panel_payload(r) }
       }
@@ -351,6 +409,7 @@ module TranTuanNoiThat
         'model_name' => scanned['model_name'],
         'objects' => scanned['objects'],
         'model3d' => scanned['model3d'],
+        'textures' => scanned['textures'],
         'group_tree' => scanned['group_tree'],
         'panels' => scanned['panels'],
         'labels' => []
