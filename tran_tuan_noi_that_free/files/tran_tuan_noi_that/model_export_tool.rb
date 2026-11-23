@@ -137,18 +137,30 @@ module TranTuanNoiThat
       [(b.width.to_f * 25.4).round(1), (b.depth.to_f * 25.4).round(1), (b.height.to_f * 25.4).round(1)]
     end
 
-    def texture_mapping_for_face(face, material, front, texture_assets)
-      return [nil, nil] unless material && material.respond_to?(:texture) && material.texture
-      writer = Sketchup.create_texture_writer
-      writer.load(face, front)
-      uv_helper = face.get_UVHelper(front, !front, writer)
-      key = [material.object_id, front ? 'front' : 'back'].join(':')
+    # Vật liệu gán ở Group/Component không nằm trên Face; phải lấy ảnh từ Material.texture
+    # và chuẩn hóa UV theo kích thước texture để giữ đúng vân gỗ khi xuất ra Web.
+    def texture_mapping_for_face(face, material, front, texture_assets, inherited_material = false)
+      return [nil, nil, nil] unless material && material.respond_to?(:texture) && material.texture
+      texture = material.texture
+      key = material.object_id.to_s
+      uv_helper = nil
+      uv_scale = nil
+      unless inherited_material
+        writer = Sketchup.create_texture_writer
+        writer.load(face, front)
+        uv_helper = face.get_UVHelper(front, !front, writer)
+      else
+        uv_helper = face.get_UVHelper(front, !front)
+        width = texture.width.to_f
+        height = texture.height.to_f
+        uv_scale = [width > 0 ? 1.0 / width : 1.0, height > 0 ? 1.0 / height : 1.0]
+      end
       unless texture_assets.key?(key)
         current_bytes = texture_assets.values.inject(0) { |sum, item| sum + item['bytes'].to_i }
         if texture_assets.length < MAX_TEXTURE_ASSETS && current_bytes < MAX_TEXTURE_TOTAL_BYTES
           path = File.join(Sketchup.temp_dir, "tt_model_texture_#{SecureRandom.hex(8)}.png")
-          status = writer.write(face, front, path)
-          if status == 0 && File.file?(path)
+          written = inherited_material ? texture.write(path, true) : (writer.write(face, front, path) == 0)
+          if written && File.file?(path)
             bytes = File.binread(path)
             if bytes.bytesize <= MAX_TEXTURE_BYTES && current_bytes + bytes.bytesize <= MAX_TEXTURE_TOTAL_BYTES
               texture_assets[key] = {
@@ -161,21 +173,64 @@ module TranTuanNoiThat
         end
       end
       entry = texture_assets[key]
-      [entry && entry['id'], uv_helper]
+      [entry && entry['id'], uv_helper, uv_scale]
     rescue StandardError
-      [nil, nil]
+      [nil, nil, nil]
     ensure
       File.delete(path) if path && File.file?(path)
     end
 
-    def uv_for_point(helper, point, front)
+    def uv_for_point(helper, point, front, scale = nil)
       return nil unless helper
       uvq = front ? helper.get_front_UVQ(point) : helper.get_back_UVQ(point)
       q = uvq.z.to_f
       return nil if q.abs < 0.0000001
-      [uvq.x.to_f / q, uvq.y.to_f / q]
+      u = uvq.x.to_f / q
+      v = uvq.y.to_f / q
+      u *= scale[0] if scale
+      v *= scale[1] if scale
+      [u, v]
     rescue StandardError
       nil
+    end
+
+    def material_profile(entity, inherited_material = nil, depth = 0, counts = nil)
+      counts ||= { 'textured' => 0, 'colored' => 0, 'unassigned' => 0, 'names' => [] }
+      return counts if depth > 40
+      current_material = entity.material || inherited_material
+      entity.definition.entities.each do |child|
+        if child.is_a?(Sketchup::Face)
+          [child.material || current_material, child.back_material || current_material].each do |mat|
+            if mat
+              name = mat.display_name.to_s
+              counts['names'] << name unless counts['names'].include?(name)
+              if mat.respond_to?(:texture) && mat.texture
+                counts['textured'] += 1
+              else
+                counts['colored'] += 1
+              end
+            else
+              counts['unassigned'] += 1
+            end
+          end
+        elsif child.is_a?(Sketchup::Group) || child.is_a?(Sketchup::ComponentInstance)
+          next unless child.valid? && visible_entity?(child)
+          material_profile(child, child.material || current_material, depth + 1, counts)
+        end
+      end
+      counts
+    rescue StandardError
+      counts || { 'textured' => 0, 'colored' => 0, 'unassigned' => 0, 'names' => [] }
+    end
+
+    def material_profile_label(profile)
+      textured = profile['textured'].to_i
+      colored = profile['colored'].to_i
+      unassigned = profile['unassigned'].to_i
+      return 'CHƯA GÁN VẬT LIỆU' if textured + colored == 0
+      return 'VẬT LIỆU CÓ VÂN / TEXTURE' if textured > 0 && colored == 0 && unassigned == 0
+      return 'CÓ MÀU ĐƠN SẮC' if textured == 0 && colored > 0 && unassigned == 0
+      'HỖN HỢP: CÓ VÂN, MÀU VÀ/HOẶC MẶT CHƯA GÁN'
     end
 
     def mesh_triangles(instance, parent_transform, output, limit, inherited_material = nil, inherited_tag = nil, texture_assets = {})
@@ -196,8 +251,10 @@ module TranTuanNoiThat
             back_material = child.back_material || inherited
             front_color = rgb_hex(front_material, default_face_color('FaceFrontColor', '#F2F2F2'))
             back_color = rgb_hex(back_material, default_face_color('FaceBackColor', '#B8C7D9'))
-            front_texture_id, front_uv_helper = texture_mapping_for_face(child, front_material, true, texture_assets)
-            back_texture_id, back_uv_helper = texture_mapping_for_face(child, back_material, false, texture_assets)
+            front_inherited = child.material.nil? && !inherited.nil?
+            back_inherited = child.back_material.nil? && !inherited.nil?
+            front_texture_id, front_uv_helper, front_uv_scale = texture_mapping_for_face(child, front_material, true, texture_assets, front_inherited)
+            back_texture_id, back_uv_helper, back_uv_scale = texture_mapping_for_face(child, back_material, false, texture_assets, back_inherited)
             face_layer = child.layer
             face_tag = (face_layer && face_layer != default_layer) ? face_layer.name.to_s : current_tag.to_s
             mesh.polygons.each do |polygon|
@@ -212,8 +269,8 @@ module TranTuanNoiThat
                 point_a = points[indices[0]]
                 point_b = points[indices[i]]
                 point_c = points[indices[i + 1]]
-                front_uv = [uv_for_point(front_uv_helper, point_a, true), uv_for_point(front_uv_helper, point_b, true), uv_for_point(front_uv_helper, point_c, true)]
-                back_uv = [uv_for_point(back_uv_helper, point_a, false), uv_for_point(back_uv_helper, point_b, false), uv_for_point(back_uv_helper, point_c, false)]
+                front_uv = [uv_for_point(front_uv_helper, point_a, true, front_uv_scale), uv_for_point(front_uv_helper, point_b, true, front_uv_scale), uv_for_point(front_uv_helper, point_c, true, front_uv_scale)]
+                back_uv = [uv_for_point(back_uv_helper, point_a, false, back_uv_scale), uv_for_point(back_uv_helper, point_b, false, back_uv_scale), uv_for_point(back_uv_helper, point_c, false, back_uv_scale)]
                 output << {
                   'v' => [
                     [(base.x.to_f * 25.4).round(2), (base.y.to_f * 25.4).round(2), (base.z.to_f * 25.4).round(2)],
@@ -301,10 +358,13 @@ module TranTuanNoiThat
       end
     end
 
-    def scan_instance_tree(entity, parent_uid, parent_path, depth, parent_transform, root_triangles = [])
+    def scan_instance_tree(entity, parent_uid, parent_path, depth, parent_transform, root_triangles = [], inherited_material = nil)
       base_uid = entity_uid(entity)
       uid = parent_uid ? "#{parent_uid}:#{base_uid}" : base_uid
       world_transform = parent_transform * entity.transformation
+      effective_material = entity.material || inherited_material
+      profile = material_profile(entity, effective_material)
+      profile_label = material_profile_label(profile)
       child_instances = entity.definition.entities.to_a.select do |child|
         (child.is_a?(Sketchup::Group) || child.is_a?(Sketchup::ComponentInstance)) &&
           child.valid? && visible_entity?(child)
@@ -317,7 +377,12 @@ module TranTuanNoiThat
         'name' => entity_name(entity),
         'type' => entity.is_a?(Sketchup::Group) ? 'Group' : 'Component',
         'tag' => (entity.layer.name.to_s rescue ''),
-        'material' => material_name(entity),
+        'material' => (profile['names'].join(', ').empty? ? material_name(entity) : profile['names'].join(', ')),
+        'material_status' => profile_label,
+        'material_textures' => profile['textured'],
+        'material_colors' => profile['colored'],
+        'material_unassigned' => profile['unassigned'],
+        'material_names' => profile['names'],
         'dimensions' => bounds_dimensions(entity),
         'corners' => bounds_corners(entity, parent_transform),
         'persistent_id' => (entity.persistent_id rescue nil),
@@ -330,12 +395,17 @@ module TranTuanNoiThat
         'uid' => uid, 'name' => entity_name(entity), 'path' => parent_path,
         'type' => record['type'], 'dimensions' => record['dimensions'],
         'tag' => record['tag'], 'material' => record['material'],
+        'material_status' => record['material_status'],
+        'material_textures' => record['material_textures'],
+        'material_colors' => record['material_colors'],
+        'material_unassigned' => record['material_unassigned'],
+        'material_names' => record['material_names'],
         'boards' => [], 'children' => [], 'board_count' => 0
       }
       descendants = []
       child_instances.each do |child|
         child_path = parent_path + ' / ' + entity_name(child)
-        child_record, child_node, nested_records = scan_instance_tree(child, uid, child_path, depth + 1, world_transform, [])
+        child_record, child_node, nested_records = scan_instance_tree(child, uid, child_path, depth + 1, world_transform, [], effective_material)
         descendants << child_record
         descendants.concat(nested_records)
         if child_node['boards'].empty? && child_node['children'].empty?
@@ -354,7 +424,10 @@ module TranTuanNoiThat
       {
         'uid' => record['uid'], 'code' => record['uid'], 'name' => record['name'],
         'type' => record['type'], 'dimensions' => record['dimensions'],
-        'tag' => record['tag'], 'material' => record['material'], 'path' => record['path']
+        'tag' => record['tag'], 'material' => record['material'], 'material_status' => record['material_status'],
+        'material_textures' => record['material_textures'], 'material_colors' => record['material_colors'],
+        'material_unassigned' => record['material_unassigned'], 'material_names' => record['material_names'],
+        'path' => record['path']
       }
     end
 
