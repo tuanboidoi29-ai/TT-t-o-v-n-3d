@@ -59,6 +59,10 @@
         <div><b id="bandCount">0</b><span>Cạnh dán</span></div>
       </div>
     </div>
+      <div class="savedProjects">
+        <div class="savedProjectsHead"><b>DANH SÁCH DỰ ÁN ĐÃ LƯU TRÊN THIẾT BỊ NÀY</b><button type="button" id="refreshSavedProjects" class="ghost">LÀM MỚI</button></div>
+        <div id="savedProjectList" class="savedProjectList"><span class="smallHint">Chưa có dự án được lưu trên thiết bị này.</span></div>
+      </div>
   </section>
 
   <section id="modelPanel" class="panel modelPanel hidden">
@@ -70,6 +74,13 @@
         </div>
         <span class="smallHint">Vân và màu vật liệu theo SketchUp • Kéo: xoay • Vuốt 2 ngón: zoom</span>
       </div>
+    </div>
+    <div class="viewerControls">
+      <label class="rangeControl">TÁCH ĐỐI TƯỢNG <input id="explodeSlider" type="range" min="0" max="100" value="0"><output id="explodeValue">0%</output></label>
+      <label class="rangeControl">ĐỘ SÁNG <input id="brightnessSlider" type="range" min="70" max="180" value="125"><output id="brightnessValue">125%</output></label>
+      <label class="colorControl">MÀU NỀN <input id="backgroundColor" type="color" value="#e8edf3"></label>
+      <label class="checkControl"><input id="showEdgesToggle" type="checkbox" checked> HIỆN CẠNH</label>
+      <button type="button" id="resetExplodeBtn" class="ghost">GOM ĐỐI TƯỢNG</button>
     </div>
     <div class="modelWorkspace">
       <aside class="modelObjectPane">
