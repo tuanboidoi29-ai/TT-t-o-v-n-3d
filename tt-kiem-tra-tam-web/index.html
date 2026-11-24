@@ -80,6 +80,7 @@
       </div>
     </div>
     <div class="viewerControls">
+      <button type="button" id="toggleSelectedMaterialBtn" class="secondary" disabled>TẮT MÀU ĐỐI TƯỢNG</button><button type="button" id="productionCheckBtn" class="primary">KIỂM TRA CẤU KIỆN SẢN XUẤT</button>
       <label class="rangeControl">TÁCH ĐỐI TƯỢNG <input id="explodeSlider" type="range" min="0" max="100" value="0"><output id="explodeValue">0%</output></label>
       <label class="rangeControl">ĐỘ SÁNG <input id="brightnessSlider" type="range" min="70" max="180" value="125"><output id="brightnessValue">125%</output></label>
       <label class="colorControl">MÀU NỀN <input id="backgroundColor" type="color" value="#e8edf3"></label>
@@ -103,6 +104,14 @@
       <div class="tagQuickBlock"><b>THAO TÁC NHANH CÁC TAG ABF_ / CẠNH DÁN</b><div id="abfTagQuickFilters" class="abfTagQuickFilters"><span class="smallHint">Đang tải nhóm ABF_…</span></div></div><div class="tagAllHead"><b>TOÀN BỘ TAGS / LAYERS</b><span class="smallHint">Hiển thị đầy đủ tên, số đối tượng, cạnh và mặt</span></div><div id="webTagFilters" class="webTagFilters"><span class="smallHint">Đang tải Tags từ model…</span></div>
     </section>
     <div id="objectDetails" class="objectDetails"><div class="objectDetailsEmpty">Chọn tên đối tượng để xem thông tin chi tiết tại đây.</div></div>
+  </section>
+
+  <section id="productionPanel" class="panel productionPanel hidden">
+    <div class="panelHead"><div><div class="eyebrow">ĐỐI CHIẾU TEM VỚI MODEL 3D</div><h3>KIỂM TRA CẤU KIỆN SẢN XUẤT</h3><p class="smallHint">Quét QR của từng cấu kiện đã sản xuất. Hệ thống đối chiếu mã với danh sách cấu kiện cuối trong Model.</p></div><button type="button" id="finishProductionCheckBtn" class="secondary">KẾT THÚC KIỂM TRA</button></div>
+    <div id="productionStatus" class="productionStatus warning">CHƯA BẮT ĐẦU KIỂM TRA</div>
+    <div class="productionStats"><div><b id="productionProgress">0/0 cấu kiện · 0%</b><span>Tiến độ quét</span><div class="productionProgressTrack"><i id="productionProgressBar"></i></div></div><div><b id="productionScannedCount">0</b><span>Đã quét</span></div><div><b id="productionMissingCount">0</b><span>Còn thiếu</span></div></div>
+    <div class="productionColumns"><div><b>DANH SÁCH CẤU KIỆN CÒN THIẾU</b><div id="productionResults" class="productionResults"><div class="productionEmpty">Mở dự án và bắt đầu quét QR để kiểm tra.</div></div></div></div>
+    <p class="productionNote">Kích thước và vị trí được lấy từ Model SketchUp đã đồng bộ. Muốn xác nhận kích thước vật lý thực tế, cần đo cấu kiện sau sản xuất hoặc bổ sung dữ liệu đo vào tem.</p>
   </section>
 
   <section id="groupPanel" class="panel hidden">
