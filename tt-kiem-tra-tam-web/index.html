@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#ffffff">
   <title>TRẦN TUẤN NESTING PRO</title>
-  <link rel="stylesheet" href="/styles.css?v=1.9.372">
+  <link rel="stylesheet" href="/styles.css?v=1.9.373">
 </head>
 <body>
 <header class="topbar">
@@ -110,6 +110,7 @@
     <div class="panelHead"><div><div class="eyebrow">ĐỐI CHIẾU TEM VỚI MODEL 3D</div><h3>KIỂM TRA CẤU KIỆN SẢN XUẤT</h3><p class="smallHint">Quét QR của từng cấu kiện đã sản xuất. Hệ thống đối chiếu mã với danh sách cấu kiện cuối trong Model.</p></div><button type="button" id="finishProductionCheckBtn" class="secondary">KẾT THÚC KIỂM TRA</button></div>
     <div id="productionStatus" class="productionStatus warning">CHƯA BẮT ĐẦU KIỂM TRA</div>
     <div class="productionStats"><div><b id="productionProgress">0/0 cấu kiện · 0%</b><span>Tiến độ quét</span><div class="productionProgressTrack"><i id="productionProgressBar"></i></div></div><div><b id="productionScannedCount">0</b><span>Đã quét</span></div><div><b id="productionMissingCount">0</b><span>Còn thiếu</span></div></div>
+    <div class="productionActions"><button type="button" id="isolateMissingProductionBtn" class="primary">CHỈ HIỆN CẤU KIỆN CÒN THIẾU</button><button type="button" id="showFullProductionModelBtn" class="secondary">HIỆN LẠI TOÀN BỘ MODEL</button></div>
     <div class="productionColumns"><div><b>DANH SÁCH CẤU KIỆN CÒN THIẾU</b><div id="productionResults" class="productionResults"><div class="productionEmpty">Mở dự án và bắt đầu quét QR để kiểm tra.</div></div></div></div>
     <p class="productionNote">Kích thước và vị trí được lấy từ Model SketchUp đã đồng bộ. Muốn xác nhận kích thước vật lý thực tế, cần đo cấu kiện sau sản xuất hoặc bổ sung dữ liệu đo vào tem.</p>
   </section>
@@ -177,6 +178,6 @@
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.min.js"></script>
-<script src="/app.js?v=1.9.372"></script>
+<script src="/app.js?v=1.9.373"></script>
 </body>
 </html>
