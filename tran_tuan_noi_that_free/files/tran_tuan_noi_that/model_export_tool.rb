@@ -372,7 +372,7 @@ module TranTuanNoiThat
                 front_uv = [point_a, point_b, point_c].map { |pt| uv_for_point(front_uv_helper, pt, true) || fallback_uv_for_point(child, pt, true, front_texture) }
                 back_uv = [point_a, point_b, point_c].map { |pt| uv_for_point(back_uv_helper, pt, false) || fallback_uv_for_point(child, pt, false, back_texture) }
                 output << {
-                  'object_uid' => current_uid.to_s,
+                  'oid' => current_uid.to_s,
                   'v' => [
                     [(base.x.to_f * 25.4).round(2), (base.y.to_f * 25.4).round(2), (base.z.to_f * 25.4).round(2)],
                     [(p2.x.to_f * 25.4).round(2), (p2.y.to_f * 25.4).round(2), (p2.z.to_f * 25.4).round(2)],
@@ -420,7 +420,7 @@ module TranTuanNoiThat
             seen[key] = true
             a = transform * edge.start.position
             b = transform * edge.end.position
-            output << { 'object_uid' => current_uid.to_s, 'tag' => tag_name,
+            output << { 'o' => current_uid.to_s, 't' => tag_name,
               'v' => [[(a.x.to_f * 25.4).round(2), (a.y.to_f * 25.4).round(2), (a.z.to_f * 25.4).round(2)],
                       [(b.x.to_f * 25.4).round(2), (b.y.to_f * 25.4).round(2), (b.z.to_f * 25.4).round(2)]] }
           end
@@ -455,13 +455,13 @@ module TranTuanNoiThat
       records = []
       group_tree = []
       edges = []
-      remaining_edges = 200000
+      remaining_edges = 100000
       roots.each do |root|
         cap = [remaining, MAX_TRIANGLES_PER_OBJECT].min
         triangles = include_mesh && cap > 0 ? mesh_triangles(root, root_transform, [], cap, nil, nil, texture_assets, nil, entity_uid(root)) : []
         remaining -= triangles.length
         if include_mesh && remaining_edges > 0
-          root_edges = mesh_edges(root, root_transform, [], [remaining_edges, 50000].min, entity_uid(root))
+          root_edges = mesh_edges(root, root_transform, [], [remaining_edges, 25000].min, entity_uid(root))
           edges.concat(root_edges)
           remaining_edges -= root_edges.length
         end
