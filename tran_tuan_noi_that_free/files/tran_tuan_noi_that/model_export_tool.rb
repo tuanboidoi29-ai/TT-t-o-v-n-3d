@@ -456,11 +456,16 @@ module TranTuanNoiThat
       records = []
       group_tree = []
       edges = []
+      remaining_edges = 200000
       roots.each do |root|
         cap = [remaining, MAX_TRIANGLES_PER_OBJECT].min
         triangles = include_mesh && cap > 0 ? mesh_triangles(root, root_transform, [], cap, nil, nil, texture_assets, nil, entity_uid(root)) : []
         remaining -= triangles.length
-        edges.concat(mesh_edges(root, root_transform, [], 300000, entity_uid(root))) if include_mesh
+        if include_mesh && remaining_edges > 0
+          root_edges = mesh_edges(root, root_transform, [], [remaining_edges, 50000].min, entity_uid(root))
+          edges.concat(root_edges)
+          remaining_edges -= root_edges.length
+        end
         root_record, tree_node, descendants = scan_instance_tree(root, nil, entity_name(root), 0, root_transform, triangles)
         records.concat([root_record] + descendants)
         group_tree << tree_node
