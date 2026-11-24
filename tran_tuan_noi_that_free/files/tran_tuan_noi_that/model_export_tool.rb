@@ -48,7 +48,6 @@ module TranTuanNoiThat
 
     def visible_entity?(entity)
       return false if entity.respond_to?(:hidden?) && entity.hidden?
-      return false if entity.respond_to?(:layer) && entity.layer && entity.layer.respond_to?(:visible?) && !entity.layer.visible?
       true
     rescue StandardError
       true
