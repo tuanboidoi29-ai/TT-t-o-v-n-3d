@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#ffffff">
   <title>TRẦN TUẤN NESTING PRO</title>
-  <link rel="stylesheet" href="/styles.css?v=1.9.374">
+  <link rel="stylesheet" href="/styles.css?v=1.9.375">
 </head>
 <body>
 <header class="topbar">
@@ -13,7 +13,7 @@
     <div class="logo">TT</div>
     <div>
       <h1>TRẦN TUẤN NESTING PRO</h1>
-      <div class="sub">Web dự án • Model • Tem nhãn • Quét QR bằng camera</div>
+      <div class="sub">Web dự án • Kiểm tra & xem Model 3D • Tra cứu QR</div>
     </div>
   </div>
   <div class="topActions">
@@ -63,35 +63,12 @@
         <div><b id="bandCount">0</b><span>Cạnh dán</span></div>
       </div>
     </div>
-      <div class="projectPrimaryActions"><button type="button" id="openLabelFeatureBtn" class="primary">🏷️ THIẾT KẾ & IN TEM NHÃN</button></div>
       <div class="savedProjects">
         <div class="savedProjectsHead"><b>DANH SÁCH DỰ ÁN ĐÃ LƯU TRÊN THIẾT BỊ NÀY</b><button type="button" id="refreshSavedProjects" class="ghost">LÀM MỚI</button></div>
         <div id="savedProjectList" class="savedProjectList"><span class="smallHint">Chưa có dự án được lưu trên thiết bị này.</span></div>
       </div>
   </section>
 
-
-  <section id="labelPanel" class="panel labelPanel hidden">
-    <div class="panelHead"><div><div class="eyebrow">CHỨC NĂNG CHÍNH · TEM NHÃN</div><h3><span aria-hidden="true">🏷️</span> THIẾT KẾ & IN TEM NHÃN ĐỐI TƯỢNG</h3><p class="smallHint">Hoạt động cùng dự án đang mở; chọn Group/Component hoặc cấu kiện để tạo tem có QR mở đúng đối tượng.</p></div><span class="labelFeatureIcon">🏷️</span></div>
-    <div class="labelLayout">
-      <div class="labelSettings">
-        <b>CÀI ĐẶT TEM</b>
-        <label>TÊN XƯỞNG<input id="labelWorkshop" type="text" placeholder="Ví dụ: XƯỞNG TRẦN TUẤN" value="XƯỞNG TRẦN TUẤN"></label>
-        <div class="labelSizeFields"><label>CHIỀU RỘNG (mm)<input id="labelWidth" type="number" min="20" max="300" value="70"></label><label>CHIỀU CAO (mm)<input id="labelHeight" type="number" min="15" max="300" value="40"></label></div>
-        <label class="labelCheck"><input id="labelIncludeQr" type="checkbox" checked> IN MÃ QR TRÊN TEM</label>
-        <div class="labelSettingsHint">Kích thước tem được tính theo mm. Khi in, chọn đúng khổ giấy/tem trên máy in và tỷ lệ 100% (không co vừa trang).</div>
-        <button type="button" id="labelPrintBtn" class="primary">🖨 IN TEM ĐÃ CHỌN</button>
-      </div>
-      <div class="labelSelection">
-        <div class="labelSelectionHead"><b>CHỌN ĐỐI TƯỢNG CẦN IN</b><span id="labelSelectionCount" class="smallHint">0 đối tượng đã chọn</span></div>
-        <input id="labelObjectSearch" type="search" placeholder="Tìm tên Group / Component / cấu kiện…">
-        <div class="labelSelectActions"><button type="button" id="labelSelectAll" class="secondary">CHỌN TẤT CẢ</button><button type="button" id="labelSelectNone" class="ghost">BỎ CHỌN</button><button type="button" id="labelSelectCurrent" class="secondary">THÊM ĐỐI TƯỢNG ĐANG CHỌN</button></div>
-        <div id="labelObjectList" class="labelObjectList"></div>
-      </div>
-    </div>
-    <div class="labelPreviewHead"><b>XEM TRƯỚC TEM NHÃN</b><span id="labelPreviewCount" class="smallHint">0 tem xem trước</span></div>
-    <div id="labelPreview" class="labelPreview"><div class="labelPreviewEmpty">Mở dự án, sau đó chọn đối tượng để thiết kế tem.</div></div>
-  </section>
 
   <section id="modelPanel" class="panel modelPanel hidden">
     <div class="panelHead modelHead">
@@ -202,6 +179,6 @@
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.min.js"></script>
-<script src="/app.js?v=1.9.374"></script>
+<script src="/app.js?v=1.9.375"></script>
 </body>
 </html>
