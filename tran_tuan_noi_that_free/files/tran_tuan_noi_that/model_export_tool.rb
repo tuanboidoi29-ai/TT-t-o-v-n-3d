@@ -406,24 +406,25 @@ module TranTuanNoiThat
       default_layer = model.layers[0]
       layer = instance.layer
       current_tag = (layer && layer != default_layer) ? layer.name.to_s : inherited_tag
-      seen = {}
+      # Face layer là lớp kế thừa hợp lý khi cạnh vẫn nằm ở Untagged.
+      face_tags = {}
+      instance.definition.entities.each do |entity|
+        next unless entity.is_a?(Sketchup::Face)
+        face_layer = entity.layer
+        face_tag = (face_layer && face_layer != default_layer) ? face_layer.name.to_s : current_tag.to_s
+        entity.edges.each { |edge| face_tags[edge.entityID.to_s] ||= face_tag }
+      end
       instance.definition.entities.each do |child|
         break if output.length >= limit
         next unless visible_entity?(child)
-        if child.is_a?(Sketchup::Face)
-          tag_layer = child.layer
-          tag_name = (tag_layer && tag_layer != default_layer) ? tag_layer.name.to_s : current_tag.to_s
-          child.edges.each do |edge|
-            break if output.length >= limit
-            key = edge.entityID.to_s
-            next if seen[key]
-            seen[key] = true
-            a = transform * edge.start.position
-            b = transform * edge.end.position
-            output << { 'o' => current_uid.to_s, 't' => tag_name,
-              'v' => [[(a.x.to_f * 25.4).round(2), (a.y.to_f * 25.4).round(2), (a.z.to_f * 25.4).round(2)],
-                      [(b.x.to_f * 25.4).round(2), (b.y.to_f * 25.4).round(2), (b.z.to_f * 25.4).round(2)]] }
-          end
+        if child.is_a?(Sketchup::Edge)
+          edge_layer = child.layer
+          edge_tag = (edge_layer && edge_layer != default_layer) ? edge_layer.name.to_s : (face_tags[child.entityID.to_s] || current_tag.to_s)
+          a = transform * child.start.position
+          b = transform * child.end.position
+          output << { 'o' => current_uid.to_s, 't' => edge_tag.to_s,
+            'v' => [[(a.x.to_f * 25.4).round(2), (a.y.to_f * 25.4).round(2), (a.z.to_f * 25.4).round(2)],
+                    [(b.x.to_f * 25.4).round(2), (b.y.to_f * 25.4).round(2), (b.z.to_f * 25.4).round(2)]] }
         elsif child.is_a?(Sketchup::Group) || child.is_a?(Sketchup::ComponentInstance)
           mesh_edges(child, transform, output, limit, "#{current_uid}:#{entity_uid(child)}", current_tag)
         end
@@ -483,7 +484,7 @@ module TranTuanNoiThat
         'model3d' => records,
         'textures' => texture_assets.values.each_with_object({}) { |item, hash| hash[item['id']] = item['data'] },
         'edges' => edges,
-        'tags' => m.layers.to_a.map { |tag| { 'name' => tag.name.to_s, 'visible' => !!tag.visible?, 'active' => (m.active_layer == tag) } },
+        'tags' => tag_inventory_for(roots),
         'texture_count' => texture_assets.length,
         'textured_triangle_count' => records.inject(0) { |sum, item| sum + item['triangles'].to_a.count { |tri| tri['tex'] || tri['btex'] } },
         'group_tree' => group_tree,
@@ -710,6 +711,44 @@ module TranTuanNoiThat
       false
     end
 
+
+    # Thống kê đầy đủ Tag trên toàn bộ Group/Component lồng nhau, kể cả Tag chỉ gắn vào Edge.
+    def tag_inventory_for(roots)
+      m = model
+      stats = {}
+      m.layers.to_a.each do |tag|
+        stats[tag.name.to_s] = {
+          'name' => tag.name.to_s, 'visible' => !!tag.visible?, 'active' => (m.active_layer == tag),
+          'entity_count' => 0, 'face_count' => 0, 'edge_count' => 0,
+          'group_count' => 0, 'component_count' => 0, 'abf' => tag.name.to_s.upcase.start_with?('ABF_')
+        }
+      end
+      walk = lambda do |entities, depth|
+        next if depth > MAX_SCAN_DEPTH
+        entities.each do |entity|
+          next unless entity.respond_to?(:layer)
+          name = entity.layer.name.to_s
+          row = stats[name] ||= {
+            'name' => name, 'visible' => !!entity.layer.visible?, 'active' => (m.active_layer == entity.layer),
+            'entity_count' => 0, 'face_count' => 0, 'edge_count' => 0,
+            'group_count' => 0, 'component_count' => 0, 'abf' => name.upcase.start_with?('ABF_')
+          }
+          row['entity_count'] += 1
+          row['face_count'] += 1 if entity.is_a?(Sketchup::Face)
+          row['edge_count'] += 1 if entity.is_a?(Sketchup::Edge)
+          row['group_count'] += 1 if entity.is_a?(Sketchup::Group)
+          row['component_count'] += 1 if entity.is_a?(Sketchup::ComponentInstance)
+          if entity.is_a?(Sketchup::Group) || entity.is_a?(Sketchup::ComponentInstance)
+            walk.call(entity.definition.entities, depth + 1)
+          end
+        end
+      end
+      roots.each { |root| walk.call([root], 0) }
+      stats.values.sort_by { |row| row['name'].downcase }
+    rescue StandardError => error
+      puts "[TT Tag inventory] #{error.class}: #{error.message}"
+      m ? m.layers.to_a.map { |tag| { 'name' => tag.name.to_s, 'visible' => !!tag.visible?, 'active' => (m.active_layer == tag), 'entity_count' => 0, 'face_count' => 0, 'edge_count' => 0, 'abf' => tag.name.to_s.upcase.start_with?('ABF_') } } : []
+    end
 
     # Quản lý Tags/Layers trực tiếp trong model, không xóa hoặc sửa hình học.
     def tag_inventory
