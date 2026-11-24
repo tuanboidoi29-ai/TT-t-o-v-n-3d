@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.372",
+  "version": "1.9.373",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "1.9.372: Thêm công cụ THIẾT KẾ & IN TEM NHÃN độc lập trong SketchUp với icon/menu riêng; website chỉ kiểm tra và xem Model 3D, tra cứu QR.",
+  "notes": "1.9.373: Công cụ THIẾT KẾ & IN TEM NHÃN quét Group trực tiếp sau Group Nesting đúng 1 cấp; sơ đồ tem hiển thị tam giác cạnh dán bên trong đường viền, đầu nhọn hướng vào cạnh tương ứng.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "f5dc3c73d7cfde82d624b60df6832daa889b796010346b015d8b03b7442a23e7"
+      "sha256": "16cc930bfcb66b6c2a106c3fa990765e9a9213edf748fc669583cf7ce1ecf249"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -509,7 +509,7 @@
     {
       "path": "tran_tuan_noi_that/label_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/label_tool.rb",
-      "sha256": "c399ccb5f9ffbc0950dc3b4c592c75ba7603c26f1163c7d5da9866a47a751bfe"
+      "sha256": "9f8b6cce9806250a5598774f1e53eea7f9654124a564475d37b5f5418a474f52"
     },
     {
       "path": "tran_tuan_noi_that/icons/label.svg",
