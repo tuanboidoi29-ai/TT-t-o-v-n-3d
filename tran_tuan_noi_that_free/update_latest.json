@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.371",
+  "version": "1.9.372",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "1.9.371: Nhận diện đầy đủ Tags/Layers lồng nhau, thống kê số mặt/cạnh/đối tượng, xuất cả Edge gắn ABF_ và hiển thị tên Tag trên từng đối tượng; giữ các chức năng Web hiện có.",
+  "notes": "1.9.372: Thêm công cụ THIẾT KẾ & IN TEM NHÃN độc lập trong SketchUp với icon/menu riêng; website chỉ kiểm tra và xem Model 3D, tra cứu QR.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "6e05044be980f25cc6e2130743524b4cc60bcfc2edf3f18156bb5e49aecc5b52"
+      "sha256": "f5dc3c73d7cfde82d624b60df6832daa889b796010346b015d8b03b7442a23e7"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -319,7 +319,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "cb440a897b63b737f33d3d5cf96a1fd142c6ed596618188cc4a642f8c059bed2"
+      "sha256": "3d6fe922dbefb13592b96b664899e15ad41a2e82b7033b03a115becb3c2670f1"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -505,6 +505,16 @@
       "path": "tran_tuan_noi_that/icons/model_export.svg",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/icons/model_export.svg",
       "sha256": "0ab71bb000e1a8634bc8a3d014c52e87e018beee7f385536595175909f30920a"
+    },
+    {
+      "path": "tran_tuan_noi_that/label_tool.rb",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/label_tool.rb",
+      "sha256": "c399ccb5f9ffbc0950dc3b4c592c75ba7603c26f1163c7d5da9866a47a751bfe"
+    },
+    {
+      "path": "tran_tuan_noi_that/icons/label.svg",
+      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/icons/label.svg",
+      "sha256": "bd2cf704bb9730f4d3de9993d5edf89624e1032ab7d5edf3e3711aa7aa3e1d55"
     }
   ],
   "stretch_mode_version": "1.0.1",
