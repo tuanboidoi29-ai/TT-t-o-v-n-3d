@@ -207,14 +207,14 @@ function buildThreeGeometry(){
   (state.model3d||[]).forEach(root=>{
     (Array.isArray(root.triangles)?root.triangles:[]).forEach(tri=>{
       if(hiddenTags.has(String(tri.tag||root.tag||'')))return;
-      const uid=String(tri.object_uid||root.uid||root.id||'');
+      const uid=String(tri.object_uid||tri.oid||root.uid||root.id||'');
       if(!triGroups.has(uid))triGroups.set(uid,[]);
       triGroups.get(uid).push(tri);
     });
   });
   (state.edges||[]).forEach(edge=>{
-    if(hiddenTags.has(String(edge.tag||'')))return;
-    const uid=String(edge.object_uid||'');
+    if(hiddenTags.has(String(edge.tag||edge.t||'')))return;
+    const uid=String(edge.object_uid||edge.o||'');
     if(!edgeGroups.has(uid))edgeGroups.set(uid,[]);
     edgeGroups.get(uid).push(edge);
   });
