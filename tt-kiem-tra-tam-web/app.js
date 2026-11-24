@@ -220,6 +220,8 @@ function fillLabelQrs(host,items){
 function renderLabelPreview(){
   const host=$('#labelPreview');if(!host)return;
   const selected=labelSelected(),items=selected.slice(0,6);
+  const width=Math.max(20,Math.min(300,Number($('#labelWidth')?.value)||70)),height=Math.max(15,Math.min(300,Number($('#labelHeight')?.value)||40));
+  host.style.setProperty('--label-w',width+'mm');host.style.setProperty('--label-h',height+'mm');
   host.innerHTML=items.map(labelMarkup).join('')||'<div class="labelPreviewEmpty">Chọn đối tượng ở danh sách để xem trước tem.</div>';
   fillLabelQrs(host,items);
   $('#labelPreviewCount').textContent=selected.length>6?'Đang xem 6 / '+selected.length+' tem':selected.length+' tem xem trước';
@@ -235,10 +237,13 @@ function printObjectLabels(){
   grid.classList.remove('hidden');setTimeout(()=>window.print(),300);
 }
 function bindLabels(){
+  $('#labelWorkshop').value=localStorage.getItem('tt_label_workshop')||'XƯỞNG TRẦN TUẤN';
+  $('#labelWidth').value=localStorage.getItem('tt_label_width')||'70';
+  $('#labelHeight').value=localStorage.getItem('tt_label_height')||'40';
   $('#labelObjectSearch').oninput=renderLabelObjectList;
   $('#labelSelectAll').onclick=()=>selectAllLabelObjects(true);
   $('#labelSelectNone').onclick=()=>selectAllLabelObjects(false);
-  ['labelWorkshop','labelWidth','labelHeight','labelIncludeQr'].forEach(id=>$('#'+id).addEventListener('input',renderLabelPreview));
+  ['labelWorkshop','labelWidth','labelHeight','labelIncludeQr'].forEach(id=>$('#'+id).addEventListener('input',()=>{if(id==='labelWorkshop')localStorage.setItem('tt_label_workshop',$('#labelWorkshop').value);if(id==='labelWidth')localStorage.setItem('tt_label_width',$('#labelWidth').value);if(id==='labelHeight')localStorage.setItem('tt_label_height',$('#labelHeight').value);renderLabelPreview()}));
   $('#labelPrintBtn').onclick=printObjectLabels;
   $('#labelSelectCurrent').onclick=()=>{const uid=String(state.selectedObject||'');if(uid){state.labelSelectedUids=[...new Set([...state.labelSelectedUids,uid])];renderLabelObjectList();renderLabelPreview()}};
   $('#openLabelFeatureBtn').onclick=()=>$('#labelPanel').scrollIntoView({behavior:'smooth',block:'start'});
