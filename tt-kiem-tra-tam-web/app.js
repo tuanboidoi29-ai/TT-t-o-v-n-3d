@@ -89,31 +89,42 @@ function loadModel(model){
 
 function tagInventory(){
   const counts=new Map();
-  (state.tags||[]).forEach(t=>{const name=String(t.name||t.tag||'').trim();if(name)counts.set(name,Number(t.entity_count||0))});
-  (state.model3d||[]).forEach(obj=>{
-    const fallback=String(obj.tag||'').trim();
-    (Array.isArray(obj.triangles)?obj.triangles:[]).forEach(tri=>{
-      const tag=String(tri.tag||fallback).trim();
-      if(tag)counts.set(tag,(counts.get(tag)||0)+1);
-    });
-    if(fallback&&!counts.has(fallback))counts.set(fallback,0);
-  });
-  return [...counts.entries()].sort((a,b)=>a[0].localeCompare(b[0],'vi')).map(([name,count])=>({name,count}));
+  const ensure=name=>{const n=String(name||'').trim();if(!n)return null;if(!counts.has(n))counts.set(n,{name:n,entities:0,faces:0,edges:0,abf:n.toUpperCase().startsWith('ABF_')});return counts.get(n)};
+  (state.tags||[]).forEach(t=>{const row=ensure(t.name||t.tag);if(row){row.entities=Math.max(row.entities,Number(t.entity_count||0));row.faces=Math.max(row.faces,Number(t.face_count||0));row.edges=Math.max(row.edges,Number(t.edge_count||0));row.abf=row.abf||!!t.abf;row.visible=t.visible!==false}});
+  (state.model3d||[]).forEach(obj=>{const row=ensure(obj.tag);if(row)row.entities=Math.max(row.entities,1)});
+  (state.model3d||[]).forEach(obj=>(Array.isArray(obj.triangles)?obj.triangles:[]).forEach(tri=>{const row=ensure(tri.tag||obj.tag);if(row)row.faces++}));
+  (state.edges||[]).forEach(edge=>{const row=ensure(edge.tag||edge.t);if(row)row.edges++});
+  return [...counts.values()].sort((a,b)=>a.name.localeCompare(b.name,'vi'));
+}
+function toggleWebTag(tag,visible){
+  state.hiddenTags=visible?state.hiddenTags.filter(x=>x!==tag):[...new Set([...state.hiddenTags,tag])];
+  renderTagFilters();drawModel();
+}
+function renderAbfQuickFilters(){
+  const host=$('#abfTagQuickFilters');if(!host)return;
+  const tags=tagInventory().filter(t=>t.name.toUpperCase().startsWith('ABF_'));
+  host.innerHTML=tags.map(t=>'<button type="button" class="tagQuickBtn '+(state.hiddenTags.includes(t.name)?'off':'on')+'" data-abf-tag="'+esc(t.name)+'" aria-pressed="'+(!state.hiddenTags.includes(t.name))+'"><b>'+esc(t.name)+'</b><small>'+t.edges.toLocaleString('vi-VN')+' cạnh · '+t.faces.toLocaleString('vi-VN')+' mặt</small></button>').join('')||'<span class="smallHint">Không có Tag bắt đầu bằng ABF_ trong model này.</span>';
+  host.querySelectorAll('[data-abf-tag]').forEach(btn=>btn.onclick=()=>toggleWebTag(btn.dataset.abfTag,state.hiddenTags.includes(btn.dataset.abfTag)));
 }
 function renderTagFilters(){
   const host=$('#webTagFilters');if(!host)return;
   const tags=tagInventory();
-  if(!tags.length){host.innerHTML='<span class="smallHint">Model chưa có dữ liệu Tags trên các mặt 3D.</span>';return}
-  host.innerHTML=tags.map(t=>'<label class="webTagItem"><input type="checkbox" data-web-tag="'+esc(t.name)+'" '+(state.hiddenTags.includes(t.name)?'':'checked')+'><span>'+esc(t.name)+'</span><small>'+t.count.toLocaleString('vi-VN')+' mặt</small></label>').join('');
-  host.querySelectorAll('[data-web-tag]').forEach(input=>input.addEventListener('change',()=>{
-    const tag=input.dataset.webTag;
-    state.hiddenTags=input.checked?state.hiddenTags.filter(x=>x!==tag):[...state.hiddenTags,tag];
-    drawModel();
-  }));
+  if(!tags.length){host.innerHTML='<span class="smallHint">Model chưa có dữ liệu Tags/Layers.</span>';renderAbfQuickFilters();return}
+  host.innerHTML=tags.map(t=>'<label class="webTagItem"><input type="checkbox" data-web-tag="'+esc(t.name)+'" '+(state.hiddenTags.includes(t.name)?'':'checked')+'><span><b>'+esc(t.name)+'</b>'+(t.abf?'<em>ABF_</em>':'')+'</span><small>'+t.entities.toLocaleString('vi-VN')+' đối tượng · '+t.edges.toLocaleString('vi-VN')+' cạnh · '+t.faces.toLocaleString('vi-VN')+' mặt</small></label>').join('');
+  host.querySelectorAll('[data-web-tag]').forEach(input=>input.addEventListener('change',()=>toggleWebTag(input.dataset.webTag,input.checked)));
+  renderAbfQuickFilters();
 }
 function setAllWebTags(visible){
   state.hiddenTags=visible?[]:tagInventory().map(t=>t.name);
   renderTagFilters();drawModel();
+}
+function tagNamesForObject(o){
+  if(!o)return [];
+  const uid=String(o.uid||o.id||'');const names=new Set();
+  if(o.tag)names.add(String(o.tag));
+  (state.model3d||[]).forEach(root=>(root.triangles||[]).forEach(tri=>{if(String(tri.oid||tri.object_uid||root.uid||'')===uid&&tri.tag)names.add(String(tri.tag))}));
+  (state.edges||[]).forEach(edge=>{if(String(edge.o||edge.object_uid||'')===uid&&(edge.t||edge.tag))names.add(String(edge.t||edge.tag))});
+  return [...names].sort((a,b)=>a.localeCompare(b,'vi'));
 }
 function findBoard(token){const t=String(token||'').trim();return state.panels.find(p=>[p.uid,p.panel_uid,p.code,p.ma_tam,p.id].map(String).includes(t))||null}
 function findObject(token){const t=String(token||'').trim();return state.objects.find(o=>[o.uid,o.id,o.persistent_id,o.code].map(String).includes(t))||state.model3d.find(o=>[o.uid,o.id,o.persistent_id].map(String).includes(t))||null}
@@ -158,7 +169,7 @@ async function loadHistory(){
 
 function renderObjects(){const q=($('#modelObjectSearch')?.value||'').trim().toLowerCase();const rows=state.objects.filter(o=>[o.name,o.uid,o.type,o.tag,o.material,(o.dimensions||[]).join(' ')].join(' ').toLowerCase().includes(q));$('#modelObjectCount').textContent=rows.length+'/'+state.objects.length;$('#modelObjectList').innerHTML=rows.map(o=>'<button type="button" class="modelObjectRow '+(String(o.uid||o.id||'')===String(state.selectedObject)?'selected':'')+'" data-openobj="'+esc(o.uid||o.id||'')+'"><b>'+esc(o.name||'Đối tượng chưa đặt tên')+'</b><span>'+esc(o.type||'Object')+' · '+esc((o.dimensions||[]).join(' × '))+' mm</span><small>'+esc(o.material_status||'Chưa xác định trạng thái vật liệu')+'</small><small>'+esc(o.path||o.tag||o.uid||'')+'</small></button>').join('')||'<div class="muted modelEmpty">Không có đối tượng phù hợp.</div>';document.querySelectorAll('[data-openobj]').forEach(b=>b.onclick=()=>{const o=findObject(b.dataset.openobj);if(o){openObject(o);renderObjects();const target=document.querySelector('[data-openobj="'+CSS.escape(b.dataset.openobj)+'"]');target?.scrollIntoView({block:'nearest',behavior:'smooth'})}})}
 function openObject(o){const uid=String(o.uid||o.id||'');state.selectedObject=uid;drawModel();renderObjects();renderObjectDetail();setStatus('ĐÃ LÀM SÁNG: '+(o.name||uid),'ok')}
-function renderObjectDetail(){const host=$('#objectDetails');if(!host)return;const o=findObject(state.selectedObject);if(!o){host.innerHTML='<div class="objectDetailsEmpty">Chọn tên đối tượng để xem thông tin chi tiết tại đây.</div>';return}const uid=o.uid||o.id||'',items=[['Tên đối tượng',o.name||'—'],['Mã định danh',uid||'—'],['Loại',o.type||'—'],['Cấp Group',o.depth??'—'],['Đường dẫn trong Model',o.path||'—'],['Kích thước bao',(o.dimensions||[]).join(' × ')+' mm'],['Group con trực tiếp',o.child_count??0],['Tag / Layer',o.tag||'—'],['Vật liệu',o.material||'—'],['Trạng thái vật liệu',o.material_status||'Chưa xác định'],['Mặt có texture / vân',o.material_textures??0],['Mặt có màu đơn sắc',o.material_colors??0],['Mặt chưa gán vật liệu',o.material_unassigned??0],['Persistent ID',o.persistent_id||'—'],['Số tam giác 3D',o.triangle_count||0]];host.innerHTML='<div class="objectDetailsHead"><b>CHI TIẾT ĐỐI TƯỢNG ĐANG CHỌN</b><button type="button" class="secondary" id="objectQrButton">HIỆN MÃ QR</button></div><div class="detailGrid">'+items.map((x,i)=>'<div class="detailItem '+(i===0?'wide':'')+'"><span>'+esc(x[0])+'</span><b>'+esc(x[1])+'</b></div>').join('')+'</div><div id="objectDetailQr" class="qrHolder"></div><p class="objectMeta">Quét QR bằng camera điện thoại để mở đúng đối tượng trong trang xem Model.</p>';$('#objectQrButton').onclick=()=>showObjectQr(uid,$('#objectDetailQr'))}
+function renderObjectDetail(){const host=$('#objectDetails');if(!host)return;const o=findObject(state.selectedObject);if(!o){host.innerHTML='<div class="objectDetailsEmpty">Chọn tên đối tượng để xem thông tin chi tiết tại đây.</div>';return}const uid=o.uid||o.id||'',tags=tagNamesForObject(o),abf=tags.filter(t=>t.toUpperCase().startsWith('ABF_')),edgeCount=(state.edges||[]).filter(e=>String(e.o||e.object_uid||'')===String(uid)).length,items=[['Tên đối tượng / nhãn',o.name||'—'],['Mã định danh',uid||'—'],['Loại',o.type||'—'],['Cấp Group',o.depth??'—'],['Đường dẫn trong Model',o.path||'—'],['Kích thước bao',(o.dimensions||[]).join(' × ')+' mm'],['Group con trực tiếp',o.child_count??0],['Tag / Layer trực tiếp',o.tag||'Untagged'],['Tất cả Tag/Layers gắn trong đối tượng',tags.join(' · ')||'Không có'],['Tag ABF_ / cạnh dán',abf.join(' · ')||'Không có'],['Số cạnh hình học đã xuất',edgeCount],['Vật liệu',o.material||'—'],['Trạng thái vật liệu',o.material_status||'Chưa xác định'],['Mặt có texture / vân',o.material_textures??0],['Mặt có màu đơn sắc',o.material_colors??0],['Mặt chưa gán vật liệu',o.material_unassigned??0],['Persistent ID',o.persistent_id||'—'],['Số tam giác 3D',o.triangle_count||0]];host.innerHTML='<div class="objectDetailsHead"><b>CHI TIẾT ĐỐI TƯỢNG ĐANG CHỌN</b><button type="button" class="secondary" id="objectQrButton">HIỆN MÃ QR</button></div><div class="detailGrid">'+items.map((x,i)=>'<div class="detailItem '+(i===0||i===8||i===9?'wide':'')+'"><span>'+esc(x[0])+'</span><b>'+esc(x[1])+'</b></div>').join('')+'</div><div id="objectDetailQr" class="qrHolder"></div><p class="objectMeta">Quét QR bằng camera điện thoại để mở đúng đối tượng trong trang xem Model.</p>';$('#objectQrButton').onclick=()=>showObjectQr(uid,$('#objectDetailQr'))}
 function showObjectQr(uid,holder){const o=findObject(uid);if(!o||!holder)return;holder.innerHTML='';const url=objectLink(o);if(window.QRCode){new QRCode(holder,{text:url,width:132,height:132,correctLevel:QRCode.CorrectLevel.M})}else{holder.textContent=url}}
 function printAllQrs(){const grid=$('#qrPrintGrid');grid.innerHTML='';state.objects.forEach(o=>{const card=document.createElement('div');card.className='qrPrintCard';const title=document.createElement('b');title.textContent=o.name||'Đối tượng';const code=document.createElement('small');code.textContent=o.uid||'';const qr=document.createElement('div');qr.className='qrPrintCode';card.append(title,code,qr);grid.appendChild(card);if(window.QRCode)new QRCode(qr,{text:objectLink(o),width:112,height:112,correctLevel:QRCode.CorrectLevel.M});else qr.textContent=objectLink(o)});grid.classList.remove('hidden');setTimeout(()=>window.print(),350)}
 window.onafterprint=()=>$('#qrPrintGrid').classList.add('hidden');
