@@ -30,7 +30,7 @@ function renderSavedProjects(){
   const markup=rows.map(p=>'<button type="button" class="savedProjectRow" data-saved-id="'+esc(p.share_id)+'"><b>'+esc(p.name)+'</b><span>'+esc(p.share_id)+' · Rev '+Number(p.revision||1)+'</span><small>'+new Date(p.saved_at).toLocaleString('vi-VN')+'</small></button>').join('')||'<span class="smallHint">Chưa có dự án được lưu trên thiết bị này. Mở dự án một lần để lưu vào danh sách.</span>';
   ['#savedProjectList','#savedProjectListLogin'].forEach(sel=>{const node=$(sel);if(!node)return;node.innerHTML=markup;node.querySelectorAll('[data-saved-id]').forEach(b=>b.onclick=()=>{state.shareId=b.dataset.savedId;$('#projectLogin').value='';login()})});
 }
-function showApp(){ $('#loginCard').classList.add('hidden'); ['#projectCard','#modelPanel','#groupPanel','#historyPanel','#productionPanel','#controls','#summary'].forEach(s=>$(s).classList.remove('hidden')); $('#logoutBtn').classList.remove('hidden'); }
+function showApp(){ $('#loginCard').classList.add('hidden'); ['#projectCard','#modelPanel','#groupPanel','#historyPanel','#controls','#summary'].forEach(s=>$(s).classList.remove('hidden')); $('#logoutBtn').classList.remove('hidden'); }
 function hideApp(){ $('#loginCard').classList.remove('hidden'); ['#projectCard','#modelPanel','#groupPanel','#historyPanel','#productionPanel','#controls','#summary'].forEach(s=>$(s).classList.add('hidden')); $('#logoutBtn').classList.add('hidden'); $('#list').innerHTML=''; $('#modelObjectList').innerHTML=''; $('#groupTree').innerHTML=''; $('#historyList').innerHTML=''; }
 
 async function login(){
@@ -66,7 +66,7 @@ function loadModel(model){
   textureCache.forEach(t=>t.dispose());textureCache.clear();
   state.groupTree=Array.isArray(p.group_tree)?p.group_tree:[];
   state.hiddenTags=state.tags.filter(t=>t.visible===false).map(t=>String(t.name||''));
-  state.selectedObject='';
+  state.selectedObject='';state.mutedMaterialObjects=[];state.productionScanned=[];state.productionMode=false;
   $('#modelName').textContent=state.model.model_name||p.model_name||'SketchUp Model';
   $('#modelId').textContent='Mã: '+state.shareId;
   $('#savedAt').textContent='Lưu: '+new Date(state.model.last_saved_at||state.model.updated_at||Date.now()).toLocaleString('vi-VN');
@@ -173,7 +173,7 @@ function toggleSelectedMaterial(){
   const uid=String(state.selectedObject||'');if(!uid)return;
   const set=new Set(state.mutedMaterialObjects||[]);
   if(set.has(uid))set.delete(uid);else set.add(uid);
-  state.mutedMaterialObjects=[...set];ttThreeModelRef=null;drawModel();renderObjectDetail();
+  state.mutedMaterialObjects=[...set];ttThreeModelRef=null;drawModel();renderObjectDetail();syncMaterialToggle();
   const muted=set.has(uid);setStatus(muted?'ĐÃ TẮT MÀU / VẬT LIỆU ĐỐI TƯỢNG':'ĐÃ KHÔI PHỤC MÀU / VẬT LIỆU GỐC','ok');
 }
 function syncMaterialToggle(){
