@@ -30,8 +30,8 @@ function renderSavedProjects(){
   const markup=rows.map(p=>'<button type="button" class="savedProjectRow" data-saved-id="'+esc(p.share_id)+'"><b>'+esc(p.name)+'</b><span>'+esc(p.share_id)+' · Rev '+Number(p.revision||1)+'</span><small>'+new Date(p.saved_at).toLocaleString('vi-VN')+'</small></button>').join('')||'<span class="smallHint">Chưa có dự án được lưu trên thiết bị này. Mở dự án một lần để lưu vào danh sách.</span>';
   ['#savedProjectList','#savedProjectListLogin'].forEach(sel=>{const node=$(sel);if(!node)return;node.innerHTML=markup;node.querySelectorAll('[data-saved-id]').forEach(b=>b.onclick=()=>{state.shareId=b.dataset.savedId;$('#projectLogin').value='';login()})});
 }
-function showApp(){ $('#loginCard').classList.add('hidden'); ['#projectCard','#modelPanel','#groupPanel','#historyPanel','#controls','#summary'].forEach(s=>$(s).classList.remove('hidden')); $('#logoutBtn').classList.remove('hidden'); }
-function hideApp(){ $('#loginCard').classList.remove('hidden'); ['#projectCard','#modelPanel','#groupPanel','#historyPanel','#controls','#summary'].forEach(s=>$(s).classList.add('hidden')); $('#logoutBtn').classList.add('hidden'); $('#list').innerHTML=''; $('#modelObjectList').innerHTML=''; $('#groupTree').innerHTML=''; $('#historyList').innerHTML=''; }
+function showApp(){ $('#loginCard').classList.add('hidden'); ['#projectCard','#modelPanel','#groupPanel','#historyPanel','#productionPanel','#controls','#summary'].forEach(s=>$(s).classList.remove('hidden')); $('#logoutBtn').classList.remove('hidden'); }
+function hideApp(){ $('#loginCard').classList.remove('hidden'); ['#projectCard','#modelPanel','#groupPanel','#historyPanel','#productionPanel','#controls','#summary'].forEach(s=>$(s).classList.add('hidden')); $('#logoutBtn').classList.add('hidden'); $('#list').innerHTML=''; $('#modelObjectList').innerHTML=''; $('#groupTree').innerHTML=''; $('#historyList').innerHTML=''; }
 
 async function login(){
   const login=$('#projectLogin').value.trim();
@@ -426,6 +426,7 @@ function registerProductionQr(raw){
   if(state.productionScanned.includes(uid)){const st=$('#scanStatus');if(st)st.textContent='ĐÃ QUÉT TRƯỚC ĐÓ: '+(obj.name||uid);return true}
   state.productionScanned.push(uid);renderProductionCheck();
   const st=$('#scanStatus');if(st)st.textContent='ĐÃ NHẬN: '+(obj.name||uid)+' · '+state.productionScanned.length+'/'+expected.length;
+  setTimeout(()=>{if(state.stream&&state.productionMode)state.scanLoop=requestAnimationFrame(scanFrame)},650);
   return true;
 }
 function productionDimensions(o){const d=Array.isArray(o.dimensions)?o.dimensions:[];return d.length?d.map(v=>Number(v).toFixed(Number(v)%1?1:0)).join(' × ')+' mm':'Chưa có kích thước'}
@@ -438,18 +439,18 @@ function renderProductionCheck(){
   $('#productionScannedCount').textContent=scanned.size;
   $('#productionMissingCount').textContent=missing.length;
   const rows=(items,kind)=>items.map(o=>{const uid=String(o.uid||o.id||''),dim=productionDimensions(o);return '<button type="button" class="productionItem '+kind+'" data-production-object="'+esc(uid)+'"><span class="productionItemName"><b>'+esc(o.name||'Cấu kiện chưa đặt tên')+'</b><small>'+esc(uid)+'</small></span><span class="productionItemMeta">'+esc(dim)+'<small>'+esc(o.path||'')+'</small></span><span class="productionItemAction">'+(kind==='missing'?'CÒN THIẾU':'ĐÃ QUÉT')+' · XEM 3D</span></button>'}).join('');
-  host.innerHTML=expected.length?'<div class="productionResultHead"><b>'+ (missing.length?'CÒN THIẾU '+missing.length+' CẤU KIỆN':'ĐÃ QUÉT ĐỦ TẤT CẢ CẤU KIỆN')+'</b><span>'+scanned.size+' / '+expected.length+'</span></div><div class="productionList">'+rows(missing,'missing')+'</div>':'<div class="productionEmpty">Model chưa có danh sách cấu kiện cuối cùng. Hãy đồng bộ Model có Group/Component cấu kiện.</div>';
+  const done=expected.filter(o=>scanned.has(String(o.uid||o.id||'')));host.innerHTML=expected.length?'<div class="productionResultHead"><b>'+ (missing.length?'CÒN THIẾU '+missing.length+' CẤU KIỆN':'ĐÃ QUÉT ĐỦ TẤT CẢ CẤU KIỆN')+'</b><span>'+scanned.size+' / '+expected.length+'</span></div><div class="productionList">'+rows(missing,'missing')+'</div><details class="productionDone"><summary>ĐÃ QUÉT ĐƯỢC '+done.length+' CẤU KIỆN</summary><div class="productionList">'+rows(done,'done')+'</div></details>':'<div class="productionEmpty">Model chưa có danh sách cấu kiện cuối cùng. Hãy đồng bộ Model có Group/Component cấu kiện.</div>';
   host.querySelectorAll('[data-production-object]').forEach(b=>b.onclick=()=>{const o=findObject(b.dataset.productionObject);if(o){openObject(o);$('#modelPanel').scrollIntoView({behavior:'smooth',block:'start'})}});
   const result=$('#productionStatus');
   if(result){result.className='productionStatus '+(expected.length&&missing.length===0?'success':'warning');result.textContent=!expected.length?'CHƯA CÓ DỮ LIỆU CẤU KIỆN':missing.length?'CHƯA ĐỦ CẤU KIỆN — CẦN KIỂM TRA DANH SÁCH CÒN THIẾU':'ĐÃ QUÉT ĐỦ CẤU KIỆN — KÍCH THƯỚC THEO MODEL ĐÃ CÓ, SẴN SÀNG ĐỐI CHIẾU LẮP ĐẶT';}
 }
 function startProductionCheck(){
   if(!state.model){setStatus('HÃY MỞ DỰ ÁN TRƯỚC KHI KIỂM TRA','bad');return}
-  state.productionMode=true;state.productionScanned=[];renderProductionCheck();
+  state.productionMode=true;state.productionScanned=[];renderProductionCheck();$('#productionPanel').classList.remove('hidden');$('#productionPanel').scrollIntoView({behavior:'smooth',block:'start'});
   $('#scanDialog').showModal();$('#scanDialog .eyebrow').textContent='KIỂM TRA CẤU KIỆN SẢN XUẤT';$('#scanDialog h3').textContent='Quét liên tục QR cấu kiện';$('#scanStatus').textContent='Bật camera và lần lượt đưa từng tem QR vào khung quét.';
 }
 function finishProductionCheck(){
-  state.productionMode=false;stopScanner();if($('#scanDialog').open)$('#scanDialog').close();
+  state.productionMode=false;stopScanner();if($('#scanDialog').open)$('#scanDialog').close();$('#scanDialog .eyebrow').textContent='CAMERA QR';$('#scanDialog h3').textContent='Quét mã tem / QR dự án';
   renderProductionCheck();
 }
 function handleQrResult(){
