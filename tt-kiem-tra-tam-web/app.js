@@ -65,7 +65,7 @@ function loadModel(model){
   state.tags=Array.isArray(p.tags)?p.tags:[];
   textureCache.forEach(t=>t.dispose());textureCache.clear();
   state.groupTree=Array.isArray(p.group_tree)?p.group_tree:[];
-  state.hiddenTags=[];
+  state.hiddenTags=state.tags.filter(t=>t.visible===false).map(t=>String(t.name||''));
   state.selectedObject='';
   $('#modelName').textContent=state.model.model_name||p.model_name||'SketchUp Model';
   $('#modelId').textContent='Mã: '+state.shareId;
