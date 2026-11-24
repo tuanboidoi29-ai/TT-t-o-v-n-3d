@@ -83,7 +83,7 @@ function loadModel(model){
   const th=[...new Set(state.panels.map(thickness).filter(Boolean))].sort((a,b)=>num(a)-num(b));
   $('#thicknessFilter').innerHTML='<option value="">Tất cả độ dày</option>'+th.map(v=>'<option value="'+esc(v)+'">'+esc(v)+' mm</option>').join('');
   state.viewMode='color';showApp();render();renderObjects();renderGroups();renderTagFilters();drawModel();renderObjectDetail();syncMaterialToggle();renderProductionCheck();loadHistory();const texturedTriangles=state.model3d.reduce((n,o)=>n+(Array.isArray(o.triangles)?o.triangles.filter(t=>t.tex||t.btex).length:0),0);if(materialTotals.textured>0&&(!Object.keys(state.textures).length||!texturedTriangles)){setStatus('CẢNH BÁO: MODEL CÓ MẶT GÁN TEXTURE NHƯNG DỮ LIỆU ẢNH/UV CHƯA ĐƯỢC ĐỒNG BỘ ĐẦY ĐỦ','bad')}else{setStatus(Object.keys(state.textures).length&&texturedTriangles?'MODEL 3D ĐANG HIỂN THỊ VẬT LIỆU & VÂN THỰC TẾ':'MODEL 3D MÀU ĐƠN SẮC ĐANG HIỂN THỊ','ok')}
-  if(state.pendingObject){const hit=findObject(state.pendingObject);state.pendingObject='';if(hit)setTimeout(()=>{state.selectedObject=String(hit.uid||hit.id||'');renderObjects();drawModel();renderObjectDetail();},100);}
+  if(state.pendingObject){const hit=findObject(state.pendingObject);state.pendingObject='';if(hit)setTimeout(()=>{state.selectedObject=String(hit.uid||hit.id||'');renderObjects();drawModel();renderObjectDetail();syncMaterialToggle();},100);}
   else if(state.pendingBoard){const hit=findBoard(state.pendingBoard);state.pendingBoard='';if(hit)setTimeout(()=>openDetail(hit),100);}
 }
 
@@ -414,20 +414,20 @@ function parseQr(raw){
 function productionExpected(){
   return state.objects.filter(o=>o.is_board===true||Number(o.child_count||0)===0);
 }
+function resumeProductionScanner(){setTimeout(()=>{if(state.stream&&state.productionMode)state.scanLoop=requestAnimationFrame(scanFrame)},550)}
 function registerProductionQr(raw){
   const s=String(raw||'').trim();let token=s,project='';
   try{const u=new URL(s);project=u.searchParams.get('id')||'';token=u.searchParams.get('object')||u.searchParams.get('board')||''}catch(e){}
-  if(project&&project!==String(state.shareId)){const st=$('#scanStatus');if(st)st.textContent='QR THUỘC DỰ ÁN KHÁC — KHÔNG GHI NHẬN';return true}
+  if(project&&project!==String(state.shareId)){const st=$('#scanStatus');if(st)st.textContent='QR THUỘC DỰ ÁN KHÁC — KHÔNG GHI NHẬN';resumeProductionScanner();return true}
   const obj=findObject(token)||findBoard(token);
-  if(!obj){const st=$('#scanStatus');if(st)st.textContent='Không tìm thấy cấu kiện trong Model: '+token;return true}
+  if(!obj){const st=$('#scanStatus');if(st)st.textContent='Không tìm thấy cấu kiện trong Model: '+token;resumeProductionScanner();return true}
   const uid=String(obj.uid||obj.id||obj.code||'');
   const expected=productionExpected();
-  if(!expected.some(o=>String(o.uid||o.id||'')===uid)){const st=$('#scanStatus');if(st)st.textContent='Mã QR này không phải cấu kiện sản xuất cuối cùng: '+(obj.name||uid);return true}
-  if(state.productionScanned.includes(uid)){const st=$('#scanStatus');if(st)st.textContent='ĐÃ QUÉT TRƯỚC ĐÓ: '+(obj.name||uid);return true}
+  if(!expected.some(o=>String(o.uid||o.id||'')===uid)){const st=$('#scanStatus');if(st)st.textContent='Mã QR này không phải cấu kiện sản xuất cuối cùng: '+(obj.name||uid);resumeProductionScanner();return true}
+  if(state.productionScanned.includes(uid)){const st=$('#scanStatus');if(st)st.textContent='ĐÃ QUÉT TRƯỚC ĐÓ: '+(obj.name||uid);resumeProductionScanner();return true}
   state.productionScanned.push(uid);renderProductionCheck();
   const st=$('#scanStatus');if(st)st.textContent='ĐÃ NHẬN: '+(obj.name||uid)+' · '+state.productionScanned.length+'/'+expected.length;
-  setTimeout(()=>{if(state.stream&&state.productionMode)state.scanLoop=requestAnimationFrame(scanFrame)},650);
-  return true;
+  resumeProductionScanner();return true;
 }
 function productionDimensions(o){const d=Array.isArray(o.dimensions)?o.dimensions:[];return d.length?d.map(v=>Number(v).toFixed(Number(v)%1?1:0)).join(' × ')+' mm':'Chưa có kích thước'}
 function renderProductionCheck(){
