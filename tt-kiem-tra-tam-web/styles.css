@@ -91,3 +91,18 @@ input,select{background:#fff!important;color:#172033!important;border-color:#cbd
 @media(max-width:720px){.viewerControls{align-items:stretch}.rangeControl{flex:1 1 100%;grid-template-columns:100px 1fr 42px}.savedProjectList{grid-template-columns:1fr}}
 
 .loginSavedProjects{margin-top:18px;text-align:left}.loginSavedProjects .savedProjectsHead{font-size:11px}
+
+/* Compact controls for named ABF_ tags and complete layer inventory */
+.tagQuickBlock,.tagAllHead{margin-top:14px;display:grid;gap:8px}
+.tagQuickBlock>b,.tagAllHead>b{font-size:11px;color:#1e40af}
+.abfTagQuickFilters{display:flex;gap:7px;flex-wrap:wrap}
+.tagQuickBtn{display:grid;gap:3px;min-width:150px;max-width:100%;text-align:left;padding:8px 10px;border:1px solid #86b9a2;border-radius:8px;background:#ecfdf5;color:#065f46;cursor:pointer}
+.tagQuickBtn b{font-size:11px;overflow-wrap:anywhere}
+.tagQuickBtn small{font-size:9px;color:#477567}
+.tagQuickBtn.off{background:#f1f5f9;border-color:#cbd5e1;color:#64748b}
+.tagQuickBtn.off small{color:#64748b}
+.tagAllHead{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.webTagItem{display:grid;grid-template-columns:auto minmax(100px,1fr);align-items:center;column-gap:7px;row-gap:3px;max-width:100%;min-width:180px}
+.webTagItem>span{overflow-wrap:anywhere;font-size:11px}
+.webTagItem>span em{font-style:normal;font-size:9px;font-weight:800;color:#047857;margin-left:5px}
+.webTagItem small{grid-column:2;font-size:9px;line-height:1.3;overflow-wrap:anywhere}
