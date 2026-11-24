@@ -1,6 +1,6 @@
 const API='https://vnvkmxqgbnmirsgdgfzm.supabase.co/functions/v1/tt-model-api';
 const $=s=>document.querySelector(s);
-const state={shareId:'',pendingBoard:'',pendingObject:'',model:null,panels:[],labels:[],objects:[],groupTree:[],selectedObject:'',hitTargets:[],model3d:[],textures:{},edges:[],tags:[],hiddenTags:[],explode:0,brightness:1.25,showEdges:true,background:'#e8edf3',viewMode:'color',view:{yaw:-.65,pitch:-.45,zoom:1,drag:false,x:0,y:0},stream:null,scanLoop:0,detector:null};
+const state={shareId:'',pendingBoard:'',pendingObject:'',model:null,panels:[],labels:[],objects:[],groupTree:[],selectedObject:'',mutedMaterialObjects:[],productionMode:false,productionScanned:[],lastProductionQr:'',hitTargets:[],model3d:[],textures:{},edges:[],tags:[],hiddenTags:[],explode:0,brightness:1.25,showEdges:true,background:'#e8edf3',viewMode:'color',view:{yaw:-.65,pitch:-.45,zoom:1,drag:false,x:0,y:0},stream:null,scanLoop:0,detector:null};
 
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function num(v){const n=Number(v);return Number.isFinite(n)?n:0}
@@ -82,7 +82,7 @@ function loadModel(model){
   const materialSummary=$('#materialSummary');if(materialSummary)materialSummary.textContent='Vật liệu thực tế: '+materialTotals.textured+' mặt có vân · '+materialTotals.colored+' mặt màu đơn sắc · '+materialTotals.unassigned+' mặt chưa gán';
   const th=[...new Set(state.panels.map(thickness).filter(Boolean))].sort((a,b)=>num(a)-num(b));
   $('#thicknessFilter').innerHTML='<option value="">Tất cả độ dày</option>'+th.map(v=>'<option value="'+esc(v)+'">'+esc(v)+' mm</option>').join('');
-  state.viewMode='color';showApp();render();renderObjects();renderGroups();renderTagFilters();drawModel();renderObjectDetail();loadHistory();const texturedTriangles=state.model3d.reduce((n,o)=>n+(Array.isArray(o.triangles)?o.triangles.filter(t=>t.tex||t.btex).length:0),0);if(materialTotals.textured>0&&(!Object.keys(state.textures).length||!texturedTriangles)){setStatus('CẢNH BÁO: MODEL CÓ MẶT GÁN TEXTURE NHƯNG DỮ LIỆU ẢNH/UV CHƯA ĐƯỢC ĐỒNG BỘ ĐẦY ĐỦ','bad')}else{setStatus(Object.keys(state.textures).length&&texturedTriangles?'MODEL 3D ĐANG HIỂN THỊ VẬT LIỆU & VÂN THỰC TẾ':'MODEL 3D MÀU ĐƠN SẮC ĐANG HIỂN THỊ','ok')}
+  state.viewMode='color';showApp();render();renderObjects();renderGroups();renderTagFilters();drawModel();renderObjectDetail();syncMaterialToggle();renderProductionCheck();loadHistory();const texturedTriangles=state.model3d.reduce((n,o)=>n+(Array.isArray(o.triangles)?o.triangles.filter(t=>t.tex||t.btex).length:0),0);if(materialTotals.textured>0&&(!Object.keys(state.textures).length||!texturedTriangles)){setStatus('CẢNH BÁO: MODEL CÓ MẶT GÁN TEXTURE NHƯNG DỮ LIỆU ẢNH/UV CHƯA ĐƯỢC ĐỒNG BỘ ĐẦY ĐỦ','bad')}else{setStatus(Object.keys(state.textures).length&&texturedTriangles?'MODEL 3D ĐANG HIỂN THỊ VẬT LIỆU & VÂN THỰC TẾ':'MODEL 3D MÀU ĐƠN SẮC ĐANG HIỂN THỊ','ok')}
   if(state.pendingObject){const hit=findObject(state.pendingObject);state.pendingObject='';if(hit)setTimeout(()=>{state.selectedObject=String(hit.uid||hit.id||'');renderObjects();drawModel();renderObjectDetail();},100);}
   else if(state.pendingBoard){const hit=findBoard(state.pendingBoard);state.pendingBoard='';if(hit)setTimeout(()=>openDetail(hit),100);}
 }
@@ -168,14 +168,27 @@ async function loadHistory(){
 }
 
 function renderObjects(){const q=($('#modelObjectSearch')?.value||'').trim().toLowerCase();const rows=state.objects.filter(o=>[o.name,o.uid,o.type,o.tag,o.material,(o.dimensions||[]).join(' '),tagNamesForObject(o).join(' ')].join(' ').toLowerCase().includes(q));$('#modelObjectCount').textContent=rows.length+'/'+state.objects.length;$('#modelObjectList').innerHTML=rows.map(o=>{const tags=tagNamesForObject(o);return '<button type="button" class="modelObjectRow '+(String(o.uid||o.id||'')===String(state.selectedObject)?'selected':'')+'" data-openobj="'+esc(o.uid||o.id||'')+'"><b>'+esc(o.name||'Đối tượng chưa đặt tên')+'</b><span>'+esc(o.type||'Object')+' · '+esc((o.dimensions||[]).join(' × '))+' mm</span><small>'+esc(o.material_status||'Chưa xác định trạng thái vật liệu')+'</small><small>Tag: '+esc(tags.join(' · ')||o.tag||'Untagged')+'</small><small>'+esc(o.path||o.uid||'')+'</small></button>'}).join('')||'<div class="muted modelEmpty">Không có đối tượng phù hợp.</div>';document.querySelectorAll('[data-openobj]').forEach(b=>b.onclick=()=>{const o=findObject(b.dataset.openobj);if(o){openObject(o);renderObjects();const target=document.querySelector('[data-openobj="'+CSS.escape(b.dataset.openobj)+'"]');target?.scrollIntoView({block:'nearest',behavior:'smooth'})}})}
-function openObject(o){const uid=String(o.uid||o.id||'');state.selectedObject=uid;drawModel();renderObjects();renderObjectDetail();setStatus('ĐÃ LÀM SÁNG: '+(o.name||uid),'ok')}
+function openObject(o){const uid=String(o.uid||o.id||'');state.selectedObject=uid;drawModel();renderObjects();renderObjectDetail();syncMaterialToggle();setStatus('ĐÃ LÀM SÁNG: '+(o.name||uid),'ok')}
+function toggleSelectedMaterial(){
+  const uid=String(state.selectedObject||'');if(!uid)return;
+  const set=new Set(state.mutedMaterialObjects||[]);
+  if(set.has(uid))set.delete(uid);else set.add(uid);
+  state.mutedMaterialObjects=[...set];ttThreeModelRef=null;drawModel();renderObjectDetail();
+  const muted=set.has(uid);setStatus(muted?'ĐÃ TẮT MÀU / VẬT LIỆU ĐỐI TƯỢNG':'ĐÃ KHÔI PHỤC MÀU / VẬT LIỆU GỐC','ok');
+}
+function syncMaterialToggle(){
+  const b=$('#toggleSelectedMaterialBtn');if(!b)return;
+  const uid=String(state.selectedObject||''),muted=state.mutedMaterialObjects.includes(uid);
+  b.disabled=!uid;b.textContent=muted?'BẬT LẠI MÀU ĐỐI TƯỢNG':'TẮT MÀU ĐỐI TƯỢNG';
+  b.classList.toggle('active',!!uid&&muted);
+}
 function renderObjectDetail(){const host=$('#objectDetails');if(!host)return;const o=findObject(state.selectedObject);if(!o){host.innerHTML='<div class="objectDetailsEmpty">Chọn tên đối tượng để xem thông tin chi tiết tại đây.</div>';return}const uid=o.uid||o.id||'',tags=tagNamesForObject(o),abf=tags.filter(t=>t.toUpperCase().startsWith('ABF_')),edgeCount=(state.edges||[]).filter(e=>String(e.o||e.object_uid||'')===String(uid)).length,items=[['Tên đối tượng / nhãn',o.name||'—'],['Mã định danh',uid||'—'],['Loại',o.type||'—'],['Cấp Group',o.depth??'—'],['Đường dẫn trong Model',o.path||'—'],['Kích thước bao',(o.dimensions||[]).join(' × ')+' mm'],['Group con trực tiếp',o.child_count??0],['Tag / Layer trực tiếp',o.tag||'Untagged'],['Tất cả Tag/Layers gắn trong đối tượng',tags.join(' · ')||'Không có'],['Tag ABF_ / cạnh dán',abf.join(' · ')||'Không có'],['Số cạnh hình học đã xuất',edgeCount],['Vật liệu',o.material||'—'],['Trạng thái vật liệu',o.material_status||'Chưa xác định'],['Mặt có texture / vân',o.material_textures??0],['Mặt có màu đơn sắc',o.material_colors??0],['Mặt chưa gán vật liệu',o.material_unassigned??0],['Persistent ID',o.persistent_id||'—'],['Số tam giác 3D',o.triangle_count||0]];host.innerHTML='<div class="objectDetailsHead"><b>CHI TIẾT ĐỐI TƯỢNG ĐANG CHỌN</b><button type="button" class="secondary" id="objectQrButton">HIỆN MÃ QR</button></div><div class="detailGrid">'+items.map((x,i)=>'<div class="detailItem '+(i===0||i===8||i===9?'wide':'')+'"><span>'+esc(x[0])+'</span><b>'+esc(x[1])+'</b></div>').join('')+'</div><div id="objectDetailQr" class="qrHolder"></div><p class="objectMeta">Quét QR bằng camera điện thoại để mở đúng đối tượng trong trang xem Model.</p>';$('#objectQrButton').onclick=()=>showObjectQr(uid,$('#objectDetailQr'))}
 function showObjectQr(uid,holder){const o=findObject(uid);if(!o||!holder)return;holder.innerHTML='';const url=objectLink(o);if(window.QRCode){new QRCode(holder,{text:url,width:132,height:132,correctLevel:QRCode.CorrectLevel.M})}else{holder.textContent=url}}
 function printAllQrs(){const grid=$('#qrPrintGrid');grid.innerHTML='';state.objects.forEach(o=>{const card=document.createElement('div');card.className='qrPrintCard';const title=document.createElement('b');title.textContent=o.name||'Đối tượng';const code=document.createElement('small');code.textContent=o.uid||'';const qr=document.createElement('div');qr.className='qrPrintCode';card.append(title,code,qr);grid.appendChild(card);if(window.QRCode)new QRCode(qr,{text:objectLink(o),width:112,height:112,correctLevel:QRCode.CorrectLevel.M});else qr.textContent=objectLink(o)});grid.classList.remove('hidden');setTimeout(()=>window.print(),350)}
 window.onafterprint=()=>$('#qrPrintGrid').classList.add('hidden');
 
 function project3d(pt,c,v,scale,W,H){let x=pt[0]-c[0],y=pt[1]-c[1],z=pt[2]-c[2];if(state.viewMode==='2d')return[W/2+x*scale*v.zoom,H/2-y*scale*v.zoom,z];let cy=Math.cos(v.yaw),sy=Math.sin(v.yaw),cp=Math.cos(v.pitch),sp=Math.sin(v.pitch);let x1=x*cy-y*sy,y1=x*sy+y*cy,z1=z;let y2=y1*cp-z1*sp,z2=y1*sp+z1*cp;return[W/2+x1*scale*v.zoom,H/2-z2*scale*v.zoom,y2]}
-let ttThreeScene=null,ttThreeCamera=null,ttThreeRenderer=null,ttThreeRoot=null,ttThreeCenter=null,ttThreeRadius=1000,ttThreeRaycaster=null,ttThreePointer=null,ttThreeModelRef=null,ttThreeSelectedRef='',ttThreeHiddenTagsRef='';
+let ttThreeScene=null,ttThreeCamera=null,ttThreeRenderer=null,ttThreeRoot=null,ttThreeCenter=null,ttThreeRadius=1000,ttThreeRaycaster=null,ttThreePointer=null,ttThreeModelRef=null,ttThreeSelectedRef='',ttThreeHiddenTagsRef='',ttThreeMutedRef='';
 const textureCache=new Map();
 function getModelTexture(id){
   const key=String(id||'');if(!key||!state.textures[key])return null;
@@ -244,13 +257,13 @@ function buildThreeGeometry(){
     const selected=uid===String(state.selectedObject||'');
     const batches=new Map(),points=[];
     const addTriangle=(tri,side)=>{
-      const texId=String(side==='front'?(tri.tex||''):(tri.btex||''));
+      const muted=state.mutedMaterialObjects.includes(uid);const texId=muted?'':String(side==='front'?(tri.tex||''):(tri.btex||''));
       const uv=side==='front'?tri.uv:tri.buv;
       const usableTexture=!!(texId&&state.textures[texId]&&Array.isArray(uv)&&uv.length===3&&uv.every(p=>Array.isArray(p)&&p.length>=2));
       const key=side+':'+(usableTexture?texId:'none');
       if(!batches.has(key))batches.set(key,{side,texId:usableTexture?texId:'',positions:[],colors:[],uvs:[]});
       const batch=batches.get(key),baseColor=side==='front'?(tri.c||'#f2f2f2'):(tri.bc||'#b8c7d9');
-      const color=new T.Color(selected?(usableTexture?'#ffffff':'#ffb020'):baseColor);
+      const color=new T.Color(muted?'#aeb8c4':(selected?(usableTexture?'#ffffff':'#ffb020'):baseColor));
       tri.v.forEach((p,i)=>{
         const x=Number(p[0])||0,y=Number(p[1])||0,z=Number(p[2])||0;
         batch.positions.push(x,y,z);batch.colors.push(color.r,color.g,color.b);points.push([x,y,z]);all.push([x,y,z]);
@@ -284,12 +297,13 @@ function buildThreeGeometry(){
   ttThreeCenter=bounds.getCenter(new T.Vector3());const size=bounds.getSize(new T.Vector3());
   ttThreeRadius=Math.max(size.x,size.y,size.z,1)*1.8;ttThreeRoot.position.set(-ttThreeCenter.x,-ttThreeCenter.y,-ttThreeCenter.z);
   ttThreeModelRef=state.model3d;ttThreeSelectedRef=String(state.selectedObject||'');ttThreeHiddenTagsRef=JSON.stringify([...(state.hiddenTags||[])].sort());
+  ttThreeMutedRef=JSON.stringify([...(state.mutedMaterialObjects||[])].sort());
 }
 function drawModel(){
   const cv=$('#modelCanvas');if(!cv)return;
   if(!window.THREE){const ctx=cv.getContext('2d');if(ctx){ctx.clearRect(0,0,cv.width,cv.height);ctx.fillStyle='#334155';ctx.font='14px Arial';ctx.fillText('Đang tải bộ dựng 3D…',18,32)}return}
   if(!initThreeModel())return;
-  if(ttThreeModelRef!==state.model3d||ttThreeSelectedRef!==String(state.selectedObject||'')||ttThreeHiddenTagsRef!==JSON.stringify([...(state.hiddenTags||[])].sort())||!ttThreeRoot.children.length)buildThreeGeometry();
+  if(ttThreeModelRef!==state.model3d||ttThreeSelectedRef!==String(state.selectedObject||'')||ttThreeHiddenTagsRef!==JSON.stringify([...(state.hiddenTags||[])].sort())||ttThreeMutedRef!==JSON.stringify([...(state.mutedMaterialObjects||[])].sort())||!ttThreeRoot.children.length)buildThreeGeometry();
   const w=Math.max(1,cv.clientWidth||800),h=Math.max(1,cv.clientHeight||360);
   const pixelRatio=Math.min(window.devicePixelRatio||1,2);
   if(cv.width!==Math.round(w*pixelRatio)||cv.height!==Math.round(h*pixelRatio)){ttThreeRenderer.setSize(w,h,false);ttThreeCamera.aspect=w/h;ttThreeCamera.updateProjectionMatrix()}
@@ -322,6 +336,9 @@ function bindModel(){
   $('#viewXrayBtn').onclick=()=>{state.viewMode='color';$('#viewXrayBtn').classList.add('active');drawModel();setStatus('GÓC NHÌN 3D MÀU','ok')};
   $('#modelObjectSearch').oninput=renderObjects;
   $('#printQrBtn').onclick=printAllQrs;
+  $('#toggleSelectedMaterialBtn').onclick=toggleSelectedMaterial;
+  $('#productionCheckBtn').onclick=startProductionCheck;
+  $('#finishProductionCheckBtn').onclick=finishProductionCheck;
   $('#explodeSlider').oninput=e=>{state.explode=Number(e.target.value)/100;$('#explodeValue').textContent=e.target.value+'%';drawModel()};
   $('#brightnessSlider').oninput=e=>{state.brightness=Number(e.target.value)/100;$('#brightnessValue').textContent=e.target.value+'%';ttThreeModelRef=null;drawModel()};
   $('#backgroundColor').oninput=e=>{state.background=e.target.value;if(ttThreeScene)ttThreeScene.background.set(state.background);drawModel()};
@@ -383,15 +400,57 @@ async function reloadCurrentProject(){
   catch(e){setStatus('TẢI LẠI THẤT BẠI','bad');alert(e.message||String(e))}
   finally{if(btn)btn.disabled=false}
 }
-function logout(){stopScanner();state.model=null;state.shareId='';state.panels=[];state.labels=[];state.objects=[];state.groupTree=[];state.model3d=[];state.edges=[];state.tags=[];state.textures={};state.selectedObject='';state.hitTargets=[];hideApp();renderSavedProjects();setStatus('Sẵn sàng');setMsg('');}
+function logout(){stopScanner();state.model=null;state.shareId='';state.panels=[];state.labels=[];state.objects=[];state.groupTree=[];state.model3d=[];state.edges=[];state.tags=[];state.textures={};state.selectedObject='';state.mutedMaterialObjects=[];state.productionMode=false;state.productionScanned=[];state.hitTargets=[];hideApp();renderSavedProjects();setStatus('Sẵn sàng');setMsg('');}
 
 function parseQr(raw){
   const s=String(raw||'').trim();if(!s)return false;
+  if(state.productionMode)return registerProductionQr(s);
   try{const u=new URL(s);const id=u.searchParams.get('id')||'';const board=u.searchParams.get('board')||'';const object=u.searchParams.get('object')||'';if(id)state.shareId=id;state.pendingBoard=board;state.pendingObject=object;handleQrResult();return true}catch(e){}
   const objectHit=findObject(s);if(objectHit){stopScanner();$('#scanDialog').close();openObject(objectHit);return true}
   const hit=findBoard(s);if(hit){stopScanner();$('#scanDialog').close();openDetail(hit);return true}
   if(/^TTB[-_]/i.test(s)){state.pendingBoard=s;handleQrResult();return true}
   return false;
+}
+function productionExpected(){
+  return state.objects.filter(o=>o.is_board===true||Number(o.child_count||0)===0);
+}
+function registerProductionQr(raw){
+  const s=String(raw||'').trim();let token=s,project='';
+  try{const u=new URL(s);project=u.searchParams.get('id')||'';token=u.searchParams.get('object')||u.searchParams.get('board')||''}catch(e){}
+  if(project&&project!==String(state.shareId)){const st=$('#scanStatus');if(st)st.textContent='QR THUỘC DỰ ÁN KHÁC — KHÔNG GHI NHẬN';return true}
+  const obj=findObject(token)||findBoard(token);
+  if(!obj){const st=$('#scanStatus');if(st)st.textContent='Không tìm thấy cấu kiện trong Model: '+token;return true}
+  const uid=String(obj.uid||obj.id||obj.code||'');
+  const expected=productionExpected();
+  if(!expected.some(o=>String(o.uid||o.id||'')===uid)){const st=$('#scanStatus');if(st)st.textContent='Mã QR này không phải cấu kiện sản xuất cuối cùng: '+(obj.name||uid);return true}
+  if(state.productionScanned.includes(uid)){const st=$('#scanStatus');if(st)st.textContent='ĐÃ QUÉT TRƯỚC ĐÓ: '+(obj.name||uid);return true}
+  state.productionScanned.push(uid);renderProductionCheck();
+  const st=$('#scanStatus');if(st)st.textContent='ĐÃ NHẬN: '+(obj.name||uid)+' · '+state.productionScanned.length+'/'+expected.length;
+  return true;
+}
+function productionDimensions(o){const d=Array.isArray(o.dimensions)?o.dimensions:[];return d.length?d.map(v=>Number(v).toFixed(Number(v)%1?1:0)).join(' × ')+' mm':'Chưa có kích thước'}
+function renderProductionCheck(){
+  const host=$('#productionResults');if(!host)return;
+  const expected=productionExpected(),scanned=new Set(state.productionScanned),missing=expected.filter(o=>!scanned.has(String(o.uid||o.id||'')));
+  const pct=expected.length?Math.round(scanned.size/expected.length*100):0;
+  $('#productionProgress').textContent=scanned.size+'/'+expected.length+' cấu kiện · '+pct+'%';
+  $('#productionProgressBar').style.width=pct+'%';
+  $('#productionScannedCount').textContent=scanned.size;
+  $('#productionMissingCount').textContent=missing.length;
+  const rows=(items,kind)=>items.map(o=>{const uid=String(o.uid||o.id||''),dim=productionDimensions(o);return '<button type="button" class="productionItem '+kind+'" data-production-object="'+esc(uid)+'"><span class="productionItemName"><b>'+esc(o.name||'Cấu kiện chưa đặt tên')+'</b><small>'+esc(uid)+'</small></span><span class="productionItemMeta">'+esc(dim)+'<small>'+esc(o.path||'')+'</small></span><span class="productionItemAction">'+(kind==='missing'?'CÒN THIẾU':'ĐÃ QUÉT')+' · XEM 3D</span></button>'}).join('');
+  host.innerHTML=expected.length?'<div class="productionResultHead"><b>'+ (missing.length?'CÒN THIẾU '+missing.length+' CẤU KIỆN':'ĐÃ QUÉT ĐỦ TẤT CẢ CẤU KIỆN')+'</b><span>'+scanned.size+' / '+expected.length+'</span></div><div class="productionList">'+rows(missing,'missing')+'</div>':'<div class="productionEmpty">Model chưa có danh sách cấu kiện cuối cùng. Hãy đồng bộ Model có Group/Component cấu kiện.</div>';
+  host.querySelectorAll('[data-production-object]').forEach(b=>b.onclick=()=>{const o=findObject(b.dataset.productionObject);if(o){openObject(o);$('#modelPanel').scrollIntoView({behavior:'smooth',block:'start'})}});
+  const result=$('#productionStatus');
+  if(result){result.className='productionStatus '+(expected.length&&missing.length===0?'success':'warning');result.textContent=!expected.length?'CHƯA CÓ DỮ LIỆU CẤU KIỆN':missing.length?'CHƯA ĐỦ CẤU KIỆN — CẦN KIỂM TRA DANH SÁCH CÒN THIẾU':'ĐÃ QUÉT ĐỦ CẤU KIỆN — KÍCH THƯỚC THEO MODEL ĐÃ CÓ, SẴN SÀNG ĐỐI CHIẾU LẮP ĐẶT';}
+}
+function startProductionCheck(){
+  if(!state.model){setStatus('HÃY MỞ DỰ ÁN TRƯỚC KHI KIỂM TRA','bad');return}
+  state.productionMode=true;state.productionScanned=[];renderProductionCheck();
+  $('#scanDialog').showModal();$('#scanDialog .eyebrow').textContent='KIỂM TRA CẤU KIỆN SẢN XUẤT';$('#scanDialog h3').textContent='Quét liên tục QR cấu kiện';$('#scanStatus').textContent='Bật camera và lần lượt đưa từng tem QR vào khung quét.';
+}
+function finishProductionCheck(){
+  state.productionMode=false;stopScanner();if($('#scanDialog').open)$('#scanDialog').close();
+  renderProductionCheck();
 }
 function handleQrResult(){
   stopScanner();if($('#scanDialog').open)$('#scanDialog').close();
