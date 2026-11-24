@@ -316,6 +316,7 @@ function bindModel(){
   $('#backgroundColor').oninput=e=>{state.background=e.target.value;if(ttThreeScene)ttThreeScene.background.set(state.background);drawModel()};
   $('#showEdgesToggle').onchange=e=>{state.showEdges=!!e.target.checked;drawModel()};
   $('#resetExplodeBtn').onclick=()=>{$('#explodeSlider').value=0;state.explode=0;$('#explodeValue').textContent='0%';drawModel()};
+  $('#refreshModelBtn').onclick=reloadCurrentProject;
   $('#refreshSavedProjects').onclick=renderSavedProjects;
   $('#refreshSavedProjectsLogin').onclick=renderSavedProjects;
   renderSavedProjects();
@@ -364,7 +365,14 @@ function bindModel(){
   cv.addEventListener('wheel',e=>{e.preventDefault();state.view.zoom*=e.deltaY<0?1.12:.89;state.view.zoom=Math.max(.2,Math.min(12,state.view.zoom));drawModel()},{passive:false});
   cv.addEventListener('dblclick',e=>{e.preventDefault();state.view={...state.view,yaw:-.65,pitch:-.45,zoom:1,drag:false,x:0,y:0};drawModel()});
 }
-function logout(){stopScanner();state.model=null;state.panels=[];state.labels=[];state.objects=[];state.groupTree=[];state.model3d=[];state.selectedObject='';state.hitTargets=[];hideApp();setStatus('Sẵn sàng');setMsg('');}
+async function reloadCurrentProject(){
+  if(!state.shareId)return;
+  const btn=$('#refreshModelBtn');if(btn)btn.disabled=true;setStatus('ĐANG TẢI LẠI DỰ ÁN');
+  try{const res=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'open',share_id:state.shareId})});const j=await res.json().catch(()=>({}));if(!res.ok||!j.ok)throw new Error(j.detail||j.error||'Không tải lại được dự án');rememberProject(j.model);loadModel(j.model);setStatus('ĐÃ CẬP NHẬT DỮ LIỆU MỚI NHẤT','ok')}
+  catch(e){setStatus('TẢI LẠI THẤT BẠI','bad');alert(e.message||String(e))}
+  finally{if(btn)btn.disabled=false}
+}
+function logout(){stopScanner();state.model=null;state.shareId='';state.panels=[];state.labels=[];state.objects=[];state.groupTree=[];state.model3d=[];state.edges=[];state.tags=[];state.textures={};state.selectedObject='';state.hitTargets=[];hideApp();renderSavedProjects();setStatus('Sẵn sàng');setMsg('');}
 
 function parseQr(raw){
   const s=String(raw||'').trim();if(!s)return false;
