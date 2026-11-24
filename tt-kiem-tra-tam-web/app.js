@@ -22,7 +22,7 @@ function savedProjects(){try{return JSON.parse(localStorage.getItem('tt_saved_pr
 function rememberProject(model){
   const id=String(model?.share_id||'');if(!id)return;
   const p=model.payload||{},rows=savedProjects().filter(x=>x.share_id!==id);
-  rows.unshift({share_id:id,name:model.model_name||p.model_name||'Dự án chưa đặt tên',revision:Number(model.revision||1),saved_at:model.last_saved_at||model.updated_at||new Date().toISOString()});
+  rows.unshift({share_id:id,name:model.project_login||model.model_name||p.model_name||'Dự án chưa đặt tên',model_name:model.model_name||p.model_name||'',revision:Number(model.revision||1),saved_at:model.last_saved_at||model.updated_at||new Date().toISOString()});
   localStorage.setItem('tt_saved_projects',JSON.stringify(rows.slice(0,60)));renderSavedProjects();
 }
 function renderSavedProjects(){
