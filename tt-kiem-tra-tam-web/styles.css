@@ -148,3 +148,6 @@ input,select{background:#fff!important;color:#172033!important;border-color:#cbd
  .productionItemAction{grid-column:2;grid-row:1/3;white-space:normal;text-align:right}
  .productionPanel .panelHead{align-items:flex-start;flex-direction:column}
 }
+
+.productionActions{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+.productionActions button{font-size:10px;padding:9px 12px}
