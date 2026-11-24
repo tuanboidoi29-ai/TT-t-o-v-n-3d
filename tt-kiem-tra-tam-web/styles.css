@@ -75,3 +75,17 @@ input,select{background:#fff!important;color:#172033!important;border-color:#cbd
 .webTagItem{display:flex;align-items:center;gap:7px;padding:8px 10px;border:1px solid #dbe3ec;border-radius:8px;background:#f8fafc;font-size:12px;cursor:pointer}
 .webTagItem input{width:auto;margin:0}
 .webTagItem small{color:#64748b}
+
+/* Project library and advanced 3D viewer controls */
+.savedProjects{margin-top:16px;padding-top:14px;border-top:1px solid #dbe2ea}
+.savedProjectsHead{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:9px;font-size:12px}
+.savedProjectList{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:7px}
+.savedProjectRow{display:grid;gap:4px;text-align:left;padding:10px;border:1px solid #dbe2ea;border-radius:9px;background:#f8fafc;color:#172033;cursor:pointer}
+.savedProjectRow:hover{border-color:#2563eb;background:#eff6ff}
+.savedProjectRow b{font-size:12px}.savedProjectRow span,.savedProjectRow small{font-size:10px;color:#64748b;overflow-wrap:anywhere}
+.viewerControls{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:12px 0;padding:12px;background:#f8fafc;border:1px solid #dbe2ea;border-radius:10px}
+.rangeControl{display:grid;grid-template-columns:auto minmax(95px,150px) auto;align-items:center;gap:7px;font-size:10px;font-weight:800;color:#334155}
+.rangeControl input{width:100%;padding:0;accent-color:#2563eb}.rangeControl output{min-width:38px;font-variant-numeric:tabular-nums}
+.colorControl,.checkControl{display:flex;align-items:center;gap:7px;font-size:10px;font-weight:800;color:#334155}
+.colorControl input{width:34px;height:28px;padding:2px}.checkControl input{width:auto;margin:0}
+@media(max-width:720px){.viewerControls{align-items:stretch}.rangeControl{flex:1 1 100%;grid-template-columns:100px 1fr 42px}.savedProjectList{grid-template-columns:1fr}}
