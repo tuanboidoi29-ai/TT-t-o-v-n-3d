@@ -31,7 +31,7 @@ function renderSavedProjects(){
   ['#savedProjectList','#savedProjectListLogin'].forEach(sel=>{const node=$(sel);if(!node)return;node.innerHTML=markup;node.querySelectorAll('[data-saved-id]').forEach(b=>b.onclick=()=>{state.shareId=b.dataset.savedId;$('#projectLogin').value='';login()})});
 }
 function showApp(){ $('#loginCard').classList.add('hidden'); ['#projectCard','#modelPanel','#groupPanel','#historyPanel','#controls','#summary'].forEach(s=>$(s).classList.remove('hidden')); $('#logoutBtn').classList.remove('hidden'); }
-function hideApp(){ $('#loginCard').classList.remove('hidden'); ['#projectCard','#labelPanel','#modelPanel','#groupPanel','#historyPanel','#productionPanel','#controls','#summary'].forEach(s=>$(s).classList.add('hidden')); $('#logoutBtn').classList.add('hidden'); $('#list').innerHTML=''; $('#modelObjectList').innerHTML=''; $('#groupTree').innerHTML=''; $('#historyList').innerHTML=''; }
+function hideApp(){ $('#loginCard').classList.remove('hidden'); ['#projectCard','#modelPanel','#groupPanel','#historyPanel','#productionPanel','#controls','#summary'].forEach(s=>$(s).classList.add('hidden')); $('#logoutBtn').classList.add('hidden'); $('#list').innerHTML=''; $('#modelObjectList').innerHTML=''; $('#groupTree').innerHTML=''; $('#historyList').innerHTML=''; }
 
 async function login(){
   const login=$('#projectLogin').value.trim();
