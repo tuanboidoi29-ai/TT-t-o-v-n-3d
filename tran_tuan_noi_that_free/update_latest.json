@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.370",
+  "version": "1.9.371",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "1.9.370: Đồng bộ đầy đủ Tags/Layers, mã định danh từng đối tượng, dữ liệu cạnh hình học thật; Web có danh sách dự án đã mở, tách đối tượng, tăng sáng, chọn nền và làm nổi bật đối tượng.",
+  "notes": "1.9.371: Nhận diện đầy đủ Tags/Layers lồng nhau, thống kê số mặt/cạnh/đối tượng, xuất cả Edge gắn ABF_ và hiển thị tên Tag trên từng đối tượng; giữ các chức năng Web hiện có.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "07c39735dff945fc035d0f0d76bdd6c1ccc0ce8f84ec1e083bc48f32d18dcf01"
+      "sha256": "6e05044be980f25cc6e2130743524b4cc60bcfc2edf3f18156bb5e49aecc5b52"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -319,7 +319,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "726269fedabd57b0ea6e58e25874309d7ee10474721750fd99295c11b2f30e74"
+      "sha256": "cb440a897b63b737f33d3d5cf96a1fd142c6ed596618188cc4a642f8c059bed2"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -499,7 +499,7 @@
     {
       "path": "tran_tuan_noi_that/model_export_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/model_export_tool.rb",
-      "sha256": "92323989c6553e4d5511ae8784531fa0e921c043eb239d3fd51225f8ec933393"
+      "sha256": "0772d3489f4019dbceac8ad05a9093bed4d3f896b43980e6db9d5e6edf78a5cf"
     },
     {
       "path": "tran_tuan_noi_that/icons/model_export.svg",
@@ -520,5 +520,5 @@
     "tran_tuan_noi_that/cnc_profile_tool.rb",
     "tran_tuan_noi_that/icons/cnc_profile.svg"
   ],
-  "release_notes": "1.9.370: Đồng bộ đầy đủ Tags/Layers, mã định danh từng đối tượng, dữ liệu cạnh hình học thật; Web có danh sách dự án đã mở, tách đối tượng, tăng sáng, chọn nền và làm nổi bật đối tượng."
+  "release_notes": "1.9.371: Nhận diện đầy đủ Tags/Layers lồng nhau, thống kê số mặt/cạnh/đối tượng, xuất cả Edge gắn ABF_ và hiển thị tên Tag trên từng đối tượng; giữ các chức năng Web hiện có."
 }
