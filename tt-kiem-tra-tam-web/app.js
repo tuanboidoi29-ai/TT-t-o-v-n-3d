@@ -1,6 +1,6 @@
 const API='https://vnvkmxqgbnmirsgdgfzm.supabase.co/functions/v1/tt-model-api';
 const $=s=>document.querySelector(s);
-const state={shareId:'',pendingBoard:'',pendingObject:'',model:null,panels:[],labels:[],objects:[],groupTree:[],selectedObject:'',hitTargets:[],model3d:[],textures:{},hiddenTags:[],viewMode:'color',view:{yaw:-.65,pitch:-.45,zoom:1,drag:false,x:0,y:0},stream:null,scanLoop:0,detector:null};
+const state={shareId:'',pendingBoard:'',pendingObject:'',model:null,panels:[],labels:[],objects:[],groupTree:[],selectedObject:'',hitTargets:[],model3d:[],textures:{},edges:[],tags:[],hiddenTags:[],explode:0,brightness:1.25,showEdges:true,background:'#e8edf3',viewMode:'color',view:{yaw:-.65,pitch:-.45,zoom:1,drag:false,x:0,y:0},stream:null,scanLoop:0,detector:null};
 
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function num(v){const n=Number(v);return Number.isFinite(n)?n:0}
@@ -18,6 +18,18 @@ function dim(p){if(Array.isArray(p.cut)&&p.cut.length>=2)return p.cut.map(x=>Num
 function bandsOf(p){return p.banding||p.bands||p.dan_canh||{}}
 function bandCount(p){return Object.values(bandsOf(p)).filter(v=>v!==null&&v!==false&&v!==0&&v!=='').length}
 
+function savedProjects(){try{return JSON.parse(localStorage.getItem('tt_saved_projects')||'[]')}catch(e){return []}}
+function rememberProject(model){
+  const id=String(model?.share_id||'');if(!id)return;
+  const p=model.payload||{},rows=savedProjects().filter(x=>x.share_id!==id);
+  rows.unshift({share_id:id,name:model.model_name||p.model_name||'Dự án chưa đặt tên',revision:Number(model.revision||1),saved_at:model.last_saved_at||model.updated_at||new Date().toISOString()});
+  localStorage.setItem('tt_saved_projects',JSON.stringify(rows.slice(0,60)));renderSavedProjects();
+}
+function renderSavedProjects(){
+  const host=$('#savedProjectList');if(!host)return;const rows=savedProjects();
+  host.innerHTML=rows.map(p=>'<button type="button" class="savedProjectRow" data-saved-id="'+esc(p.share_id)+'"><b>'+esc(p.name)+'</b><span>'+esc(p.share_id)+' · Rev '+Number(p.revision||1)+'</span><small>'+new Date(p.saved_at).toLocaleString('vi-VN')+'</small></button>').join('')||'<span class="smallHint">Chưa có dự án được lưu trên thiết bị này. Mở dự án một lần để lưu vào danh sách.</span>';
+  host.querySelectorAll('[data-saved-id]').forEach(b=>b.onclick=()=>{state.shareId=b.dataset.savedId;$('#projectLogin').value='';login()});
+}
 function showApp(){ $('#loginCard').classList.add('hidden'); ['#projectCard','#modelPanel','#groupPanel','#historyPanel','#controls','#summary'].forEach(s=>$(s).classList.remove('hidden')); $('#logoutBtn').classList.remove('hidden'); }
 function hideApp(){ $('#loginCard').classList.remove('hidden'); ['#projectCard','#modelPanel','#groupPanel','#historyPanel','#controls','#summary'].forEach(s=>$(s).classList.add('hidden')); $('#logoutBtn').classList.add('hidden'); $('#list').innerHTML=''; $('#modelObjectList').innerHTML=''; $('#groupTree').innerHTML=''; $('#historyList').innerHTML=''; }
 
@@ -34,6 +46,7 @@ async function login(){
     }
     state.shareId=j.model.share_id||state.shareId;
     if(login)localStorage.setItem('tt_project_login',login);
+    rememberProject(j.model);
     loadModel(j.model);
     setMsg('Đã mở dự án.','ok');
   }catch(e){setStatus('KHÔNG MỞ ĐƯỢC','bad');setMsg(e.message||String(e))}
@@ -48,6 +61,8 @@ function loadModel(model){
   state.objects=Array.isArray(p.objects)?p.objects:(Array.isArray(p.model3d)?p.model3d:[]);
   state.model3d=Array.isArray(p.model3d)?p.model3d:[];
   state.textures=p.textures&&typeof p.textures==='object'?p.textures:{};
+  state.edges=Array.isArray(p.edges)?p.edges:[];
+  state.tags=Array.isArray(p.tags)?p.tags:[];
   textureCache.forEach(t=>t.dispose());textureCache.clear();
   state.groupTree=Array.isArray(p.group_tree)?p.group_tree:[];
   state.hiddenTags=[];
@@ -74,6 +89,7 @@ function loadModel(model){
 
 function tagInventory(){
   const counts=new Map();
+  (state.tags||[]).forEach(t=>{const name=String(t.name||t.tag||'').trim();if(name)counts.set(name,Number(t.entity_count||0))});
   (state.model3d||[]).forEach(obj=>{
     const fallback=String(obj.tag||'').trim();
     (Array.isArray(obj.triangles)?obj.triangles:[]).forEach(tri=>{
@@ -169,11 +185,11 @@ function initThreeModel(){
   ttThreeRenderer.outputColorSpace=T.SRGBColorSpace;
   ttThreeRenderer.toneMapping=T.NoToneMapping;
   ttThreeRenderer.toneMappingExposure=1;
-  ttThreeScene=new T.Scene();ttThreeScene.background=new T.Color('#ffffff');
+  ttThreeScene=new T.Scene();ttThreeScene.background=new T.Color(state.background||'#e8edf3');
   ttThreeCamera=new T.PerspectiveCamera(38,1,0.1,10000000);
-  ttThreeScene.add(new T.HemisphereLight(0xffffff,0x8b98a8,2.1));
-  const key=new T.DirectionalLight(0xffffff,2.2);key.position.set(1,-2,3);ttThreeScene.add(key);
-  const fill=new T.DirectionalLight(0xffffff,1.0);fill.position.set(-2,1,1);ttThreeScene.add(fill);
+  ttThreeScene.add(new T.HemisphereLight(0xffffff,0x8b98a8,2.4));
+  const key=new T.DirectionalLight(0xffffff,2.5);key.position.set(1,-2,3);ttThreeScene.add(key);
+  const fill=new T.DirectionalLight(0xffffff,1.25);fill.position.set(-2,1,1);ttThreeScene.add(fill);
   ttThreeRoot=new T.Group();ttThreeScene.add(ttThreeRoot);
   ttThreeRaycaster=new T.Raycaster();ttThreePointer=new T.Vector2();
   return true;
@@ -185,55 +201,73 @@ function buildThreeGeometry(){
     const child=ttThreeRoot.children.pop();ttThreeRoot.remove(child);
     child.geometry?.dispose();if(Array.isArray(child.material))child.material.forEach(m=>m.dispose());else child.material?.dispose();
   }
-  const all=[];
-  (state.model3d||[]).forEach(obj=>{
-    const allTris=Array.isArray(obj.triangles)?obj.triangles:[];
-    const hiddenTags=new Set(state.hiddenTags||[]);
-    const tris=allTris.filter(tri=>!hiddenTags.has(String(tri.tag||obj.tag||'')));
-    if(!tris.length)return;
-    const selected=String(obj.uid||obj.id||obj.persistent_id||'')===String(state.selectedObject||'');
-    const batches=new Map();
+  const hiddenTags=new Set(state.hiddenTags||[]);
+  const objectMap=new Map((state.objects||[]).map(o=>[String(o.uid||o.id||''),o]));
+  const triGroups=new Map(),edgeGroups=new Map(),all=[];
+  (state.model3d||[]).forEach(root=>{
+    (Array.isArray(root.triangles)?root.triangles:[]).forEach(tri=>{
+      if(hiddenTags.has(String(tri.tag||root.tag||'')))return;
+      const uid=String(tri.object_uid||root.uid||root.id||'');
+      if(!triGroups.has(uid))triGroups.set(uid,[]);
+      triGroups.get(uid).push(tri);
+    });
+  });
+  (state.edges||[]).forEach(edge=>{
+    if(hiddenTags.has(String(edge.tag||'')))return;
+    const uid=String(edge.object_uid||'');
+    if(!edgeGroups.has(uid))edgeGroups.set(uid,[]);
+    edgeGroups.get(uid).push(edge);
+  });
+  const explodeVector=(points)=>{
+    if(!points.length)return [0,0,0];
+    const c=points.reduce((a,p)=>[a[0]+p[0]/points.length,a[1]+p[1]/points.length,a[2]+p[2]/points.length],[0,0,0]);
+    const dx=c[0]-ttThreeCenter.x,dy=c[1]-ttThreeCenter.y,dz=c[2]-ttThreeCenter.z;
+    const n=Math.hypot(dx,dy,dz)||1;return [dx/n,dy/n,dz/n];
+  };
+  const objectVectors=new Map();
+  triGroups.forEach((tris,uid)=>{
+    const selected=uid===String(state.selectedObject||'');
+    const batches=new Map(),points=[];
     const addTriangle=(tri,side)=>{
       const texId=String(side==='front'?(tri.tex||''):(tri.btex||''));
       const uv=side==='front'?tri.uv:tri.buv;
       const usableTexture=!!(texId&&state.textures[texId]&&Array.isArray(uv)&&uv.length===3&&uv.every(p=>Array.isArray(p)&&p.length>=2));
       const key=side+':'+(usableTexture?texId:'none');
       if(!batches.has(key))batches.set(key,{side,texId:usableTexture?texId:'',positions:[],colors:[],uvs:[]});
-      const batch=batches.get(key);
-      const baseColor=side==='front'?(tri.c||'#f2f2f2'):(tri.bc||'#b8c7d9');
+      const batch=batches.get(key),baseColor=side==='front'?(tri.c||'#f2f2f2'):(tri.bc||'#b8c7d9');
       const color=new T.Color(selected?(usableTexture?'#ffffff':'#ffb020'):baseColor);
       tri.v.forEach((p,i)=>{
         const x=Number(p[0])||0,y=Number(p[1])||0,z=Number(p[2])||0;
-        batch.positions.push(x,y,z);batch.colors.push(color.r,color.g,color.b);all.push([x,y,z]);
-        if(usableTexture){batch.uvs.push(Number(uv[i][0])||0,Number(uv[i][1])||0)}
+        batch.positions.push(x,y,z);batch.colors.push(color.r,color.g,color.b);points.push([x,y,z]);all.push([x,y,z]);
+        if(usableTexture)batch.uvs.push(Number(uv[i][0])||0,Number(uv[i][1])||0);
       });
     };
-    tris.forEach(tri=>{
-      if(!Array.isArray(tri.v)||tri.v.length!==3)return;
-      addTriangle(tri,'front');addTriangle(tri,'back');
-    });
+    tris.forEach(tri=>{if(Array.isArray(tri.v)&&tri.v.length===3){addTriangle(tri,'front');addTriangle(tri,'back')}});
+    const vec=explodeVector(points);objectVectors.set(uid,vec);
     batches.forEach(batch=>{
       if(!batch.positions.length)return;
-      const geo=new T.BufferGeometry();
-      geo.setAttribute('position',new T.Float32BufferAttribute(batch.positions,3));
-      geo.setAttribute('color',new T.Float32BufferAttribute(batch.colors,3));
+      const geo=new T.BufferGeometry();geo.setAttribute('position',new T.Float32BufferAttribute(batch.positions,3));geo.setAttribute('color',new T.Float32BufferAttribute(batch.colors,3));
       if(batch.texId&&batch.uvs.length===batch.positions.length/3*2)geo.setAttribute('uv',new T.Float32BufferAttribute(batch.uvs,2));
       geo.computeVertexNormals();
-      const side=batch.side==='front'?T.FrontSide:T.BackSide;
       const map=batch.texId?getModelTexture(batch.texId):null;
-      const mat=new T.MeshBasicMaterial({vertexColors:true,side,map:map||null});
-      const mesh=new T.Mesh(geo,mat);
-      mesh.userData.uid=String(obj.uid||obj.id||obj.persistent_id||'');
-      mesh.userData.name=obj.name||'';
-      ttThreeRoot.add(mesh);
+      const mat=new T.MeshBasicMaterial({vertexColors:true,side:batch.side==='front'?T.FrontSide:T.BackSide,map:map||null,color:new T.Color(state.brightness,state.brightness,state.brightness)});
+      const mesh=new T.Mesh(geo,mat);mesh.userData.uid=uid;mesh.userData.explodeVector=vec;ttThreeRoot.add(mesh);
     });
+  });
+  edgeGroups.forEach((edges,uid)=>{
+    const coords=[],pts=[];
+    edges.forEach(e=>{if(!Array.isArray(e.v)||e.v.length!==2)return;e.v.forEach(p=>{const q=[Number(p[0])||0,Number(p[1])||0,Number(p[2])||0];coords.push(...q);pts.push(q);all.push(q)})});
+    if(!coords.length)return;
+    const geo=new T.BufferGeometry();geo.setAttribute('position',new T.Float32BufferAttribute(coords,3));
+    const selected=uid===String(state.selectedObject||'');
+    const line=new T.LineSegments(geo,new T.LineBasicMaterial({color:selected?0xf59e0b:0x27364a,transparent:true,opacity:selected?1:.78}));
+    line.userData.uid=uid;line.userData.isEdge=true;line.userData.explodeVector=objectVectors.get(uid)||explodeVector(pts);ttThreeRoot.add(line);
   });
   if(!all.length)(state.model3d||[]).forEach(o=>(o.corners||[]).forEach(p=>all.push(p)));
   if(!all.length){ttThreeCenter=new T.Vector3(0,0,0);ttThreeRadius=1000;return}
   const bounds=new T.Box3();all.forEach(p=>bounds.expandByPoint(new T.Vector3(p[0],p[1],p[2])));
-  ttThreeCenter=bounds.getCenter(new T.Vector3());
-  const size=bounds.getSize(new T.Vector3());ttThreeRadius=Math.max(size.x,size.y,size.z,1)*1.8;
-  ttThreeRoot.position.set(-ttThreeCenter.x,-ttThreeCenter.y,-ttThreeCenter.z);
+  ttThreeCenter=bounds.getCenter(new T.Vector3());const size=bounds.getSize(new T.Vector3());
+  ttThreeRadius=Math.max(size.x,size.y,size.z,1)*1.8;ttThreeRoot.position.set(-ttThreeCenter.x,-ttThreeCenter.y,-ttThreeCenter.z);
   ttThreeModelRef=state.model3d;ttThreeSelectedRef=String(state.selectedObject||'');ttThreeHiddenTagsRef=JSON.stringify([...(state.hiddenTags||[])].sort());
 }
 function drawModel(){
@@ -249,6 +283,10 @@ function drawModel(){
   ttThreeCamera.position.set(distance*Math.cos(pitch)*Math.sin(yaw),-distance*Math.cos(pitch)*Math.cos(yaw),distance*Math.sin(pitch));
   ttThreeCamera.up.set(0,0,1);ttThreeCamera.lookAt(0,0,0);
   ttThreeCamera.near=Math.max(.01,distance/10000);ttThreeCamera.far=Math.max(10000,distance*100);ttThreeCamera.updateProjectionMatrix();
+  ttThreeRoot.children.forEach(child=>{
+    if(child.userData.explodeVector){const k=state.explode*ttThreeRadius*.42;child.position.set(child.userData.explodeVector[0]*k,child.userData.explodeVector[1]*k,child.userData.explodeVector[2]*k)}
+    if(child.userData.isEdge)child.visible=!!state.showEdges;
+  });
   ttThreeRenderer.render(ttThreeScene,ttThreeCamera);
 }
 
@@ -257,7 +295,7 @@ function pickModelObject(e){
   const cv=$('#modelCanvas'),r=cv.getBoundingClientRect();
   ttThreePointer.set(((e.clientX-r.left)/r.width)*2-1,-((e.clientY-r.top)/r.height)*2+1);
   ttThreeRaycaster.setFromCamera(ttThreePointer,ttThreeCamera);
-  const hits=ttThreeRaycaster.intersectObjects(ttThreeRoot.children,false);
+  const hits=ttThreeRaycaster.intersectObjects(ttThreeRoot.children.filter(x=>x.isMesh),false);
   if(!hits.length)return;
   const uid=hits[0].object.userData.uid;
   const o=findObject(uid);if(o){openObject(o);const row=document.querySelector('[data-openobj="'+CSS.escape(uid)+'"]');row?.scrollIntoView({block:'nearest',behavior:'smooth'})}
@@ -269,6 +307,13 @@ function bindModel(){
   $('#viewXrayBtn').onclick=()=>{state.viewMode='color';$('#viewXrayBtn').classList.add('active');drawModel();setStatus('GÓC NHÌN 3D MÀU','ok')};
   $('#modelObjectSearch').oninput=renderObjects;
   $('#printQrBtn').onclick=printAllQrs;
+  $('#explodeSlider').oninput=e=>{state.explode=Number(e.target.value)/100;$('#explodeValue').textContent=e.target.value+'%';drawModel()};
+  $('#brightnessSlider').oninput=e=>{state.brightness=Number(e.target.value)/100;$('#brightnessValue').textContent=e.target.value+'%';ttThreeModelRef=null;drawModel()};
+  $('#backgroundColor').oninput=e=>{state.background=e.target.value;if(ttThreeScene)ttThreeScene.background.set(state.background);drawModel()};
+  $('#showEdgesToggle').onchange=e=>{state.showEdges=!!e.target.checked;drawModel()};
+  $('#resetExplodeBtn').onclick=()=>{$('#explodeSlider').value=0;state.explode=0;$('#explodeValue').textContent='0%';drawModel()};
+  $('#refreshSavedProjects').onclick=renderSavedProjects;
+  renderSavedProjects();
   // Pointer events hỗ trợ chuột, bút cảm ứng và màn hình điện thoại.
   const pointers=new Map();
   let pinchStart=0,pinchZoom=1,lastTap=0;
