@@ -38,6 +38,16 @@ module TranTuanNoiThat
       @dialog.set_html(dialog_html)
       @dialog.add_action_callback('tt_label_ready') { |dialog, _| push_objects(dialog) }
       @dialog.add_action_callback('tt_label_refresh') { |dialog, _| push_objects(dialog) }
+      @dialog.add_action_callback('tt_label_refresh_settings') do |_dialog, json|
+        begin
+          settings = JSON.parse(json.to_s)
+          Sketchup.write_default('TRẦN TUẤN NỘI THẤT', 'label_workshop', settings['workshop'].to_s)
+          Sketchup.write_default('TRẦN TUẤN NỘI THẤT', 'label_width', settings['width'].to_f)
+          Sketchup.write_default('TRẦN TUẤN NỘI THẤT', 'label_height', settings['height'].to_f)
+        rescue StandardError => error
+          puts "[TT Label settings] #{error.class}: #{error.message}"
+        end
+      end
       @dialog.set_on_closed { @dialog = nil }
       @dialog.show
       true
@@ -155,47 +165,46 @@ module TranTuanNoiThat
       true
     end
 
+    # Quét đúng 1 cấp bên trong Group/Component Nesting cấp ngoài.
+    # Không đi sâu vào các Group cấu tạo nằm trong từng chi tiết.
     def scan_objects
       m = model
       return [] unless m
-      selected_ids = m.selection.to_a.select { |entity| instance?(entity) && entity.valid? }.map do |entity|
-        entity.respond_to?(:persistent_id) ? entity.persistent_id.to_s : entity.entityID.to_s
-      end
-      rows = []
-      walk = lambda do |entity, parent_uid, path, depth|
-        return if depth > 128 || !entity.valid? || !visible?(entity)
-        base_uid = entity_uid(entity)
-        uid = parent_uid ? "#{parent_uid}:#{base_uid}" : base_uid
-        name = entity_name(entity)
-        full_path = path.empty? ? name : "#{path} / #{name}"
-        entity_id = entity.respond_to?(:persistent_id) ? entity.persistent_id.to_s : entity.entityID.to_s
-        rows << {
-          'uid' => uid,
-          'entity_id' => entity_id,
-          'name' => name,
-          'type' => entity.is_a?(Sketchup::Group) ? 'Group' : 'Component',
-          'path' => full_path,
-          'dimensions' => dimensions(entity),
-          'banding' => banding_for(entity),
-          'qr_url' => qr_url(m, uid)
-        }
-        children = entity.definition.entities.to_a.select { |child| instance?(child) && child.valid? && visible?(child) }
-        children.each { |child| walk.call(child, uid, full_path, depth + 1) }
-      rescue StandardError => error
-        puts "[TT Label scan] #{error.class}: #{error.message}"
-      end
 
-      m.entities.to_a.select { |entity| instance?(entity) && entity.valid? && visible?(entity) }.each do |root|
-        walk.call(root, nil, '', 0)
+      selected = m.selection.to_a.select { |entity| instance?(entity) && entity.valid? }
+      roots = if selected.empty?
+                m.entities.to_a.select { |entity| instance?(entity) && entity.valid? && visible?(entity) }
+              else
+                selected
+              end
+
+      rows = []
+      roots.each do |root|
+        next unless visible?(root)
+        parent_name = entity_name(root)
+        children = root.definition.entities.to_a.select do |child|
+          instance?(child) && child.is_a?(Sketchup::Group) && child.valid? && visible?(child)
+        end
+
+        children.each do |entity|
+          next unless entity.valid?
+          uid = entity_uid(entity)
+          rows << {
+            'uid' => uid,
+            'name' => entity_name(entity),
+            'type' => 'Group',
+            'path' => "#{parent_name} / #{entity_name(entity)}",
+            'dimensions' => dimensions(entity),
+            'banding' => banding_for(entity),
+            'qr_url' => qr_url(m, uid)
+          }
+        end
       end
-      rows.select! { |row| selected_ids.include?(row['entity_id']) } unless selected_ids.empty?
-      rows.each { |row| row.delete('entity_id') }
-      rows
+      rows.uniq { |row| row['uid'] }
     rescue StandardError => error
       puts "[TT Label scan] #{error.class}: #{error.message}"
       []
     end
-
     def qr_url(m, uid)
       share_id = m.get_attribute(DICT, 'share_id').to_s
       return '' if share_id.empty?
@@ -244,6 +253,9 @@ module TranTuanNoiThat
             .count{font-size:11px;color:#64748b}.preview{display:flex;flex-wrap:wrap;gap:10px;align-content:flex-start;min-height:100px}
             .labelCard{width:var(--label-width,70mm);height:var(--label-height,40mm);padding:2.2mm;border:1px solid #9ca3af;border-radius:1mm;background:#fff;color:#111;display:grid;grid-template-rows:auto 1fr auto auto;gap:1mm;overflow:hidden;break-inside:avoid}
             .labelWorkshop{font-size:9pt;font-weight:800;border-bottom:1px solid #cbd5e1;padding-bottom:1mm}
+            .labelDiagram{width:100%;height:15mm;min-height:15mm;display:block}
+            .labelDiagram .part{fill:#f4e2c8;stroke:#475569;stroke-width:1.4}
+            .labelDiagram .edgeMark{fill:#16803d;stroke:#fff;stroke-width:.8}
             .labelName{font-size:11pt;font-weight:900;line-height:1.1;overflow:hidden}.labelDims{font-size:9pt;font-weight:800}
             .labelEdges{font-size:7pt;line-height:1.2;overflow:hidden}.labelFooter{display:flex;justify-content:space-between;align-items:flex-end;gap:2mm}
             .labelUid{font-size:6pt;overflow-wrap:anywhere;max-width:65%}.labelQr{width:16mm;height:16mm;background:#fff;flex:0 0 16mm}
@@ -291,6 +303,7 @@ module TranTuanNoiThat
               renderList(){const q=document.getElementById('search').value.trim().toLowerCase();const rows=state.objects.filter(o=>[o.name,o.uid,o.path].join(' ').toLowerCase().includes(q));document.getElementById('objectList').innerHTML=rows.map(o=>'<label class="objectRow"><input type="checkbox" data-uid="'+esc(o.uid)+'" '+(state.selected.has(o.uid)?'checked':'')+'><span><b>'+esc(o.name)+'</b><small>'+esc(o.path)+' · '+esc((o.dimensions||[]).join(' × '))+' mm</small></span></label>').join('')||'<div class="empty">Không có đối tượng phù hợp.</div>';document.querySelectorAll('[data-uid]').forEach(el=>el.onchange=()=>{el.checked?state.selected.add(el.dataset.uid):state.selected.delete(el.dataset.uid);this.renderPreview();this.updateCount()});this.updateCount()},
               updateCount(){document.getElementById('selectedCount').textContent=state.selected.size+' đối tượng được chọn'},
               selectAll(yes){state.selected=yes?new Set(state.objects.map(o=>o.uid)):new Set();this.renderList();this.renderPreview()},
+              edgeDiagram(o){const b=o.banding||{};const has=(side)=>Object.entries(b).some(([k,v])=>String(k).toUpperCase()===side&&v!==false&&v!==0&&v!==''&&v!=null);let marks='';if(has('TRÁI'))marks+='<path class="edgeMark" d="M8 44 L25 34 L25 54 Z"/>';if(has('PHẢI'))marks+='<path class="edgeMark" d="M152 44 L135 34 L135 54 Z"/>';if(has('TRÊN'))marks+='<path class="edgeMark" d="M80 7 L69 23 L91 23 Z"/>';if(has('DƯỚI'))marks+='<path class="edgeMark" d="M80 81 L69 65 L91 65 Z"/>';return '<svg class="labelDiagram" viewBox="0 0 160 88" role="img" aria-label="Sơ đồ cạnh dán"><rect class="part" x="5" y="5" width="150" height="78" rx="1"/>'+marks+'</svg>'},
               renderPreview(){const chosen=state.objects.filter(o=>state.selected.has(o.uid));const w=Math.max(20,Math.min(300,Number(document.getElementById('width').value)||70)),h=Math.max(15,Math.min(300,Number(document.getElementById('height').value)||40));const host=document.getElementById('preview');host.style.setProperty('--label-width',w+'mm');host.style.setProperty('--label-height',h+'mm');host.innerHTML=chosen.map(o=>'<article class="labelCard"><div class="labelWorkshop">'+esc(document.getElementById('workshop').value||'XƯỞNG TRẦN TUẤN')+'</div><div class="labelName">'+esc(o.name)+'</div><div class="labelDims">'+esc((o.dimensions||[]).join(' × '))+' mm</div><div class="labelEdges"><b>CẠNH DÁN:</b> '+esc(Object.entries(o.banding||{}).map(([k,v])=>k+' '+v).join(' · ')||'Chưa có dữ liệu cạnh dán')+'</div><div class="labelFooter"><div class="labelUid">'+esc(o.uid)+'</div><div class="labelQr" data-qr="'+esc(o.uid)+'"></div></div></article>').join('')||'<div class="empty">Chọn đối tượng để xem tem.</div>';if(window.QRCode)host.querySelectorAll('[data-qr]').forEach(el=>{const o=chosen.find(x=>x.uid===el.dataset.qr);if(o&&o.qr_url)new QRCode(el,{text:o.qr_url,width:100,height:100,correctLevel:QRCode.CorrectLevel.M});else el.textContent='Chưa có QR'});this.updateCount()},
               print(){if(!state.selected.size){alert('Hãy chọn ít nhất một Group / Component.');return}const w=document.getElementById('workshop').value||'XƯỞNG TRẦN TUẤN';const width=Math.max(20,Math.min(300,Number(document.getElementById('width').value)||70));const height=Math.max(15,Math.min(300,Number(document.getElementById('height').value)||40));sketchup.tt_label_refresh_settings(JSON.stringify({workshop:w,width,height}));window.print()}
             };
