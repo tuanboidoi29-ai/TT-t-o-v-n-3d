@@ -18,7 +18,7 @@ module TranTuanNoiThat
   }.freeze unless const_defined?(:LOCKED_FEATURE_BASELINES, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.371'.freeze
+  VERSION = '1.9.372'.freeze
 
   class << self
     def setting(key, default = nil)
@@ -229,6 +229,7 @@ module TranTuanNoiThat
         layout_stats_v110_layout_only_dim_dedupe
         settings
         model_export_tool
+        label_tool
         grain_board_auto
         updater
         don_dim_line
@@ -490,10 +491,25 @@ module TranTuanNoiThat
       install_dimensions_ui
       install_gcode_export_ui
       install_model_export_ui
+      install_label_tool_ui
       refresh_feature_commands
       @toolbar.restore if @toolbar
       @toolbar.show if @toolbar
       true
+    end
+
+    def install_label_tool_ui
+      return false unless defined?(TranTuanNoiThat::LabelTool)
+      @label_tool_cmd ||= command(
+        'THIẾT KẾ & IN TEM NHÃN',
+        'label.svg',
+        'Chọn Group/Component · lấy kích thước và dữ liệu cạnh dán · tạo QR · in tem'
+      ) { LabelTool.show }
+      add_feature_command_once(@label_tool_cmd, :label_tool_menu_installed)
+      true
+    rescue StandardError => error
+      puts "[TT UI LabelTool] #{error.class}: #{error.message}"
+      false
     end
 
     def install_box_ui
