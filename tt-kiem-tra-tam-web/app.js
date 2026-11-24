@@ -1,6 +1,6 @@
 const API='https://vnvkmxqgbnmirsgdgfzm.supabase.co/functions/v1/tt-model-api';
 const $=s=>document.querySelector(s);
-const state={labelSelectedUids:[],shareId:'',pendingBoard:'',pendingObject:'',model:null,panels:[],labels:[],objects:[],groupTree:[],selectedObject:'',mutedMaterialObjects:[],isolatedObjectUids:[],productionMode:false,productionScanned:[],lastProductionQr:'',hitTargets:[],model3d:[],textures:{},edges:[],tags:[],hiddenTags:[],explode:0,brightness:1.25,showEdges:true,background:'#e8edf3',viewMode:'color',view:{yaw:-.65,pitch:-.45,zoom:1,drag:false,x:0,y:0},stream:null,scanLoop:0,detector:null};
+const state={shareId:'',pendingBoard:'',pendingObject:'',model:null,panels:[],labels:[],objects:[],groupTree:[],selectedObject:'',mutedMaterialObjects:[],isolatedObjectUids:[],productionMode:false,productionScanned:[],lastProductionQr:'',hitTargets:[],model3d:[],textures:{},edges:[],tags:[],hiddenTags:[],explode:0,brightness:1.25,showEdges:true,background:'#e8edf3',viewMode:'color',view:{yaw:-.65,pitch:-.45,zoom:1,drag:false,x:0,y:0},stream:null,scanLoop:0,detector:null};
 
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function num(v){const n=Number(v);return Number.isFinite(n)?n:0}
@@ -30,7 +30,7 @@ function renderSavedProjects(){
   const markup=rows.map(p=>'<button type="button" class="savedProjectRow" data-saved-id="'+esc(p.share_id)+'"><b>'+esc(p.name)+'</b><span>'+esc(p.share_id)+' · Rev '+Number(p.revision||1)+'</span><small>'+new Date(p.saved_at).toLocaleString('vi-VN')+'</small></button>').join('')||'<span class="smallHint">Chưa có dự án được lưu trên thiết bị này. Mở dự án một lần để lưu vào danh sách.</span>';
   ['#savedProjectList','#savedProjectListLogin'].forEach(sel=>{const node=$(sel);if(!node)return;node.innerHTML=markup;node.querySelectorAll('[data-saved-id]').forEach(b=>b.onclick=()=>{state.shareId=b.dataset.savedId;$('#projectLogin').value='';login()})});
 }
-function showApp(){ $('#loginCard').classList.add('hidden'); ['#projectCard','#labelPanel','#modelPanel','#groupPanel','#historyPanel','#controls','#summary'].forEach(s=>$(s).classList.remove('hidden')); $('#logoutBtn').classList.remove('hidden'); }
+function showApp(){ $('#loginCard').classList.add('hidden'); ['#projectCard','#modelPanel','#groupPanel','#historyPanel','#controls','#summary'].forEach(s=>$(s).classList.remove('hidden')); $('#logoutBtn').classList.remove('hidden'); }
 function hideApp(){ $('#loginCard').classList.remove('hidden'); ['#projectCard','#labelPanel','#modelPanel','#groupPanel','#historyPanel','#productionPanel','#controls','#summary'].forEach(s=>$(s).classList.add('hidden')); $('#logoutBtn').classList.add('hidden'); $('#list').innerHTML=''; $('#modelObjectList').innerHTML=''; $('#groupTree').innerHTML=''; $('#historyList').innerHTML=''; }
 
 async function login(){
@@ -82,7 +82,7 @@ function loadModel(model){
   const materialSummary=$('#materialSummary');if(materialSummary)materialSummary.textContent='Vật liệu thực tế: '+materialTotals.textured+' mặt có vân · '+materialTotals.colored+' mặt màu đơn sắc · '+materialTotals.unassigned+' mặt chưa gán';
   const th=[...new Set(state.panels.map(thickness).filter(Boolean))].sort((a,b)=>num(a)-num(b));
   $('#thicknessFilter').innerHTML='<option value="">Tất cả độ dày</option>'+th.map(v=>'<option value="'+esc(v)+'">'+esc(v)+' mm</option>').join('');
-  state.viewMode='color';showApp();render();renderObjects();renderLabelObjectList();renderLabelPreview();renderGroups();renderTagFilters();drawModel();renderObjectDetail();syncMaterialToggle();renderProductionCheck();loadHistory();const texturedTriangles=state.model3d.reduce((n,o)=>n+(Array.isArray(o.triangles)?o.triangles.filter(t=>t.tex||t.btex).length:0),0);if(materialTotals.textured>0&&(!Object.keys(state.textures).length||!texturedTriangles)){setStatus('CẢNH BÁO: MODEL CÓ MẶT GÁN TEXTURE NHƯNG DỮ LIỆU ẢNH/UV CHƯA ĐƯỢC ĐỒNG BỘ ĐẦY ĐỦ','bad')}else{setStatus(Object.keys(state.textures).length&&texturedTriangles?'MODEL 3D ĐANG HIỂN THỊ VẬT LIỆU & VÂN THỰC TẾ':'MODEL 3D MÀU ĐƠN SẮC ĐANG HIỂN THỊ','ok')}
+  state.viewMode='color';showApp();render();renderObjects();renderGroups();renderTagFilters();drawModel();renderObjectDetail();syncMaterialToggle();renderProductionCheck();loadHistory();const texturedTriangles=state.model3d.reduce((n,o)=>n+(Array.isArray(o.triangles)?o.triangles.filter(t=>t.tex||t.btex).length:0),0);if(materialTotals.textured>0&&(!Object.keys(state.textures).length||!texturedTriangles)){setStatus('CẢNH BÁO: MODEL CÓ MẶT GÁN TEXTURE NHƯNG DỮ LIỆU ẢNH/UV CHƯA ĐƯỢC ĐỒNG BỘ ĐẦY ĐỦ','bad')}else{setStatus(Object.keys(state.textures).length&&texturedTriangles?'MODEL 3D ĐANG HIỂN THỊ VẬT LIỆU & VÂN THỰC TẾ':'MODEL 3D MÀU ĐƠN SẮC ĐANG HIỂN THỊ','ok')}
   if(state.pendingObject){const hit=findObject(state.pendingObject);state.pendingObject='';if(hit)setTimeout(()=>{state.selectedObject=String(hit.uid||hit.id||'');renderObjects();drawModel();renderObjectDetail();syncMaterialToggle();},100);}
   else if(state.pendingBoard){const hit=findBoard(state.pendingBoard);state.pendingBoard='';if(hit)setTimeout(()=>openDetail(hit),100);}
 }
@@ -187,68 +187,6 @@ function showObjectQr(uid,holder){const o=findObject(uid);if(!o||!holder)return;
 function printAllQrs(){const grid=$('#qrPrintGrid');grid.innerHTML='';state.objects.forEach(o=>{const card=document.createElement('div');card.className='qrPrintCard';const title=document.createElement('b');title.textContent=o.name||'Đối tượng';const code=document.createElement('small');code.textContent=o.uid||'';const qr=document.createElement('div');qr.className='qrPrintCode';card.append(title,code,qr);grid.appendChild(card);if(window.QRCode)new QRCode(qr,{text:objectLink(o),width:112,height:112,correctLevel:QRCode.CorrectLevel.M});else qr.textContent=objectLink(o)});grid.classList.remove('hidden');setTimeout(()=>window.print(),350)}
 window.onafterprint=()=>$('#qrPrintGrid').classList.add('hidden');
 
-
-function labelObjectId(o){return String(o?.uid||o?.id||'')}
-function labelSourceForObject(o){
-  const uid=labelObjectId(o);
-  const p=state.panels.find(x=>[x.uid,x.panel_uid,x.code,x.ma_tam,x.id].some(v=>String(v||'')===uid))||{};
-  const band=Object.keys(bandsOf(o||{})).length?bandsOf(o):bandsOf(p);
-  const d=Array.isArray(o?.dimensions)&&o.dimensions.length?o.dimensions:(Array.isArray(p.cut)?p.cut:(Array.isArray(p.dimensions)?p.dimensions:[]));
-  return {p,band,d,name:o?.name||p.name||p.ten||'Cấu kiện chưa đặt tên'};
-}
-function labelSelected(){const chosen=new Set(state.labelSelectedUids||[]);return (state.objects||[]).filter(o=>chosen.has(labelObjectId(o)))}
-function renderLabelObjectList(){
-  const host=$('#labelObjectList');if(!host)return;
-  const q=($('#labelObjectSearch')?.value||'').trim().toLowerCase();
-  const rows=(state.objects||[]).filter(o=>[o.name,o.uid,o.type,o.path,(o.dimensions||[]).join(' ')].join(' ').toLowerCase().includes(q));
-  host.innerHTML=rows.map(o=>{const uid=labelObjectId(o),d=labelSourceForObject(o).d;return '<label class="labelObjectRow"><input type="checkbox" data-label-uid="'+esc(uid)+'" '+(state.labelSelectedUids.includes(uid)?'checked':'')+'><span><b>'+esc(o.name||'Cấu kiện chưa đặt tên')+'</b><small>'+esc(uid)+' · '+esc(d.length?d.join(' × ')+' mm':'Chưa có kích thước')+'</small></span></label>'}).join('')||'<div class="smallHint">Không tìm thấy đối tượng.</div>';
-  host.querySelectorAll('[data-label-uid]').forEach(el=>el.onchange=()=>{const uid=el.dataset.labelUid,set=new Set(state.labelSelectedUids);if(el.checked)set.add(uid);else set.delete(uid);state.labelSelectedUids=[...set];renderLabelPreview()});
-  $('#labelSelectionCount').textContent=state.labelSelectedUids.length+' đối tượng đã chọn';
-}
-function labelMarkup(o,index){
-  const {band,d,name}=labelSourceForObject(o),uid=labelObjectId(o),w=($('#labelWorkshop').value||'').trim()||'XƯỞNG CHƯA ĐẶT TÊN';
-  const dims=d.length?d.map(v=>Number(v).toLocaleString('vi-VN')).join(' × ')+' mm':'Chưa có kích thước';
-  const edges=[['U-','TRÁI'],['V+','TRÊN'],['U+','PHẢI'],['V-','DƯỚI']].filter(([k])=>band&&band[k]!==undefined&&band[k]!==null&&band[k]!==false&&band[k]!==0&&band[k]!=='');
-  const edgeText=edges.length?edges.map(([k,n])=>n+(band[k]===true?'':' · '+String(band[k]))).join('  |  '):'Không có dữ liệu cạnh dán';
-  return '<article class="labelCard"><div class="labelWorkshop">'+esc(w)+'</div><div class="labelObjectName">'+esc(name)+'</div><div class="labelDimensions">'+esc(dims)+'</div><div class="labelEdges"><b>CẠNH DÁN:</b> '+esc(edgeText)+'</div><div class="labelFooter"><div class="labelCode">'+esc(uid)+'</div><div class="labelQr" data-label-qr="'+esc(uid)+'"></div></div></article>';
-}
-function fillLabelQrs(host,items){
-  const includeQr=$('#labelIncludeQr')?.checked!==false;
-  if(!includeQr)return;
-  host.querySelectorAll('[data-label-qr]').forEach((el,i)=>{const o=items.find(x=>labelObjectId(x)===el.dataset.labelQr);if(o&&window.QRCode)new QRCode(el,{text:objectLink(o),width:72,height:72,correctLevel:QRCode.CorrectLevel.M})});
-}
-function renderLabelPreview(){
-  const host=$('#labelPreview');if(!host)return;
-  const selected=labelSelected(),items=selected.slice(0,6);
-  const width=Math.max(20,Math.min(300,Number($('#labelWidth')?.value)||70)),height=Math.max(15,Math.min(300,Number($('#labelHeight')?.value)||40));
-  host.style.setProperty('--label-w',width+'mm');host.style.setProperty('--label-h',height+'mm');
-  host.innerHTML=items.map(labelMarkup).join('')||'<div class="labelPreviewEmpty">Chọn đối tượng ở danh sách để xem trước tem.</div>';
-  fillLabelQrs(host,items);
-  $('#labelPreviewCount').textContent=selected.length>6?'Đang xem 6 / '+selected.length+' tem':selected.length+' tem xem trước';
-}
-function selectAllLabelObjects(yes){state.labelSelectedUids=yes?(state.objects||[]).map(labelObjectId).filter(Boolean):[];renderLabelObjectList();renderLabelPreview()}
-function printObjectLabels(){
-  const selected=labelSelected();if(!selected.length){setStatus('HÃY CHỌN ÍT NHẤT MỘT ĐỐI TƯỢNG ĐỂ IN TEM','bad');return}
-  const grid=$('#qrPrintGrid');grid.innerHTML='';
-  const width=Math.max(20,Math.min(300,Number($('#labelWidth').value)||70)),height=Math.max(15,Math.min(300,Number($('#labelHeight').value)||40));
-  grid.style.setProperty('--label-w',width+'mm');grid.style.setProperty('--label-h',height+'mm');
-  grid.classList.add('labelPrintGrid');
-  selected.forEach((o,i)=>{const wrap=document.createElement('div');wrap.innerHTML=labelMarkup(o,i);const card=wrap.firstElementChild;grid.appendChild(card);const qr=card.querySelector('.labelQr');if($('#labelIncludeQr').checked&&window.QRCode)new QRCode(qr,{text:objectLink(o),width:Math.max(48,Math.min(150,Math.round(height*1.7))),height:Math.max(48,Math.min(150,Math.round(height*1.7))),correctLevel:QRCode.CorrectLevel.M});else qr.remove()});
-  grid.classList.remove('hidden');setTimeout(()=>window.print(),300);
-}
-function bindLabels(){
-  $('#labelWorkshop').value=localStorage.getItem('tt_label_workshop')||'XƯỞNG TRẦN TUẤN';
-  $('#labelWidth').value=localStorage.getItem('tt_label_width')||'70';
-  $('#labelHeight').value=localStorage.getItem('tt_label_height')||'40';
-  $('#labelObjectSearch').oninput=renderLabelObjectList;
-  $('#labelSelectAll').onclick=()=>selectAllLabelObjects(true);
-  $('#labelSelectNone').onclick=()=>selectAllLabelObjects(false);
-  ['labelWorkshop','labelWidth','labelHeight','labelIncludeQr'].forEach(id=>$('#'+id).addEventListener('input',()=>{if(id==='labelWorkshop')localStorage.setItem('tt_label_workshop',$('#labelWorkshop').value);if(id==='labelWidth')localStorage.setItem('tt_label_width',$('#labelWidth').value);if(id==='labelHeight')localStorage.setItem('tt_label_height',$('#labelHeight').value);renderLabelPreview()}));
-  $('#labelPrintBtn').onclick=printObjectLabels;
-  $('#labelSelectCurrent').onclick=()=>{const uid=String(state.selectedObject||'');if(uid){state.labelSelectedUids=[...new Set([...state.labelSelectedUids,uid])];renderLabelObjectList();renderLabelPreview()}};
-  $('#openLabelFeatureBtn').onclick=()=>$('#labelPanel').scrollIntoView({behavior:'smooth',block:'start'});
-  window.onafterprint=()=>{$('#qrPrintGrid').classList.add('hidden');$('#qrPrintGrid').classList.remove('labelPrintGrid')};
-}
 
 function project3d(pt,c,v,scale,W,H){let x=pt[0]-c[0],y=pt[1]-c[1],z=pt[2]-c[2];if(state.viewMode==='2d')return[W/2+x*scale*v.zoom,H/2-y*scale*v.zoom,z];let cy=Math.cos(v.yaw),sy=Math.sin(v.yaw),cp=Math.cos(v.pitch),sp=Math.sin(v.pitch);let x1=x*cy-y*sy,y1=x*sy+y*cy,z1=z;let y2=y1*cp-z1*sp,z2=y1*sp+z1*cp;return[W/2+x1*scale*v.zoom,H/2-z2*scale*v.zoom,y2]}
 let ttThreeScene=null,ttThreeCamera=null,ttThreeRenderer=null,ttThreeRoot=null,ttThreeCenter=null,ttThreeRadius=1000,ttThreeRaycaster=null,ttThreePointer=null,ttThreeModelRef=null,ttThreeSelectedRef='',ttThreeHiddenTagsRef='',ttThreeMutedRef='',ttThreeIsolatedRef='';
@@ -563,7 +501,7 @@ function boot(){
   $('#projectLogin').value=localStorage.getItem('tt_project_login')||'';
   if(state.shareId){$('#qrModeHint').classList.remove('hidden');$('#qrModeHint').textContent='Đã nhận mã dự án từ liên kết QR. Đang mở Model 3D…';setTimeout(login,80)} else {$('#projectLogin').value=localStorage.getItem('tt_project_login')||''}
   if(new URLSearchParams(location.search).get('scanner')==='1'){setTimeout(openScanner,250)}
-  bindModel();bindLabels();setStatus('NHẬP TÊN HOẶC MÃ DỰ ÁN');
+  bindModel();setStatus('NHẬP TÊN HOẶC MÃ DỰ ÁN');
 }
 
 $('#loginBtn').onclick=login;$('#projectLogin').onkeydown=e=>{if(e.key==='Enter')login()};
