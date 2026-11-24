@@ -1,6 +1,6 @@
 const API='https://vnvkmxqgbnmirsgdgfzm.supabase.co/functions/v1/tt-model-api';
 const $=s=>document.querySelector(s);
-const state={shareId:'',pendingBoard:'',pendingObject:'',model:null,panels:[],labels:[],objects:[],groupTree:[],selectedObject:'',mutedMaterialObjects:[],productionMode:false,productionScanned:[],lastProductionQr:'',hitTargets:[],model3d:[],textures:{},edges:[],tags:[],hiddenTags:[],explode:0,brightness:1.25,showEdges:true,background:'#e8edf3',viewMode:'color',view:{yaw:-.65,pitch:-.45,zoom:1,drag:false,x:0,y:0},stream:null,scanLoop:0,detector:null};
+const state={shareId:'',pendingBoard:'',pendingObject:'',model:null,panels:[],labels:[],objects:[],groupTree:[],selectedObject:'',mutedMaterialObjects:[],isolatedObjectUids:[],productionMode:false,productionScanned:[],lastProductionQr:'',hitTargets:[],model3d:[],textures:{},edges:[],tags:[],hiddenTags:[],explode:0,brightness:1.25,showEdges:true,background:'#e8edf3',viewMode:'color',view:{yaw:-.65,pitch:-.45,zoom:1,drag:false,x:0,y:0},stream:null,scanLoop:0,detector:null};
 
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function num(v){const n=Number(v);return Number.isFinite(n)?n:0}
@@ -66,7 +66,7 @@ function loadModel(model){
   textureCache.forEach(t=>t.dispose());textureCache.clear();
   state.groupTree=Array.isArray(p.group_tree)?p.group_tree:[];
   state.hiddenTags=state.tags.filter(t=>t.visible===false).map(t=>String(t.name||''));
-  state.selectedObject='';state.mutedMaterialObjects=[];state.productionScanned=[];state.productionMode=false;
+  state.selectedObject='';state.mutedMaterialObjects=[];state.isolatedObjectUids=[];state.productionScanned=[];state.productionMode=false;
   $('#modelName').textContent=state.model.model_name||p.model_name||'SketchUp Model';
   $('#modelId').textContent='Mã: '+state.shareId;
   $('#savedAt').textContent='Lưu: '+new Date(state.model.last_saved_at||state.model.updated_at||Date.now()).toLocaleString('vi-VN');
@@ -188,7 +188,7 @@ function printAllQrs(){const grid=$('#qrPrintGrid');grid.innerHTML='';state.obje
 window.onafterprint=()=>$('#qrPrintGrid').classList.add('hidden');
 
 function project3d(pt,c,v,scale,W,H){let x=pt[0]-c[0],y=pt[1]-c[1],z=pt[2]-c[2];if(state.viewMode==='2d')return[W/2+x*scale*v.zoom,H/2-y*scale*v.zoom,z];let cy=Math.cos(v.yaw),sy=Math.sin(v.yaw),cp=Math.cos(v.pitch),sp=Math.sin(v.pitch);let x1=x*cy-y*sy,y1=x*sy+y*cy,z1=z;let y2=y1*cp-z1*sp,z2=y1*sp+z1*cp;return[W/2+x1*scale*v.zoom,H/2-z2*scale*v.zoom,y2]}
-let ttThreeScene=null,ttThreeCamera=null,ttThreeRenderer=null,ttThreeRoot=null,ttThreeCenter=null,ttThreeRadius=1000,ttThreeRaycaster=null,ttThreePointer=null,ttThreeModelRef=null,ttThreeSelectedRef='',ttThreeHiddenTagsRef='',ttThreeMutedRef='';
+let ttThreeScene=null,ttThreeCamera=null,ttThreeRenderer=null,ttThreeRoot=null,ttThreeCenter=null,ttThreeRadius=1000,ttThreeRaycaster=null,ttThreePointer=null,ttThreeModelRef=null,ttThreeSelectedRef='',ttThreeHiddenTagsRef='',ttThreeMutedRef='',ttThreeIsolatedRef='';
 const textureCache=new Map();
 function getModelTexture(id){
   const key=String(id||'');if(!key||!state.textures[key])return null;
@@ -232,6 +232,7 @@ function buildThreeGeometry(){
     (Array.isArray(root.triangles)?root.triangles:[]).forEach(tri=>{
       if(hiddenTags.has(String(tri.tag||root.tag||'')))return;
       const uid=String(tri.object_uid||tri.oid||root.uid||root.id||'');
+      if(state.isolatedObjectUids.length&&!state.isolatedObjectUids.includes(uid))return;
       if(!triGroups.has(uid))triGroups.set(uid,[]);
       triGroups.get(uid).push(tri);
     });
@@ -239,6 +240,7 @@ function buildThreeGeometry(){
   (state.edges||[]).forEach(edge=>{
     if(hiddenTags.has(String(edge.tag||edge.t||'')))return;
     const uid=String(edge.object_uid||edge.o||'');
+    if(state.isolatedObjectUids.length&&!state.isolatedObjectUids.includes(uid))return;
     if(!edgeGroups.has(uid))edgeGroups.set(uid,[]);
     edgeGroups.get(uid).push(edge);
   });
@@ -298,12 +300,13 @@ function buildThreeGeometry(){
   ttThreeRadius=Math.max(size.x,size.y,size.z,1)*1.8;ttThreeRoot.position.set(-ttThreeCenter.x,-ttThreeCenter.y,-ttThreeCenter.z);
   ttThreeModelRef=state.model3d;ttThreeSelectedRef=String(state.selectedObject||'');ttThreeHiddenTagsRef=JSON.stringify([...(state.hiddenTags||[])].sort());
   ttThreeMutedRef=JSON.stringify([...(state.mutedMaterialObjects||[])].sort());
+  ttThreeIsolatedRef=JSON.stringify([...(state.isolatedObjectUids||[])].sort());
 }
 function drawModel(){
   const cv=$('#modelCanvas');if(!cv)return;
   if(!window.THREE){const ctx=cv.getContext('2d');if(ctx){ctx.clearRect(0,0,cv.width,cv.height);ctx.fillStyle='#334155';ctx.font='14px Arial';ctx.fillText('Đang tải bộ dựng 3D…',18,32)}return}
   if(!initThreeModel())return;
-  if(ttThreeModelRef!==state.model3d||ttThreeSelectedRef!==String(state.selectedObject||'')||ttThreeHiddenTagsRef!==JSON.stringify([...(state.hiddenTags||[])].sort())||ttThreeMutedRef!==JSON.stringify([...(state.mutedMaterialObjects||[])].sort())||!ttThreeRoot.children.length)buildThreeGeometry();
+  if(ttThreeModelRef!==state.model3d||ttThreeSelectedRef!==String(state.selectedObject||'')||ttThreeHiddenTagsRef!==JSON.stringify([...(state.hiddenTags||[])].sort())||ttThreeMutedRef!==JSON.stringify([...(state.mutedMaterialObjects||[])].sort())||ttThreeIsolatedRef!==JSON.stringify([...(state.isolatedObjectUids||[])].sort())||!ttThreeRoot.children.length)buildThreeGeometry();
   const w=Math.max(1,cv.clientWidth||800),h=Math.max(1,cv.clientHeight||360);
   const pixelRatio=Math.min(window.devicePixelRatio||1,2);
   if(cv.width!==Math.round(w*pixelRatio)||cv.height!==Math.round(h*pixelRatio)){ttThreeRenderer.setSize(w,h,false);ttThreeCamera.aspect=w/h;ttThreeCamera.updateProjectionMatrix()}
@@ -339,6 +342,8 @@ function bindModel(){
   $('#toggleSelectedMaterialBtn').onclick=toggleSelectedMaterial;
   $('#productionCheckBtn').onclick=startProductionCheck;
   $('#finishProductionCheckBtn').onclick=finishProductionCheck;
+  $('#isolateMissingProductionBtn').onclick=isolateMissingProduction;
+  $('#showFullProductionModelBtn').onclick=showFullProductionModel;
   $('#explodeSlider').oninput=e=>{state.explode=Number(e.target.value)/100;$('#explodeValue').textContent=e.target.value+'%';drawModel()};
   $('#brightnessSlider').oninput=e=>{state.brightness=Number(e.target.value)/100;$('#brightnessValue').textContent=e.target.value+'%';ttThreeModelRef=null;drawModel()};
   $('#backgroundColor').oninput=e=>{state.background=e.target.value;if(ttThreeScene)ttThreeScene.background.set(state.background);drawModel()};
@@ -400,7 +405,7 @@ async function reloadCurrentProject(){
   catch(e){setStatus('TẢI LẠI THẤT BẠI','bad');alert(e.message||String(e))}
   finally{if(btn)btn.disabled=false}
 }
-function logout(){stopScanner();state.model=null;state.shareId='';state.panels=[];state.labels=[];state.objects=[];state.groupTree=[];state.model3d=[];state.edges=[];state.tags=[];state.textures={};state.selectedObject='';state.mutedMaterialObjects=[];state.productionMode=false;state.productionScanned=[];state.hitTargets=[];hideApp();renderSavedProjects();setStatus('Sẵn sàng');setMsg('');}
+function logout(){stopScanner();state.model=null;state.shareId='';state.panels=[];state.labels=[];state.objects=[];state.groupTree=[];state.model3d=[];state.edges=[];state.tags=[];state.textures={};state.selectedObject='';state.mutedMaterialObjects=[];state.isolatedObjectUids=[];state.productionMode=false;state.productionScanned=[];state.hitTargets=[];hideApp();renderSavedProjects();setStatus('Sẵn sàng');setMsg('');}
 
 function parseQr(raw){
   const s=String(raw||'').trim();if(!s)return false;
@@ -428,6 +433,16 @@ function registerProductionQr(raw){
   state.productionScanned.push(uid);renderProductionCheck();
   const st=$('#scanStatus');if(st)st.textContent='ĐÃ NHẬN: '+(obj.name||uid)+' · '+state.productionScanned.length+'/'+expected.length;
   resumeProductionScanner();return true;
+}
+function isolateMissingProduction(){
+  const expected=productionExpected(),scanned=new Set(state.productionScanned);
+  state.isolatedObjectUids=expected.filter(o=>!scanned.has(String(o.uid||o.id||''))).map(o=>String(o.uid||o.id||''));
+  ttThreeModelRef=null;drawModel();$('#modelPanel').scrollIntoView({behavior:'smooth',block:'start'});
+  setStatus('ĐANG CHỈ HIỂN THỊ '+state.isolatedObjectUids.length+' CẤU KIỆN CÒN THIẾU','ok');
+}
+function showFullProductionModel(){
+  state.isolatedObjectUids=[];ttThreeModelRef=null;drawModel();
+  setStatus('ĐÃ HIỆN LẠI TOÀN BỘ MODEL','ok');
 }
 function productionDimensions(o){const d=Array.isArray(o.dimensions)?o.dimensions:[];return d.length?d.map(v=>Number(v).toFixed(Number(v)%1?1:0)).join(' × ')+' mm':'Chưa có kích thước'}
 function renderProductionCheck(){
