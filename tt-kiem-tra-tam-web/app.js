@@ -27,8 +27,8 @@ function rememberProject(model){
 }
 function renderSavedProjects(){
   const host=$('#savedProjectList');if(!host)return;const rows=savedProjects();
-  host.innerHTML=rows.map(p=>'<button type="button" class="savedProjectRow" data-saved-id="'+esc(p.share_id)+'"><b>'+esc(p.name)+'</b><span>'+esc(p.share_id)+' · Rev '+Number(p.revision||1)+'</span><small>'+new Date(p.saved_at).toLocaleString('vi-VN')+'</small></button>').join('')||'<span class="smallHint">Chưa có dự án được lưu trên thiết bị này. Mở dự án một lần để lưu vào danh sách.</span>';
-  host.querySelectorAll('[data-saved-id]').forEach(b=>b.onclick=()=>{state.shareId=b.dataset.savedId;$('#projectLogin').value='';login()});
+  const markup=rows.map(p=>'<button type="button" class="savedProjectRow" data-saved-id="'+esc(p.share_id)+'"><b>'+esc(p.name)+'</b><span>'+esc(p.share_id)+' · Rev '+Number(p.revision||1)+'</span><small>'+new Date(p.saved_at).toLocaleString('vi-VN')+'</small></button>').join('')||'<span class="smallHint">Chưa có dự án được lưu trên thiết bị này. Mở dự án một lần để lưu vào danh sách.</span>';
+  ['#savedProjectList','#savedProjectListLogin'].forEach(sel=>{const node=$(sel);if(!node)return;node.innerHTML=markup;node.querySelectorAll('[data-saved-id]').forEach(b=>b.onclick=()=>{state.shareId=b.dataset.savedId;$('#projectLogin').value='';login()})});
 }
 function showApp(){ $('#loginCard').classList.add('hidden'); ['#projectCard','#modelPanel','#groupPanel','#historyPanel','#controls','#summary'].forEach(s=>$(s).classList.remove('hidden')); $('#logoutBtn').classList.remove('hidden'); }
 function hideApp(){ $('#loginCard').classList.remove('hidden'); ['#projectCard','#modelPanel','#groupPanel','#historyPanel','#controls','#summary'].forEach(s=>$(s).classList.add('hidden')); $('#logoutBtn').classList.add('hidden'); $('#list').innerHTML=''; $('#modelObjectList').innerHTML=''; $('#groupTree').innerHTML=''; $('#historyList').innerHTML=''; }
@@ -218,6 +218,10 @@ function buildThreeGeometry(){
     if(!edgeGroups.has(uid))edgeGroups.set(uid,[]);
     edgeGroups.get(uid).push(edge);
   });
+  const modelBounds=new T.Box3();
+  triGroups.forEach(tris=>tris.forEach(tri=>(tri.v||[]).forEach(p=>modelBounds.expandByPoint(new T.Vector3(Number(p[0])||0,Number(p[1])||0,Number(p[2])||0)))));
+  edgeGroups.forEach(edges=>edges.forEach(edge=>(edge.v||[]).forEach(p=>modelBounds.expandByPoint(new T.Vector3(Number(p[0])||0,Number(p[1])||0,Number(p[2])||0)))));
+  ttThreeCenter=modelBounds.isEmpty()?new T.Vector3(0,0,0):modelBounds.getCenter(new T.Vector3());
   const explodeVector=(points)=>{
     if(!points.length)return [0,0,0];
     const c=points.reduce((a,p)=>[a[0]+p[0]/points.length,a[1]+p[1]/points.length,a[2]+p[2]/points.length],[0,0,0]);
@@ -313,6 +317,7 @@ function bindModel(){
   $('#showEdgesToggle').onchange=e=>{state.showEdges=!!e.target.checked;drawModel()};
   $('#resetExplodeBtn').onclick=()=>{$('#explodeSlider').value=0;state.explode=0;$('#explodeValue').textContent='0%';drawModel()};
   $('#refreshSavedProjects').onclick=renderSavedProjects;
+  $('#refreshSavedProjectsLogin').onclick=renderSavedProjects;
   renderSavedProjects();
   // Pointer events hỗ trợ chuột, bút cảm ứng và màn hình điện thoại.
   const pointers=new Map();
