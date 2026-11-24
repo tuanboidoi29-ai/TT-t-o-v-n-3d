@@ -333,7 +333,7 @@ module TranTuanNoiThat
       'HỖN HỢP: CÓ VÂN, MÀU VÀ/HOẶC MẶT CHƯA GÁN'
     end
 
-    def mesh_triangles(instance, parent_transform, output, limit, inherited_material = nil, inherited_tag = nil, texture_assets = {}, inherited_material_source = nil)
+    def mesh_triangles(instance, parent_transform, output, limit, inherited_material = nil, inherited_tag = nil, texture_assets = {}, inherited_material_source = nil, current_uid = nil)
       return output if output.length >= limit
       transform = parent_transform * instance.transformation
       inherited = instance.material || inherited_material
@@ -373,6 +373,7 @@ module TranTuanNoiThat
                 front_uv = [point_a, point_b, point_c].map { |pt| uv_for_point(front_uv_helper, pt, true) || fallback_uv_for_point(child, pt, true, front_texture) }
                 back_uv = [point_a, point_b, point_c].map { |pt| uv_for_point(back_uv_helper, pt, false) || fallback_uv_for_point(child, pt, false, back_texture) }
                 output << {
+                  'object_uid' => current_uid.to_s,
                   'v' => [
                     [(base.x.to_f * 25.4).round(2), (base.y.to_f * 25.4).round(2), (base.z.to_f * 25.4).round(2)],
                     [(p2.x.to_f * 25.4).round(2), (p2.y.to_f * 25.4).round(2), (p2.z.to_f * 25.4).round(2)],
@@ -392,7 +393,40 @@ module TranTuanNoiThat
             next
           end
         elsif child.is_a?(Sketchup::Group) || child.is_a?(Sketchup::ComponentInstance)
-          mesh_triangles(child, transform, output, limit, inherited, current_tag, texture_assets, inherited_source)
+          mesh_triangles(child, transform, output, limit, inherited, current_tag, texture_assets, inherited_source, "#{current_uid}:#{entity_uid(child)}")
+        end
+      end
+      output
+    rescue StandardError
+      output
+    end
+
+    def mesh_edges(instance, parent_transform, output, limit, current_uid, inherited_tag = nil)
+      return output if output.length >= limit
+      transform = parent_transform * instance.transformation
+      default_layer = model.layers[0]
+      layer = instance.layer
+      current_tag = (layer && layer != default_layer) ? layer.name.to_s : inherited_tag
+      seen = {}
+      instance.definition.entities.each do |child|
+        break if output.length >= limit
+        next unless visible_entity?(child)
+        if child.is_a?(Sketchup::Face)
+          tag_layer = child.layer
+          tag_name = (tag_layer && tag_layer != default_layer) ? tag_layer.name.to_s : current_tag.to_s
+          child.edges.each do |edge|
+            break if output.length >= limit
+            key = edge.entityID.to_s
+            next if seen[key]
+            seen[key] = true
+            a = transform * edge.start.position
+            b = transform * edge.end.position
+            output << { 'object_uid' => current_uid.to_s, 'tag' => tag_name,
+              'v' => [[(a.x.to_f * 25.4).round(2), (a.y.to_f * 25.4).round(2), (a.z.to_f * 25.4).round(2)],
+                      [(b.x.to_f * 25.4).round(2), (b.y.to_f * 25.4).round(2), (b.z.to_f * 25.4).round(2)]] }
+          end
+        elsif child.is_a?(Sketchup::Group) || child.is_a?(Sketchup::ComponentInstance)
+          mesh_edges(child, transform, output, limit, "#{current_uid}:#{entity_uid(child)}", current_tag)
         end
       end
       output
@@ -421,10 +455,12 @@ module TranTuanNoiThat
       texture_assets = {}
       records = []
       group_tree = []
+      edges = []
       roots.each do |root|
         cap = [remaining, MAX_TRIANGLES_PER_OBJECT].min
-        triangles = include_mesh && cap > 0 ? mesh_triangles(root, root_transform, [], cap, nil, nil, texture_assets) : []
+        triangles = include_mesh && cap > 0 ? mesh_triangles(root, root_transform, [], cap, nil, nil, texture_assets, nil, entity_uid(root)) : []
         remaining -= triangles.length
+        edges.concat(mesh_edges(root, root_transform, [], 300000, entity_uid(root))) if include_mesh
         root_record, tree_node, descendants = scan_instance_tree(root, nil, entity_name(root), 0, root_transform, triangles)
         records.concat([root_record] + descendants)
         group_tree << tree_node
@@ -442,6 +478,8 @@ module TranTuanNoiThat
         'objects' => records.map { |r| r.reject { |k, _| k == 'triangles' } },
         'model3d' => records,
         'textures' => texture_assets.values.each_with_object({}) { |item, hash| hash[item['id']] = item['data'] },
+        'edges' => edges,
+        'tags' => m.layers.to_a.map { |tag| { 'name' => tag.name.to_s, 'visible' => !!tag.visible?, 'active' => (m.active_layer == tag) } },
         'texture_count' => texture_assets.length,
         'textured_triangle_count' => records.inject(0) { |sum, item| sum + item['triangles'].to_a.count { |tri| tri['tex'] || tri['btex'] } },
         'group_tree' => group_tree,
@@ -586,6 +624,8 @@ module TranTuanNoiThat
         'objects' => scanned['objects'],
         'model3d' => scanned['model3d'],
         'textures' => scanned['textures'],
+        'edges' => scanned['edges'],
+        'tags' => scanned['tags'],
         'texture_count' => scanned['texture_count'],
         'textured_triangle_count' => scanned['textured_triangle_count'],
         'group_tree' => scanned['group_tree'],
