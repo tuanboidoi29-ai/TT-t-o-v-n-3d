@@ -89,3 +89,5 @@ input,select{background:#fff!important;color:#172033!important;border-color:#cbd
 .colorControl,.checkControl{display:flex;align-items:center;gap:7px;font-size:10px;font-weight:800;color:#334155}
 .colorControl input{width:34px;height:28px;padding:2px}.checkControl input{width:auto;margin:0}
 @media(max-width:720px){.viewerControls{align-items:stretch}.rangeControl{flex:1 1 100%;grid-template-columns:100px 1fr 42px}.savedProjectList{grid-template-columns:1fr}}
+
+.loginSavedProjects{margin-top:18px;text-align:left}.loginSavedProjects .savedProjectsHead{font-size:11px}
