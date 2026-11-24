@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.369",
+  "version": "1.9.370",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "1.9.368: Nhận diện vật liệu ở mọi cấp Face/Group/Component lồng nhau; sửa TextureWriter để giữ ánh xạ vật liệu kế thừa; xuất ảnh texture nhúng trong SKP và mở rộng độ sâu quét.",
+  "notes": "1.9.370: Đồng bộ đầy đủ Tags/Layers, mã định danh từng đối tượng, dữ liệu cạnh hình học thật; Web có danh sách dự án đã mở, tách đối tượng, tăng sáng, chọn nền và làm nổi bật đối tượng.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -499,7 +499,7 @@
     {
       "path": "tran_tuan_noi_that/model_export_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/model_export_tool.rb",
-      "sha256": "6f4e2cde0b949bd5bbbff9ffc1c7d65025b57be0697bb1e2bd0ffcd1e7cc5c1b"
+      "sha256": "4af20415f76eea20dfa96c7eb9b97bca9c1fe94cc9631126939a07cd0c55ac6c"
     },
     {
       "path": "tran_tuan_noi_that/icons/model_export.svg",
@@ -520,5 +520,5 @@
     "tran_tuan_noi_that/cnc_profile_tool.rb",
     "tran_tuan_noi_that/icons/cnc_profile.svg"
   ],
-  "release_notes": "1.9.369: Ưu tiên xuất ảnh Texture nhúng bằng ImageRep; xác nhận ảnh theo file thực tế thay vì giá trị nil của save_file; nâng giới hạn mỗi ảnh lên 16 MB và tổng ảnh lên 64 MB. Giữ UV thực tế và vật liệu kế thừa Group/Component."
+  "release_notes": "1.9.370: Đồng bộ đầy đủ Tags/Layers, mã định danh từng đối tượng, dữ liệu cạnh hình học thật; Web có danh sách dự án đã mở, tách đối tượng, tăng sáng, chọn nền và làm nổi bật đối tượng."
 }
