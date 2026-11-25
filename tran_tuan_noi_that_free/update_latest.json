@@ -457,21 +457,6 @@
       "sha256": "fd38696c2d4256e19ee6e76f7010cfed5a510a63f640dc565162293510a38e66"
     },
     {
-      "path": "tran_tuan_noi_that/gcode_export_tool.rb",
-      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/gcode_export_tool.rb",
-      "sha256": "c04fbd8a30be50b5dd069e31c948c03cde7d22613fbb18641cab15419914de9f"
-    },
-    {
-      "path": "tran_tuan_noi_that/icons/gcode_export.svg",
-      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/icons/gcode_export.svg",
-      "sha256": "303c867c2e6cf0fbb7abd24a6ca916fd42e4ed74df49255b32ceb05358357486"
-    },
-    {
-      "path": "tran_tuan_noi_that/gcode_feature_scan.rb",
-      "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/gcode_feature_scan.rb",
-      "sha256": "2ebc3a0d6b5bc78308b319f0916c842b0430d69f88948b24383289fd9d1b0fe1"
-    },
-    {
       "path": "tran_tuan_noi_that/duc_khung_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/duc_khung_tool.rb",
       "sha256": "f39d63313dada3b38c7796ac5f34cec72c4ef328f5d3d51a249de7ac8a70c26e"
