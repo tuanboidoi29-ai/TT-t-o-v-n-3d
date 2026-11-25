@@ -18,7 +18,7 @@ module TranTuanNoiThat
   }.freeze unless const_defined?(:LOCKED_FEATURE_BASELINES, false)
 
   remove_const(:VERSION) if const_defined?(:VERSION, false)
-  VERSION = '1.9.373'.freeze
+  VERSION = '1.9.374'.freeze
 
   class << self
     def setting(key, default = nil)
@@ -182,8 +182,6 @@ module TranTuanNoiThat
       safe_cleanup('Đặt lại Layout runtime') { reset_layout_runtime }
       %w[
         board_tool
-        gcode_export_tool
-        gcode_feature_scan
         duc_khung_tool
         wine_rack
         door_standard_tool
@@ -444,6 +442,57 @@ module TranTuanNoiThat
       true
     end
 
+    # Gỡ các công cụ đã ngừng phát triển; không đụng đến dữ liệu tem nhãn.
+    def cleanup_retired_cnc_ncstudio
+      begin
+        FileUtils.rm_f(File.join(ROOT, 'gcode_export_tool.rb'))
+        FileUtils.rm_f(File.join(ROOT, 'gcode_feature_scan.rb'))
+        FileUtils.rm_f(File.join(ROOT, 'icons', 'gcode_export.svg'))
+        if const_defined?(:GCodeExport, false)
+          runtime = const_get(:GCodeExport)
+          dialog = runtime.instance_variable_get(:@dialog) if runtime.respond_to?(:instance_variable_get)
+          dialog.close if dialog && dialog.respond_to?(:close)
+          remove_const(:GCodeExport)
+        end
+        if @gcode_export_cmd
+          @gcode_export_cmd.tooltip = 'TRẦN TUẤN · CNC NCStudio (ĐÃ GỠ)'
+          @gcode_export_cmd.status_bar_text = 'Công cụ CNC NCStudio đã được gỡ khỏi hệ thống.'
+          @gcode_export_cmd.set_validation_proc { MF_GRAYED }
+        end
+      rescue StandardError => error
+        puts "[TT cleanup CNC NCStudio] #{error.class}: #{error.message}"
+      end
+      true
+    end
+
+    def cleanup_retired_edge_banding
+      begin
+        %w[edge_banding_tool.rb edge_band_tool.rb icons/edge_banding.svg icons/edge_band.svg].each do |relative|
+          FileUtils.rm_f(File.join(ROOT, relative))
+        end
+        [:EdgeBandingTool, :EdgeBandTool].each do |name|
+          next unless const_defined?(name, false)
+          runtime = const_get(name)
+          dialog = runtime.instance_variable_get(:@dialog) if runtime.respond_to?(:instance_variable_get)
+          dialog.close if dialog && dialog.respond_to?(:close)
+          remove_const(name)
+        end
+        if @edge_banding_cmd
+          @edge_banding_cmd.tooltip = 'DÁN CẠNH (ĐÃ GỠ)'
+          @edge_banding_cmd.status_bar_text = 'Công cụ DÁN CẠNH đã được gỡ khỏi hệ thống.'
+          @edge_banding_cmd.set_validation_proc { MF_GRAYED }
+        end
+        if @edge_band_cmd
+          @edge_band_cmd.tooltip = 'DÁN CẠNH (ĐÃ GỠ)'
+          @edge_band_cmd.status_bar_text = 'Công cụ DÁN CẠNH đã được gỡ khỏi hệ thống.'
+          @edge_band_cmd.set_validation_proc { MF_GRAYED }
+        end
+      rescue StandardError => error
+        puts "[TT cleanup DÁN CẠNH] #{error.class}: #{error.message}"
+      end
+      true
+    end
+
     def install_ui
       cleanup_retired_chatgpt
       cleanup_retired_wine_rack_data
@@ -451,6 +500,8 @@ module TranTuanNoiThat
       cleanup_retired_cabinet_door
       cleanup_retired_vector_image_cnc
       cleanup_retired_cnc_profile
+      cleanup_retired_cnc_ncstudio
+      cleanup_retired_edge_banding
       unless @ui_installed
         @ui_installed = true
         @main_menu = UI.menu('Extensions').add_submenu(NAME)
@@ -489,7 +540,6 @@ module TranTuanNoiThat
       install_divide_boards_ui
       install_layout_stats_ui
       install_dimensions_ui
-      install_gcode_export_ui
       install_model_export_ui
       install_label_tool_ui
       refresh_feature_commands
