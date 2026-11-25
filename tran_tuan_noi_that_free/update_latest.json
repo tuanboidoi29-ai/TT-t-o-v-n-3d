@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.373",
+  "version": "1.9.374",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "1.9.373: Công cụ THIẾT KẾ & IN TEM NHÃN quét Group trực tiếp sau Group Nesting đúng 1 cấp; sơ đồ tem hiển thị tam giác cạnh dán bên trong đường viền, đầu nhọn hướng vào cạnh tương ứng.",
+  "notes": "1.9.374: Gỡ hoàn toàn DÁN CẠNH và TRẦN TUẤN · CNC NCStudio khỏi menu, toolbar và bộ nạp; giữ nguyên dữ liệu dán cạnh phục vụ tem nhãn.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "16cc930bfcb66b6c2a106c3fa990765e9a9213edf748fc669583cf7ce1ecf249"
+      "sha256": "770fa840fa24433818735cd0a7cd8aeb8c2bd6384b3b5778118246a2f5ad0ab3"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -528,7 +528,14 @@
     "tran_tuan_noi_that/icons/chatgpt.svg",
     "tran_tuan_noi_that/icons/wine_rack.svg",
     "tran_tuan_noi_that/cnc_profile_tool.rb",
-    "tran_tuan_noi_that/icons/cnc_profile.svg"
+    "tran_tuan_noi_that/icons/cnc_profile.svg",
+    "tran_tuan_noi_that/gcode_export_tool.rb",
+    "tran_tuan_noi_that/gcode_feature_scan.rb",
+    "tran_tuan_noi_that/icons/gcode_export.svg",
+    "tran_tuan_noi_that/edge_banding_tool.rb",
+    "tran_tuan_noi_that/edge_band_tool.rb",
+    "tran_tuan_noi_that/icons/edge_banding.svg",
+    "tran_tuan_noi_that/icons/edge_band.svg"
   ],
-  "release_notes": "1.9.371: Nhận diện đầy đủ Tags/Layers lồng nhau, thống kê số mặt/cạnh/đối tượng, xuất cả Edge gắn ABF_ và hiển thị tên Tag trên từng đối tượng; giữ các chức năng Web hiện có."
+  "release_notes": "1.9.374: Gỡ hoàn toàn DÁN CẠNH và TRẦN TUẤN · CNC NCStudio khỏi menu, toolbar và bộ nạp; giữ nguyên dữ liệu dán cạnh phục vụ tem nhãn."
 }
