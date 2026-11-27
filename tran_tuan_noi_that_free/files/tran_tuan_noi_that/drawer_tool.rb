@@ -131,6 +131,7 @@ module TranTuanNoiThat
       RAIL_COLOR = Sketchup::Color.new(255, 145, 45, 90)
       EDGE_COLOR = Sketchup::Color.new(225, 88, 0, 255)
       CONTACT_COLOR = Sketchup::Color.new(0, 255, 135, 255)
+      CAVITY_COLOR = Sketchup::Color.new(25, 145, 255, 255)
 
       attr_reader :options
 
@@ -268,6 +269,13 @@ module TranTuanNoiThat
           view.line_width = 2
           view.draw(GL_LINES, [@p1, @p2])
         end
+        if @state.zero? && @auto_hover_ready && valid_front?
+          # Khung xanh biểu diễn đúng vùng lòng đã nhận diện trong Group/Component.
+          cavity = box_points(0, 0, 0, @span_u, @depth_length, @span_v)
+          view.drawing_color = CAVITY_COLOR
+          view.line_width = 3
+          view.draw(GL_LINES, box_lines(cavity))
+        end
         return unless valid_front?
         parts = preview_parts
         parts.each do |part|
@@ -353,12 +361,14 @@ module TranTuanNoiThat
           depth = ds.max - ds.min
           next unless width > 100.mm && height > 100.mm && depth > 100.mm
           next if width > 3000.mm || height > 3000.mm || depth > 3000.mm
-          [width * height * depth, us.minmax, vs.minmax, ds.minmax]
+          # Ưu tiên vùng Group/Component nhỏ nhất chứa điểm rê chuột.
+          # Giữ đúng instance đã chọn để tránh lấy nhầm Group cha ở cấp ngoài.
+          [width * height * depth, container, us.minmax, vs.minmax, ds.minmax]
         end
         selected = candidates.min_by(&:first)
         return false unless selected
 
-        _volume, u_range, v_range, d_range = selected
+        _volume, selected_container, u_range, v_range, d_range = selected
         wall = @options['side_thickness'].mm
         # Trừ bề dày vách ở hai bên và trên/dưới để lấy kích thước lòng thực.
         u0 = u_range[0] + wall
@@ -386,7 +396,7 @@ module TranTuanNoiThat
         @depth_length = depth
         @rear_detected = true
         @manual_mode = false
-        @auto_container = containers.first
+        @auto_container = selected_container
         @recognition_result = recognize_drawer_structure
         true
       rescue StandardError => error
@@ -876,7 +886,11 @@ module TranTuanNoiThat
       def status
         Sketchup.status_text = case @state
         when 0
-          'VẼ NGĂN KÉO: Rê chuột vào khoảng trống lòng tủ để xem preview, click để tạo. Không nhận diện được thì dùng quy trình 3 điểm.'
+          if @auto_hover_ready && valid_front?
+            "ĐÃ NHẬN DIỆN KHOANG | Rộng #{(@span_u.to_f / 1.mm).round(1)} × Cao #{(@span_v.to_f / 1.mm).round(1)} × Sâu #{(@depth_length.to_f / 1.mm).round(1)} mm | Group/Component: #{@auto_container ? @auto_container.name : 'đang chọn'} | Click tạo · rê sang khoang khác để đổi preview."
+          else
+            'VẼ NGĂN KÉO: Rê chuột vào mặt/khoảng trống trong Group hoặc Component chứa khoang tủ. Khung xanh là vùng lòng được nhận diện; click để tạo, ESC thoát.'
+          end
         when 1
           @manual_mode ? 'BẮT 3 ĐIỂM: Click P2 xác định chiều ngang.' : 'Click P2 trên mặt tủ để khóa vùng và xem preview.'
         when 2
