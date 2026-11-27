@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.375",
+  "version": "1.9.376",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "1.9.374: Gỡ hoàn toàn DÁN CẠNH và TRẦN TUẤN · CNC NCStudio khỏi menu, toolbar và bộ nạp; giữ nguyên dữ liệu dán cạnh phục vụ tem nhãn.",
+  "notes": "1.9.376: Sửa nhận diện khoang Vẽ Ngăn Kéo bằng tia nhìn tại vị trí con trỏ; lấy mặt và đường dẫn Group/Component từ raytest, chỉ xác nhận khi dò được hai hồi và mặt đỉnh thực.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "3b0b51bc1bda4d0a639bd13af02bae6dd60258c6e94127cca1bf4f26ccec362b"
+      "sha256": "8eef28ac84a7cba8824c2d240d2896711a853884d44cc3f9024a45372a6ad404"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -39,7 +39,7 @@
     {
       "path": "tran_tuan_noi_that/drawer_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/drawer_tool.rb",
-      "sha256": "c0419a19f8d9fdd7d7527bfb37c0ef128756ffa11ea19fe478168de512d9b073"
+      "sha256": "9a17e6daa782b363895b7d43290eaed9b4c930c76eb414aa062252486393699a"
     },
     {
       "path": "tran_tuan_noi_that/grain_align_fix.rb",
@@ -319,7 +319,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "04b953ac89d5bb5efa54f0d1451d7dc600d368f92dcc192895d34e95ff6685f5"
+      "sha256": "4f91411fdb411fca0f2af42bc58fb81201d68825d719703291d8b4ae54ef88a5"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -522,5 +522,5 @@
     "tran_tuan_noi_that/icons/edge_banding.svg",
     "tran_tuan_noi_that/icons/edge_band.svg"
   ],
-  "release_notes": "1.9.375: Nâng cấp nhận diện khoang trong Vẽ Ngăn Kéo cho Group/Component một cấp; chọn đúng vùng chứa con trỏ, hiển thị khung preview xanh và kích thước lòng khoang."
+  "release_notes": "1.9.376: Sửa nhận diện khoang Vẽ Ngăn Kéo bằng tia nhìn tại vị trí con trỏ; lấy mặt và đường dẫn Group/Component từ raytest, chỉ xác nhận khi dò được hai hồi và mặt đỉnh thực."
 }
