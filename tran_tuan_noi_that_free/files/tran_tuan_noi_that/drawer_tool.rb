@@ -102,13 +102,13 @@ module TranTuanNoiThat
         <div class="field"><label>Dày tấm đáy ngăn kéo (mm)</label><input id="bottom_thickness" type="number" min="1" step="0.1"></div>
         <div class="field"><label>Độ dày đáy khoang tủ (mặt trên → mặt dưới, mm)</label><input id="cabinet_bottom_thickness" type="number" min="1" step="0.1"></div>
         <div class="field"><label>Dày thanh (mm)</label><input id="side_thickness" type="number" step="0.1"></div>
-        <div class="field"><label>Cách đáy hộc kéo (mm)</label><input id="bottom_offset" type="number" min="0" step="0.1"></div>
+        <div class="field"><label>Cách đáy / nâng toàn bộ hộc kéo (mm)</label><input id="bottom_offset" type="number" min="0" step="0.1"></div>
         <div class="field wide"><label>Chiều sâu dự phòng khi không dò thấy hậu (mm)</label><input id="fallback_depth" type="number" step="0.1"></div>
         <div class="field wide"><label>Hướng tạo</label><div class="modes"><label><input type="radio" name="orientation" value="vertical"> Dọc</label><label><input type="radio" name="orientation" value="horizontal"> Ngang</label></div></div>
         <div class="field wide"><label>Hướng chiều sâu</label><div class="modes"><label><input id="reverse_depth" type="checkbox"> Đảo hướng ngăn kéo trước/sau</label></div></div>
         <div class="field wide"><label>Đánh dấu tiếp diện đáy</label><div class="modes"><label><input type="radio" name="bottom_mode" value="cover"> Không đánh dấu</label><label><input type="radio" name="bottom_mode" value="custom"> Cho phép đánh dấu ABF</label></div></div>
         <div class="field wide"><label>Đánh dấu tiếp diện</label><div class="modes"><label><input id="mark_contact" type="checkbox"> Đánh dấu biên thanh giao nhau với tấm đáy</label></div></div></div>
-        </div><button onclick="applyNow()">ÁP DỤNG - CẬP NHẬT PREVIEW</button><div id="msg"></div><div class="note">Mặt trên tấm đáy khoang tủ là mốc chuẩn; tấm đáy ngăn kéo đặt trên mặt chuẩn này. Click trong model sau khi chỉnh xong để tạo thật.</div>
+        </div><button onclick="applyNow()">ÁP DỤNG - CẬP NHẬT PREVIEW</button><div id="msg"></div><div class="note">Mặt trên tấm đáy khoang tủ là mốc chuẩn. Cách đáy sẽ tịnh tiến toàn bộ hộc kéo lên theo phương đứng, giữ nguyên kích thước và khoảng cách giữa các tấm. Click trong model sau khi chỉnh xong để tạo thật.</div>
         <script>
         const initial=#{json};
         Object.keys(initial).forEach(k=>{const el=document.getElementById(k);if(el){if(el.type==='checkbox')el.checked=initial[k]===true;else el.value=initial[k]}});
@@ -161,6 +161,8 @@ module TranTuanNoiThat
         @depth_length = @options['fallback_depth'].mm
         @auto_hover_ready = false
         @auto_container = nil
+        @cavity_origin = nil
+        @cavity_span_v = nil
         status
       end
 
@@ -275,7 +277,7 @@ module TranTuanNoiThat
         end
         if @state.zero? && @auto_hover_ready && valid_front?
           # Khung xanh biểu diễn đúng vùng lòng đã nhận diện trong Group/Component.
-          cavity = box_points(0, 0, 0, @span_u, @depth_length, @span_v)
+          cavity = box_points_at(@cavity_origin || @origin, 0, 0, 0, @span_u, @depth_length, @cavity_span_v || @span_v)
           view.drawing_color = CAVITY_COLOR
           view.line_width = 3
           view.draw(GL_LINES, box_lines(cavity))
@@ -316,6 +318,8 @@ module TranTuanNoiThat
       def clear_axes
         @origin = @axis_u = @axis_v = @surface_normal = nil
         @span_u = @span_v = nil
+        @cavity_origin = nil
+        @cavity_span_v = nil
       end
 
       def valid_front?
@@ -442,13 +446,16 @@ module TranTuanNoiThat
           @recognition_result = recognize_drawer_structure
           next unless @recognition_result && @recognition_result[:sides] && @recognition_result[:top]
 
-          # Khe hở nâng đáy ngăn kéo tính từ mặt trên tấm đáy khoang.
+          # Cách đáy là độ nâng toàn bộ hộc kéo: dịch gốc theo trục đứng,
+          # giữ nguyên span để không làm co chiều cao hay chỉ nâng riêng tấm đáy.
+          # Lưu mốc khoang gốc để đường bao Preview vẫn chỉ đúng khoang thật.
+          @cavity_origin = @origin
+          @cavity_span_v = @span_v
           bottom_offset = @options['bottom_offset'].to_f.mm
           next if bottom_offset >= @span_v - 20.mm
           if bottom_offset > 0
             @origin = @origin.offset(@axis_v, bottom_offset)
-            @span_v -= bottom_offset
-            @recognition_result[:label] = "#{@recognition_result[:label]} | hở đáy #{bottom_offset.to_mm.round(1)} mm"
+            @recognition_result[:label] = "#{@recognition_result[:label]} | nâng toàn bộ hộc #{bottom_offset.to_mm.round(1)} mm"
           end
           return true
         end
@@ -838,10 +845,14 @@ module TranTuanNoiThat
       end
 
       def box_points(x, y, z, width, depth, height)
-        p0 = local_point(x, y, z)
-        p1 = local_point(x + width, y, z)
-        p2 = local_point(x + width, y + depth, z)
-        p3 = local_point(x, y + depth, z)
+        box_points_at(@origin, x, y, z, width, depth, height)
+      end
+
+      def box_points_at(origin, x, y, z, width, depth, height)
+        p0 = origin.offset(@axis_u, x).offset(@depth_axis, y).offset(@axis_v, z)
+        p1 = origin.offset(@axis_u, x + width).offset(@depth_axis, y).offset(@axis_v, z)
+        p2 = origin.offset(@axis_u, x + width).offset(@depth_axis, y + depth).offset(@axis_v, z)
+        p3 = origin.offset(@axis_u, x).offset(@depth_axis, y + depth).offset(@axis_v, z)
         [p0,p1,p2,p3,p0.offset(@axis_v,height),p1.offset(@axis_v,height),p2.offset(@axis_v,height),p3.offset(@axis_v,height)]
       end
 
