@@ -13,6 +13,7 @@ module TranTuanNoiThat
       'front_gap' => 10.0, 'bottom_mode' => 'cover',
       'bottom_thickness' => 9.0,
       'side_thickness' => 17.5,
+      'bottom_offset' => 0.0,
       'mark_contact' => false,
       'reverse_depth' => false,
       'fallback_depth' => 500.0
@@ -99,6 +100,7 @@ module TranTuanNoiThat
         <div class="field"><label>Hở thanh trước (mm)</label><input id="front_gap" type="number" step="0.1"></div>
         <div class="field"><label>Dày tấm đáy (mm)</label><input id="bottom_thickness" type="number" step="0.1"></div>
         <div class="field"><label>Dày thanh (mm)</label><input id="side_thickness" type="number" step="0.1"></div>
+        <div class="field"><label>Cách đáy hộc kéo (mm)</label><input id="bottom_offset" type="number" min="0" step="0.1"></div>
         <div class="field wide"><label>Chiều sâu dự phòng khi không dò thấy hậu (mm)</label><input id="fallback_depth" type="number" step="0.1"></div>
         <div class="field wide"><label>Hướng tạo</label><div class="modes"><label><input type="radio" name="orientation" value="vertical"> Dọc</label><label><input type="radio" name="orientation" value="horizontal"> Ngang</label></div></div>
         <div class="field wide"><label>Hướng chiều sâu</label><div class="modes"><label><input id="reverse_depth" type="checkbox"> Đảo hướng ngăn kéo trước/sau</label></div></div>
@@ -426,9 +428,27 @@ module TranTuanNoiThat
         @rear_detected = true
         @manual_mode = false
         @auto_container = selected_container
+        # Đo bề rộng lòng tủ trái-phải bằng tia dò vào hình học thật.
+        # Quét tại nhiều độ sâu để tránh phụ thuộc khung bao Group/Component bọc ngoài.
+        measured = measure_cavity_width
+        return false unless measured
+        left_u, right_u = measured
+        @origin = @origin.offset(@axis_u, left_u)
+        @span_u = right_u - left_u
+        return false unless @span_u > 100.mm
+
         @recognition_result = recognize_drawer_structure
         return false unless @recognition_result &&
           @recognition_result[:sides] && @recognition_result[:top]
+
+        # Khe hở điều chỉnh từ đáy khoang lên đáy hộc kéo.
+        bottom_offset = @options['bottom_offset'].to_f.mm
+        return false if bottom_offset >= @span_v - 20.mm
+        if bottom_offset > 0
+          @origin = @origin.offset(@axis_v, bottom_offset)
+          @span_v -= bottom_offset
+          @recognition_result[:label] = "#{@recognition_result[:label]} | cách đáy #{bottom_offset.to_mm.round(1)} mm"
+        end
         true
       rescue StandardError => error
         puts "[TT Drawer hover detect] #{error.class}: #{error.message}"
@@ -591,6 +611,34 @@ module TranTuanNoiThat
           negative: recognition_parallel?(negative, axis) ? negative : nil,
           positive: recognition_parallel?(positive, axis) ? positive : nil
         }
+      end
+
+      # Đo từ vách trái đến vách phải, bỏ qua bounds của Group bọc ngoài.
+      # Các tia được bắn xuyên qua toàn bộ model nên vẫn tìm được mặt trong Group lồng nhau.
+      def measure_cavity_width
+        depth = @depth_length.to_f
+        height = @span_v.to_f
+        return nil unless depth > 100.mm && height > 100.mm
+        samples = [0.35, 0.50, 0.65].map do |ratio|
+          point = local_point(@span_u * 0.5, depth * ratio, height * 0.5)
+          pair = recognition_pair(point, @axis_u)
+          left = pair[:negative]
+          right = pair[:positive]
+          next unless left && right
+          left_u = @origin.vector_to(left[:point]).dot(@axis_u)
+          right_u = @origin.vector_to(right[:point]).dot(@axis_u)
+          next unless right_u - left_u > 100.mm
+          [left_u, right_u]
+        end.compact
+        return nil if samples.empty?
+        # Chọn cặp đo có bề rộng ổn định nhất; trung vị giảm ảnh hưởng vật cản cục bộ.
+        widths = samples.map { |pair| pair[1] - pair[0] }.sort
+        target = widths[widths.length / 2]
+        best = samples.min_by { |pair| (pair[1] - pair[0] - target).abs }
+        best
+      rescue StandardError => error
+        puts "[TT Drawer width measure] #{error.class}: #{error.message}"
+        nil
       end
 
       def recognize_drawer_structure
