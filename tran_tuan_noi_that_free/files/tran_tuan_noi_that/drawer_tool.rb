@@ -97,10 +97,9 @@ module TranTuanNoiThat
         <div class="field"><label>Chặn cách trên (mm)</label><input id="stop_top_gap" type="number" min="0" step="0.1"></div>
         <div class="field"><label>Chặn cách dưới (mm)</label><input id="stop_bottom_gap" type="number" min="0" step="0.1"></div>
         <div class="note wide">Ngang: chia các ngăn cạnh nhau, thêm vách dày bằng thành. Dọc: chia các tầng. Chặn đặt phía trước trong khoảng trống; cao = khoảng trống − cách trên − cách dưới.</div>
-        <div class="field wide"><label>Chia nhanh số ngăn kéo</label><div class="quick-split"><button type="button" onclick="quickSplit(2)">CHIA /2</button><button type="button" onclick="quickSplit(3)">CHIA /3</button><button type="button" onclick="quickSplit(4)">CHIA /4</button></div></div><div class="field"><label>Số lượng ngăn kéo</label><input id="quantity" type="number" min="1" max="50" step="1"></div>
+<div class="field"><label>Số lượng ngăn kéo</label><input id="quantity" type="number" min="1" max="50" step="1"></div>
         <div class="field"><label>Hở thanh trước (mm)</label><input id="front_gap" type="number" step="0.1"></div>
         <div class="field"><label>Dày tấm đáy ngăn kéo (mm)</label><input id="bottom_thickness" type="number" min="1" step="0.1"></div>
-        <div class="field"><label>Độ dày đáy khoang tủ (mặt trên → mặt dưới, mm)</label><input id="cabinet_bottom_thickness" type="number" min="1" step="0.1"></div>
         <div class="field"><label>Dày thanh (mm)</label><input id="side_thickness" type="number" step="0.1"></div>
         <div class="field"><label>Cách đáy / nâng toàn bộ hộc kéo (mm)</label><input id="bottom_offset" type="number" min="0" step="0.1"></div>
         <div class="field wide"><label>Chiều sâu dự phòng khi không dò thấy hậu (mm)</label><input id="fallback_depth" type="number" step="0.1"></div>
@@ -208,6 +207,7 @@ module TranTuanNoiThat
       end
 
       def onLButtonDown(_flags, x, y, view)
+        return if workspace_quick_split(x, y, view)
         if @state.zero?
           @ip.pick(view, x, y)
           if auto_detect_cavity(view, x, y)
@@ -268,6 +268,7 @@ module TranTuanNoiThat
       end
 
       def draw(view)
+        draw_workspace_quick_split(view)
         @ip.draw(view) if @ip.display?
         @ip1.draw(view) if @state > 0 && @ip1.display?
         @ip2.draw(view) if @manual_mode && @state > 1 && @ip2.display?
@@ -311,6 +312,65 @@ module TranTuanNoiThat
       end
 
       private
+
+      # Các nút chia nhanh hiển thị trực tiếp trong vùng làm việc SketchUp.
+      # Tọa độ màn hình được dùng đồng nhất cho vẽ nút và nhận click.
+      def workspace_quick_split_rects(view)
+        width = view.vpwidth
+        height = view.vpheight
+        button_w = 76
+        button_h = 30
+        gap = 7
+        right = width - 18
+        top = height - 22
+        [2, 3, 4].each_with_index.map do |count, index|
+          x1 = right - (button_w + gap) * (2 - index)
+          [count, x1, top - button_h, x1 + button_w, top]
+        end
+      rescue StandardError
+        []
+      end
+
+      def draw_workspace_quick_split(view)
+        rects = workspace_quick_split_rects(view)
+        return if rects.empty?
+        rects.each do |count, x1, y1, x2, y2|
+          points = [
+            Geom::Point3d.new(x1, y1, 0), Geom::Point3d.new(x2, y1, 0),
+            Geom::Point3d.new(x2, y2, 0), Geom::Point3d.new(x1, y2, 0)
+          ]
+          active = @options['division_mode'] == 'count' && @options['quantity'].to_i == count
+          view.drawing_color = active ? Sketchup::Color.new(15, 125, 220, 235) : Sketchup::Color.new(8, 35, 65, 220)
+          view.draw2d(GL_QUADS, points)
+          view.drawing_color = Sketchup::Color.new(125, 195, 255, 255)
+          view.line_width = 1
+          view.draw2d(GL_LINE_LOOP, points)
+          view.draw_text(Geom::Point3d.new(x1 + 12, y1 + 8, 0), "CHIA /#{count}",
+                         color: Sketchup::Color.new(255, 255, 255), size: 13, bold: true)
+        end
+        view.draw_text(Geom::Point3d.new(view.vpwidth - 270, view.vpheight - 43, 0),
+                       'CHIA NHANH NGĂN KÉO', color: Sketchup::Color.new(30, 145, 245), size: 12, bold: true)
+      rescue StandardError => error
+        puts "[TT Drawer quick split draw] #{error.class}: #{error.message}"
+      end
+
+      def workspace_quick_split(x, y, view)
+        rect = workspace_quick_split_rects(view).find do |_count, x1, y1, x2, y2|
+          x >= x1 && x <= x2 && y >= y1 && y <= y2
+        end
+        return false unless rect
+        count = rect[0]
+        @options['division_mode'] = 'count'
+        @options['quantity'] = count
+        Drawer.save_settings(@options)
+        view.invalidate
+        status
+        true
+      rescue StandardError => error
+        puts "[TT Drawer quick split] #{error.class}: #{error.message}"
+        UI.beep
+        true
+      end
 
       def ready?
         @state >= 3
