@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "d43269ef0870082dc0c2d0c479a7d90db67a96c8dc3762e653c7c983abb48504"
+      "sha256": "caa3de63601e25f6be6f64a00ab691c2076cb8da56db1f8d6a4104aae8ada327"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -39,7 +39,7 @@
     {
       "path": "tran_tuan_noi_that/drawer_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/drawer_tool.rb",
-      "sha256": "b52e70cd1da62d45361cdb4e4a54692208c7d6c558c9f9d493abf89b3a88a22f"
+      "sha256": "163522798a96056d027ca42c1a3542b31c6250a42859715ca26a1b81769539e5"
     },
     {
       "path": "tran_tuan_noi_that/grain_align_fix.rb",
@@ -319,7 +319,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "5f1713b2d064a6a72ef6b7f9cfd4538dcceee6e07a5a9bdead6d4790a9ec0451"
+      "sha256": "9c8eba63085523796b4be0a0b3efad7b815b097cdc8eca7ad4542ba1a385a559"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
