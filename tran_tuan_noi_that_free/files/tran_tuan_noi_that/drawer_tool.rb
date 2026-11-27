@@ -324,7 +324,7 @@ module TranTuanNoiThat
         right = width - 18
         top = height - 22
         [2, 3, 4].each_with_index.map do |count, index|
-          x1 = right - (button_w + gap) * (2 - index)
+          x1 = right - button_w - (button_w + gap) * (2 - index)
           [count, x1, top - button_h, x1 + button_w, top]
         end
       rescue StandardError
