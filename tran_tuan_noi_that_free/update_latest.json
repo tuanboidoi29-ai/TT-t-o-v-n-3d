@@ -1,6 +1,6 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.381",
+  "version": "1.9.382",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
@@ -39,7 +39,7 @@
     {
       "path": "tran_tuan_noi_that/drawer_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/drawer_tool.rb",
-      "sha256": "5418598127c49080e6f3b6eec274640bcd4a086352d3d0008e7bfc142b8d215b"
+      "sha256": "5e9187581e095627bb116722ca4dd593600dd16b6d6499d93423b4823126066d"
     },
     {
       "path": "tran_tuan_noi_that/grain_align_fix.rb",
@@ -522,5 +522,5 @@
     "tran_tuan_noi_that/icons/edge_banding.svg",
     "tran_tuan_noi_that/icons/edge_band.svg"
   ],
-  "release_notes": "1.9.381: Bổ sung nhận diện khoang tủ khi các tấm vách/đáy/nóc/hậu là Group hoặc Component riêng cùng cấp, không cần Group cha; ghép bounds các tấm lân cận thành khung khoang ảo và xác nhận bằng tia quét mặt hình học thật."
+  "release_notes": "1.9.382: Bổ sung nút chia nhanh /2, /3, /4 trong Vẽ Ngăn Kéo; bấm một lần tự chuyển sang chia theo số lượng cố định và cập nhật Preview ngay, hỗ trợ xếp tầng Dọc hoặc chia cạnh nhau Ngang."
 }
