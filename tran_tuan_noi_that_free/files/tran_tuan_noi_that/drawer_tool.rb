@@ -859,9 +859,12 @@ module TranTuanNoiThat
                       sz1
                     end
             low = top + @options['stop_bottom_gap'].mm
-            high = limit - @options['stop_top_gap'].mm
+            # Thanh chặn trên luôn chạm mặt dưới tấm nóc; vẫn giữ nguyên
+            # thông số stop_top_gap để áp dụng cho các thanh chặn giữa.
+            top_stop_bar = horizontal || last
+            high = top_stop_bar ? limit : limit - @options['stop_top_gap'].mm
             if high-low > 0.1.mm
-              name = horizontal || last ? 'CHAN_TREN' : 'CHAN_GIUA'
+              name = top_stop_bar ? 'CHAN_TREN' : 'CHAN_GIUA'
               parts << {name: format('%s_%02d',name,index+1), box: [sx0,y_min,low,sx1-sx0,thick,high-low]}
             end
           end
