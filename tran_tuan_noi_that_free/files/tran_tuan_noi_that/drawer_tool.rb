@@ -404,6 +404,61 @@ module TranTuanNoiThat
           next if width > 3000.mm || height > 3000.mm || depth > 3000.mm
           [width * height * depth, container, us.minmax, vs.minmax, ds.minmax]
         end
+
+        # Trường hợp tủ được dựng bằng các tấm Group/Component riêng cùng cấp,
+        # không có Group cha: ghép bounds các tấm lân cận thành một khung khoang ảo.
+        # Ray nhận diện phía dưới vẫn kiểm tra mặt thật nên không coi khung bao là hình học.
+        leaf = chain.last
+        sibling_entities = begin
+          parent = leaf && leaf.parent
+          parent if parent.is_a?(Sketchup::Entities)
+        rescue StandardError
+          nil
+        end
+        if sibling_entities
+          nearby = sibling_entities.to_a.select do |entity|
+            next false unless entity.is_a?(Sketchup::Group) || entity.is_a?(Sketchup::ComponentInstance)
+            next false unless entity.valid?
+            bounds = entity.bounds
+            next false unless bounds && !bounds.empty?
+            px = [[hit_point.x, bounds.min.x].max, bounds.max.x].min
+            py = [[hit_point.y, bounds.min.y].max, bounds.max.y].min
+            pz = [[hit_point.z, bounds.min.z].max, bounds.max.z].min
+            hit_point.distance(Geom::Point3d.new(px, py, pz)) <= 2500.mm
+          rescue StandardError
+            false
+          end
+          if nearby.length >= 3
+            min_pt = Geom::Point3d.new(
+              nearby.map { |entity| entity.bounds.min.x }.min,
+              nearby.map { |entity| entity.bounds.min.y }.min,
+              nearby.map { |entity| entity.bounds.min.z }.min
+            )
+            max_pt = Geom::Point3d.new(
+              nearby.map { |entity| entity.bounds.max.x }.max,
+              nearby.map { |entity| entity.bounds.max.y }.max,
+              nearby.map { |entity| entity.bounds.max.z }.max
+            )
+            virtual_corners = (0..7).map do |index|
+              Geom::Point3d.new(
+                (index & 1).zero? ? min_pt.x : max_pt.x,
+                (index & 2).zero? ? min_pt.y : max_pt.y,
+                (index & 4).zero? ? min_pt.z : max_pt.z
+              )
+            end
+            rel = virtual_corners.map { |point| hit_point.vector_to(point) }
+            us = rel.map { |vector| vector.dot(horizontal) }
+            vs = rel.map { |vector| vector.dot(vertical) }
+            ds = rel.map { |vector| vector.dot(depth_axis) }
+            width = us.max - us.min
+            height = vs.max - vs.min
+            depth = ds.max - ds.min
+            if width > 100.mm && height > 100.mm && depth > 100.mm &&
+               width <= 3000.mm && height <= 3000.mm && depth <= 3000.mm
+              candidates << [width * height * depth, nil, us.minmax, vs.minmax, ds.minmax]
+            end
+          end
+        end
         # Thử lần lượt các Group/Component từ trong ra ngoài. Nếu Group nhỏ nhất
         # chỉ là vách/hậu hoặc khung phụ, tiếp tục thử Group cha thay vì bỏ cuộc.
         candidates.sort_by(&:first).each do |selected|
@@ -995,9 +1050,9 @@ module TranTuanNoiThat
         Sketchup.status_text = case @state
         when 0
           if @auto_hover_ready && valid_front?
-            "ĐÃ NHẬN DIỆN KHOANG | Rộng #{(@span_u.to_f / 1.mm).round(1)} × Cao #{(@span_v.to_f / 1.mm).round(1)} × Sâu #{(@depth_length.to_f / 1.mm).round(1)} mm | Group/Component: #{@auto_container ? @auto_container.name : 'đang chọn'} | Click tạo · rê sang khoang khác để đổi preview."
+            "ĐÃ NHẬN DIỆN KHOANG | Rộng #{(@span_u.to_f / 1.mm).round(1)} × Cao #{(@span_v.to_f / 1.mm).round(1)} × Sâu #{(@depth_length.to_f / 1.mm).round(1)} mm | Nguồn nhận diện: #{@auto_container ? @auto_container.name : 'các tấm Group/Component cùng cấp'} | Click tạo · rê sang khoang khác để đổi preview."
           else
-            'VẼ NGĂN KÉO: Rê chuột vào mặt/khoảng trống trong Group hoặc Component chứa khoang tủ. Khung xanh là vùng lòng được nhận diện; click để tạo, ESC thoát.'
+            'VẼ NGĂN KÉO: Rê chuột vào mặt tấm hoặc khoảng trống trong khoang tủ (hỗ trợ cả các tấm Group/Component riêng cùng cấp). Khung xanh là vùng lòng được nhận diện; click để tạo, ESC thoát.'
           end
         when 1
           @manual_mode ? 'BẮT 3 ĐIỂM: Click P2 xác định chiều ngang.' : 'Click P2 trên mặt tủ để khóa vùng và xem preview.'
