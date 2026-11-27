@@ -1,6 +1,6 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.379",
+  "version": "1.9.380",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "4b35e39ad7d0bc28502c8d1ce057aed3c9e8df72d8b1264e0ee14a6eb2826667"
+      "sha256": "85bb7342bcd893a39728ebfdd3335e444e4f4f6348dbcc7233929ed527b68722"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -39,7 +39,7 @@
     {
       "path": "tran_tuan_noi_that/drawer_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/drawer_tool.rb",
-      "sha256": "ff6dbe3b4101d24824849b9b3b0b42b4224206410f2465371536a1de44468a76"
+      "sha256": "8586686ec22c0692cfeff558d3e9bda28421f77e75f8f9c09a49fae3499b5f61"
     },
     {
       "path": "tran_tuan_noi_that/grain_align_fix.rb",
@@ -319,7 +319,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "4768d23c10ca30239f964196d4c091d953912cfa591f2ef4456149b5ad42f439"
+      "sha256": "528578a022c73dd8411717bb7ee989b38d0461a14341143817974db35855dc67"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -522,5 +522,5 @@
     "tran_tuan_noi_that/icons/edge_banding.svg",
     "tran_tuan_noi_that/icons/edge_band.svg"
   ],
-  "release_notes": "1.9.379: Tăng khả năng nhận diện lòng tủ khi rê chuột; thử lần lượt Group/Component lồng nhau thay vì dừng ở khung nhỏ nhất; thêm tùy chỉnh và dò độ dày tấm đáy khoang từ mặt trên đến mặt dưới."
+  "release_notes": "1.9.380: Sửa Cách đáy trong Vẽ Ngăn Kéo thành tịnh tiến toàn bộ hộc kéo lên theo phương đứng; giữ nguyên chiều cao, kích thước và vị trí tương đối của các tấm; Preview đường bao vẫn bám khoang tủ gốc."
 }
