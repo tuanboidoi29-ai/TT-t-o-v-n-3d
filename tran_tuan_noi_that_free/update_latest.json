@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.383",
+  "version": "1.9.384",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "1.9.383: Thanh chặn trên luôn tiếp xúc mặt dưới tấm nóc; giữ nguyên các thông số cách trên/cách dưới, trong đó cách trên vẫn áp dụng cho thanh chặn giữa.",
+  "notes": "1.9.384: Bỏ trường tùy chỉnh độ dày đáy khoang khỏi hộp cài đặt; đưa nút CHIA /2, /3, /4 ra trực tiếp vùng làm việc SketchUp, bấm là đổi số lượng và cập nhật Preview.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "6eb9b414e99e7740086b22ce9472c3f6e363d7947e9d9945fc2111e841edf809"
+      "sha256": "4dc5983c6d10dc5ac3fdf82c72dddfeeddb655f8eac9a73b5b297068d2d20932"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -39,7 +39,7 @@
     {
       "path": "tran_tuan_noi_that/drawer_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/drawer_tool.rb",
-      "sha256": "c8f7c777f9c507d60b1d891de510bf95088be350ff813cb07cbe3117e1ed1deb"
+      "sha256": "3dfc8b68602741052a00b3f34586e714036cc0378b44aff23cc7ab6fed7975e4"
     },
     {
       "path": "tran_tuan_noi_that/grain_align_fix.rb",
@@ -319,7 +319,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "aeffe1f0d5cee49e29ef63395c4c721b274731ab5fd8751145127c24a89857ae"
+      "sha256": "8ebe37ec88a99e9150f207fa66f912b89051c11e6d517c92a040039a5a07b1cd"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
