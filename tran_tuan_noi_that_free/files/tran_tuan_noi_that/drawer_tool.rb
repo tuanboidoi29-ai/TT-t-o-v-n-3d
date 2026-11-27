@@ -12,6 +12,7 @@ module TranTuanNoiThat
       'quantity' => 3, 'orientation' => 'vertical',
       'front_gap' => 10.0, 'bottom_mode' => 'cover',
       'bottom_thickness' => 9.0,
+      'cabinet_bottom_thickness' => 17.5,
       'side_thickness' => 17.5,
       'bottom_offset' => 0.0,
       'mark_contact' => false,
@@ -39,7 +40,7 @@ module TranTuanNoiThat
       @dialog = UI::HtmlDialog.new(
         dialog_title: 'TRẦN TUẤN - CÀI ĐẶT NGĂN KÉO',
         preferences_key: 'TranTuanNoiThat.Drawer', scrollable: true,
-        resizable: true, width: 500, height: 720,
+        resizable: true, width: 500, height: 760,
         style: UI::HtmlDialog::STYLE_DIALOG
       )
       @dialog.set_html(settings_html(tool.options))
@@ -75,7 +76,7 @@ module TranTuanNoiThat
       raise 'Kích thước tối đa phải lớn hơn 0.' unless data['max_size'].finite? && data['max_size'] > 0
       numeric = DEFAULTS.select { |key, value| value.is_a?(Numeric) }.keys
       raise 'Các thông số kích thước không được âm.' if numeric.any? { |key| !data[key].finite? || data[key] < 0 }
-      raise 'Độ dày tấm phải lớn hơn 0.' unless data['bottom_thickness'] > 0 && data['side_thickness'] > 0
+      raise 'Độ dày tấm phải lớn hơn 0.' unless data['bottom_thickness'] > 0 && data['cabinet_bottom_thickness'] > 0 && data['side_thickness'] > 0
       raise 'Chiều cao thanh phải lớn hơn 0.' unless data['side_height'] > 0
       data
     end
@@ -98,7 +99,8 @@ module TranTuanNoiThat
         <div class="note wide">Ngang: chia các ngăn cạnh nhau, thêm vách dày bằng thành. Dọc: chia các tầng. Chặn đặt phía trước trong khoảng trống; cao = khoảng trống − cách trên − cách dưới.</div>
         <div class="field"><label>Số lượng ngăn kéo</label><input id="quantity" type="number" min="1" max="50" step="1"></div>
         <div class="field"><label>Hở thanh trước (mm)</label><input id="front_gap" type="number" step="0.1"></div>
-        <div class="field"><label>Dày tấm đáy (mm)</label><input id="bottom_thickness" type="number" step="0.1"></div>
+        <div class="field"><label>Dày tấm đáy ngăn kéo (mm)</label><input id="bottom_thickness" type="number" min="1" step="0.1"></div>
+        <div class="field"><label>Độ dày đáy khoang tủ (mặt trên → mặt dưới, mm)</label><input id="cabinet_bottom_thickness" type="number" min="1" step="0.1"></div>
         <div class="field"><label>Dày thanh (mm)</label><input id="side_thickness" type="number" step="0.1"></div>
         <div class="field"><label>Cách đáy hộc kéo (mm)</label><input id="bottom_offset" type="number" min="0" step="0.1"></div>
         <div class="field wide"><label>Chiều sâu dự phòng khi không dò thấy hậu (mm)</label><input id="fallback_depth" type="number" step="0.1"></div>
@@ -115,7 +117,7 @@ module TranTuanNoiThat
         document.getElementById('mark_contact').checked=initial.mark_contact===true||initial.mark_contact==='true';
         document.getElementById('reverse_depth').checked=initial.reverse_depth===true||initial.reverse_depth==='true';
         function value(id){return document.getElementById(id).value}
-        function applyNow(){const data={};['division_mode','max_size','stop_top_gap','stop_bottom_gap','side_height','rail_gap','back_clearance','quantity','front_gap','bottom_thickness','side_thickness','fallback_depth'].forEach(k=>data[k]=value(k));['middle_stop','top_stop'].forEach(k=>data[k]=document.getElementById(k).checked);data.orientation=document.querySelector('input[name=orientation]:checked').value;data.bottom_mode=document.querySelector('input[name=bottom_mode]:checked').value;data.mark_contact=document.getElementById('mark_contact').checked;data.reverse_depth=document.getElementById('reverse_depth').checked;data.bottom_offset=value('bottom_offset');sketchup.apply(JSON.stringify(data))}
+        function applyNow(){const data={};['division_mode','max_size','stop_top_gap','stop_bottom_gap','side_height','rail_gap','back_clearance','quantity','front_gap','bottom_thickness','cabinet_bottom_thickness','side_thickness','fallback_depth'].forEach(k=>data[k]=value(k));['middle_stop','top_stop'].forEach(k=>data[k]=document.getElementById(k).checked);data.orientation=document.querySelector('input[name=orientation]:checked').value;data.bottom_mode=document.querySelector('input[name=bottom_mode]:checked').value;data.mark_contact=document.getElementById('mark_contact').checked;data.reverse_depth=document.getElementById('reverse_depth').checked;data.bottom_offset=value('bottom_offset');sketchup.apply(JSON.stringify(data))}
         function syncContact(){const custom=document.querySelector('input[name=bottom_mode]:checked').value==='custom';const mark=document.getElementById('mark_contact');mark.disabled=!custom;if(!custom)mark.checked=false;applyNow()}
         document.querySelectorAll('input[name=bottom_mode]').forEach(el=>el.addEventListener('change',syncContact));
         document.getElementById('mark_contact').addEventListener('change',applyNow);
@@ -398,58 +400,59 @@ module TranTuanNoiThat
           next if width > 3000.mm || height > 3000.mm || depth > 3000.mm
           [width * height * depth, container, us.minmax, vs.minmax, ds.minmax]
         end
-        selected = candidates.min_by(&:first)
-        return false unless selected
+        # Thử lần lượt các Group/Component từ trong ra ngoài. Nếu Group nhỏ nhất
+        # chỉ là vách/hậu hoặc khung phụ, tiếp tục thử Group cha thay vì bỏ cuộc.
+        candidates.sort_by(&:first).each do |selected|
+          _volume, selected_container, u_range, v_range, d_range = selected
+          wall = @options['side_thickness'].mm
+          u0 = u_range[0] + wall
+          u1 = u_range[1] - wall
+          v0 = v_range[0] + wall
+          v1 = v_range[1] - wall
+          front_d = d_range[0] + wall
+          rear_d = d_range[1] - wall
+          depth = rear_d - front_d
+          next unless u1 - u0 > 100.mm && v1 - v0 > 100.mm && depth > 100.mm
 
-        _volume, selected_container, u_range, v_range, d_range = selected
-        wall = @options['side_thickness'].mm
-        u0 = u_range[0] + wall
-        u1 = u_range[1] - wall
-        v0 = v_range[0] + wall
-        v1 = v_range[1] - wall
-        front_d = d_range[0] + wall
-        rear_d = d_range[1] - wall
-        depth = rear_d - front_d
-        return false unless u1 - u0 > 100.mm && v1 - v0 > 100.mm && depth > 100.mm
+          @axis_u = horizontal
+          @axis_v = vertical
+          @surface_normal = normal
+          if @options['reverse_depth']
+            @depth_axis = depth_axis.reverse
+            @origin = hit_point.offset(horizontal, u0).offset(vertical, v0).offset(depth_axis, rear_d)
+          else
+            @depth_axis = depth_axis
+            @origin = hit_point.offset(horizontal, u0).offset(vertical, v0).offset(depth_axis, front_d)
+          end
+          @span_u = u1 - u0
+          @span_v = v1 - v0
+          @depth_length = depth
+          @rear_detected = true
+          @manual_mode = false
+          @auto_container = selected_container
 
-        @axis_u = horizontal
-        @axis_v = vertical
-        @surface_normal = normal
-        if @options['reverse_depth']
-          @depth_axis = depth_axis.reverse
-          @origin = hit_point.offset(horizontal, u0).offset(vertical, v0).offset(depth_axis, rear_d)
-        else
-          @depth_axis = depth_axis
-          @origin = hit_point.offset(horizontal, u0).offset(vertical, v0).offset(depth_axis, front_d)
+          # Đo bề rộng bằng mặt vách thật, không dùng kích thước bao Group.
+          measured = measure_cavity_width
+          next unless measured
+          left_u, right_u = measured
+          @origin = @origin.offset(@axis_u, left_u)
+          @span_u = right_u - left_u
+          next unless @span_u > 100.mm
+
+          @recognition_result = recognize_drawer_structure
+          next unless @recognition_result && @recognition_result[:sides] && @recognition_result[:top]
+
+          # Khe hở nâng đáy ngăn kéo tính từ mặt trên tấm đáy khoang.
+          bottom_offset = @options['bottom_offset'].to_f.mm
+          next if bottom_offset >= @span_v - 20.mm
+          if bottom_offset > 0
+            @origin = @origin.offset(@axis_v, bottom_offset)
+            @span_v -= bottom_offset
+            @recognition_result[:label] = "#{@recognition_result[:label]} | hở đáy #{bottom_offset.to_mm.round(1)} mm"
+          end
+          return true
         end
-        @span_u = u1 - u0
-        @span_v = v1 - v0
-        @depth_length = depth
-        @rear_detected = true
-        @manual_mode = false
-        @auto_container = selected_container
-        # Đo bề rộng lòng tủ trái-phải bằng tia dò vào hình học thật.
-        # Quét tại nhiều độ sâu để tránh phụ thuộc khung bao Group/Component bọc ngoài.
-        measured = measure_cavity_width
-        return false unless measured
-        left_u, right_u = measured
-        @origin = @origin.offset(@axis_u, left_u)
-        @span_u = right_u - left_u
-        return false unless @span_u > 100.mm
-
-        @recognition_result = recognize_drawer_structure
-        return false unless @recognition_result &&
-          @recognition_result[:sides] && @recognition_result[:top]
-
-        # Khe hở điều chỉnh từ đáy khoang lên đáy hộc kéo.
-        bottom_offset = @options['bottom_offset'].to_f.mm
-        return false if bottom_offset >= @span_v - 20.mm
-        if bottom_offset > 0
-          @origin = @origin.offset(@axis_v, bottom_offset)
-          @span_v -= bottom_offset
-          @recognition_result[:label] = "#{@recognition_result[:label]} | cách đáy #{bottom_offset.to_mm.round(1)} mm"
-        end
-        true
+        false
       rescue StandardError => error
         puts "[TT Drawer hover detect] #{error.class}: #{error.message}"
         false
@@ -695,6 +698,20 @@ module TranTuanNoiThat
               @origin = @origin.offset(@axis_v, bottom_z)
               @span_v = usable_height
               result[:reference] = :bottom_panel
+
+              # Dùng độ dày đáy khoang do người dùng cài để dò ngược mặt dưới.
+              # Điểm dò đặt thấp hơn mặt dưới dự kiến 2 mm rồi bắn tia lên.
+              configured_mm = @options['cabinet_bottom_thickness'].to_f
+              probe_start = bottom_hit[:point].offset(@axis_v, -(configured_mm.mm + 4.mm))
+              underside = recognition_ray(probe_start, @axis_v, 1)
+              if recognition_parallel?(underside, @axis_v)
+                measured_mm = bottom_hit[:point].distance(underside[:point]).to_mm
+                result[:bottom_panel_thickness_mm] = measured_mm.round(1)
+                result[:bottom_panel_thickness_match] = (measured_mm - configured_mm).abs <= 3.0
+              else
+                result[:bottom_panel_thickness_mm] = configured_mm
+                result[:bottom_panel_thickness_match] = false
+              end
             end
           end
         end
@@ -723,7 +740,8 @@ module TranTuanNoiThat
                          when 4 then 'Nhận diện 2 hồi + đỉnh + xà đáy + xà sau'
                          else 'Chưa đủ mặt để xác nhận ngăn kéo'
                          end
-        result[:label] += ' | lấy đáy làm mốc' if result[:reference] == :bottom_panel
+        result[:label] += ' | lấy mặt trên đáy làm mốc' if result[:reference] == :bottom_panel
+        result[:label] += " | dày đáy khoang #{result[:bottom_panel_thickness_mm]} mm" if result[:bottom_panel_thickness_mm]
         result[:label] += ' | khung hồi làm mốc' if result[:reference] == :side_pair && result[:bottom]
         result
       rescue StandardError => error
