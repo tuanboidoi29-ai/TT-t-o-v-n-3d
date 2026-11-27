@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.382",
+  "version": "1.9.383",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "1.9.379: Tăng khả năng nhận diện lòng tủ khi rê chuột; thử lần lượt Group/Component lồng nhau thay vì dừng ở khung nhỏ nhất; thêm tùy chỉnh và dò độ dày tấm đáy khoang từ mặt trên đến mặt dưới.",
+  "notes": "1.9.383: Thanh chặn trên luôn tiếp xúc mặt dưới tấm nóc; giữ nguyên các thông số cách trên/cách dưới, trong đó cách trên vẫn áp dụng cho thanh chặn giữa.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "dc2ab5e1af5c6a36b742014be6222593b85010fb4587380589670913f1cda87a"
+      "sha256": "6eb9b414e99e7740086b22ce9472c3f6e363d7947e9d9945fc2111e841edf809"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -39,7 +39,7 @@
     {
       "path": "tran_tuan_noi_that/drawer_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/drawer_tool.rb",
-      "sha256": "5e9187581e095627bb116722ca4dd593600dd16b6d6499d93423b4823126066d"
+      "sha256": "c8f7c777f9c507d60b1d891de510bf95088be350ff813cb07cbe3117e1ed1deb"
     },
     {
       "path": "tran_tuan_noi_that/grain_align_fix.rb",
@@ -319,7 +319,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "2914bc5727a0570336cb82f82f8f8d39ba58244ffc93a90d7b5ba810f413fd87"
+      "sha256": "aeffe1f0d5cee49e29ef63395c4c721b274731ab5fd8751145127c24a89857ae"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
