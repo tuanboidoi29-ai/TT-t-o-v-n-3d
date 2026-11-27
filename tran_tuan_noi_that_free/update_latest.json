@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.376",
+  "version": "1.9.377",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "1.9.376: Sửa nhận diện khoang Vẽ Ngăn Kéo bằng tia nhìn tại vị trí con trỏ; lấy mặt và đường dẫn Group/Component từ raytest, chỉ xác nhận khi dò được hai hồi và mặt đỉnh thực.",
+  "notes": "1.9.377: Bổ sung đo bề rộng lòng tủ trái-phải bằng ray hình học xuyên Group/Component lồng nhau; thêm thông số điều chỉnh cách đáy hộc kéo.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "8eef28ac84a7cba8824c2d240d2896711a853884d44cc3f9024a45372a6ad404"
+      "sha256": "d43269ef0870082dc0c2d0c479a7d90db67a96c8dc3762e653c7c983abb48504"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -39,7 +39,7 @@
     {
       "path": "tran_tuan_noi_that/drawer_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/drawer_tool.rb",
-      "sha256": "9a17e6daa782b363895b7d43290eaed9b4c930c76eb414aa062252486393699a"
+      "sha256": "b52e70cd1da62d45361cdb4e4a54692208c7d6c558c9f9d493abf89b3a88a22f"
     },
     {
       "path": "tran_tuan_noi_that/grain_align_fix.rb",
@@ -319,7 +319,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "4f91411fdb411fca0f2af42bc58fb81201d68825d719703291d8b4ae54ef88a5"
+      "sha256": "5f1713b2d064a6a72ef6b7f9cfd4538dcceee6e07a5a9bdead6d4790a9ec0451"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -522,5 +522,5 @@
     "tran_tuan_noi_that/icons/edge_banding.svg",
     "tran_tuan_noi_that/icons/edge_band.svg"
   ],
-  "release_notes": "1.9.376: Sửa nhận diện khoang Vẽ Ngăn Kéo bằng tia nhìn tại vị trí con trỏ; lấy mặt và đường dẫn Group/Component từ raytest, chỉ xác nhận khi dò được hai hồi và mặt đỉnh thực."
+  "release_notes": "1.9.377: Bổ sung đo bề rộng lòng tủ trái-phải bằng ray hình học xuyên Group/Component lồng nhau; thêm thông số điều chỉnh cách đáy hộc kéo."
 }
