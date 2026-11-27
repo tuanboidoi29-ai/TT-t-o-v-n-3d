@@ -174,7 +174,7 @@ module TranTuanNoiThat
       def onMouseMove(_flags, x, y, view)
         if @state.zero?
           @ip.pick(view, x, y)
-          if @ip.valid? && auto_detect_cavity(view)
+          if auto_detect_cavity(view, x, y)
             @auto_hover_ready = true
           else
             @auto_hover_ready = false
@@ -203,8 +203,7 @@ module TranTuanNoiThat
       def onLButtonDown(_flags, x, y, view)
         if @state.zero?
           @ip.pick(view, x, y)
-          return UI.beep unless @ip.valid?
-          if auto_detect_cavity(view)
+          if auto_detect_cavity(view, x, y)
             @auto_hover_ready = true
             return UI.beep unless valid_front? && !preview_parts.empty?
             create_drawers
@@ -212,6 +211,7 @@ module TranTuanNoiThat
             view.invalidate
             return
           end
+          return UI.beep unless @ip.valid?
           @ip1.copy!(@ip)
           @p1 = @ip.position
           # Fallback: giữ quy trình 3 điểm cho hình học không nằm trong Group/Component.
@@ -321,17 +321,51 @@ module TranTuanNoiThat
 
       # Nhận diện lòng tủ khi rê chuột vào khoảng trống. Ray chuột thường chạm
       # mặt hậu; dùng Group/Component bao ngoài làm khung giới hạn và mặt hậu làm mốc sâu.
-      def auto_detect_cavity(view)
-        face = @ip.face
-        return false unless face
-        path = @ip.instance_path
-        chain = path.respond_to?(:to_a) ? path.to_a : []
-        containers = chain.reverse.select do |entity|
-          entity.is_a?(Sketchup::Group) || entity.is_a?(Sketchup::ComponentInstance)
+      # Nhận diện khoang bằng tia nhìn tại đúng tọa độ con trỏ.
+      # Không phụ thuộc duy nhất vào InputPoint vì con trỏ thường nằm trên khoảng trống.
+      def auto_detect_cavity(view, x = nil, y = nil)
+        hit_point = nil
+        face = nil
+        transform = nil
+        chain = []
+
+        if !x.nil? && !y.nil?
+          begin
+            ray = view.pickray(x, y)
+            hit = Sketchup.active_model.raytest(ray, true)
+            if hit && hit[0].is_a?(Geom::Point3d)
+              hit_point = hit[0]
+              path = hit[1]
+              if path.respond_to?(:to_a)
+                entities = path.to_a
+                face = entities.reverse.find { |entity| entity.is_a?(Sketchup::Face) }
+                chain = entities.select do |entity|
+                  entity.is_a?(Sketchup::Group) || entity.is_a?(Sketchup::ComponentInstance)
+                end
+                transform = Sketchup::InstancePath.new(entities).transformation if face
+              end
+            end
+          rescue StandardError
+            hit_point = face = transform = nil
+            chain = []
+          end
         end
+
+        if !face && @ip.valid? && @ip.face
+          face = @ip.face
+          hit_point = @ip.position
+          path = @ip.instance_path
+          chain = path.respond_to?(:to_a) ? path.to_a.select do |entity|
+            entity.is_a?(Sketchup::Group) || entity.is_a?(Sketchup::ComponentInstance)
+          end : []
+          transform = @ip.transformation
+        end
+
+        return false unless face && hit_point && transform
+        containers = chain.reverse
         return false if containers.empty?
 
-        normal = face.normal.transform(@ip.transformation)
+        normal = face.normal.transform(transform)
         return false unless normal.valid? && normal.length > 0.001
         normal.normalize!
         toward_camera = view.camera.direction.reverse
@@ -347,7 +381,6 @@ module TranTuanNoiThat
         return false if horizontal.length < 0.01
         horizontal.normalize!
 
-        hit_point = @ip.position
         candidates = containers.filter_map do |container|
           bounds = container.bounds
           next unless bounds && !bounds.empty?
@@ -361,8 +394,6 @@ module TranTuanNoiThat
           depth = ds.max - ds.min
           next unless width > 100.mm && height > 100.mm && depth > 100.mm
           next if width > 3000.mm || height > 3000.mm || depth > 3000.mm
-          # Ưu tiên vùng Group/Component nhỏ nhất chứa điểm rê chuột.
-          # Giữ đúng instance đã chọn để tránh lấy nhầm Group cha ở cấp ngoài.
           [width * height * depth, container, us.minmax, vs.minmax, ds.minmax]
         end
         selected = candidates.min_by(&:first)
@@ -370,13 +401,11 @@ module TranTuanNoiThat
 
         _volume, selected_container, u_range, v_range, d_range = selected
         wall = @options['side_thickness'].mm
-        # Trừ bề dày vách ở hai bên và trên/dưới để lấy kích thước lòng thực.
         u0 = u_range[0] + wall
         u1 = u_range[1] - wall
         v0 = v_range[0] + wall
         v1 = v_range[1] - wall
         front_d = d_range[0] + wall
-        # Điểm InputPoint nằm trên mặt hậu; khoảng sâu được chiếu theo bounds.
         rear_d = d_range[1] - wall
         depth = rear_d - front_d
         return false unless u1 - u0 > 100.mm && v1 - v0 > 100.mm && depth > 100.mm
@@ -398,6 +427,8 @@ module TranTuanNoiThat
         @manual_mode = false
         @auto_container = selected_container
         @recognition_result = recognize_drawer_structure
+        return false unless @recognition_result &&
+          @recognition_result[:sides] && @recognition_result[:top]
         true
       rescue StandardError => error
         puts "[TT Drawer hover detect] #{error.class}: #{error.message}"
