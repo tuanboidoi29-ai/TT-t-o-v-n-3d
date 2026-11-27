@@ -1,6 +1,6 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.380",
+  "version": "1.9.381",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "85bb7342bcd893a39728ebfdd3335e444e4f4f6348dbcc7233929ed527b68722"
+      "sha256": "29e5a8d5b6514a44926c9c043a45715e4efdcfdb1bc9c400be1e6cc3c44f4405"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -39,7 +39,7 @@
     {
       "path": "tran_tuan_noi_that/drawer_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/drawer_tool.rb",
-      "sha256": "8586686ec22c0692cfeff558d3e9bda28421f77e75f8f9c09a49fae3499b5f61"
+      "sha256": "5418598127c49080e6f3b6eec274640bcd4a086352d3d0008e7bfc142b8d215b"
     },
     {
       "path": "tran_tuan_noi_that/grain_align_fix.rb",
@@ -319,7 +319,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "528578a022c73dd8411717bb7ee989b38d0461a14341143817974db35855dc67"
+      "sha256": "86315a4b67fb6e80527710360a086921c40044f11bc41c5ba6b155c49db18d39"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -522,5 +522,5 @@
     "tran_tuan_noi_that/icons/edge_banding.svg",
     "tran_tuan_noi_that/icons/edge_band.svg"
   ],
-  "release_notes": "1.9.380: Sửa Cách đáy trong Vẽ Ngăn Kéo thành tịnh tiến toàn bộ hộc kéo lên theo phương đứng; giữ nguyên chiều cao, kích thước và vị trí tương đối của các tấm; Preview đường bao vẫn bám khoang tủ gốc."
+  "release_notes": "1.9.381: Bổ sung nhận diện khoang tủ khi các tấm vách/đáy/nóc/hậu là Group hoặc Component riêng cùng cấp, không cần Group cha; ghép bounds các tấm lân cận thành khung khoang ảo và xác nhận bằng tia quét mặt hình học thật."
 }
