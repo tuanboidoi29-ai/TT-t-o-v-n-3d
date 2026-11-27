@@ -1,10 +1,10 @@
 {
   "name": "TRẦN TUẤN NỘI THẤT",
-  "version": "1.9.378",
+  "version": "1.9.379",
   "edition": "no_license",
   "license_required": false,
   "channel": "stable",
-  "notes": "1.9.378: Sửa lỗi lưu thông số cách đáy hộc kéo từ giao diện cài đặt; đồng bộ phiên bản bootstrap và Extension.",
+  "notes": "1.9.379: Tăng khả năng nhận diện lòng tủ khi rê chuột; thử lần lượt Group/Component lồng nhau thay vì dừng ở khung nhỏ nhất; thêm tùy chỉnh và dò độ dày tấm đáy khoang từ mặt trên đến mặt dưới.",
   "files": [
     {
       "path": "tran_tuan_noi_that/bao_gia_tool.rb",
@@ -19,7 +19,7 @@
     {
       "path": "tran_tuan_noi_that/bootstrap.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/bootstrap.rb",
-      "sha256": "2c44cb88c7628fe62472791663871839619558d4989a31b700d8b0839441be15"
+      "sha256": "4b35e39ad7d0bc28502c8d1ce057aed3c9e8df72d8b1264e0ee14a6eb2826667"
     },
     {
       "path": "tran_tuan_noi_that/box_tool.rb",
@@ -39,7 +39,7 @@
     {
       "path": "tran_tuan_noi_that/drawer_tool.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/tran_tuan_noi_that/drawer_tool.rb",
-      "sha256": "b8854fc1e2f82918ebb36d3ae3f223eb511b56bd43adbb52ef27aea41c250821"
+      "sha256": "ff6dbe3b4101d24824849b9b3b0b42b4224206410f2465371536a1de44468a76"
     },
     {
       "path": "tran_tuan_noi_that/grain_align_fix.rb",
@@ -319,7 +319,7 @@
     {
       "path": "TranTuanNoiThat.rb",
       "url": "https://raw.githubusercontent.com/tuanboidoi29-ai/TT-t-o-v-n-3d/main/tran_tuan_noi_that_free/files/TranTuanNoiThat.rb",
-      "sha256": "f5f85484674d17df4f4b2153b87292bd8caba43467e5b9b3f2f873774ab49238"
+      "sha256": "4768d23c10ca30239f964196d4c091d953912cfa591f2ef4456149b5ad42f439"
     },
     {
       "path": "TT_TranTuan_UpdateLoader.rb",
@@ -522,5 +522,5 @@
     "tran_tuan_noi_that/icons/edge_banding.svg",
     "tran_tuan_noi_that/icons/edge_band.svg"
   ],
-  "release_notes": "1.9.378: Sửa lỗi lưu thông số cách đáy hộc kéo từ giao diện cài đặt; đồng bộ phiên bản bootstrap và Extension."
+  "release_notes": "1.9.379: Tăng khả năng nhận diện lòng tủ khi rê chuột; thử lần lượt Group/Component lồng nhau thay vì dừng ở khung nhỏ nhất; thêm tùy chỉnh và dò độ dày tấm đáy khoang từ mặt trên đến mặt dưới."
 }
